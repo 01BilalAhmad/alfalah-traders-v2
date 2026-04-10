@@ -17,11 +17,14 @@ import {
 import {
   AreaChart,
   Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from 'recharts';
 import {
   Home,
@@ -177,60 +180,71 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Home className="h-5 w-5 text-primary" />
-          Dashboard
-        </h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Overview for {new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </p>
+      {/* Welcome Banner */}
+      <div className="alfalah-gradient rounded-xl p-5 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/4" />
+        <div className="absolute bottom-0 left-1/2 w-24 h-24 rounded-full bg-white/5 translate-y-1/2" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-1">
+            <Home className="h-5 w-5 text-blue-200" />
+            <h2 className="text-lg font-bold">Welcome back, {user?.name?.split(' ')[0] || 'Admin'}</h2>
+          </div>
+          <p className="text-sm text-blue-200">
+            {new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {' · '}
+            {data.totalShops} shops across {data.orderbookers.length} orderbookers
+          </p>
+        </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="alfalah-card-hover">
+        <Card className="kpi-card alfalah-card-hover">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="h-8 w-8 rounded-lg bg-amber-50 flex items-center justify-center">
-                <ArrowUpRight className="h-4 w-4 text-amber-600" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center shadow-sm">
+                <ArrowUpRight className="h-5 w-5 text-amber-600" />
               </div>
+              <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
             </div>
-            <p className="text-xs text-muted-foreground font-medium">Today&apos;s Credit</p>
-            <p className="text-xl font-bold text-amber-600 animate-live-pulse">{formatCurrency(data.todayCredit)}</p>
+            <p className="text-xs text-muted-foreground font-medium mb-0.5">Today&apos;s Credit</p>
+            <p className="text-2xl font-bold text-amber-600 tabular-nums">{formatCurrency(data.todayCredit)}</p>
           </CardContent>
         </Card>
-        <Card className="alfalah-card-hover">
+        <Card className="kpi-card alfalah-card-hover">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="h-8 w-8 rounded-lg bg-green-50 flex items-center justify-center">
-                <ArrowDownRight className="h-4 w-4 text-green-600" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 flex items-center justify-center shadow-sm">
+                <ArrowDownRight className="h-5 w-5 text-green-600" />
               </div>
+              <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
             </div>
-            <p className="text-xs text-muted-foreground font-medium">Today&apos;s Recovery</p>
-            <p className="text-xl font-bold text-green-600 animate-live-pulse">{formatCurrency(data.todayRecovery)}</p>
+            <p className="text-xs text-muted-foreground font-medium mb-0.5">Today&apos;s Recovery</p>
+            <p className="text-2xl font-bold text-green-600 tabular-nums">{formatCurrency(data.todayRecovery)}</p>
           </CardContent>
         </Card>
-        <Card className="alfalah-card-hover">
+        <Card className="kpi-card alfalah-card-hover">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="h-8 w-8 rounded-lg bg-red-50 flex items-center justify-center">
-                <Wallet className="h-4 w-4 text-red-600" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-100 to-red-50 flex items-center justify-center shadow-sm">
+                <Wallet className="h-5 w-5 text-red-600" />
               </div>
+              <span className="text-[10px] text-red-500 font-medium bg-red-50 px-2 py-0.5 rounded-full">Alert</span>
             </div>
-            <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
-            <p className="text-xl font-bold text-red-600 animate-live-pulse">{formatCurrency(data.totalOutstanding)}</p>
+            <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Outstanding</p>
+            <p className="text-2xl font-bold text-red-600 tabular-nums">{formatCurrency(data.totalOutstanding)}</p>
           </CardContent>
         </Card>
-        <Card className="alfalah-card-hover">
+        <Card className="kpi-card alfalah-card-hover">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                <Store className="h-4 w-4 text-blue-600" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center shadow-sm">
+                <Store className="h-5 w-5 text-blue-600" />
               </div>
+              <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">All</span>
             </div>
-            <p className="text-xs text-muted-foreground font-medium">Total Active Shops</p>
-            <p className="text-xl font-bold">{data.totalShops}</p>
+            <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Active Shops</p>
+            <p className="text-2xl font-bold tabular-nums">{data.totalShops}</p>
           </CardContent>
         </Card>
       </div>
@@ -239,26 +253,32 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-3 gap-3">
         <Button
           variant="outline"
-          className="h-auto py-3 px-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/30 transition-all"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group"
           onClick={() => setCurrentView('admin-credit')}
         >
-          <CreditCard className="h-5 w-5 text-primary" />
+          <div className="h-9 w-9 rounded-lg bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
+            <CreditCard className="h-5 w-5 text-amber-600" />
+          </div>
           <span className="text-xs font-medium">Post Credit</span>
         </Button>
         <Button
           variant="outline"
-          className="h-auto py-3 px-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/30 transition-all"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group"
           onClick={() => setCurrentView('admin-recovery')}
         >
-          <TrendingUp className="h-5 w-5 text-primary" />
+          <div className="h-9 w-9 rounded-lg bg-green-50 flex items-center justify-center group-hover:bg-green-100 transition-colors">
+            <TrendingUp className="h-5 w-5 text-green-600" />
+          </div>
           <span className="text-xs font-medium">Recovery Report</span>
         </Button>
         <Button
           variant="outline"
-          className="h-auto py-3 px-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/30 transition-all"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group"
           onClick={() => setCurrentView('admin-shops')}
         >
-          <Plus className="h-5 w-5 text-primary" />
+          <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+            <Plus className="h-5 w-5 text-blue-600" />
+          </div>
           <span className="text-xs font-medium">Add Shop</span>
         </Button>
       </div>
@@ -350,6 +370,102 @@ export default function AdminDashboard() {
               <span className="text-xs text-muted-foreground">Recovery</span>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Orderbooker Performance Chart */}
+      <Card className="alfalah-card-hover">
+        <CardHeader className="pb-2 pt-4 px-5">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            Orderbooker Performance
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-5">
+          {data.orderbookers.length > 0 ? (
+            <div className="h-60 sm:h-[240px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.orderbookers} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="outstandingGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0.5} />
+                    </linearGradient>
+                    <linearGradient id="shopsGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.5} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: '#64748B' }}
+                    axisLine={{ stroke: '#E2E8F0' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 11, fill: '#64748B' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(value: number) =>
+                      value >= 1000 ? `${(value / 1000).toFixed(0)}k` : String(value)
+                    }
+                    label={{ value: 'Rs.', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#94A3B8' }, offset: 0 }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 11, fill: '#64748B' }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                    label={{ value: 'Shops', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: '#94A3B8' }, offset: 0 }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid #E2E8F0',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                      fontSize: '12px',
+                    }}
+                    formatter={(value: number, name: string) => {
+                      if (name === 'Total Outstanding') return [`Rs. ${value.toLocaleString('en-PK', { maximumFractionDigits: 0 })}`, 'Total Outstanding'];
+                      return [value, 'Total Shops'];
+                    }}
+                    labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                  />
+                  <Legend
+                    verticalAlign="top"
+                    height={28}
+                    iconType="circle"
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: '12px' }}
+                  />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="totalOutstanding"
+                    name="Total Outstanding"
+                    fill="url(#outstandingGradient)"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={48}
+                  />
+                  <Bar
+                    yAxisId="right"
+                    dataKey="totalShops"
+                    name="Total Shops"
+                    fill="url(#shopsGradient)"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={48}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-60 sm:h-[240px] flex items-center justify-center text-sm text-muted-foreground">
+              No orderbooker data available
+            </div>
+          )}
         </CardContent>
       </Card>
 

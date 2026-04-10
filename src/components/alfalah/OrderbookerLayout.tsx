@@ -23,7 +23,6 @@ import {
   Navigation,
   ExternalLink,
   CheckCircle,
-  AnimatePresence,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -405,6 +404,22 @@ function RecoveryDialog({
                   min="1"
                   autoFocus
                 />
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {[500, 1000, 2000, 5000, 10000].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setAmount(String(preset))}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                        amount === String(preset)
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      }`}
+                    >
+                      Rs. {preset.toLocaleString('en-PK')}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>

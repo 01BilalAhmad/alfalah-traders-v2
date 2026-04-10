@@ -19,8 +19,12 @@ import {
   X,
   ChevronRight,
   Loader2,
+  Search,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { ThemeToggle } from './ThemeToggle';
+import NotificationPanel from './NotificationPanel';
+import GlobalSearch from './GlobalSearch';
 
 interface NavItem {
   id: string;
@@ -98,6 +102,23 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {/* Global Search Button */}
+          <button
+            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
+            className="hidden md:flex items-center gap-2 h-8 px-3 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-blue-100 hover:text-white text-xs font-medium transition-all duration-150"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">Search</span>
+            <kbd className="hidden lg:inline-flex h-4 items-center rounded border border-white/20 bg-white/10 px-1 font-mono text-[10px] leading-none">
+              ⌘K
+            </kbd>
+          </button>
+          <button
+            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
+            className="md:hidden h-8 w-8 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-blue-100 hover:text-white flex items-center justify-center transition-all duration-150"
+          >
+            <Search className="h-4 w-4" />
+          </button>
           <div className="hidden sm:flex items-center gap-2 text-sm text-blue-100">
             <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold text-white">
               {user.name.charAt(0).toUpperCase()}
@@ -107,6 +128,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <p className="text-[10px] text-blue-200 leading-tight">Administrator</p>
             </div>
           </div>
+          <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
+          <ThemeToggle />
+          <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
+          <NotificationPanel />
           <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
           <Button
             variant="ghost"
@@ -215,6 +240,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <span>&copy; {new Date().getFullYear()} Al-Falah Traders. All rights reserved.</span>
         <span>Smart Credit &amp; Route Management v1.0</span>
       </footer>
+
+      {/* Global Search Overlay */}
+      <GlobalSearch />
     </div>
   );
 }
