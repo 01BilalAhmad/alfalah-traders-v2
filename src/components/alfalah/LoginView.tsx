@@ -245,6 +245,9 @@ export default function LoginView() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     autoComplete="username"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     className="h-11 input-enhanced focus-glow"
                     autoFocus
                   />
@@ -260,6 +263,9 @@ export default function LoginView() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       autoComplete="current-password"
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       className="h-11 pr-10 input-enhanced focus-glow"
                     />
                     <button
