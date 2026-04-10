@@ -3461,3 +3461,63 @@ Stage Summary:
 - 1 new feature: OB Performance Summary cards on Dashboard
 - System is stable with no known bugs
 - Login: AL-FALAH TRADER / @AFE@123654 (Admin)
+
+---
+Task ID: 8
+Agent: Main Agent (Session Continuation)
+Task: Fix login issue + Add Forgot Password feature + Styling improvements
+
+Work Log:
+- Analyzed user's screenshot showing "Invalid credentials" error on login
+- Identified root cause: Database had username `al-falah trader` but user typed `AL-FALAH TRADERS` (with 'S')
+  - Previous session's "Remember Me" feature saved the wrong username
+  - API normalizes to lowercase: `al-falah traders` vs DB's `al-falah trader`
+- Fixed by updating DB username from `al-falah trader` to `al-falah traders`
+- Verified password hash matches `@AFE@123654` (bcrypt compare returned true)
+- Verified all logins work: admin, ahmed, bilal
+
+### Feature: Forgot Password Flow
+- Created `/src/app/api/auth/reset-password/route.ts`:
+  - POST endpoint accepting username, newPassword, confirmPassword
+  - Validates: all fields required, passwords match, min 6 chars
+  - Checks user exists and is active
+  - Hashes new password with bcrypt (10 rounds)
+  - Returns success with user info
+- Updated `/src/components/alfalah/LoginView.tsx`:
+  - Added 3 view modes: login, forgot-password, reset-success
+  - Forgot Password view: username field, new password, confirm password
+  - Password strength indicator (weak/medium/strong) with visual bar
+  - Password requirements checklist (6+ chars, uppercase, number)
+  - Real-time password match indicator (green check / red warning)
+  - Back to login navigation with smooth arrow animation
+  - Reset success view with animated ShieldCheck icon
+  - "Sign In Now" button auto-populates username from reset form
+  - Clickable "Forgot Password?" link replaces old disabled cursor-default version
+
+### Verification:
+- `bun run lint` passes cleanly (zero errors)
+- Dev server compiles without issues
+- Login API tested: admin, ahmed, bilal all return OK
+- Reset password API tested: 3 validation scenarios all pass
+  - Nonexistent user → "No account found with this username" (404)
+  - Short password → "Password must be at least 6 characters long" (400)
+  - Mismatched passwords → "Passwords do not match" (400)
+- 15-minute cron job created (job ID: 77925)
+
+Stage Summary:
+- Login fixed: username `al-falah traders` (with 's') now matches in DB
+- Complete Forgot Password flow implemented with:
+  - Server-side API with validation and bcrypt hashing
+  - Client-side 3-view flow (login → forgot → success)
+  - Password strength indicator with visual feedback
+  - Real-time match/mismatch validation
+  - Smooth transitions between views
+- Admin credentials confirmed: Username `AL-FALAH TRADERS`, Password `@AFE@123654`
+- All existing features preserved and working
+- System stable, no regressions
+
+### Current Project Status:
+- 16+ components, 8+ API routes, complete SPA
+- Login: admin (`AL-FALAH TRADERS` / `@AFE@123654`), orderbookers (ahmed/bilal)
+- Key features: Dashboard with charts, Credit Posting with Quick Post mode, Recovery Reports, Shops CRUD, Orderbooker Management, Reconciliation, Audit Log, Global Search (Cmd+K), Notifications, Dark Mode, Print Receipts, CSV Export, Forgot Password
+- CSS: 2800+ lines with comprehensive animations, glassmorphism, dark mode support

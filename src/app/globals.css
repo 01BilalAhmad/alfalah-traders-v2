@@ -2542,3 +2542,294 @@ select:hover, [data-slot="select-trigger"]:hover {
   0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.3); }
   50% { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
 }
+
+/* ====== Task 8: Styling Improvements ====== */
+
+/* Pulsing glow effect for active sidebar nav items */
+@keyframes navGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0), inset 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 12px 2px rgba(59, 130, 246, 0.15), inset 0 0 12px 0 rgba(59, 130, 246, 0.05); }
+}
+.nav-active-glow {
+  animation: navGlow 2.5s ease-in-out infinite;
+}
+
+/* Forgot Password link — disabled/coming-soon style with tooltip */
+.forgot-password-link {
+  position: relative;
+  color: var(--muted-foreground);
+  cursor: not-allowed;
+  opacity: 0.5;
+  text-decoration: none;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  pointer-events: auto;
+  font-size: 0.75rem;
+}
+.forgot-password-link:hover {
+  opacity: 0.7;
+  color: var(--muted-foreground);
+}
+.forgot-password-link::after {
+  content: 'Coming Soon';
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1E293B;
+  color: #F1F5F9;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 50;
+}
+.forgot-password-link:hover::after {
+  opacity: 1;
+}
+.dark .forgot-password-link::after {
+  background: #F1F5F9;
+  color: #1E293B;
+}
+
+/* Enhanced smooth table row hover */
+.table-row-interactive {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+.table-row-interactive:hover {
+  background-color: rgba(30, 58, 138, 0.04);
+  transform: translateX(2px);
+}
+.dark .table-row-interactive:hover {
+  background-color: rgba(59, 130, 246, 0.06);
+  transform: translateX(2px);
+}
+.table-row-interactive::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 25%;
+  bottom: 25%;
+  width: 3px;
+  background: var(--primary);
+  border-radius: 0 2px 2px 0;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.table-row-interactive:hover::before {
+  opacity: 1;
+}
+
+/* Enhanced badge micro-animation on hover */
+.badge-animated {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: default;
+}
+.badge-animated:hover {
+  transform: scale(1.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.dark .badge-animated:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Login card staggered entrance — extended delays for more elements */
+.login-stagger > * {
+  opacity: 0;
+  animation: cardEntrance 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.login-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.login-stagger > *:nth-child(2) { animation-delay: 70ms; }
+.login-stagger > *:nth-child(3) { animation-delay: 140ms; }
+.login-stagger > *:nth-child(4) { animation-delay: 210ms; }
+.login-stagger > *:nth-child(5) { animation-delay: 280ms; }
+.login-stagger > *:nth-child(6) { animation-delay: 350ms; }
+.login-stagger > *:nth-child(7) { animation-delay: 420ms; }
+.login-stagger > *:nth-child(8) { animation-delay: 490ms; }
+
+/* Better button press effect */
+.btn-press {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.btn-press:active {
+  transform: scale(0.97);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced input loading state */
+.input-loading {
+  position: relative;
+}
+.input-loading::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--primary);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spinSlow 0.8s linear infinite;
+}
+
+/* Subtle card elevation layers */
+.card-shadow-sm {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.card-shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease;
+}
+.card-shadow-md:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+}
+.dark .card-shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+}
+.dark .card-shadow-md:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
+/* Card border glow on hover */
+.card-border-glow {
+  border: 1px solid var(--border);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.card-border-glow:hover {
+  border-color: rgba(30, 58, 138, 0.3);
+  box-shadow: 0 0 0 1px rgba(30, 58, 138, 0.06), 0 1px 3px rgba(30, 58, 138, 0.04);
+}
+.dark .card-border-glow:hover {
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.08), 0 1px 3px rgba(59, 130, 246, 0.06);
+}
+
+/* Stat pulse — subtle animated indicator */
+@keyframes statPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+.stat-pulse {
+  animation: statPulse 2.5s ease-in-out infinite;
+}
+
+/* Success state styling */
+.success-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 185, 129, 0.05);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Password reset success animation */
+@keyframes resetSuccess {
+  0% { opacity: 0; transform: scale(0.8) translateY(10px); }
+  50% { opacity: 1; transform: scale(1.05) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-reset-success {
+  animation: resetSuccess 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Micro hover scale for action buttons */
+.btn-micro-hover {
+  transition: transform 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease;
+}
+.btn-micro-hover:hover {
+  transform: scale(1.04);
+  background-color: var(--muted);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Enhanced disabled state */
+.btn-disabled-subtle {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: saturate(0.6);
+}
+.btn-disabled-subtle:hover {
+  opacity: 0.55;
+  transform: none !important;
+  box-shadow: none !important;
+  filter: saturate(0.6);
+}
+
+/* Timeline dot connector line */
+.timeline-connector {
+  position: relative;
+}
+.timeline-connector::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, var(--border) 0%, transparent 100%);
+}
+
+/* Timeline credit entry (amber left border accent) */
+.timeline-entry-credit {
+  border-left: 3px solid #F59E0B;
+}
+/* Timeline recovery entry (green left border accent) */
+.timeline-entry-recovery {
+  border-left: 3px solid #10B981;
+}
+
+/* Smooth crossfade transition for form switching */
+@keyframes crossfade {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-crossfade {
+  animation: crossfade 0.3s ease-out;
+}
+
+/* Password strength bar animation */
+.strength-bar-fill {
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease;
+  border-radius: 999px;
+}
+
+/* Responsive touch feedback — no tap highlight on iOS */
+.touch-optimize {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Scrollbar corner radius polish */
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: #F1F5F9;
+  border-radius: 3px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-corner {
+  background: #1E293B;
+}
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: #F1F5F9;
+  border-radius: 3px;
+}
+
+/* Firefox scrollbar support */
+.custom-scrollbar {
+  scrollbar-width: 6px;
+  scrollbar-color: #94A3B8 #F1F5F9;
+  scrollbar-track-color: #F1F5F9;
+}
+.dark .custom-scrollbar {
+  scrollbar-color: #475569 #1E293B;
+  scrollbar-track-color: #1E293B;
+}
