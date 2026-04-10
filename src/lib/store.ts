@@ -28,16 +28,62 @@ export interface AppState {
   resetCreditSessionCount: () => void;
 }
 
+// Load saved session from localStorage
+const STORAGE_KEY = 'alfalah-session';
+function loadSession(): { user: AppUser | null; isAuthenticated: boolean; currentView: string } {
+  if (typeof window === 'undefined') {
+    return { user: null, isAuthenticated: false, currentView: 'login' };
+  }
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.user) {
+        return {
+          user: parsed.user,
+          isAuthenticated: true,
+          currentView: parsed.user.role === 'admin' ? 'admin-dashboard' : 'orderbooker-dashboard',
+        };
+      }
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return { user: null, isAuthenticated: false, currentView: 'login' };
+}
+
+// Save session to localStorage
+function saveSession(user: AppUser | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (user) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ user }));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
+
+const initial = loadSession();
+
 export const useAppStore = create<AppState>((set) => ({
-  user: null,
-  isAuthenticated: false,
-  currentView: 'login',
+  user: initial.user,
+  isAuthenticated: initial.isAuthenticated,
+  currentView: initial.currentView,
   selectedShopId: null,
   selectedShopName: null,
   selectedDate: new Date().toISOString().split('T')[0],
   creditSessionCount: 0,
-  setUser: (user) => set({ user, isAuthenticated: !!user, currentView: user ? (user.role === 'admin' ? 'admin-dashboard' : 'orderbooker-dashboard') : 'login' }),
-  logout: () => set({ user: null, isAuthenticated: false, currentView: 'login', selectedShopId: null, selectedShopName: null, creditSessionCount: 0 }),
+  setUser: (user) => {
+    saveSession(user);
+    set({ user, isAuthenticated: !!user, currentView: user ? (user.role === 'admin' ? 'admin-dashboard' : 'orderbooker-dashboard') : 'login' });
+  },
+  logout: () => {
+    saveSession(null);
+    set({ user: null, isAuthenticated: false, currentView: 'login', selectedShopId: null, selectedShopName: null, creditSessionCount: 0 });
+  },
   setCurrentView: (view) => set({ currentView: view }),
   setSelectedShopId: (id) => set({ selectedShopId: id }),
   setSelectedShopName: (name) => set({ selectedShopName: name }),
