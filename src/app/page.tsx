@@ -11,6 +11,7 @@ import AdminOrderbookers from '@/components/alfalah/AdminOrderbookers';
 import AdminReconciliation from '@/components/alfalah/AdminReconciliation';
 import AdminAuditLog from '@/components/alfalah/AdminAuditLog';
 import AdminOBAnalytics from '@/components/alfalah/AdminOBAnalytics';
+import AdminMonthlySummary from '@/components/alfalah/AdminMonthlySummary';
 import OrderbookerLayout from '@/components/alfalah/OrderbookerLayout';
 
 function AdminRouter() {
@@ -33,6 +34,8 @@ function AdminRouter() {
       return <AdminAuditLog />;
     case 'admin-ob-analytics':
       return <AdminOBAnalytics />;
+    case 'admin-monthly-summary':
+      return <AdminMonthlySummary />;
     default:
       return <AdminDashboard />;
   }

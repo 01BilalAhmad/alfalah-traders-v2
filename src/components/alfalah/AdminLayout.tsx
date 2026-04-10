@@ -12,7 +12,7 @@ import {
   TrendingUp,
   Store,
   Users,
-  FileText,
+ FileText,
   Shield,
   BarChart3,
   LogOut,
@@ -22,6 +22,11 @@ import {
   Loader2,
   Search,
   Settings,
+  KeyRound,
+  CalendarDays,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ThemeToggle } from './ThemeToggle';
@@ -31,6 +36,7 @@ import SettingsPanel from './SettingsPanel';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
 import ShareMenu from './ShareMenu';
+import ChangePasswordDialog from './ChangePasswordDialog';
 
 interface NavItem {
   id: string;
@@ -47,6 +53,7 @@ const adminNavItems: NavItem[] = [
   { id: 'admin-reconciliation', label: 'Reconciliation', icon: <FileText className="h-5 w-5" /> },
   { id: 'admin-audit', label: 'Audit Log', icon: <Shield className="h-5 w-5" /> },
   { id: 'admin-ob-analytics', label: 'OB Analytics', icon: <BarChart3 className="h-5 w-5" /> },
+  { id: 'admin-monthly-summary', label: 'Monthly Summary', icon: <CalendarDays className="h-5 w-5" /> },
 ];
 
 interface AdminLayoutProps {
@@ -57,6 +64,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const { user, currentView, setCurrentView, logout } = useAppStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [miniStats, setMiniStats] = useState<{ totalShops: number; totalOBs: number }>({ totalShops: 0, totalOBs: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -94,8 +102,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="text-white hover:bg-white/10 lg:hidden min-w-[44px] min-h-[44px]"
+            className={`text-white hover:bg-white/10 lg:hidden min-w-[44px] min-h-[44px] hamburger-animate ${sidebarOpen ? 'is-open' : ''}`}
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
           >
             {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
@@ -151,6 +160,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <Settings className="h-4 w-4" />
           </Button>
           <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
+          <button
+            onClick={() => setChangePasswordOpen(true)}
+            className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-blue-100 hover:text-white text-xs font-medium transition-all duration-150"
+            aria-label="Change password"
+            title="Change Password"
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">Change Password</span>
+          </button>
+          <button
+            onClick={() => setChangePasswordOpen(true)}
+            className="sm:hidden text-blue-100 hover:bg-white/10 hover:text-white min-h-[44px] min-w-[44px] h-9 w-9 rounded-lg flex items-center justify-center"
+            aria-label="Change password"
+          >
+            <KeyRound className="h-4 w-4" />
+          </button>
           <ThemeToggle />
           <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
           <NotificationPanel />
@@ -187,6 +212,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
+          {/* Subtle pattern overlay */}
+          <div className="sidebar-pattern-overlay" />
           <ScrollArea className="h-[calc(100vh-4rem)] sidebar-scroll">
             {/* Branded Section */}
             <div className="px-4 pt-5 pb-3">
@@ -273,6 +300,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Keyboard Shortcuts Help */}
       <KeyboardShortcuts />
+
+      {/* Change Password Dialog */}
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
 
       {/* Settings Panel */}
       <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} />

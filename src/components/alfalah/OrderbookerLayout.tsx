@@ -32,11 +32,13 @@ import {
   X,
   LogOut,
   Settings,
+  KeyRound,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
 import BackupSettingsDialog from './BackupSettingsDialog';
+import ChangePasswordDialog from './ChangePasswordDialog';
 import ShareMenu from './ShareMenu';
 
 const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -298,6 +300,7 @@ function RecoveryHistory() {
 export default function OrderbookerLayout() {
   const { user, currentView, setCurrentView, logout } = useAppStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -345,6 +348,16 @@ export default function OrderbookerLayout() {
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10"
+            onClick={() => setChangePasswordOpen(true)}
+            title="Change Password"
+            aria-label="Change password"
+          >
+            <KeyRound className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10"
             onClick={() => setSettingsOpen(true)}
           >
             <Settings className="h-4 w-4" />
@@ -387,32 +400,41 @@ export default function OrderbookerLayout() {
 
       {/* Bottom Nav */}
       {showBottomNav && (
-        <nav className="sticky bottom-0 glass-strong border-t border-border/50 z-40 safe-area-bottom shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
-          <div className="flex items-center justify-around py-2">
+        <nav className="sticky bottom-0 bottom-nav-glass z-40 safe-area-bottom">
+          <div className="flex items-center justify-around py-2 px-2">
             <button
-              className={`flex flex-col items-center gap-0.5 px-4 py-1 transition-colors ${isDashboard ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`tab-indicator flex flex-col items-center gap-0.5 px-5 py-1.5 rounded-xl transition-all duration-200 ${isDashboard ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
               onClick={() => setCurrentView('orderbooker-dashboard')}
             >
-              <MapPin className="h-5 w-5" />
-              <span className="text-[10px] font-medium">My Route</span>
+              <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${isDashboard ? 'bg-primary/10' : ''}`}>
+                <MapPin className={`h-4.5 w-4.5 ${isDashboard ? 'text-primary' : ''}`} />
+              </div>
+              <span className="text-[10px] font-semibold">My Route</span>
             </button>
             <button
-              className={`flex flex-col items-center gap-0.5 px-4 py-1 transition-colors ${isHistory ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`tab-indicator flex flex-col items-center gap-0.5 px-5 py-1.5 rounded-xl transition-all duration-200 ${isHistory ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
               onClick={() => setCurrentView('orderbooker-history')}
             >
-              <Clock className="h-5 w-5" />
-              <span className="text-[10px] font-medium">History</span>
+              <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${isHistory ? 'bg-primary/10' : ''}`}>
+                <Clock className={`h-4.5 w-4.5 ${isHistory ? 'text-primary' : ''}`} />
+              </div>
+              <span className="text-[10px] font-semibold">History</span>
             </button>
             <button
-              className={`flex flex-col items-center gap-0.5 px-4 py-1 transition-colors ${isLedger ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`tab-indicator flex flex-col items-center gap-0.5 px-5 py-1.5 rounded-xl transition-all duration-200 ${isLedger ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
               onClick={() => setCurrentView('orderbooker-ledger')}
             >
-              <FileText className="h-5 w-5" />
-              <span className="text-[10px] font-medium">Ledger</span>
+              <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${isLedger ? 'bg-primary/10' : ''}`}>
+                <FileText className={`h-4.5 w-4.5 ${isLedger ? 'text-primary' : ''}`} />
+              </div>
+              <span className="text-[10px] font-semibold">Ledger</span>
             </button>
           </div>
         </nav>
       )}
+
+      {/* Change Password Dialog */}
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
 
       {/* Settings & Backup Dialog */}
       <BackupSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
