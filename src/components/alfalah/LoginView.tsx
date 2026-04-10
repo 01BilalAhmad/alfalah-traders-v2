@@ -153,22 +153,6 @@ export default function LoginView() {
                 {loading ? 'Signing In...' : 'Sign In'}
               </Button>
             </form>
-
-            <div className="mt-6 pt-5 border-t border-border animate-fade-in" style={{ animationDelay: '0.4s' }}>
-              <p className="text-xs text-muted-foreground text-center mb-3 font-medium">Demo Credentials</p>
-              <div className="rounded-xl p-3 glass-strong animate-pulse" style={{ animationDuration: '4s' }}>
-                <div className="grid grid-cols-1 gap-2">
-                  <div className="flex items-center justify-between rounded-lg bg-background/60 px-3 py-2.5 text-xs">
-                    <span className="font-medium text-foreground">Admin</span>
-                    <code className="text-primary bg-primary/10 px-2 py-0.5 rounded font-mono text-[11px]">admin / admin123</code>
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg bg-background/60 px-3 py-2.5 text-xs">
-                    <span className="font-medium text-foreground">Orderbooker</span>
-                    <code className="text-primary bg-primary/10 px-2 py-0.5 rounded font-mono text-[11px]">ahmed / ob123</code>
-                  </div>
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
