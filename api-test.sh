@@ -4,11 +4,11 @@ TODAY=$(date +%Y-%m-%d)
 
 echo "=== LOGIN TESTS ==="
 echo -n "Admin login: "
-curl -s -m 5 -X POST "$BASE/api/auth/login" -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}'
+curl -s -m 5 -X POST "$BASE/api/auth/login" -H 'Content-Type: application/json' -d '{"username":"AL-FALAH TRADER","password":"admin123"}'
 echo ""
 
 echo -n "Bad login: "
-curl -s -m 5 -X POST "$BASE/api/auth/login" -H 'Content-Type: application/json' -d '{"username":"admin","password":"wrong"}'
+curl -s -m 5 -X POST "$BASE/api/auth/login" -H 'Content-Type: application/json' -d '{"username":"AL-FALAH TRADER","password":"wrong"}'
 echo ""
 
 echo -n "OB login: "

@@ -2853,3 +2853,22 @@ Stage Summary:
 - 3 new CSS utility classes
 - System stable, no known bugs
 - Login credentials: admin/admin123 (Admin), ahmed/ob123 or bilal/ob123 (Orderbooker)
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Change admin login username from 'admin' to 'AL-FALAH TRADER'
+
+Work Log:
+- Analyzed admin authentication system: login API normalizes username to lowercase, credentials stored in SQLite via Prisma
+- Updated database directly: changed admin username from "admin" to "al-falah trader" and name from "Al-Falah Admin" to "AL-FALAH TRADER"
+- Updated seed.ts: changed admin upsert to use "al-falah trader" username and "AL-FALAH TRADER" display name
+- Updated api-test.sh: changed curl test commands to use "AL-FALAH TRADER" as username
+- Verified login works: typing "AL-FALAH TRADER" → normalized to "al-falah trader" → matches DB → returns user with name "AL-FALAH TRADER"
+- Confirmed all "admin" references in source code are role-based (user.role === 'admin'), not username-related — no changes needed
+
+Stage Summary:
+- Admin login username changed from "admin" to "AL-FALAH TRADER" (case-insensitive — user can type any case)
+- Admin display name changed from "Al-Falah Admin" to "AL-FALAH TRADER"
+- Password unchanged — whatever was previously saved remains
+- Login: AL-FALAH TRADER / (same password), ahmed/ob123, bilal/ob123
