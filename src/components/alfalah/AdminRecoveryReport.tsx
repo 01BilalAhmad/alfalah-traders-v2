@@ -34,7 +34,9 @@ import {
   MapPin,
   Navigation,
   ExternalLink,
+  Download,
 } from 'lucide-react';
+import { exportToCSV } from '@/lib/csv-export';
 import { toast } from '@/hooks/use-toast';
 
 function formatCurrency(amount: number): string {
@@ -187,6 +189,33 @@ export default function AdminRecoveryReport() {
           <Button variant="outline" size="sm" onClick={fetchSummary} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
           </Button>
+          {summary && summary.orderbookers.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const rows: Record<string, unknown>[] = [];
+                summary.orderbookers.forEach((ob) => {
+                  ob.shops.forEach((shop) => {
+                    rows.push({
+                      Orderbooker: ob.orderbookerName,
+                      Shop: shop.shopName,
+                      Area: shop.shopArea || '',
+                      'Prev Balance': shop.previousBalance,
+                      Credit: shop.todayCredit,
+                      Recovery: shop.todayRecovery,
+                      'Closing Balance': shop.closingBalance,
+                      Visited: shop.visited ? 'Yes' : 'No',
+                    });
+                  });
+                });
+                exportToCSV(rows, `recovery-report-${summary.date}`, ['Orderbooker', 'Shop', 'Area', 'Prev Balance', 'Credit', 'Recovery', 'Closing Balance', 'Visited']);
+                toast({ title: 'Exported', description: 'Recovery report CSV downloaded' });
+              }}
+            >
+              <Download className="h-4 w-4 mr-1.5" /> CSV
+            </Button>
+          )}
         </div>
       </div>
 

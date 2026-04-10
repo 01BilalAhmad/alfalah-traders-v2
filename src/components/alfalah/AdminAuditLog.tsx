@@ -28,8 +28,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
+  Download,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { exportToCSV } from '@/lib/csv-export';
 
 interface AuditLogEntry {
   id: string;
@@ -117,6 +119,29 @@ export default function AdminAuditLog() {
         </h2>
         <p className="text-sm text-muted-foreground mt-0.5">{data.total} total entries</p>
       </div>
+
+      {/* Export button */}
+      {data.logs.length > 0 && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const rows = data.logs.map((log) => ({
+                Date: new Date(log.createdAt).toLocaleString('en-PK'),
+                Action: actionLabels[log.action] || log.action,
+                Entity: entityLabels[log.entityType] || log.entityType,
+                Description: log.description || '',
+                'Performed By': log.performer?.name || 'System',
+              }));
+              exportToCSV(rows, 'audit-log', ['Date', 'Action', 'Entity', 'Description', 'Performed By']);
+              toast({ title: 'Exported', description: 'Audit log CSV downloaded' });
+            }}
+          >
+            <Download className="h-4 w-4 mr-1.5" /> Export CSV
+          </Button>
+        </div>
+      )}
 
       {/* Filters */}
       <Card>

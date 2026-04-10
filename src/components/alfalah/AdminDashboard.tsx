@@ -15,6 +15,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import {
   Home,
   Store,
   Users,
@@ -48,6 +57,14 @@ interface TodayTxn {
   createdAt: string;
   shop: { id: string; name: string; area: string };
   creator: { id: string; name: string; role: string };
+}
+
+interface DailyTrend {
+  date: string;
+  label: string;
+  credit: number;
+  recovery: number;
+  net: number;
 }
 
 interface DashboardData {
@@ -125,6 +142,7 @@ export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData>({
     orderbookers: [], todayTxns: [], todayCredit: 0, todayRecovery: 0, totalShops: 0, totalOutstanding: 0,
   });
+  const [trends, setTrends] = useState<DailyTrend[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -141,7 +159,12 @@ export default function AdminDashboard() {
         const totalOutstanding = orderbookers.reduce((s: number, ob: Orderbooker) => s + ob.totalOutstanding, 0);
         const totalShops = orderbookers.reduce((s: number, ob: Orderbooker) => s + ob.totalShops, 0);
 
+        // Fetch daily trends
+        const trendsRes = await fetch('/api/reports/daily-trends');
+        const trendsData = trendsRes.ok ? await trendsRes.json() : [];
+
         setData({ orderbookers, todayTxns: txnData.transactions, todayCredit, todayRecovery, totalShops, totalOutstanding });
+        setTrends(trendsData);
       } catch { /* silent */ }
       finally { setLoading(false); }
     }
@@ -239,6 +262,96 @@ export default function AdminDashboard() {
           <span className="text-xs font-medium">Add Shop</span>
         </Button>
       </div>
+
+      {/* Daily Trends Chart */}
+      <Card className="alfalah-card-hover">
+        <CardHeader className="pb-2 pt-4 px-5">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            Daily Credit vs Recovery — Last 7 Days
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-5">
+          {trends.length > 0 ? (
+            <div className="h-56 sm:h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trends} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="creditGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="recoveryGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: '#64748B' }}
+                    axisLine={{ stroke: '#E2E8F0' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: '#64748B' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(value: number) =>
+                      value >= 1000 ? `${(value / 1000).toFixed(0)}k` : String(value)
+                    }
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid #E2E8F0',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                      fontSize: '12px',
+                    }}
+                    formatter={(value: number, name: string) => [
+                      `Rs. ${value.toLocaleString('en-PK', { maximumFractionDigits: 0 })}`,
+                      name === 'credit' ? 'Credit' : 'Recovery',
+                    ]}
+                    labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="credit"
+                    stroke="#F59E0B"
+                    strokeWidth={2}
+                    fill="url(#creditGradient)"
+                    dot={{ r: 3, fill: '#F59E0B', strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#F59E0B', strokeWidth: 2, stroke: '#fff' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="recovery"
+                    stroke="#10B981"
+                    strokeWidth={2}
+                    fill="url(#recoveryGradient)"
+                    dot={{ r: 3, fill: '#10B981', strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-56 sm:h-64 flex items-center justify-center text-sm text-muted-foreground">
+              No trend data available
+            </div>
+          )}
+          <div className="flex items-center justify-center gap-6 mt-2">
+            <div className="flex items-center gap-1.5">
+              <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+              <span className="text-xs text-muted-foreground">Credit</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
+              <span className="text-xs text-muted-foreground">Recovery</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Orderbooker Overview */}

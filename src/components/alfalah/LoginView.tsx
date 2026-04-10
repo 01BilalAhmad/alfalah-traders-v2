@@ -48,19 +48,34 @@ export default function LoginView() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4 animate-gradient-bg"
+      style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 25%, #1E40AF 50%, #1E3A8A 75%, #0F172A 100%)' }}
+    >
+      {/* Floating Decorative Shapes */}
+      <div className="absolute top-[10%] left-[8%] w-64 h-64 rounded-full bg-white/5 animate-float blur-sm pointer-events-none" />
+      <div className="absolute top-[55%] right-[5%] w-48 h-48 rounded-full bg-blue-400/10 animate-float-reverse blur-sm pointer-events-none" />
+      <div className="absolute bottom-[15%] left-[20%] w-36 h-36 rounded-full bg-amber-400/8 animate-float-slow blur-sm pointer-events-none" />
+
+      {/* Subtle grid overlay */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }}
+      />
+
+      <div className="w-full max-w-md relative z-10">
         {/* Brand Header */}
-        <div className="alfalah-gradient rounded-t-2xl px-8 pt-10 pb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+        <div className="rounded-2xl px-8 pt-10 pb-8 text-center bg-white/10 backdrop-blur-md border border-white/20">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm shadow-lg shadow-blue-500/20">
             <Building2 className="h-9 w-9 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Al-Falah Traders</h1>
-          <p className="mt-1.5 text-sm text-blue-100">Smart Credit & Route Management System</p>
+          <p className="mt-1.5 text-sm text-blue-200">Smart Credit & Route Management System</p>
         </div>
 
-        {/* Login Card */}
-        <Card className="rounded-t-none border-t-0 shadow-xl">
+        {/* Login Card with Glow */}
+        <Card className="rounded-t-none border-t-0 shadow-2xl shadow-blue-900/30 card-glow bg-white/95 backdrop-blur-sm">
           <CardHeader className="pb-4 pt-6 px-8">
             <h2 className="text-lg font-semibold text-foreground">Sign In to Your Account</h2>
             <p className="text-sm text-muted-foreground">Enter your credentials to access the system</p>
@@ -106,7 +121,7 @@ export default function LoginView() {
 
               <Button
                 type="submit"
-                className="w-full h-11 alfalah-gradient text-white font-semibold hover:opacity-90 transition-opacity"
+                className="w-full h-11 alfalah-gradient text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-blue-900/20"
                 disabled={loading}
               >
                 {loading ? (
@@ -134,7 +149,7 @@ export default function LoginView() {
           </CardContent>
         </Card>
 
-        <p className="mt-6 text-center text-xs text-muted-foreground">
+        <p className="mt-6 text-center text-xs text-blue-200/60">
           &copy; {new Date().getFullYear()} Al-Falah Traders. All rights reserved.
         </p>
       </div>

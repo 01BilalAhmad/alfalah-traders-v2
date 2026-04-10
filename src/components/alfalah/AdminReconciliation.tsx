@@ -25,7 +25,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Printer,
+  Download,
 } from 'lucide-react';
+import { exportToCSV } from '@/lib/csv-export';
 import { toast } from '@/hooks/use-toast';
 
 function formatCurrency(amount: number): string {
@@ -113,6 +115,32 @@ export default function AdminReconciliation() {
           <Button variant="outline" size="sm" onClick={handlePrint} className="no-print">
             <Printer className="h-4 w-4" />
           </Button>
+          {report && report.orderbookers.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const rows: Record<string, unknown>[] = [];
+                report.orderbookers.forEach((ob) => {
+                  ob.shops.forEach((shop) => {
+                    rows.push({
+                      Orderbooker: ob.orderbookerName,
+                      Shop: shop.shopName,
+                      Area: shop.shopArea || '',
+                      Credit: shop.credit,
+                      Recovery: shop.recovery,
+                      'Closing Balance': shop.closingBalance,
+                    });
+                  });
+                });
+                exportToCSV(rows, `reconciliation-${report.date}`, ['Orderbooker', 'Shop', 'Area', 'Credit', 'Recovery', 'Closing Balance']);
+                toast({ title: 'Exported', description: 'Reconciliation CSV downloaded' });
+              }}
+              className="no-print"
+            >
+              <Download className="h-4 w-4 mr-1.5" /> CSV
+            </Button>
+          )}
         </div>
       </div>
 

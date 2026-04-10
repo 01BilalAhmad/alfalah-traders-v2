@@ -291,3 +291,89 @@
 .print-only {
   display: none;
 }
+
+/* ====== Advanced Animations & Styles ====== */
+
+/* Animated gradient background for login */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient-bg {
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite;
+}
+
+/* Floating shapes animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(5deg); }
+}
+
+@keyframes floatReverse {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(20px) rotate(-5deg); }
+}
+
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-float-reverse { animation: floatReverse 8s ease-in-out infinite; }
+.animate-float-slow { animation: float 10s ease-in-out infinite; }
+
+/* Card glow effect */
+.card-glow {
+  box-shadow: 0 0 0 0 rgba(30, 58, 138, 0);
+  transition: box-shadow 0.3s ease;
+}
+
+.card-glow:hover {
+  box-shadow: 0 0 20px 2px rgba(30, 58, 138, 0.15);
+}
+
+/* Glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Stat badge */
+.stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Sidebar navy gradient */
+.sidebar-navy-gradient {
+  background: linear-gradient(180deg, #1E293B 0%, #0F172A 100%);
+}
+
+/* Sidebar navy gradient text colors for nav items */
+.sidebar-navy-gradient .nav-item-inactive {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.sidebar-navy-gradient .nav-item-inactive:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Toast styling */
+.toast-credit {
+  border-left: 4px solid #F59E0B;
+}
+
+.toast-recovery {
+  border-left: 4px solid #10B981;
+}
+
+.toast-error {
+  border-left: 4px solid #EF4444;
+}

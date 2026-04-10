@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Loader2,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -44,6 +45,22 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { user, currentView, setCurrentView, logout } = useAppStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [miniStats, setMiniStats] = useState<{ totalShops: number; totalOBs: number }>({ totalShops: 0, totalOBs: 0 });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const obRes = await fetch('/api/orderbookers');
+        const shopRes = await fetch('/api/shops');
+        const obs = obRes.ok ? await obRes.json() : [];
+        const shops = shopRes.ok ? await shopRes.json() : [];
+        setMiniStats({ totalShops: Array.isArray(shops) ? shops.length : 0, totalOBs: Array.isArray(obs) ? obs.length : 0 });
+      } catch { /* silent */ }
+      finally { setStatsLoading(false); }
+    }
+    loadStats();
+  }, []);
 
   if (!user) return null;
 
@@ -114,11 +131,27 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
         {/* Sidebar */}
         <aside
-          className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:top-16 pt-16 lg:pt-0 ${
+          className={`fixed lg:static inset-y-0 left-0 z-40 w-64 sidebar-navy-gradient transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:top-16 pt-16 lg:pt-0 border-r border-white/10 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
           <ScrollArea className="h-[calc(100vh-4rem)] sidebar-scroll">
+            {/* Branded Section */}
+            <div className="px-4 pt-5 pb-3">
+              <div className="flex items-center gap-3 px-2">
+                <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 border border-white/20">
+                  <Building2 className="h-5 w-5 text-blue-200" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white leading-tight">Al-Falah Traders</p>
+                  <p className="text-[10px] text-blue-300/70 leading-tight">Management Portal</p>
+                </div>
+              </div>
+            </div>
+
+            <Separator className="bg-white/10 mx-3" />
+
+            {/* Navigation */}
             <nav className="p-3 space-y-1">
               {adminNavItems.map((item) => {
                 const isActive = currentView === item.id;
@@ -128,17 +161,44 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     onClick={() => handleNavClick(item.id)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                       isActive
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'text-foreground/70 hover:bg-accent hover:text-accent-foreground'
+                        ? 'bg-white/15 text-white shadow-sm border border-white/10'
+                        : 'nav-item-inactive'
                     }`}
                   >
-                    <span className={isActive ? 'text-primary-foreground' : ''}>{item.icon}</span>
+                    <span className={isActive ? 'text-white' : ''}>{item.icon}</span>
                     <span className="flex-1 text-left">{item.label}</span>
                     {isActive && <ChevronRight className="h-4 w-4 opacity-70" />}
                   </button>
                 );
               })}
             </nav>
+
+            {/* Mini Stats at Bottom */}
+            <div className="px-3 pb-4 mt-2">
+              <Separator className="bg-white/10 mb-3" />
+              {statsLoading ? (
+                <div className="flex items-center justify-center py-3">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-300/50" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-white/8 border border-white/10 px-3 py-2.5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Store className="h-3 w-3 text-blue-300/70" />
+                      <span className="text-[10px] text-blue-300/70 font-medium">Total Shops</span>
+                    </div>
+                    <p className="text-base font-bold text-white">{miniStats.totalShops}</p>
+                  </div>
+                  <div className="rounded-lg bg-white/8 border border-white/10 px-3 py-2.5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Users className="h-3 w-3 text-blue-300/70" />
+                      <span className="text-[10px] text-blue-300/70 font-medium">Total OBs</span>
+                    </div>
+                    <p className="text-base font-bold text-white">{miniStats.totalOBs}</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </ScrollArea>
         </aside>
 

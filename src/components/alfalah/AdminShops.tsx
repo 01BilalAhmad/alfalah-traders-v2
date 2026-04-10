@@ -58,6 +58,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
+import { exportToCSV } from '@/lib/csv-export';
 
 const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -286,9 +287,33 @@ export default function AdminShops() {
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">{shops.length} shops total</p>
         </div>
-        <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white">
-          <Plus className="h-4 w-4 mr-2" /> Add Shop
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white">
+            <Plus className="h-4 w-4 mr-2" /> Add Shop
+          </Button>
+          {filteredShops.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const rows = filteredShops.map((s) => ({
+                  Name: s.name,
+                  Owner: s.ownerName || '',
+                  Area: s.area || '',
+                  Phone: s.phone || '',
+                  'Route Day': s.routeDay.charAt(0).toUpperCase() + s.routeDay.slice(1),
+                  Orderbooker: s.orderbooker.name,
+                  Balance: s.balance,
+                  Status: s.status.charAt(0).toUpperCase() + s.status.slice(1),
+                }));
+                exportToCSV(rows, 'shops-list', ['Name', 'Owner', 'Area', 'Phone', 'Route Day', 'Orderbooker', 'Balance', 'Status']);
+                toast({ title: 'Exported', description: `${filteredShops.length} shops exported` });
+              }}
+            >
+              <Download className="h-4 w-4 mr-1.5" /> Export CSV
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
