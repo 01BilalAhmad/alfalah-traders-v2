@@ -673,7 +673,7 @@ export default function AdminMonthlySummary() {
                   <div className="space-y-2">
                     {data.topCreditShops.map((shop, idx) => {
                       const maxCredit = data.topCreditShops[0].credit || 1;
-                      const pct = (shop.credit / maxCredit) * 100;
+                      const pct = ((shop.credit || 0) / maxCredit) * 100;
                       return (
                         <div
                           key={`credit-${idx}`}
@@ -739,7 +739,7 @@ export default function AdminMonthlySummary() {
                   <div className="space-y-2">
                     {data.topRecoveryShops.map((shop, idx) => {
                       const maxRecovery = data.topRecoveryShops[0].recovery || 1;
-                      const pct = (shop.recovery / maxRecovery) * 100;
+                      const pct = ((shop.recovery || 0) / maxRecovery) * 100;
                       return (
                         <div
                           key={`recovery-${idx}`}

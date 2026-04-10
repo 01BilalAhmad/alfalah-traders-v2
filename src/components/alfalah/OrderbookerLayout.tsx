@@ -312,7 +312,7 @@ export default function OrderbookerLayout() {
   const isDashboard = currentView === 'orderbooker-dashboard';
   const isHistory = currentView === 'orderbooker-history';
   const isLedger = currentView === 'orderbooker-ledger';
-  const showBottomNav = isDashboard || isHistory;
+  const showBottomNav = isDashboard || isHistory || isLedger;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

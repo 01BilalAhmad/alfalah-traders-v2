@@ -25,9 +25,6 @@ import {
   KeyRound,
   CalendarDays,
   Activity,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ThemeToggle } from './ThemeToggle';

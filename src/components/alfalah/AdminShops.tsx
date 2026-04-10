@@ -97,6 +97,8 @@ interface Orderbooker {
   name: string;
   phone: string | null;
   status: string;
+  totalShops?: number;
+  totalOutstanding?: number;
 }
 
 function formatCurrency(amount: number): string {

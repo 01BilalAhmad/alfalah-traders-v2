@@ -573,76 +573,6 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* Recent Transactions Mini-Table */}
-      <Card className="animate-fade-in">
-        <CardHeader className="pb-2 pt-4 px-5">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
-              Activity Feed
-            </CardTitle>
-            <button
-              className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
-              onClick={() => setCurrentView('admin-audit')}
-            >
-              View All
-              <ExternalLink className="h-3 w-3" />
-            </button>
-          </div>
-        </CardHeader>
-        <CardContent className="px-5 pb-4">
-          {recentTxnsLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="skeleton-shimmer h-4 w-24" />
-                  <Skeleton className="skeleton-shimmer h-4 w-16" />
-                  <Skeleton className="skeleton-shimmer h-4 w-20 ml-auto" />
-                  <Skeleton className="skeleton-shimmer h-4 w-14" />
-                </div>
-              ))}
-            </div>
-          ) : recentTxns.length === 0 ? (
-            <div className="text-center py-4">
-              <p className="text-sm text-muted-foreground">No recent transactions</p>
-            </div>
-          ) : (
-            <ScrollArea className="max-h-64 custom-scrollbar">
-              <Table>
-                <TableHeader>
-                  <TableRow className="data-table-header hover:bg-transparent">
-                    <TableHead className="text-white font-semibold text-xs">Shop</TableHead>
-                    <TableHead className="text-white font-semibold text-xs">Type</TableHead>
-                    <TableHead className="text-white font-semibold text-xs text-right">Amount</TableHead>
-                    <TableHead className="text-white font-semibold text-xs text-right">Time</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentTxns.map((txn, idx) => (
-                    <TableRow key={txn.id} className={`transaction-row-enter ${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'}`}>
-                      <TableCell className="text-sm font-medium truncate max-w-[140px]">{txn.shop.name}</TableCell>
-                      <TableCell>
-                        <Badge className={`text-[9px] px-1.5 py-0 font-medium ${txn.type === 'credit' ? 'badge-credit' : 'badge-recovery'}`}>
-                          {txn.type === 'credit' ? 'Credit' : 'Recovery'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className={`text-sm font-semibold tabular-nums ${txn.type === 'credit' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
-                          {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-xs text-muted-foreground tabular-nums">{getTimeAgo(txn.createdAt)}</span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Recent Activity Feed */}
       <Card className="animate-fade-in">
         <CardHeader className="pb-2 pt-4 px-5">
@@ -964,6 +894,53 @@ export default function AdminDashboard() {
               <div className="h-2.5 w-2.5 rounded-full bg-primary" />
               <span className="text-xs text-muted-foreground">{allShops.length} total shops</span>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* OB Performance Summary Cards */}
+      <Card className="animate-fade-in overflow-hidden">
+        <CardHeader className="pb-3 pt-4 px-5">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              OB Performance Summary
+            </CardTitle>
+            <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">
+              {data.orderbookers.length} orderbookers
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="px-5 pb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger-children">
+            {data.orderbookers.map((ob) => {
+              const maxOutstanding = Math.max(...data.orderbookers.map(o => o.totalOutstanding), 1);
+              const pct = (ob.totalOutstanding / maxOutstanding) * 100;
+              const colorClass = ob.totalOutstanding > 50000 ? 'text-red-600 dark:text-red-400' : ob.totalOutstanding > 25000 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400';
+              const progressClass = ob.totalOutstanding > 50000 ? 'progress-gradient-red' : ob.totalOutstanding > 25000 ? 'progress-gradient-amber' : 'progress-gradient-green';
+              const avatarColors = ['bg-primary/15 text-primary', 'bg-emerald-500/15 text-emerald-600', 'bg-amber-500/15 text-amber-600', 'bg-rose-500/15 text-rose-600', 'bg-violet-500/15 text-violet-600'];
+              const avatarIdx = ob.name.charCodeAt(0) % avatarColors.length;
+              return (
+                <div key={ob.id} className="alfalah-card-hover rounded-xl p-3.5 cursor-default" onClick={() => setCurrentView('admin-ob-analytics')}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`h-9 w-9 rounded-full avatar-initials text-sm ${avatarColors[avatarIdx]}`}>
+                      {ob.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{ob.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{ob.totalShops} shops assigned</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs text-muted-foreground">Outstanding</span>
+                    <span className={`text-sm font-bold tabular-nums ${colorClass}`}>{formatCurrency(ob.totalOutstanding)}</span>
+                  </div>
+                  <div className={`progress-gradient ${progressClass}`}>
+                    <div style={{ width: `${Math.min(pct, 100)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

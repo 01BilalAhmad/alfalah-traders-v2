@@ -434,8 +434,8 @@ export default function AdminRecoveryReport() {
                 const displayShops = gpsFilter === 'all' ? ob.shops : filterShops(ob.shops);
                 const obTotalCredit = displayShops.reduce((s, sh) => s + sh.todayCredit, 0);
                 const obTotalRecovery = displayShops.reduce((s, sh) => s + sh.todayRecovery, 0);
-                const obTotalOutstanding = obTotalCredit + obTotalRecovery;
-                const recoveryRate = obTotalOutstanding > 0 ? (obTotalRecovery / obTotalOutstanding) * 100 : 0;
+                const obTotalOutstanding = displayShops.reduce((s, sh) => s + sh.previousBalance, 0);
+                const recoveryRate = obTotalCredit > 0 ? (obTotalRecovery / obTotalCredit) * 100 : (obTotalRecovery > 0 ? 100 : 0);
                 const recoveryPct = Math.round(recoveryRate * 10) / 10;
                 return (
                   <div key={ob.orderbookerId}>

@@ -182,7 +182,7 @@ export function generateNotifications(
   );
 
   creditLimitExceededShops
-    .sort((a, b) => (b.balance - b.creditLimit) - (a.balance - a.creditLimit))
+    .sort((a, b) => (b.balance - (b.creditLimit || 0)) - (a.balance - (a.creditLimit || 0)))
     .slice(0, 10)
     .forEach((shop) => {
       const overAmount = shop.balance - (shop.creditLimit || 0);
