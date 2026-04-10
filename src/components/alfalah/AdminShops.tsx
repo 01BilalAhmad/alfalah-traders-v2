@@ -339,9 +339,9 @@ export default function AdminShops() {
       </div>
 
       {/* Analytics Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in stagger-children">
         {/* Total Active Shops */}
-        <Card className="stat-card-green alfalah-card-hover">
+        <Card className="stat-card-green alfalah-card-hover animate-card-entrance">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
               <Store className="h-5 w-5 text-green-600" />
@@ -357,7 +357,7 @@ export default function AdminShops() {
         </Card>
 
         {/* Total Inactive Shops */}
-        <Card className="stat-card-red alfalah-card-hover">
+        <Card className="stat-card-red alfalah-card-hover animate-card-entrance">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
               <Users className="h-5 w-5 text-red-600" />
@@ -373,7 +373,7 @@ export default function AdminShops() {
         </Card>
 
         {/* Total Outstanding Balance */}
-        <Card className="stat-card-amber alfalah-card-hover">
+        <Card className="stat-card-amber alfalah-card-hover animate-card-entrance">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
               <Wallet className="h-5 w-5 text-amber-600" />
@@ -386,7 +386,7 @@ export default function AdminShops() {
         </Card>
 
         {/* Average Balance */}
-        <Card className="stat-card-blue alfalah-card-hover">
+        <Card className="stat-card-blue alfalah-card-hover animate-card-entrance">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
               <TrendingDown className="h-5 w-5 text-blue-600" />
@@ -399,7 +399,7 @@ export default function AdminShops() {
         </Card>
 
         {/* Highest Balance Shop */}
-        <Card className="stat-card-red alfalah-card-hover">
+        <Card className="stat-card-red alfalah-card-hover animate-card-entrance">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
               <BarChart3 className="h-5 w-5 text-red-600" />
@@ -421,7 +421,7 @@ export default function AdminShops() {
         </Card>
 
         {/* Area with Most Shops */}
-        <Card className="stat-card-green alfalah-card-hover">
+        <Card className="stat-card-green alfalah-card-hover animate-card-entrance">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
               <MapPin className="h-5 w-5 text-emerald-600" />
@@ -493,17 +493,17 @@ export default function AdminShops() {
             <div className="p-5 space-y-4">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-5 w-32" />
-                  <Skeleton className="h-5 w-20 hidden sm:block" />
-                  <Skeleton className="h-5 w-24 hidden md:block" />
-                  <Skeleton className="h-5 w-16 hidden lg:block" />
-                  <Skeleton className="h-5 w-24 hidden lg:block" />
+                  <Skeleton className="skeleton-shimmer h-5 w-32" />
+                  <Skeleton className="skeleton-shimmer h-5 w-20 hidden sm:block" />
+                  <Skeleton className="skeleton-shimmer h-5 w-24 hidden md:block" />
+                  <Skeleton className="skeleton-shimmer h-5 w-16 hidden lg:block" />
+                  <Skeleton className="skeleton-shimmer h-5 w-24 hidden lg:block" />
                   <div className="flex-1" />
-                  <Skeleton className="h-5 w-20" />
-                  <Skeleton className="h-6 w-14" />
+                  <Skeleton className="skeleton-shimmer h-5 w-20" />
+                  <Skeleton className="skeleton-shimmer h-6 w-14" />
                   <div className="flex gap-1">
-                    <Skeleton className="h-8 w-8 rounded" />
-                    <Skeleton className="h-8 w-8 rounded" />
+                    <Skeleton className="skeleton-shimmer h-8 w-8 rounded" />
+                    <Skeleton className="skeleton-shimmer h-8 w-8 rounded" />
                   </div>
                 </div>
               ))}
@@ -552,14 +552,14 @@ export default function AdminShops() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift" onClick={() => openEditDialog(shop)} title="Edit">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple" onClick={() => openEditDialog(shop)} title="Edit">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift" onClick={() => openLedger(shop)} title="View Ledger">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple" onClick={() => openLedger(shop)} title="View Ledger">
                             <BookOpen className="h-3.5 w-3.5" />
                           </Button>
                           {shop.status === 'active' && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover-lift" onClick={() => setConfirmDeactivate(shop)} title="Deactivate">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover-lift btn-ripple" onClick={() => setConfirmDeactivate(shop)} title="Deactivate">
                               <UserMinus className="h-3.5 w-3.5" />
                             </Button>
                           )}
@@ -695,10 +695,10 @@ export default function AdminShops() {
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Skeleton className="h-5 w-14 rounded" />
-                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="skeleton-shimmer h-5 w-14 rounded" />
+                    <Skeleton className="skeleton-shimmer h-4 w-40" />
                   </div>
-                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="skeleton-shimmer h-4 w-20" />
                 </div>
               ))}
             </div>

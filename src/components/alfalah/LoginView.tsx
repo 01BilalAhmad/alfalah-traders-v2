@@ -85,7 +85,7 @@ export default function LoginView() {
         </div>
 
         {/* Login Card with Glow */}
-        <Card className="rounded-t-none border-t-0 shadow-2xl shadow-blue-900/30 animate-card-glow bg-white/95 backdrop-blur-sm">
+        <Card className="rounded-t-none border-t-0 shadow-2xl shadow-blue-900/30 animate-card-glow animate-card-entrance bg-white/95 backdrop-blur-sm">
           <CardHeader className="pb-4 pt-6 px-8">
             <h2 className="text-lg font-semibold text-foreground">Sign In to Your Account</h2>
             <p className="text-sm text-muted-foreground">Enter your credentials to access the system</p>
@@ -131,7 +131,7 @@ export default function LoginView() {
 
               <Button
                 type="submit"
-                className="w-full h-11 alfalah-gradient text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-blue-900/20 hover-glow-primary"
+                className="w-full h-11 alfalah-gradient text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-blue-900/20 hover-glow-primary btn-ripple"
                 disabled={loading}
               >
                 {loading ? (

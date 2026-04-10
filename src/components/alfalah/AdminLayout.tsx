@@ -84,7 +84,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Header */}
-      <header className="alfalah-header sticky top-0 z-50 h-16 flex items-center justify-between px-4 lg:px-6">
+      <header className="alfalah-header animate-header-gradient sticky top-0 z-50 h-16 flex items-center justify-between px-4 lg:px-6">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"

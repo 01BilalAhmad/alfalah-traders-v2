@@ -179,9 +179,9 @@ export default function AdminOrderbookers() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 stagger-children">
           {orderbookers.map((ob) => (
-            <Card key={ob.id} className={`alfalah-card-hover hover-lift ${ob.status === 'inactive' ? 'opacity-60' : ''}`}>
+            <Card key={ob.id} className={`alfalah-card-hover hover-lift ${ob.status === 'inactive' ? 'opacity-60' : ''} animate-card-entrance`}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -195,7 +195,7 @@ export default function AdminOrderbookers() {
                       <p className="text-xs text-muted-foreground">@{ob.username}</p>
                     </div>
                   </div>
-                  <Badge className={`text-[10px] ${ob.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
+                  <Badge className={`text-[10px] animate-badge-pop ${ob.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
                     {ob.status === 'active' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                     {ob.status.charAt(0).toUpperCase() + ob.status.slice(1)}
                   </Badge>

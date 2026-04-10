@@ -14,6 +14,15 @@ export async function GET(request: NextRequest) {
     if (action) where.action = action;
     if (entityType) where.entityType = entityType;
 
+    const search = searchParams.get('search');
+    if (search) {
+      where.OR = [
+        { description: { contains: search } },
+        { action: { contains: search } },
+        { entityType: { contains: search } },
+      ];
+    }
+
     const [logs, total] = await Promise.all([
       db.auditLog.findMany({
         where,

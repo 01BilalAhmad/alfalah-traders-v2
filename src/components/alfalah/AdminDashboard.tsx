@@ -43,6 +43,10 @@ import {
   BarChart3,
   PieChart as PieChartIcon,
   TrendingDown,
+  Hash,
+  CalendarDays,
+  Clock,
+  ExternalLink,
 } from 'lucide-react';
 
 function formatCurrency(amount: number): string {
@@ -100,16 +104,16 @@ function DashboardSkeleton() {
   return (
     <div className="space-y-6">
       <div>
-        <Skeleton className="h-7 w-40 mb-1" />
-        <Skeleton className="h-4 w-64" />
+        <Skeleton className="skeleton-shimmer h-7 w-40 mb-1" />
+        <Skeleton className="skeleton-shimmer h-4 w-64" />
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i}>
             <CardContent className="p-4">
-              <Skeleton className="h-8 w-8 rounded-lg mb-3" />
-              <Skeleton className="h-3 w-24 mb-2" />
-              <Skeleton className="h-6 w-28" />
+              <Skeleton className="skeleton-shimmer h-8 w-8 rounded-lg mb-3" />
+              <Skeleton className="skeleton-shimmer h-3 w-24 mb-2" />
+              <Skeleton className="skeleton-shimmer h-6 w-28" />
             </CardContent>
           </Card>
         ))}
@@ -117,17 +121,17 @@ function DashboardSkeleton() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card>
           <CardHeader className="pb-3 pt-4 px-5">
-            <Skeleton className="h-5 w-36" />
+            <Skeleton className="skeleton-shimmer h-5 w-36" />
           </CardHeader>
           <CardContent className="p-0">
             <div className="px-5 py-3 space-y-3">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="skeleton-shimmer h-8 w-8 rounded-full" />
+                    <Skeleton className="skeleton-shimmer h-4 w-28" />
                   </div>
-                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="skeleton-shimmer h-4 w-20" />
                 </div>
               ))}
             </div>
@@ -135,18 +139,18 @@ function DashboardSkeleton() {
         </Card>
         <Card>
           <CardHeader className="pb-3 pt-4 px-5">
-            <Skeleton className="h-5 w-36" />
+            <Skeleton className="skeleton-shimmer h-5 w-36" />
           </CardHeader>
           <CardContent className="p-0">
             <div className="px-5 py-3 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-start gap-3">
-                  <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                  <Skeleton className="skeleton-shimmer h-8 w-8 rounded-full shrink-0" />
                   <div className="flex-1">
-                    <Skeleton className="h-4 w-32 mb-1" />
-                    <Skeleton className="h-3 w-48" />
+                    <Skeleton className="skeleton-shimmer h-4 w-32 mb-1" />
+                    <Skeleton className="skeleton-shimmer h-3 w-48" />
                   </div>
-                  <Skeleton className="h-4 w-16 shrink-0" />
+                  <Skeleton className="skeleton-shimmer h-4 w-16 shrink-0" />
                 </div>
               ))}
             </div>
@@ -236,8 +240,8 @@ export default function AdminDashboard() {
 
       {/* KPI Cards */}
       <div className="dot-pattern rounded-xl p-5">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="kpi-card stat-card-amber hover-scale-102">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
+          <Card className="kpi-card stat-card-amber hover-scale-102 animate-card-entrance">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center shadow-sm">
@@ -246,10 +250,10 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Today&apos;s Credit</p>
-              <p className="text-2xl font-bold text-amber-600 tabular-nums">{formatCurrency(data.todayCredit)}</p>
+              <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate">{formatCurrency(data.todayCredit)}</p>
             </CardContent>
           </Card>
-          <Card className="kpi-card stat-card-green hover-scale-102">
+          <Card className="kpi-card stat-card-green hover-scale-102 animate-card-entrance">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 flex items-center justify-center shadow-sm">
@@ -258,10 +262,10 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Today&apos;s Recovery</p>
-              <p className="text-2xl font-bold text-green-600 tabular-nums">{formatCurrency(data.todayRecovery)}</p>
+              <p className="text-2xl font-bold text-green-600 tabular-nums number-animate">{formatCurrency(data.todayRecovery)}</p>
             </CardContent>
           </Card>
-          <Card className="kpi-card stat-card-red hover-scale-102">
+          <Card className="kpi-card stat-card-red hover-scale-102 animate-card-entrance">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-100 to-red-50 flex items-center justify-center shadow-sm">
@@ -270,10 +274,10 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-red-500 font-medium bg-red-50 px-2 py-0.5 rounded-full">Alert</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Outstanding</p>
-              <p className="text-2xl font-bold text-red-600 tabular-nums">{formatCurrency(data.totalOutstanding)}</p>
+              <p className="text-2xl font-bold text-red-600 tabular-nums number-animate">{formatCurrency(data.totalOutstanding)}</p>
             </CardContent>
           </Card>
-          <Card className="kpi-card stat-card-blue hover-scale-102">
+          <Card className="kpi-card stat-card-blue hover-scale-102 animate-card-entrance">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center shadow-sm">
@@ -282,7 +286,7 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">All</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Active Shops</p>
-              <p className="text-2xl font-bold tabular-nums">{data.totalShops}</p>
+              <p className="text-2xl font-bold tabular-nums number-animate">{data.totalShops}</p>
             </CardContent>
           </Card>
         </div>
@@ -322,11 +326,61 @@ export default function AdminDashboard() {
         </Button>
       </div>
 
+      {/* Today's Key Metrics Summary Strip */}
+      <Card className="animate-fade-in">
+        <CardContent className="p-4">
+          <div className="overflow-x-auto">
+            <div className="flex gap-3 min-w-max snap-x snap-mandatory pb-1">
+              {/* Total Credit Today */}
+              <div className="flex items-center gap-2.5 rounded-full bg-amber-50 border border-amber-200/60 px-4 py-2.5 snap-center">
+                <div className="h-7 w-7 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                  <TrendingUp className="h-3.5 w-3.5 text-amber-600" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-medium text-amber-600/70 leading-none">Total Credit Today</span>
+                  <span className="text-sm font-bold text-amber-700 tabular-nums leading-tight mt-0.5">{formatCurrency(data.todayCredit)}</span>
+                </div>
+              </div>
+              {/* Total Recovery Today */}
+              <div className="flex items-center gap-2.5 rounded-full bg-green-50 border border-green-200/60 px-4 py-2.5 snap-center">
+                <div className="h-7 w-7 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                  <ArrowDownRight className="h-3.5 w-3.5 text-green-600" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-medium text-green-600/70 leading-none">Total Recovery Today</span>
+                  <span className="text-sm font-bold text-green-700 tabular-nums leading-tight mt-0.5">{formatCurrency(data.todayRecovery)}</span>
+                </div>
+              </div>
+              {/* Transactions */}
+              <div className="flex items-center gap-2.5 rounded-full bg-blue-50 border border-blue-200/60 px-4 py-2.5 snap-center">
+                <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                  <Hash className="h-3.5 w-3.5 text-blue-600" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-medium text-blue-600/70 leading-none">Transactions</span>
+                  <span className="text-sm font-bold text-blue-700 tabular-nums leading-tight mt-0.5">{data.todayTxns.length} entries</span>
+                </div>
+              </div>
+              {/* Shops Active */}
+              <div className="flex items-center gap-2.5 rounded-full bg-primary/5 border border-primary/15 px-4 py-2.5 snap-center">
+                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-medium text-primary/60 leading-none">Shops Active</span>
+                  <span className="text-sm font-bold text-primary tabular-nums leading-tight mt-0.5">{data.totalShops}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Divider */}
       <hr className="divider-gradient" />
 
       {/* Daily Trends Chart */}
-      <Card className="hover-scale-102">
+      <Card className="hover-scale-102 card-shadow-transition">
         <CardHeader className="pb-2 pt-4 px-5">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
@@ -416,7 +470,7 @@ export default function AdminDashboard() {
       </Card>
 
       {/* Orderbooker Performance Chart */}
-      <Card className="hover-scale-102">
+      <Card className="hover-scale-102 card-shadow-transition">
         <CardHeader className="pb-2 pt-4 px-5">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
@@ -512,7 +566,7 @@ export default function AdminDashboard() {
       </Card>
 
       {/* Route Distribution Pie Chart */}
-      <Card className="hover-scale-102">
+      <Card className="hover-scale-102 card-shadow-transition">
         <CardHeader className="pb-2 pt-4 px-5">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <PieChartIcon className="h-4 w-4 text-primary" />
@@ -606,7 +660,7 @@ export default function AdminDashboard() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-sm font-semibold text-red-600">{formatCurrency(ob.totalOutstanding)}</span>
+                        <span className="text-sm font-semibold text-red-600 number-animate">{formatCurrency(ob.totalOutstanding)}</span>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -647,7 +701,7 @@ export default function AdminDashboard() {
                               <p className="text-[11px] text-muted-foreground truncate">{shop.area || '—'}</p>
                             </div>
                           </div>
-                          <span className="text-sm font-bold text-red-600 tabular-nums shrink-0 ml-2">{formatCurrency(shop.balance)}</span>
+                          <span className="text-sm font-bold text-red-600 tabular-nums shrink-0 ml-2 number-animate">{formatCurrency(shop.balance)}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
@@ -671,8 +725,8 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Recent Activity */}
-      <Card>
+      {/* Timeline Activity Feed */}
+      <Card className="animate-fade-in">
         <CardHeader className="pb-3 pt-4 px-5">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Activity className="h-4 w-4 text-primary" />
@@ -680,43 +734,74 @@ export default function AdminDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="max-h-80">
-            <div className="divide-y divide-border">
+          <ScrollArea className="max-h-96">
+            <div className="px-5 py-3">
               {data.todayTxns.length === 0 ? (
-                <div className="text-center py-8 text-sm text-muted-foreground">
-                  <Activity className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  <p className="font-medium">No activity today</p>
-                  <p className="text-xs mt-1">Credit postings and recoveries will appear here</p>
+                <div className="text-center py-10">
+                  <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center">
+                    <Clock className="h-8 w-8 text-muted-foreground/40" />
+                  </div>
+                  <p className="font-medium text-muted-foreground text-sm">No activity recorded today</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1.5 max-w-xs mx-auto leading-relaxed">
+                    Post credit or collect recovery to see activity here.
+                  </p>
                 </div>
               ) : (
-                data.todayTxns.map((txn) => (
-                  <div key={txn.id} className="px-5 py-3 flex items-start gap-3 hover:bg-muted/20 transition-colors">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${txn.type === 'credit' ? 'bg-amber-50' : 'bg-green-50'}`}>
-                      {txn.type === 'credit' ? (
-                        <ArrowUpRight className="h-4 w-4 text-amber-600" />
-                      ) : (
-                        <ArrowDownRight className="h-4 w-4 text-green-600" />
-                      )}
+                <div className="relative pl-8">
+                  {/* Vertical timeline line */}
+                  <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
+                  {data.todayTxns.map((txn, idx) => (
+                    <div key={txn.id} className="relative pb-6 last:pb-0 group">
+                      {/* Timeline dot with icon */}
+                      <div className={`absolute -left-8 top-0.5 h-[22px] w-[22px] rounded-full flex items-center justify-center ring-4 ring-background z-10 ${txn.type === 'credit' ? 'bg-amber-100' : 'bg-green-100'}`}>
+                        {txn.type === 'credit' ? (
+                          <ArrowUpRight className="h-3 w-3 text-amber-600" />
+                        ) : (
+                          <ArrowDownRight className="h-3 w-3 text-green-600" />
+                        )}
+                      </div>
+                      {/* Activity content */}
+                      <div className="flex items-start justify-between gap-3 rounded-lg p-2 -mx-2 hover:bg-muted/30 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium leading-snug">
+                            {txn.type === 'credit'
+                              ? <>Credit of <span className="font-bold text-amber-600">{formatCurrency(txn.amount)}</span> posted to <span className="font-semibold">{txn.shop.name}</span></>
+                              : <>Recovery of <span className="font-bold text-green-600">{formatCurrency(txn.amount)}</span> collected from <span className="font-semibold">{txn.shop.name}</span></>
+                            }
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            by {txn.creator.name}
+                            {txn.shop.area && <span className="text-muted-foreground/50"> &middot; {txn.shop.area}</span>}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${txn.type === 'credit' ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
+                            {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                          </span>
+                          <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+                            {new Date(txn.createdAt).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{txn.shop.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {txn.type === 'credit' ? 'Credit posted' : 'Recovery collected'} &bull; {txn.creator.name}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className={`text-sm font-bold ${txn.type === 'credit' ? 'text-amber-600' : 'text-green-600'}`}>
-                        {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {new Date(txn.createdAt).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           </ScrollArea>
+          {/* View All Activity Link */}
+          {data.todayTxns.length > 0 && (
+            <div className="border-t border-border/60 px-5 py-3">
+              <button
+                className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors group"
+                onClick={() => setCurrentView('admin-audit')}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                View All Activity
+                <ArrowUpRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+              </button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

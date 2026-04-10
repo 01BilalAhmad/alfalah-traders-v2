@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,13 @@ import {
   ChevronRight,
   Filter,
   Download,
+  X,
+  Clock,
+  TrendingUp,
+  ArrowDownRight,
+  List,
+  LayoutList,
+  Users,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { exportToCSV } from '@/lib/csv-export';
@@ -59,10 +66,18 @@ interface AuditData {
 
 const actionColors: Record<string, string> = {
   create: 'badge-active',
-  edit: 'bg-blue-50 text-blue-700',
+  edit: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
   credit_post: 'badge-credit',
   recovery_entry: 'badge-recovery',
   status_change: 'badge-inactive',
+};
+
+const actionDotColors: Record<string, string> = {
+  create: 'bg-emerald-500',
+  edit: 'bg-blue-500',
+  credit_post: 'bg-amber-500',
+  recovery_entry: 'bg-green-500',
+  status_change: 'bg-slate-500',
 };
 
 const actionLabels: Record<string, string> = {
@@ -79,12 +94,58 @@ const entityLabels: Record<string, string> = {
   transaction: 'Transaction',
 };
 
+function getRelativeTime(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffSec < 60) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  if (diffDay === 1) return 'Yesterday';
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return date.toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function isToday(dateStr: string): boolean {
+  const today = new Date();
+  const date = new Date(dateStr);
+  return (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  );
+}
+
+type ViewMode = 'table' | 'timeline';
+
 export default function AdminAuditLog() {
   const [data, setData] = useState<AuditData>({ logs: [], total: 0, page: 1, totalPages: 1 });
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [actionFilter, setActionFilter] = useState<string>('');
   const [entityFilter, setEntityFilter] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [expandedTimelineId, setExpandedTimelineId] = useState<string | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounce search input
+  useEffect(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 300);
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [searchQuery]);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -92,6 +153,7 @@ export default function AdminAuditLog() {
       const params = new URLSearchParams({ page: String(page), limit: '50' });
       if (actionFilter) params.set('action', actionFilter);
       if (entityFilter) params.set('entityType', entityFilter);
+      if (debouncedSearch) params.set('search', debouncedSearch);
       const res = await fetch(`/api/audit?${params.toString()}`);
       if (res.ok) setData(await res.json());
     } catch {
@@ -99,7 +161,7 @@ export default function AdminAuditLog() {
     } finally {
       setLoading(false);
     }
-  }, [page, actionFilter, entityFilter]);
+  }, [page, actionFilter, entityFilter, debouncedSearch]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -110,8 +172,65 @@ export default function AdminAuditLog() {
     });
   };
 
+  // Summary stats
+  const stats = useMemo(() => {
+    const todayCount = data.logs.filter((log) => isToday(log.createdAt)).length;
+    const creditPosts = data.logs.filter((log) => log.action === 'credit_post').length;
+    const recoveryEntries = data.logs.filter((log) => log.action === 'recovery_entry').length;
+    return { total: data.total, todayCount, creditPosts, recoveryEntries };
+  }, [data.logs, data.total]);
+
+  // Active filters for chips
+  const activeFilters = useMemo(() => {
+    const chips: { key: string; label: string; color: string }[] = [];
+    if (actionFilter) {
+      const colors: Record<string, string> = {
+        create: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800',
+        edit: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800',
+        credit_post: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
+        recovery_entry: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
+        status_change: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+      };
+      chips.push({
+        key: 'action',
+        label: `Action: ${actionLabels[actionFilter] || actionFilter}`,
+        color: colors[actionFilter] || 'bg-muted text-muted-foreground border-border',
+      });
+    }
+    if (entityFilter) {
+      chips.push({
+        key: 'entity',
+        label: `Entity: ${entityLabels[entityFilter] || entityFilter}`,
+        color: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800',
+      });
+    }
+    if (debouncedSearch) {
+      chips.push({
+        key: 'search',
+        label: `Search: "${debouncedSearch}"`,
+        color: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800',
+      });
+    }
+    return chips;
+  }, [actionFilter, entityFilter, debouncedSearch]);
+
+  const removeFilter = (key: string) => {
+    if (key === 'action') setActionFilter('');
+    if (key === 'entity') setEntityFilter('');
+    if (key === 'search') setSearchQuery('');
+    setPage(1);
+  };
+
+  const clearAllFilters = () => {
+    setActionFilter('');
+    setEntityFilter('');
+    setSearchQuery('');
+    setPage(1);
+  };
+
   return (
     <div className="space-y-5">
+      {/* Title Row */}
       <div>
         <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
           <Shield className="h-5 w-5 text-primary" />
@@ -120,12 +239,159 @@ export default function AdminAuditLog() {
         <p className="text-sm text-muted-foreground mt-0.5">{data.total} total entries</p>
       </div>
 
-      {/* Export button */}
-      {data.logs.length > 0 && (
-        <div className="flex justify-end">
+      {/* Summary Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-children">
+        <Card className="stat-card-blue animate-card-entrance">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+              <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg font-bold text-foreground tabular-nums">{stats.total}</p>
+              <p className="text-[11px] text-muted-foreground font-medium truncate">Total Activities</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="stat-card-amber animate-card-entrance">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg font-bold text-foreground tabular-nums">{stats.todayCount}</p>
+              <p className="text-[11px] text-muted-foreground font-medium truncate">Today&apos;s Activities</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="stat-card-amber animate-card-entrance">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg font-bold text-foreground tabular-nums">{stats.creditPosts}</p>
+              <p className="text-[11px] text-muted-foreground font-medium truncate">Credit Posts</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="stat-card-green animate-card-entrance">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
+              <ArrowDownRight className="h-4 w-4 text-green-600 dark:text-green-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg font-bold text-foreground tabular-nums">{stats.recoveryEntries}</p>
+              <p className="text-[11px] text-muted-foreground font-medium truncate">Recovery Entries</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search Input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="Search descriptions, actions, entities..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className={`pl-9 pr-9 h-10 ${searchQuery ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : ''}`}
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Active Filter Chips */}
+      {activeFilters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {activeFilters.map((chip) => (
+            <Badge
+              key={chip.key}
+              variant="outline"
+              className={`${chip.color} text-xs cursor-pointer gap-1 pr-1 transition-opacity hover:opacity-80`}
+              onClick={() => removeFilter(chip.key)}
+            >
+              {chip.label}
+              <X className="h-3 w-3 ml-0.5" />
+            </Badge>
+          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs text-muted-foreground hover:text-foreground"
+            onClick={clearAllFilters}
+          >
+            Clear all
+          </Button>
+        </div>
+      )}
+
+      {/* Filters + Export Row */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <Card className="flex-1 w-full sm:w-auto">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <Select value={actionFilter} onValueChange={(v) => { setActionFilter(v === 'all' ? '' : v); setPage(1); }}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Filter by Action" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Actions</SelectItem>
+                  <SelectItem value="create">Create</SelectItem>
+                  <SelectItem value="edit">Edit</SelectItem>
+                  <SelectItem value="credit_post">Credit Post</SelectItem>
+                  <SelectItem value="recovery_entry">Recovery Entry</SelectItem>
+                  <SelectItem value="status_change">Status Change</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={entityFilter} onValueChange={(v) => { setEntityFilter(v === 'all' ? '' : v); setPage(1); }}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue placeholder="Filter by Entity" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Entities</SelectItem>
+                  <SelectItem value="shop">Shop</SelectItem>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="transaction">Transaction</SelectItem>
+                </SelectContent>
+              </Select>
+              {/* View Mode Toggle */}
+              <div className="flex items-center border border-border rounded-lg overflow-hidden flex-shrink-0">
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-3 rounded-none"
+                  onClick={() => setViewMode('table')}
+                >
+                  <List className="h-3.5 w-3.5 mr-1.5" />
+                  <span className="text-xs hidden sm:inline">Table</span>
+                </Button>
+                <Button
+                  variant={viewMode === 'timeline' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-3 rounded-none"
+                  onClick={() => setViewMode('timeline')}
+                >
+                  <LayoutList className="h-3.5 w-3.5 mr-1.5" />
+                  <span className="text-xs hidden sm:inline">Timeline</span>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {data.logs.length > 0 && (
           <Button
             variant="outline"
             size="sm"
+            className="flex-shrink-0"
             onClick={() => {
               const rows = data.logs.map((log) => ({
                 Date: new Date(log.createdAt).toLocaleString('en-PK'),
@@ -140,115 +406,203 @@ export default function AdminAuditLog() {
           >
             <Download className="h-4 w-4 mr-1.5" /> Export CSV
           </Button>
-        </div>
+        )}
+      </div>
+
+      {/* Table View */}
+      {viewMode === 'table' && (
+        <Card>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : data.logs.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Shield className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No audit log entries found</p>
+              </div>
+            ) : (
+              <>
+                <ScrollArea className="max-h-[560px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="data-table-header hover:bg-transparent">
+                        <TableHead className="text-white font-semibold text-xs">Date</TableHead>
+                        <TableHead className="text-white font-semibold text-xs">Action</TableHead>
+                        <TableHead className="text-white font-semibold text-xs">Entity</TableHead>
+                        <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Description</TableHead>
+                        <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">By</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="stagger-children">
+                      {data.logs.map((log) => (
+                        <TableRow key={log.id} className="hover:bg-muted/50">
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatDate(log.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`text-[10px] animate-badge-pop ${actionColors[log.action] || 'bg-muted text-muted-foreground'}`}>
+                              {actionLabels[log.action] || log.action}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {entityLabels[log.entityType] || log.entityType}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground hidden md:table-cell max-w-xs truncate">
+                            {log.description || '—'}
+                          </TableCell>
+                          <TableCell className="text-xs hidden sm:table-cell">
+                            {log.performer?.name || 'System'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+                {data.totalPages > 1 && (
+                  <div className="flex items-center justify-between px-5 py-3 border-t border-border">
+                    <p className="text-xs text-muted-foreground">
+                      Page {data.page} of {data.totalPages}
+                    </p>
+                    <div className="flex gap-1">
+                      <Button variant="outline" size="icon" className="h-8 w-8" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= data.totalPages} onClick={() => setPage(page + 1)}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
       )}
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Select value={actionFilter} onValueChange={(v) => { setActionFilter(v === 'all' ? '' : v); setPage(1); }}>
-              <SelectTrigger className="w-full sm:w-48">
-                <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Filter by Action" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Actions</SelectItem>
-                <SelectItem value="create">Create</SelectItem>
-                <SelectItem value="edit">Edit</SelectItem>
-                <SelectItem value="credit_post">Credit Post</SelectItem>
-                <SelectItem value="recovery_entry">Recovery Entry</SelectItem>
-                <SelectItem value="status_change">Status Change</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={entityFilter} onValueChange={(v) => { setEntityFilter(v === 'all' ? '' : v); setPage(1); }}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Filter by Entity" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Entities</SelectItem>
-                <SelectItem value="shop">Shop</SelectItem>
-                <SelectItem value="user">User</SelectItem>
-                <SelectItem value="transaction">Transaction</SelectItem>
-              </SelectContent>
-            </Select>
-            {(actionFilter || entityFilter) && (
-              <Button variant="ghost" size="sm" onClick={() => { setActionFilter(''); setEntityFilter(''); setPage(1); }}>
-                Clear Filters
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Timeline View */}
+      {viewMode === 'timeline' && (
+        <Card>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : data.logs.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Shield className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No audit log entries found</p>
+              </div>
+            ) : (
+              <>
+                <ScrollArea className="max-h-[620px]">
+                  <div className="px-4 sm:px-6 py-4">
+                    <div className="relative">
+                      {/* Vertical connecting line */}
+                      <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-          ) : data.logs.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Shield className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No audit log entries found</p>
-            </div>
-          ) : (
-            <>
-              <ScrollArea className="max-h-[560px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="data-table-header hover:bg-transparent">
-                      <TableHead className="text-white font-semibold text-xs">Date</TableHead>
-                      <TableHead className="text-white font-semibold text-xs">Action</TableHead>
-                      <TableHead className="text-white font-semibold text-xs">Entity</TableHead>
-                      <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Description</TableHead>
-                      <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">By</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.logs.map((log) => (
-                      <TableRow key={log.id} className="hover:bg-muted/50">
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatDate(log.createdAt)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={`text-[10px] ${actionColors[log.action] || 'bg-muted text-muted-foreground'}`}>
-                            {actionLabels[log.action] || log.action}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {entityLabels[log.entityType] || log.entityType}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground hidden md:table-cell max-w-xs truncate">
-                          {log.description || '—'}
-                        </TableCell>
-                        <TableCell className="text-xs hidden sm:table-cell">
-                          {log.performer?.name || 'System'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-              {/* Pagination */}
-              {data.totalPages > 1 && (
-                <div className="flex items-center justify-between px-5 py-3 border-t border-border">
-                  <p className="text-xs text-muted-foreground">
-                    Page {data.page} of {data.totalPages}
-                  </p>
-                  <div className="flex gap-1">
-                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= data.totalPages} onClick={() => setPage(page + 1)}>
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+                      {data.logs.map((log) => {
+                        const isExpanded = expandedTimelineId === log.id;
+                        const dotColor = actionDotColors[log.action] || 'bg-muted-foreground';
+                        return (
+                          <div
+                            key={log.id}
+                            className="relative flex gap-4 pb-6 last:pb-0 group cursor-pointer"
+                            onClick={() => setExpandedTimelineId(isExpanded ? null : log.id)}
+                          >
+                            {/* Dot */}
+                            <div className="relative z-10 flex-shrink-0 mt-1">
+                              <div className={`h-[11px] w-[11px] rounded-full ${dotColor} ring-2 ring-background shadow-sm group-hover:scale-125 transition-transform`} />
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0 -mt-0.5">
+                              {/* Title row */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Badge className={`text-[10px] animate-badge-pop ${actionColors[log.action] || 'bg-muted text-muted-foreground'}`}>
+                                      {actionLabels[log.action] || log.action}
+                                    </Badge>
+                                    <span className="text-xs font-medium text-foreground">
+                                      {entityLabels[log.entityType] || log.entityType}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-foreground mt-0.5 truncate">
+                                    {log.description || 'No description'}
+                                  </p>
+                                </div>
+                                <span className="text-[11px] text-muted-foreground whitespace-nowrap flex-shrink-0">
+                                  {getRelativeTime(log.createdAt)}
+                                </span>
+                              </div>
+
+                              {/* Performer */}
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <Users className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">
+                                  {log.performer?.name || 'System'}
+                                </span>
+                                {log.performer?.role && (
+                                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
+                                    {log.performer.role}
+                                  </Badge>
+                                )}
+                              </div>
+
+                              {/* Expanded Details */}
+                              {isExpanded && (
+                                <div className="mt-3 ml-0 p-3 bg-muted/50 rounded-lg border border-border/50 space-y-2 animate-fade-in">
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <Clock className="h-3 w-3 text-muted-foreground" />
+                                    <span className="text-muted-foreground">{formatDate(log.createdAt)}</span>
+                                  </div>
+                                  {log.description && (
+                                    <p className="text-xs text-foreground">{log.description}</p>
+                                  )}
+                                  {log.oldValue && (
+                                    <div className="text-xs">
+                                      <span className="text-muted-foreground font-medium">Before: </span>
+                                      <span className="text-red-600 dark:text-red-400">{log.oldValue}</span>
+                                    </div>
+                                  )}
+                                  {log.newValue && (
+                                    <div className="text-xs">
+                                      <span className="text-muted-foreground font-medium">After: </span>
+                                      <span className="text-green-600 dark:text-green-400">{log.newValue}</span>
+                                    </div>
+                                  )}
+                                  {log.entityId && (
+                                    <div className="text-xs text-muted-foreground">
+                                      Entity ID: <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{log.entityId}</code>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+                </ScrollArea>
+                {data.totalPages > 1 && (
+                  <div className="flex items-center justify-between px-5 py-3 border-t border-border">
+                    <p className="text-xs text-muted-foreground">
+                      Page {data.page} of {data.totalPages}
+                    </p>
+                    <div className="flex gap-1">
+                      <Button variant="outline" size="icon" className="h-8 w-8" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= data.totalPages} onClick={() => setPage(page + 1)}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

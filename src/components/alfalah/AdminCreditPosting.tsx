@@ -431,7 +431,7 @@ export default function AdminCreditPosting() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Posted This Session</p>
-              <p className="text-xl font-bold text-foreground tabular-nums">{creditSessionCount}</p>
+              <p className="text-xl font-bold text-foreground tabular-nums number-animate">{creditSessionCount}</p>
             </div>
             {/* Quick Post Toggle */}
             <div className="flex items-center gap-2 shrink-0">
@@ -465,7 +465,7 @@ export default function AdminCreditPosting() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
-              <p className="text-xl font-bold text-foreground tabular-nums">{formatCurrency(totalOutstanding)}</p>
+              <p className="text-xl font-bold text-foreground tabular-nums number-animate">{formatCurrency(totalOutstanding)}</p>
             </div>
           </CardContent>
         </Card>
@@ -662,7 +662,7 @@ export default function AdminCreditPosting() {
                         <Badge variant="outline" className="text-[10px] font-medium">{shop.routeDay.charAt(0).toUpperCase() + shop.routeDay.slice(1)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600 dark:text-red-400' : shop.balance < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+              <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600 dark:text-red-400' : shop.balance < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
                           {formatCurrency(shop.balance)}
                         </span>
                       </TableCell>
@@ -714,7 +714,7 @@ export default function AdminCreditPosting() {
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground font-medium">Total Credit Posted</p>
-                    <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{formatCurrency(todayTotal)}</p>
+                    <p className="text-lg font-bold text-amber-700 dark:text-amber-300 number-animate">{formatCurrency(todayTotal)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/10 dark:border-primary/20">
@@ -869,7 +869,7 @@ export default function AdminCreditPosting() {
             <Button
               onClick={handlePostCredit}
               disabled={postingCredit || !creditAmount || parseFloat(creditAmount) <= 0}
-              className={`hover:opacity-90 ${quickPostMode ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-primary hover:bg-primary/90'}`}
+              className={`btn-ripple hover:opacity-90 ${quickPostMode ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-primary hover:bg-primary/90'}`}
             >
               {postingCredit ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

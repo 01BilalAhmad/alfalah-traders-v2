@@ -541,7 +541,7 @@ function OrderbookerDashboard() {
       </div>
 
       {/* Today's Recovery Summary */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden animate-fade-in">
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-3">
           <div className="flex items-center gap-2">
             <div className="h-7 w-7 rounded-lg bg-white/20 flex items-center justify-center">
@@ -617,7 +617,7 @@ function OrderbookerDashboard() {
       ) : (
         <div className="space-y-3">
           {shops.map((shop) => (
-            <Card key={shop.id} className="alfalah-card-hover hover-lift overflow-hidden">
+            <Card key={shop.id} className="alfalah-card-hover hover-lift animate-card-entrance overflow-hidden">
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
@@ -647,7 +647,7 @@ function OrderbookerDashboard() {
                 <div className="mt-3 flex gap-2">
                   <Button
                     size="sm"
-                    className="flex-1 h-9 bg-primary hover:bg-primary/90 text-white text-xs font-medium hover-glow-primary"
+                    className="flex-1 h-9 bg-primary hover:bg-primary/90 text-white text-xs font-medium hover-glow-primary btn-ripple"
                     onClick={() => openRecoveryDialog(shop)}
                   >
                     <Banknote className="h-3.5 w-3.5 mr-1.5" />
