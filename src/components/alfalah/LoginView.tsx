@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Building2, Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 
 export default function LoginView() {
@@ -15,7 +16,17 @@ export default function LoginView() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const { setUser } = useAppStore();
+
+  // Load saved username on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('alfalah-remembered-username');
+    if (saved) {
+      setUsername(saved);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +54,14 @@ export default function LoginView() {
 
       setLoginError(false);
       setUser(data.user);
+
+      // Save/clear remembered username
+      if (rememberMe) {
+        localStorage.setItem('alfalah-remembered-username', username.trim());
+      } else {
+        localStorage.removeItem('alfalah-remembered-username');
+      }
+
       toast({ title: 'Welcome!', description: `Logged in as ${data.user.name}` });
     } catch {
       setLoginError(true);
@@ -137,8 +156,17 @@ export default function LoginView() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <div className="text-right">
-                  <span className="login-link cursor-default">Forgot Password?</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="remember-me"
+                      checked={rememberMe}
+                      onCheckedChange={(checked) => setRememberMe(checked === true)}
+                      className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                    />
+                    <Label htmlFor="remember-me" className="text-sm text-muted-foreground cursor-pointer select-none">Remember me</Label>
+                  </div>
+                  <span className="login-link cursor-default text-xs">Forgot Password?</span>
                 </div>
               </div>
 

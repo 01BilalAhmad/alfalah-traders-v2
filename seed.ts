@@ -5,7 +5,7 @@ async function seed() {
   console.log('🌱 Seeding database...');
 
   // Create Admin
-  const adminPassword = await bcrypt.hash('admin123', 10);
+  const adminPassword = await bcrypt.hash('@AFE@123654', 10);
   const admin = await db.user.upsert({
     where: { username: 'al-falah trader' },
     update: {},
@@ -131,7 +131,7 @@ async function seed() {
 
   console.log('\n🎉 Seeding completed!');
   console.log('\n📋 Login Credentials:');
-  console.log('   Admin: username=AL-FALAH TRADER, password=admin123');
+  console.log('   Admin: username=AL-FALAH TRADER, password=@AFE@123654');
   console.log('   Orderbooker 1: username=ahmed, password=ob123');
   console.log('   Orderbooker 2: username=bilal, password=ob123');
 }

@@ -28,9 +28,15 @@ export async function GET() {
           select: { balance: true },
         });
         const totalOutstanding = shops.reduce((sum, s) => sum + s.balance, 0);
+        const activeShopCount = ob._count.orderbookerShops;
         return {
-          ...ob,
-          totalShops: ob._count.orderbookerShops,
+          id: ob.id,
+          username: ob.username,
+          name: ob.name,
+          phone: ob.phone,
+          status: ob.status,
+          createdAt: ob.createdAt,
+          totalShops: activeShopCount,
           totalOutstanding: Math.round(totalOutstanding * 100) / 100,
         };
       })

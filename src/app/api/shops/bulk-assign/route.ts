@@ -14,10 +14,13 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'orderbookerId is required' }, { status: 400 });
     }
 
-    // Verify the orderbooker exists and is active
+    // Verify the orderbooker exists
     const orderbooker = await db.user.findUnique({ where: { id: orderbookerId } });
-    if (!orderbooker || orderbooker.status !== 'active') {
-      return NextResponse.json({ error: 'Active orderbooker not found' }, { status: 404 });
+    if (!orderbooker) {
+      return NextResponse.json({ error: 'Orderbooker not found. Please select a valid orderbooker.' }, { status: 404 });
+    }
+    if (orderbooker.status !== 'active') {
+      return NextResponse.json({ error: `"${orderbooker.name}" is currently inactive. Please activate them first or choose a different orderbooker.` }, { status: 400 });
     }
 
     // Update all shops in a transaction

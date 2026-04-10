@@ -110,6 +110,7 @@ export default function AdminShops() {
   const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDay, setSelectedDay] = useState<string>('');
+  const [selectedOBFilter, setSelectedOBFilter] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
 
@@ -322,9 +323,9 @@ export default function AdminShops() {
       ]
     : orderbookers.filter((ob) => ob.status === 'active');
 
-  const filteredShops = selectedDay
-    ? shops.filter((s) => s.routeDay === selectedDay)
-    : shops;
+  const filteredShops = shops
+    .filter((s) => !selectedDay || s.routeDay === selectedDay)
+    .filter((s) => !selectedOBFilter || s.orderbooker.id === selectedOBFilter);
 
   // Bulk selection helpers
   const allSelected = filteredShops.length > 0 && filteredShops.every((s) => selectedShopIds.has(s.id));
@@ -387,12 +388,13 @@ export default function AdminShops() {
           const obName = orderbookers.find((o) => o.id === bulkOrderbookerId)?.name || 'Unknown';
           toast({ title: 'Bulk Assign Complete', description: `${ids.length} shops assigned to ${obName}` });
           setBulkDialogOpen(false);
+          setBulkAction(null);
           clearSelection();
           fetchShops();
           fetchAllShopsForCounts();
         } else {
           const data = await res.json();
-          toast({ title: 'Error', description: data.error, variant: 'destructive' });
+          toast({ title: 'Bulk Assign Failed', description: data.error || 'Unknown error. Please try again.', variant: 'destructive' });
         }
       } else if (bulkAction === 'deactivate') {
         const res = await fetch('/api/shops/bulk-status', {
@@ -611,14 +613,39 @@ export default function AdminShops() {
                 className="pl-9"
               />
             </div>
-            <Button
-              variant={showInactive ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setShowInactive(!showInactive)}
-              className={showInactive ? 'bg-primary text-white' : ''}
-            >
-              {showInactive ? 'Hide Inactive' : 'Show Inactive'}
-            </Button>
+            <Select value={selectedOBFilter} onValueChange={(v) => setSelectedOBFilter(v === '__all__' ? '' : v)}>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder="All Orderbookers" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All Orderbookers</SelectItem>
+                {orderbookers.filter((ob) => ob.status === 'active').map((ob) => (
+                  <SelectItem key={ob.id} value={ob.id}>
+                    <span className="flex items-center gap-2">{ob.name} <span className="text-muted-foreground text-xs">({ob.totalShops})</span></span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2">
+              <Button
+                variant={showInactive ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowInactive(!showInactive)}
+                className={showInactive ? 'bg-primary text-white' : ''}
+              >
+                {showInactive ? 'Hide Inactive' : 'Show Inactive'}
+              </Button>
+              {(searchQuery || selectedDay || selectedOBFilter) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setSearchQuery(''); setSelectedDay(''); setSelectedOBFilter(''); }}
+                  className="text-muted-foreground"
+                >
+                  <X className="h-3.5 w-3.5 mr-1" /> Reset
+                </Button>
+              )}
+            </div>
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             <button
@@ -640,6 +667,19 @@ export default function AdminShops() {
 
       {/* Shops Table */}
       <Card className="card-elevated">
+        {(searchQuery || selectedDay || selectedOBFilter) && (
+          <div className="px-4 pt-3 pb-0 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground animate-fade-in">
+              Showing <span className="font-semibold text-foreground">{filteredShops.length}</span> of {shops.length} shops
+              {searchQuery && <span className="ml-1">matching &ldquo;<span className="font-medium text-primary">{searchQuery}</span>&rdquo;</span>}
+              {selectedOBFilter && (
+                <span className="ml-1">
+                  for <span className="font-medium text-primary">{orderbookers.find(o => o.id === selectedOBFilter)?.name || 'OB'}</span>
+                </span>
+              )}
+            </span>
+          </div>
+        )}
         <CardContent className="p-0">
           {loading ? (
             <div className="p-5 space-y-4">
@@ -692,7 +732,7 @@ export default function AdminShops() {
               <Table>
                 <TableHeader>
                   <TableRow className="data-table-header hover:bg-transparent">
-                    <TableHead className="text-white font-semibold text-xs w-10 hidden md:table-cell">
+                    <TableHead className="text-white font-semibold text-xs w-10">
                       <Checkbox
                         checked={allSelected}
                         ref={(el) => { if (el) { (el as unknown as HTMLInputElement).indeterminate = someSelected && !allSelected; } }}
@@ -716,7 +756,7 @@ export default function AdminShops() {
                     const isSelected = selectedShopIds.has(shop.id);
                     return (
                     <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} ${shop.status === 'inactive' ? 'opacity-60' : ''} ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''} ${shop.creditLimit > 0 && shop.balance > shop.creditLimit ? 'border-l-2 border-l-red-500 bg-red-50/50 dark:bg-red-950/20' : ''} hover-scale-102 transition-colors`}>
-                      <TableCell className="hidden md:table-cell">
+                      <TableCell>
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => toggleSelectShop(shop.id)}
@@ -890,9 +930,17 @@ export default function AdminShops() {
                 <SelectValue placeholder="Choose an orderbooker..." />
               </SelectTrigger>
               <SelectContent>
-                {orderbookers.filter((ob) => ob.status === 'active').map((ob) => (
-                  <SelectItem key={ob.id} value={ob.id}>
-                    {ob.name}
+                {orderbookers.length === 0 && (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">No orderbookers found</div>
+                )}
+                {orderbookers.map((ob) => (
+                  <SelectItem key={ob.id} value={ob.id} disabled={ob.status !== 'active'}>
+                    <span className="flex items-center gap-2">
+                      {ob.name}
+                      {ob.status !== 'active' && (
+                        <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300 bg-amber-50">Inactive</Badge>
+                      )}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>

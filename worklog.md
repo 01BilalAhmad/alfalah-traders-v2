@@ -3279,3 +3279,99 @@ Stage Summary:
 4. Implement offline mode for orderbooker app
 5. Add data backup/restore to Google Drive
 6. Multi-language support (Urdu/English)
+
+---
+Task ID: 8
+Agent: Main Agent (Cron Review + User Request)
+Task: Fix login password, fix bulk assign bug, QA testing, styling polish, new features
+
+Work Log:
+- Read worklog.md to understand full project history (Tasks 1-7 complete, 16+ components, comprehensive system)
+- Performed API-based QA testing (all 13 endpoints verified passing)
+
+### Bug Fix 1: Login Password Mismatch (CRITICAL)
+- User reported: "Login nai ho rha" — login not working
+- Root cause: Database had old password hash, didn't match user's intended password `@AFE@123654`
+- Fix: Updated admin user password hash in database via Prisma client
+- Also updated `seed.ts` to use new password for future resets
+- Verified via curl: POST /api/auth/login returns 200 with correct user data
+
+### Bug Fix 2: Bulk Assign Failure (HIGH PRIORITY — user-reported)
+- User previously reported: "Ya dykhi bulk assign failed ho gaya Hy"
+- Root causes found:
+  1. Checkboxes were `hidden md:table-cell` — invisible on mobile/tablet devices
+  2. Inactive orderbookers were silently filtered out from dropdown without explanation
+  3. API error message "Active orderbooker not found" was too vague
+- Fixes:
+  1. Removed `hidden md:table-cell` from both select-all checkbox header and individual shop checkboxes
+  2. Now showing ALL orderbookers in bulk assign dropdown, with inactive ones disabled + amber "Inactive" badge
+  3. API now returns descriptive error: `"[name] is currently inactive. Please activate them first."`
+  4. Added "No orderbookers found" empty state for dropdown
+  5. Frontend error toast title changed from "Error" to "Bulk Assign Failed"
+  6. Fixed missing `setBulkAction(null)` after successful bulk assign
+
+### Bug Fix 3: Prisma `_count` Leak (QA-found)
+- `GET /api/orderbookers` was exposing `_count` Prisma internal metadata
+- Fix: Replaced spread operator with explicit field mapping in the orderbookers API response
+
+### Feature 1: Remember Me on Login
+- Added "Remember Me" checkbox with localStorage persistence
+- On mount: checks `alfalah-remembered-username` key and pre-fills username
+- On successful login: saves/clears username based on checkbox state
+- Uses shadcn/ui Checkbox component with proper styling
+
+### Feature 2: Orderbooker Filter on AdminShops
+- Added new `selectedOBFilter` state and `Select` dropdown in the Filters card
+- Dropdown shows all active orderbookers with shop counts
+- Client-side filtering applied to `filteredShops` computation
+- Added "Reset" button that appears when any filter is active (search, day, or OB)
+- Added filtered result count indicator above the shops table
+
+### Feature 3: Enhanced Result Count Display
+- Shows "Showing X of Y shops" with active filter details
+- Displays matched search term in primary color
+- Displays filtered orderbooker name in primary color
+- Smooth fade-in animation
+
+### CSS Styling Improvements (~180 new lines in globals.css):
+- Noise texture overlay (`.noise-overlay`) for premium feel
+- Enhanced select dropdown hover transitions
+- Interactive badge hover scale effect (`.badge-interactive`)
+- Nav underline animation (`.nav-underline`)
+- Heading gradient accent (`.heading-accent`)
+- Card group with connected borders (`.card-group`)
+- Live data indicator dot animation (`.data-live-indicator`)
+- Focus-visible with animation (`.focus-animate`)
+- Status dot indicators (`.status-dot-active/inactive/warning/error`)
+- Global thin scrollbar styling (Firefox-compatible)
+- Input group styling (`.input-group`)
+- Mobile touch improvement (44px minimum touch targets)
+- iOS safe area padding utilities (`.safe-area-bottom/top`)
+- Tooltip transition animations
+- Smooth scroll behavior utility
+
+### Verification:
+- `bun run lint` passes cleanly with zero errors
+- Dev server compiles without issues
+- All API endpoints verified returning correct responses
+- Login tested and verified working with `AL-FALAH TRADER` / `@AFE@123654`
+
+Stage Summary:
+- 3 bugs fixed (login password, bulk assign mobile visibility, _count API leak)
+- 3 features added (Remember Me, OB filter, result count display)
+- ~180 lines of new CSS polish (noise texture, status dots, animations, mobile improvements)
+- All existing features preserved and working
+- Login credentials: AL-FALAH TRADER / @AFE@123654 (Admin)
+
+### Current Project Status:
+- System is stable with 16+ components, 10+ API routes
+- All core business features operational: credit posting, recovery, reports, ledger, PDF export, CSV export
+- Dark mode support, notifications, global search (Cmd+K), dashboard charts
+- Login: AL-FALAH TRADER/@AFE@123654 (Admin), ahmed/ob123 or bilal/ob123 (Orderbooker)
+
+### Recommendations for Next Phase:
+1. Consider adding server-side authentication middleware (all APIs currently unprotected)
+2. Implement offline mode for orderbooker app
+3. Add WhatsApp/SMS notification integration
+4. Multi-language support (Urdu/English)
+5. Data backup/restore to Google Drive
