@@ -90,7 +90,7 @@ export default function LoginView() {
         </div>
 
         {/* Login Card with Glow */}
-        <Card className={`rounded-t-none border-t-0 shadow-2xl shadow-blue-900/30 animate-card-glow animate-card-entrance bg-white/95 backdrop-blur-sm transition-all duration-300 ${loginError ? 'border-red-400 ring-2 ring-red-400/30 bg-red-50/90 dark:bg-red-950/30' : ''}`}>
+        <Card className={`glass-card rounded-t-none border-t-0 shadow-2xl shadow-blue-900/30 animate-card-glow animate-card-entrance bg-white/95 backdrop-blur-sm transition-all duration-300 ${loginError ? 'border-red-400 ring-2 ring-red-400/30 bg-red-50/90 dark:bg-red-950/30' : ''}`}>
           <CardHeader className="pb-4 pt-6 px-8 transition-colors">
             {loginError && (
               <div className="mb-2 p-2 rounded-lg bg-red-100 dark:bg-red-950/50 border border-red-200 dark:border-red-800 animate-fade-in">

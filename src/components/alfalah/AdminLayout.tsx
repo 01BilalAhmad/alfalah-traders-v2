@@ -30,6 +30,7 @@ import GlobalSearch from './GlobalSearch';
 import SettingsPanel from './SettingsPanel';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
+import ShareMenu from './ShareMenu';
 
 interface NavItem {
   id: string;
@@ -154,6 +155,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
           <NotificationPanel />
           <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
+          <ShareMenu
+            title="Share"
+            text="Al-Falah Traders - Smart Credit Management System"
+            className="h-9 w-9 text-blue-100 hover:bg-white/10 hover:text-white border-0 p-0"
+          />
           <Button
             variant="ghost"
             size="sm"

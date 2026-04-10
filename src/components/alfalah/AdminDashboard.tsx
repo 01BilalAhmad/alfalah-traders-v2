@@ -321,7 +321,7 @@ export default function AdminDashboard() {
   const maxDebt = topDebtors.length > 0 ? topDebtors[0].balance : 1;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-transition">
       {/* Welcome Banner */}
       <div className="alfalah-gradient rounded-xl p-5 text-white relative overflow-hidden">
         {/* Mesh gradient overlay */}
@@ -345,7 +345,7 @@ export default function AdminDashboard() {
       {/* KPI Cards */}
       <div className="dot-pattern rounded-xl p-5">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
-          <Card className="kpi-card stat-card-amber hover-scale-102 animate-card-entrance">
+          <Card className="kpi-card stat-card-amber card-border-glow hover-scale-102 animate-card-entrance">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center shadow-sm">
@@ -357,7 +357,7 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate number-display">{formatCurrency(animatedTodayCredit)}</p>
             </CardContent>
           </Card>
-          <Card className="kpi-card stat-card-green hover-scale-102 animate-card-entrance">
+          <Card className="kpi-card stat-card-green stat-pulse animate-fade-in card-border-glow hover-scale-102 animate-card-entrance">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 flex items-center justify-center shadow-sm">
@@ -369,7 +369,7 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-green-600 tabular-nums number-animate number-display">{formatCurrency(animatedTodayRecovery)}</p>
             </CardContent>
           </Card>
-          <Card className="kpi-card stat-card-red hover-scale-102 animate-card-entrance">
+          <Card className="kpi-card stat-card-red card-border-glow hover-scale-102 animate-card-entrance">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-100 to-red-50 flex items-center justify-center shadow-sm">
@@ -381,7 +381,7 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-red-600 tabular-nums number-animate number-display">{formatCurrency(animatedOutstanding)}</p>
             </CardContent>
           </Card>
-          <Card className="kpi-card stat-card-blue hover-scale-102 animate-card-entrance">
+          <Card className="kpi-card stat-card-blue card-border-glow hover-scale-102 animate-card-entrance">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center shadow-sm">

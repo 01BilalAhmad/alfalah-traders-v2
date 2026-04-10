@@ -37,6 +37,7 @@ import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
 import BackupSettingsDialog from './BackupSettingsDialog';
+import ShareMenu from './ShareMenu';
 
 const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -335,6 +336,11 @@ export default function OrderbookerLayout() {
             <p className="text-xs font-medium text-white">{user.name}</p>
             <p className="text-[9px] text-blue-200">Orderbooker</p>
           </div>
+          <ShareMenu
+            title="Share"
+            text="Al-Falah Traders - Smart Credit Management System"
+            className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10 border-0 p-0"
+          />
           <Button
             variant="ghost"
             size="icon"
@@ -368,7 +374,7 @@ export default function OrderbookerLayout() {
       </header>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto page-transition">
         {isDashboard && <OrderbookerDashboard />}
         {isHistory && <RecoveryHistory />}
         {isLedger && <LedgerView />}
@@ -653,7 +659,7 @@ function OrderbookerDashboard() {
             </div>
           </div>
         </div>
-        <CardContent className="p-4">
+        <CardContent className="p-4 glass-card">
           {recoverySummaryLoading ? (
             <div className="flex items-center justify-center py-3">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -674,7 +680,7 @@ function OrderbookerDashboard() {
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                 </div>
                 <p className="text-xs font-bold text-green-600">{formatCurrency(totalRecovered)}</p>
-                <p className="text-[9px] text-muted-foreground">Collected</p>
+                <p className="text-[9px] text-muted-foreground badge-bounce">Collected</p>
               </div>
 
               {/* Visited stat */}
@@ -686,7 +692,7 @@ function OrderbookerDashboard() {
                   {shopsVisited}/{shopsTotal}
                   <span className="text-[9px] font-normal text-muted-foreground ml-1">shops</span>
                 </p>
-                <p className="text-[9px] text-muted-foreground">Visited</p>
+                <p className="text-[9px] text-muted-foreground badge-bounce">Visited</p>
               </div>
 
               {/* Avg stat */}
@@ -695,7 +701,7 @@ function OrderbookerDashboard() {
                   <BarChart3 className="h-4 w-4 text-amber-600" />
                 </div>
                 <p className="text-xs font-bold text-amber-600">{formatCurrency(avgRecovery)}</p>
-                <p className="text-[9px] text-muted-foreground">Avg / Shop</p>
+                <p className="text-[9px] text-muted-foreground badge-bounce">Avg / Shop</p>
               </div>
             </div>
           )}
