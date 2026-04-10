@@ -304,7 +304,7 @@ export default function OrderbookerLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="alfalah-header sticky top-0 z-50 relative flex items-center justify-between px-4 pb-3 pt-[env(safe-area-inset-top,0px)]">
+      <header className="sticky top-0 z-50 relative flex items-center justify-between px-4 pb-4 pt-[env(safe-area-inset-top,0px)] bg-gradient-to-r from-[#065F46] to-[#047857] shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
         <div className="flex items-center gap-2.5">
           {isLedger && (
             <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 h-8 w-8" onClick={() => setCurrentView('orderbooker-dashboard')}>
@@ -330,12 +330,12 @@ export default function OrderbookerLayout() {
             {user.name.charAt(0)}
           </div>
         </div>
-        {/* Animated gradient underline */}
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] animate-gradient-underline" />
-        {/* Current date - mobile */}
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 sm:hidden">
-          <span className="text-[8px] text-blue-200/80 font-medium bg-black/10 px-2 py-0.5 rounded-full">
-            <CalendarDays className="h-2 w-2 inline mr-0.5 -mt-px" />
+        {/* Animated gradient underline - more visible */}
+        <div className="absolute bottom-0 left-0 right-0 h-[3px] animate-gradient-underline opacity-100" />
+        {/* Current date - mobile - improved visibility */}
+        <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 sm:hidden">
+          <span className="text-[10px] text-white/80 font-medium bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-sm border border-white/20">
+            <CalendarDays className="h-3 w-3 inline mr-1 -mt-px" />
             {formatNiceDate()}
           </span>
         </div>
