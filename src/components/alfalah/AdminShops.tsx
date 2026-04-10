@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { useAppStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,6 +61,11 @@ import {
   TrendingDown,
   MapPin,
   BarChart3,
+  Eye,
+  Phone,
+  User,
+  CreditCard,
+  FileDown,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -92,6 +98,7 @@ function formatCurrency(amount: number): string {
 }
 
 export default function AdminShops() {
+  const { setCurrentView } = useAppStore();
   const [shops, setShops] = useState<Shop[]>([]);
   const [allShops, setAllShops] = useState<Shop[]>([]);
   const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
@@ -123,6 +130,12 @@ export default function AdminShops() {
 
   // Day counts
   const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
+
+  // Shop detail dialog state
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailShop, setDetailShop] = useState<Shop | null>(null);
+  const [detailLedgerData, setDetailLedgerData] = useState<LedgerData | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const fetchOrderbookers = useCallback(async () => {
     try {
@@ -262,6 +275,20 @@ export default function AdminShops() {
     finally { setLedgerLoading(false); }
   };
 
+  const openShopDetail = async (shop: Shop) => {
+    setDetailShop(shop);
+    setDetailLedgerData(null);
+    setDetailOpen(true);
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/reports/ledger?shopId=${shop.id}`);
+      if (res.ok) {
+        setDetailLedgerData(await res.json());
+      }
+    } catch { /* silent */ }
+    finally { setDetailLoading(false); }
+  };
+
   const handleDownloadLedgerPDF = () => {
     if (!ledgerData) return;
     downloadLedgerPDF(ledgerData);
@@ -310,7 +337,7 @@ export default function AdminShops() {
           <p className="text-sm text-muted-foreground mt-0.5">{shops.length} shops total</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white">
+          <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white focus-glow">
             <Plus className="h-4 w-4 mr-2" /> Add Shop
           </Button>
           {filteredShops.length > 0 && (
@@ -509,9 +536,31 @@ export default function AdminShops() {
               ))}
             </div>
           ) : filteredShops.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Store className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No shops found</p>
+            <div className="text-center py-14 text-muted-foreground">
+              <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
+                <div className="relative z-10 h-20 w-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-100 dark:from-primary/20 dark:to-blue-900/30 flex items-center justify-center">
+                  <Store className="h-9 w-9 text-primary/50 animate-gentle-float" />
+                </div>
+              </div>
+              <p className="font-semibold text-muted-foreground text-sm">No shops match your filters</p>
+              <p className="text-xs text-muted-foreground/70 mt-1.5 max-w-xs mx-auto leading-relaxed">
+                Try adjusting your search query, day filter, or show inactive shops.
+              </p>
+              <div className="flex items-center justify-center gap-2 mt-4">
+                <button
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-xs font-medium hover:bg-muted/80 transition-colors focus-glow"
+                  onClick={() => { setSearchQuery(''); setSelectedDay(''); setShowInactive(false); }}
+                >
+                  Clear Filters
+                </button>
+                <button
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors focus-glow"
+                  onClick={openAddDialog}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Shop
+                </button>
+              </div>
             </div>
           ) : (
             <ScrollArea className="max-h-[520px]">
@@ -552,6 +601,9 @@ export default function AdminShops() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple" onClick={() => openShopDetail(shop)} title="View Details">
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple" onClick={() => openEditDialog(shop)} title="Edit">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -573,6 +625,271 @@ export default function AdminShops() {
           )}
         </CardContent>
       </Card>
+
+      {/* Shop Detail Dialog */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+          {/* Shop Header - Navy Blue Gradient */}
+          <div className="bg-gradient-to-r from-[#1E3A8A] to-[#1D4ED8] px-6 py-5 shrink-0">
+            <DialogHeader>
+              <div className="flex items-start justify-between">
+                <div>
+                  <DialogTitle className="flex items-center gap-2 text-white text-lg">
+                    <Store className="h-5 w-5" />
+                    {detailShop?.name || 'Shop Details'}
+                  </DialogTitle>
+                  <DialogDescription className="text-blue-200 text-xs mt-1">
+                    {detailShop?.area && (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" /> {detailShop.area}
+                      </span>
+                    )}
+                  </DialogDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  {detailShop?.routeDay && (
+                    <Badge className="bg-white/15 text-white border-white/20 text-[10px]">
+                      {detailShop.routeDay.charAt(0).toUpperCase() + detailShop.routeDay.slice(1)}
+                    </Badge>
+                  )}
+                  <Badge className={`text-[10px] ${detailShop?.status === 'active' ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30' : 'bg-red-500/20 text-red-200 border-red-400/30'}`}>
+                    {detailShop?.status === 'active' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                    {detailShop?.status === 'active' ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+              </div>
+            </DialogHeader>
+          </div>
+
+          {detailLoading ? (
+            <div className="flex-1 p-6 space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="skeleton-shimmer h-16 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : detailShop && detailLedgerData ? (
+            <ScrollArea className="flex-1">
+              <div className="p-5 space-y-5">
+                {/* Owner & Phone Info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex items-center gap-3 bg-muted/40 rounded-lg p-3">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground font-medium uppercase">Owner</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{detailShop.ownerName || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 bg-muted/40 rounded-lg p-3">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Phone className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground font-medium uppercase">Phone</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{detailShop.phone || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Balance Info Card */}
+                <Card className="border-0 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-muted-foreground font-medium">Current Balance</p>
+                      <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">
+                        {detailShop.orderbooker.name}
+                      </Badge>
+                    </div>
+                    <p className={`text-2xl font-bold tabular-nums ${detailShop.balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      {formatCurrency(detailShop.balance)}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Mini Balance Trend Sparkline */}
+                {detailLedgerData.transactions.length > 0 && (
+                  <Card className="border-0 shadow-sm">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground font-medium mb-3">Balance Trend (Last 10 Transactions)</p>
+                      <div className="h-28 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart
+                            data={(() => {
+                              const allTxns = [...detailLedgerData.transactions];
+                              const last10 = allTxns.length > 10 ? allTxns.slice(allTxns.length - 10) : allTxns;
+                              return last10.map((t) => ({
+                                date: new Date(t.createdAt).toLocaleDateString('en-PK', { day: '2-digit', month: 'short' }),
+                                balance: t.newBalance,
+                                type: t.type,
+                                amount: t.amount,
+                              }));
+                            })()}
+                            margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
+                          >
+                            <XAxis
+                              dataKey="date"
+                              tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                              tickLine={false}
+                              axisLine={{ stroke: 'hsl(var(--border))' }}
+                              interval="preserveStartEnd"
+                            />
+                            <YAxis
+                              tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                              tickLine={false}
+                              axisLine={false}
+                              tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                              width={40}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                borderRadius: '8px',
+                                border: '1px solid hsl(var(--border))',
+                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                                fontSize: '11px',
+                              }}
+                              formatter={(value: number, name: string) => [formatCurrency(value), 'Balance']}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="balance"
+                              stroke="#1E3A8A"
+                              strokeWidth={2}
+                              dot={(props: Record<string, unknown>) => {
+                                const { cx, cy, payload } = props as { cx: number; cy: number; payload: { type: string } };
+                                const fill = payload.type === 'credit' ? '#F59E0B' : '#10B981';
+                                return (
+                                  <circle
+                                    key={`dot-${cx}-${cy}`}
+                                    cx={cx}
+                                    cy={cy}
+                                    r={4}
+                                    fill={fill}
+                                    stroke="white"
+                                    strokeWidth={2}
+                                  />
+                                );
+                              }}
+                              activeDot={{ r: 6, stroke: '#1E3A8A', strokeWidth: 2, fill: 'white' }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Credit
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Recovery
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Quick Actions Row */}
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 text-xs"
+                    onClick={() => {
+                      setDetailOpen(false);
+                      openEditDialog(detailShop);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit Shop
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 text-xs"
+                    onClick={() => {
+                      setDetailOpen(false);
+                      setCurrentView('admin-credit');
+                    }}
+                  >
+                    <CreditCard className="h-3.5 w-3.5 mr-1.5" /> Post Credit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 text-xs"
+                    onClick={() => {
+                      downloadLedgerPDF(detailLedgerData);
+                      toast({ title: 'PDF Downloaded', description: `${detailShop.name} ledger saved` });
+                    }}
+                  >
+                    <FileDown className="h-3.5 w-3.5 mr-1.5" /> Download PDF
+                  </Button>
+                </div>
+
+                {/* Recent Transactions Table */}
+                <Card className="border-0 shadow-sm">
+                  <CardContent className="p-0">
+                    <div className="px-4 pt-4 pb-2">
+                      <p className="text-xs text-muted-foreground font-medium">Recent Transactions (Last 10)</p>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="data-table-header hover:bg-transparent">
+                          <TableHead className="text-white font-semibold text-[10px]">Type</TableHead>
+                          <TableHead className="text-white font-semibold text-[10px]">Amount</TableHead>
+                          <TableHead className="text-white font-semibold text-[10px] hidden sm:table-cell">Description</TableHead>
+                          <TableHead className="text-white font-semibold text-[10px] hidden md:table-cell">Date</TableHead>
+                          <TableHead className="text-white font-semibold text-[10px] text-right">Balance</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...detailLedgerData.transactions].reverse().slice(0, 10).map((txn, idx) => (
+                          <TableRow key={txn.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} hover-scale-102 transition-colors`}>
+                            <TableCell>
+                              <Badge className={`text-[9px] ${txn.type === 'credit' ? 'badge-credit' : 'badge-recovery'}`}>
+                                {txn.type === 'credit' ? 'Credit' : 'Recovery'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className={`text-xs font-bold ${txn.type === 'credit' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell">
+                              <span className="text-xs text-muted-foreground truncate max-w-[140px] block">
+                                {txn.description || '—'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <span className="text-[11px] text-muted-foreground">
+                                {new Date(txn.createdAt).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className="text-xs font-semibold text-foreground tabular-nums">
+                                {formatCurrency(txn.newBalance)}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {detailLedgerData.transactions.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-6 text-sm text-muted-foreground">
+                              No transactions yet
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <p className="text-sm text-muted-foreground">Failed to load shop details</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -635,7 +952,7 @@ export default function AdminShops() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !formName.trim() || !formRouteDay || !formOrderbookerId} className="bg-primary hover:bg-primary/90">
+            <Button onClick={handleSave} disabled={saving || !formName.trim() || !formRouteDay || !formOrderbookerId} className="bg-primary hover:bg-primary/90 focus-glow">
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {editingShop ? 'Update Shop' : 'Create Shop'}
             </Button>

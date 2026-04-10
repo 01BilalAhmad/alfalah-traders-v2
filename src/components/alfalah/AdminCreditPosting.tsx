@@ -869,7 +869,7 @@ export default function AdminCreditPosting() {
             <Button
               onClick={handlePostCredit}
               disabled={postingCredit || !creditAmount || parseFloat(creditAmount) <= 0}
-              className={`btn-ripple hover:opacity-90 ${quickPostMode ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-primary hover:bg-primary/90'}`}
+              className={`btn-ripple hover:opacity-90 focus-glow ${quickPostMode ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-primary hover:bg-primary/90'}`}
             >
               {postingCredit ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

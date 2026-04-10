@@ -164,7 +164,7 @@ export default function AdminOrderbookers() {
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">{orderbookers.length} orderbookers registered</p>
         </div>
-        <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white">
+        <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white focus-glow">
           <Plus className="h-4 w-4 mr-2" /> Add Orderbooker
         </Button>
       </div>
@@ -173,9 +173,23 @@ export default function AdminOrderbookers() {
         <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : orderbookers.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Users className="h-10 w-10 mb-3 opacity-30" />
-            <p className="text-sm">No orderbookers found</p>
+          <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+            <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
+              <div className="relative z-10 h-20 w-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-100 dark:from-primary/20 dark:to-blue-900/30 flex items-center justify-center">
+                <Users className="h-9 w-9 text-primary/50 animate-gentle-float" />
+              </div>
+            </div>
+            <p className="font-semibold text-muted-foreground text-sm">No orderbookers found</p>
+            <p className="text-xs text-muted-foreground/70 mt-1.5 max-w-xs mx-auto leading-relaxed">
+              Add your first orderbooker to start managing credit routes.
+            </p>
+            <button
+              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors focus-glow"
+              onClick={openAddDialog}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Orderbooker
+            </button>
           </CardContent>
         </Card>
       ) : (
@@ -266,7 +280,7 @@ export default function AdminOrderbookers() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !formName.trim()} className="bg-primary hover:bg-primary/90">
+            <Button onClick={handleSave} disabled={saving || !formName.trim()} className="bg-primary hover:bg-primary/90 focus-glow">
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {editingOB ? 'Update' : 'Create'}
             </Button>

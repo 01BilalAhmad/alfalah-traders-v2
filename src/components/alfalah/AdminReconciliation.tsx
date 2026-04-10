@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
   Table,
   TableBody,
@@ -26,6 +27,7 @@ import {
   ArrowDownRight,
   Printer,
   Download,
+  BarChart3,
 } from 'lucide-react';
 import { exportToCSV } from '@/lib/csv-export';
 import { toast } from '@/hooks/use-toast';
@@ -61,11 +63,36 @@ interface ReconReport {
   orderbookers: OrderbookerRecon[];
 }
 
+interface MonthSummary {
+  month: string;
+  totalCredit: number;
+  totalRecovery: number;
+  netPosition: number;
+  transactionCount: number;
+  creditCount: number;
+  recoveryCount: number;
+  topRecoveryDay: { date: string; amount: number } | null;
+  topCreditDay: { date: string; amount: number } | null;
+  activeDays: number;
+}
+
+function getMonthLabel(monthStr: string): string {
+  const [year, month] = monthStr.split('-').map(Number);
+  const date = new Date(year, month - 1, 1);
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
 export default function AdminReconciliation() {
   const { selectedDate, setSelectedDate } = useAppStore();
   const [report, setReport] = useState<ReconReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedOB, setExpandedOB] = useState<Set<string>>(new Set());
+
+  // Month-to-date state
+  const [monthSummary, setMonthSummary] = useState<MonthSummary | null>(null);
+  const [monthLoading, setMonthLoading] = useState(false);
+
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
@@ -79,7 +106,20 @@ export default function AdminReconciliation() {
     }
   }, [selectedDate]);
 
+  const fetchMonthSummary = useCallback(async () => {
+    setMonthLoading(true);
+    try {
+      const res = await fetch(`/api/reports/month-summary?month=${currentMonth}`);
+      if (res.ok) setMonthSummary(await res.json());
+    } catch {
+      // silent fail — month summary is non-critical
+    } finally {
+      setMonthLoading(false);
+    }
+  }, [currentMonth]);
+
   useEffect(() => { fetchReport(); }, [fetchReport]);
+  useEffect(() => { fetchMonthSummary(); }, [fetchMonthSummary]);
 
   const toggleExpand = (id: string) => {
     setExpandedOB((prev) => {
@@ -94,8 +134,139 @@ export default function AdminReconciliation() {
     window.print();
   };
 
+  const recoveryRate = monthSummary && monthSummary.totalCredit > 0
+    ? Math.round((monthSummary.totalRecovery / monthSummary.totalCredit) * 100)
+    : 0;
+
   return (
     <div className="space-y-5">
+      {/* Month-to-Date Overview */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <BarChart3 className="h-5 w-5 text-primary" />
+          <h2 className="text-base font-bold text-foreground">Month-to-Date Overview</h2>
+          <Badge variant="secondary" className="text-[10px] font-medium">
+            {getMonthLabel(currentMonth)}
+          </Badge>
+        </div>
+
+        {monthLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : monthSummary ? (
+          <div className="space-y-4">
+            {/* Metric Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Month's Total Credit */}
+              <Card className="stat-card-amber alfalah-card-hover">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-11 w-11 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                      <TrendingUp className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground font-medium">Month&apos;s Total Credit</p>
+                      <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{formatCurrency(monthSummary.totalCredit)}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {monthSummary.creditCount} transactions
+                        {monthSummary.topCreditDay && (
+                          <span className="text-amber-600 dark:text-amber-400 ml-1">
+                            &middot; Peak: {formatCurrency(monthSummary.topCreditDay.amount)}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Month's Total Recovery */}
+              <Card className="stat-card-green alfalah-card-hover">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-11 w-11 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
+                      <ArrowDownRight className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground font-medium">Month&apos;s Total Recovery</p>
+                      <p className="text-lg font-bold text-green-700 dark:text-green-400">{formatCurrency(monthSummary.totalRecovery)}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {monthSummary.recoveryCount} transactions
+                        {monthSummary.topRecoveryDay && (
+                          <span className="text-green-600 dark:text-green-400 ml-1">
+                            &middot; Peak: {formatCurrency(monthSummary.topRecoveryDay.amount)}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Month's Net Position */}
+              <Card className={`alfalah-card-hover ${monthSummary.netPosition >= 0 ? 'stat-card-green' : 'stat-card-red'}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${monthSummary.netPosition >= 0 ? 'bg-green-500/15' : 'bg-red-500/15'}`}>
+                      <BarChart3 className={`h-5 w-5 ${monthSummary.netPosition >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground font-medium">Month&apos;s Net Position</p>
+                      <p className={`text-lg font-bold tabular-nums ${monthSummary.netPosition >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                        {monthSummary.netPosition >= 0 ? '+' : ''}{formatCurrency(monthSummary.netPosition)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {monthSummary.transactionCount} total &middot; {monthSummary.activeDays} active days
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recovery Rate Progress Bar */}
+            {monthSummary.totalCredit > 0 && (
+              <Card className="overflow-hidden">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-foreground">Month Recovery Rate</span>
+                    <span className={`text-sm font-bold tabular-nums ${recoveryRate >= 80 ? 'text-green-600 dark:text-green-400' : recoveryRate >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {recoveryRate}%
+                    </span>
+                  </div>
+                  <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        recoveryRate >= 80
+                          ? 'bg-gradient-to-r from-green-400 to-green-500'
+                          : recoveryRate >= 50
+                            ? 'bg-gradient-to-r from-amber-400 to-amber-500'
+                            : 'bg-gradient-to-r from-red-400 to-red-500'
+                      }`}
+                      style={{ width: `${Math.min(recoveryRate, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className="text-[10px] text-muted-foreground">
+                      {formatCurrency(monthSummary.totalRecovery)} recovered of {formatCurrency(monthSummary.totalCredit)} credit
+                    </span>
+                    <span className={`text-[10px] font-semibold ${recoveryRate >= 80 ? 'text-green-600' : recoveryRate >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                      {recoveryRate >= 80 ? '✓ On Track' : recoveryRate >= 50 ? '⚠ Needs Attention' : '✗ Behind Target'}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-30" />
+            <p className="text-sm">Could not load month summary</p>
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">

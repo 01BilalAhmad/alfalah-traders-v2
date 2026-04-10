@@ -27,6 +27,7 @@ import { ThemeToggle } from './ThemeToggle';
 import NotificationPanel from './NotificationPanel';
 import GlobalSearch from './GlobalSearch';
 import SettingsPanel from './SettingsPanel';
+import KeyboardShortcuts from './KeyboardShortcuts';
 
 interface NavItem {
   id: string;
@@ -84,7 +85,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Header */}
-      <header className="alfalah-header animate-header-gradient sticky top-0 z-50 h-16 flex items-center justify-between px-4 lg:px-6">
+      <header className="alfalah-header animate-header-gradient sticky top-0 z-50 h-16 flex items-center justify-between px-4 lg:px-6 md:backdrop-blur-md md:bg-opacity-95">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -118,11 +119,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </button>
           <button
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
-            className="md:hidden h-8 w-8 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-blue-100 hover:text-white flex items-center justify-center transition-all duration-150"
+            className="md:hidden min-h-[44px] min-w-[44px] h-11 w-11 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-blue-100 hover:text-white flex items-center justify-center transition-all duration-150"
           >
             <Search className="h-4 w-4" />
           </button>
-          <div className="hidden sm:flex items-center gap-2 text-sm text-blue-100">
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="hidden sm:flex items-center gap-2 text-sm text-blue-100 hover:text-white cursor-pointer transition-colors focus-glow rounded-lg p-1"
+            aria-label="Open settings"
+          >
             <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold text-white">
               {user.name.charAt(0).toUpperCase()}
             </div>
@@ -130,12 +135,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <p className="text-sm font-medium text-white leading-tight">{user.name}</p>
               <p className="text-[10px] text-blue-200 leading-tight">Administrator</p>
             </div>
-          </div>
-          <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
+          </button>
           <Button
             variant="ghost"
             size="icon"
-            className="text-blue-100 hover:bg-white/10 hover:text-white"
+            className="sm:hidden text-blue-100 hover:bg-white/10 hover:text-white min-h-[44px] min-w-[44px]"
             onClick={() => setSettingsOpen(true)}
             aria-label="Open settings"
           >
@@ -256,6 +260,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Global Search Overlay */}
       <GlobalSearch />
+
+      {/* Keyboard Shortcuts Help */}
+      <KeyboardShortcuts />
 
       {/* Settings Panel */}
       <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} />

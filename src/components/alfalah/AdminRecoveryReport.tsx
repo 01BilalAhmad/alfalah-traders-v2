@@ -325,8 +325,22 @@ export default function AdminRecoveryReport() {
         <CardContent className="p-0">
           {!summary || summary.orderbookers.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <TrendingUp className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No recovery data for this date</p>
+              <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
+                <div className="relative z-10 h-20 w-20 rounded-full bg-gradient-to-br from-green-500/10 to-green-100 dark:from-green-500/20 dark:to-green-900/30 flex items-center justify-center">
+                  <TrendingUp className="h-9 w-9 text-green-500/50 animate-gentle-float" />
+                </div>
+              </div>
+              <p className="font-semibold text-muted-foreground text-sm">No recovery data for this date</p>
+              <p className="text-xs text-muted-foreground/70 mt-1.5 max-w-xs mx-auto leading-relaxed">
+                Recovery entries will appear here once orderbookers start collecting payments.
+              </p>
+              <button
+                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors focus-glow"
+                onClick={fetchSummary}
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                Try Another Date
+              </button>
             </div>
           ) : (
             <div className="divide-y divide-border">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useAnimatedNumber } from '@/lib/use-animated-number';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -170,6 +171,12 @@ export default function AdminDashboard() {
   const [allShops, setAllShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Animated number counters for KPI cards
+  const animatedTodayCredit = useAnimatedNumber(data.todayCredit, 900);
+  const animatedTodayRecovery = useAnimatedNumber(data.todayRecovery, 900);
+  const animatedOutstanding = useAnimatedNumber(data.totalOutstanding, 1000);
+  const animatedTotalShops = useAnimatedNumber(data.totalShops, 600);
+
   useEffect(() => {
     async function load() {
       try {
@@ -198,6 +205,8 @@ export default function AdminDashboard() {
     }
     load();
   }, []);
+
+  const hasFilters = searchQuery || selectedDay || showInactive;
 
   if (loading) {
     return <DashboardSkeleton />;
@@ -250,7 +259,7 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Today&apos;s Credit</p>
-              <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate">{formatCurrency(data.todayCredit)}</p>
+              <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate">{formatCurrency(animatedTodayCredit)}</p>
             </CardContent>
           </Card>
           <Card className="kpi-card stat-card-green hover-scale-102 animate-card-entrance">
@@ -262,7 +271,7 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Today&apos;s Recovery</p>
-              <p className="text-2xl font-bold text-green-600 tabular-nums number-animate">{formatCurrency(data.todayRecovery)}</p>
+              <p className="text-2xl font-bold text-green-600 tabular-nums number-animate">{formatCurrency(animatedTodayRecovery)}</p>
             </CardContent>
           </Card>
           <Card className="kpi-card stat-card-red hover-scale-102 animate-card-entrance">
@@ -274,7 +283,7 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-red-500 font-medium bg-red-50 px-2 py-0.5 rounded-full">Alert</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Outstanding</p>
-              <p className="text-2xl font-bold text-red-600 tabular-nums number-animate">{formatCurrency(data.totalOutstanding)}</p>
+              <p className="text-2xl font-bold text-red-600 tabular-nums number-animate">{formatCurrency(animatedOutstanding)}</p>
             </CardContent>
           </Card>
           <Card className="kpi-card stat-card-blue hover-scale-102 animate-card-entrance">
@@ -286,7 +295,7 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">All</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Active Shops</p>
-              <p className="text-2xl font-bold tabular-nums number-animate">{data.totalShops}</p>
+              <p className="text-2xl font-bold tabular-nums number-animate">{animatedTotalShops}</p>
             </CardContent>
           </Card>
         </div>
@@ -296,7 +305,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-3 gap-3">
         <Button
           variant="outline"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group hover-lift"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group hover-lift focus-glow"
           onClick={() => setCurrentView('admin-credit')}
         >
           <div className="h-9 w-9 rounded-lg bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
@@ -306,7 +315,7 @@ export default function AdminDashboard() {
         </Button>
         <Button
           variant="outline"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group hover-lift"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group hover-lift focus-glow"
           onClick={() => setCurrentView('admin-recovery')}
         >
           <div className="h-9 w-9 rounded-lg bg-green-50 flex items-center justify-center group-hover:bg-green-100 transition-colors">
@@ -316,7 +325,7 @@ export default function AdminDashboard() {
         </Button>
         <Button
           variant="outline"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group hover-lift"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group hover-lift focus-glow"
           onClick={() => setCurrentView('admin-shops')}
         >
           <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
@@ -738,13 +747,22 @@ export default function AdminDashboard() {
             <div className="px-5 py-3">
               {data.todayTxns.length === 0 ? (
                 <div className="text-center py-10">
-                  <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center">
-                    <Clock className="h-8 w-8 text-muted-foreground/40" />
+                  <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
+                    <div className="relative z-10 h-20 w-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-100 dark:from-primary/20 dark:to-blue-900/30 flex items-center justify-center">
+                      <Clock className="h-9 w-9 text-primary/60 animate-gentle-float" />
+                    </div>
                   </div>
-                  <p className="font-medium text-muted-foreground text-sm">No activity recorded today</p>
+                  <p className="font-semibold text-muted-foreground text-sm">No activity recorded today</p>
                   <p className="text-xs text-muted-foreground/70 mt-1.5 max-w-xs mx-auto leading-relaxed">
                     Post credit or collect recovery to see activity here.
                   </p>
+                  <button
+                    className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors focus-glow"
+                    onClick={() => setCurrentView('admin-credit')}
+                  >
+                    <CreditCard className="h-3.5 w-3.5" />
+                    Post Credit
+                  </button>
                 </div>
               ) : (
                 <div className="relative pl-8">

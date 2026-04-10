@@ -1158,3 +1158,122 @@ textarea:focus-visible {
   background-size: 200% 200%;
   animation: headerGradient 6s ease infinite;
 }
+
+/* ====== Task 9b: New Animations & Utilities ====== */
+
+/* Breathing pulse for status indicators */
+@keyframes breathe {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+.animate-breathe { animation: breathe 3s ease-in-out infinite; }
+
+/* Smooth gradient text shimmer */
+@keyframes textShimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.text-shimmer {
+  background: linear-gradient(90deg, var(--foreground) 0%, var(--primary) 50%, var(--foreground) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: textShimmer 3s linear infinite;
+}
+
+/* Card flip entrance */
+@keyframes flipIn {
+  0% { opacity: 0; transform: perspective(600px) rotateX(-10deg) translateY(20px); }
+  100% { opacity: 1; transform: perspective(600px) rotateX(0deg) translateY(0); }
+}
+.animate-flip-in { animation: flipIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Subtle wiggle for attention */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+.animate-wiggle { animation: wiggle 0.5s ease-in-out; }
+
+/* Gradient border animation */
+@keyframes borderRotate {
+  0% { --border-angle: 0deg; }
+  100% { --border-angle: 360deg; }
+}
+.gradient-border-animated {
+  position: relative;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    conic-gradient(from var(--border-angle, 0deg), #1E3A8A, #3B82F6, #10B981, #F59E0B, #1E3A8A) border-box;
+  animation: borderRotate 4s linear infinite;
+}
+
+/* Tooltip with arrow */
+.tooltip-arrow { position: relative; }
+.tooltip-arrow::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: inherit;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Enhanced focus ring with glow */
+.focus-glow:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary), 0 0 12px rgba(30, 58, 138, 0.2);
+  border-radius: 6px;
+}
+
+/* Dark mode support for new classes */
+.dark .text-shimmer {
+  background: linear-gradient(90deg, var(--foreground) 0%, #93C5FD 50%, var(--foreground) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dark .focus-glow:focus-visible {
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring), 0 0 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Empty state illustration area */
+.empty-state-illustration {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state-illustration::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, #3B82F6 50%, #60A5FA 100%);
+  opacity: 0.08;
+  filter: blur(4px);
+}
+
+.dark .empty-state-illustration::before {
+  opacity: 0.12;
+}
+
+/* Gentle float for empty state icons */
+@keyframes gentleFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+.animate-gentle-float {
+  animation: gentleFloat 4s ease-in-out infinite;
+}

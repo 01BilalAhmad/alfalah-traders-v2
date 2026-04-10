@@ -131,7 +131,7 @@ export default function LoginView() {
 
               <Button
                 type="submit"
-                className="w-full h-11 alfalah-gradient text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-blue-900/20 hover-glow-primary btn-ripple"
+                className="w-full h-11 alfalah-gradient text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-blue-900/20 hover-glow-primary btn-ripple focus-glow"
                 disabled={loading}
               >
                 {loading ? (

@@ -13,7 +13,17 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -34,6 +44,10 @@ import {
   Wifi,
   Loader2,
   Building2,
+  Shield,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -49,6 +63,16 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
   const [systemStats, setSystemStats] = useState<{ shops: number; orderbookers: number } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
+
+  // Password change state
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Load compact mode from localStorage
   useEffect(() => {
@@ -178,6 +202,53 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
       setClearingCache(false);
     }
   }, []);
+
+  // Password change handler
+  const handleChangePassword = useCallback(async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast({ title: 'Missing Fields', description: 'Please fill in all password fields.', variant: 'destructive' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast({ title: 'Weak Password', description: 'New password must be at least 6 characters.', variant: 'destructive' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Passwords Mismatch', description: 'New password and confirm password do not match.', variant: 'destructive' });
+      return;
+    }
+    if (!user?.username) {
+      toast({ title: 'Error', description: 'Could not identify current user.', variant: 'destructive' });
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: user.username,
+          currentPassword,
+          newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast({ title: 'Password Changed', description: 'Your password has been updated successfully.' });
+        setPasswordDialogOpen(false);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        toast({ title: 'Failed', description: data.error || 'Could not change password.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Something went wrong. Please try again.', variant: 'destructive' });
+    } finally {
+      setChangingPassword(false);
+    }
+  }, [currentPassword, newPassword, confirmPassword, user?.username]);
 
   const userInitials = user
     ? user.name
@@ -372,6 +443,33 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
             </Card>
           </section>
 
+          {/* Account Security Section */}
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <Shield className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Account Security</h3>
+            </div>
+            <Card className="py-0 gap-0">
+              {/* Change Password */}
+              <div className="px-4 py-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center">
+                      <KeyRound className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Change Password</p>
+                      <p className="text-xs text-muted-foreground">Update your account password</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setPasswordDialogOpen(true)} className="h-8 text-xs">
+                    Change
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </section>
+
           {/* System Info Section */}
           <section>
             <div className="flex items-center gap-2 mb-3">
@@ -457,6 +555,145 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
           </section>
         </div>
       </SheetContent>
+
+      {/* Change Password Dialog */}
+      <Dialog open={passwordDialogOpen} onOpenChange={(open) => {
+        setPasswordDialogOpen(open);
+        if (!open) {
+          setCurrentPassword('');
+          setNewPassword('');
+          setConfirmPassword('');
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center">
+                <KeyRound className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              Change Password
+            </DialogTitle>
+            <DialogDescription>
+              Enter your current password and choose a new one. Minimum 6 characters.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Current Password */}
+            <div className="space-y-1.5">
+              <Label htmlFor="current-password" className="text-sm font-medium">Current Password</Label>
+              <div className="relative">
+                <Input
+                  id="current-password"
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  placeholder="Enter current password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* New Password */}
+            <div className="space-y-1.5">
+              <Label htmlFor="new-password" className="text-sm font-medium">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="new-password"
+                  type={showNewPassword ? 'text' : 'password'}
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {newPassword.length > 0 && newPassword.length < 6 && (
+                <p className="text-[11px] text-red-500">Password must be at least 6 characters</p>
+              )}
+              {newPassword.length >= 6 && (
+                <p className="text-[11px] text-emerald-600">Password strength: OK</p>
+              )}
+            </div>
+
+            {/* Confirm Password */}
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm-password" className="text-sm font-medium">Confirm New Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirm-password"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {confirmPassword.length > 0 && newPassword !== confirmPassword && (
+                <p className="text-[11px] text-red-500">Passwords do not match</p>
+              )}
+              {confirmPassword.length > 0 && newPassword === confirmPassword && newPassword.length >= 6 && (
+                <p className="text-[11px] text-emerald-600">Passwords match</p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPasswordDialogOpen(false);
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+              }}
+              disabled={changingPassword}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleChangePassword}
+              disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {changingPassword ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Shield className="h-4 w-4 mr-1.5" />
+                  Update Password
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
