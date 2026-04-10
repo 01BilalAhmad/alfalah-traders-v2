@@ -40,6 +40,8 @@ import {
   CreditCard,
   ArrowUpRight,
   ArrowDownRight,
+  ArrowUp,
+  ArrowDown,
   Activity,
   Plus,
   BarChart3,
@@ -49,6 +51,7 @@ import {
   CalendarDays,
   Clock,
   ExternalLink,
+  Calendar,
 } from 'lucide-react';
 
 function formatCurrency(amount: number): string {
@@ -109,6 +112,24 @@ interface Shop {
   routeDay: string;
   balance: number;
   status: string;
+}
+
+interface MonthSummary {
+  month: string;
+  monthLabel: string;
+  totalCredit: number;
+  totalRecovery: number;
+  netPosition: number;
+  transactionCount: number;
+  creditCount: number;
+  recoveryCount: number;
+  activeDays: number;
+  creditChangePct: number;
+  recoveryChangePct: number;
+  netChangePct: number;
+  prevTotalCredit: number;
+  prevTotalRecovery: number;
+  prevNetPosition: number;
 }
 
 const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -184,6 +205,7 @@ export default function AdminDashboard() {
   const [allShops, setAllShops] = useState<Shop[]>([]);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(true);
+  const [monthSummary, setMonthSummary] = useState<MonthSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Animated number counters for KPI cards
@@ -195,12 +217,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [obRes, txnRes, shopsRes, trendsRes, tlRes] = await Promise.all([
+        const [obRes, txnRes, shopsRes, trendsRes, tlRes, msRes] = await Promise.all([
           fetch('/api/orderbookers'),
           fetch(`/api/transactions?date=${new Date().toISOString().split('T')[0]}&limit=10`),
           fetch('/api/shops'),
           fetch('/api/reports/daily-trends'),
           fetch('/api/reports/activity-timeline?limit=20'),
+          fetch('/api/reports/month-summary'),
         ]);
         const orderbookers = obRes.ok ? await obRes.json() : [];
         const txnData = txnRes.ok ? await txnRes.json() : { transactions: [] };
@@ -212,11 +235,13 @@ export default function AdminDashboard() {
         const trendsData = trendsRes.ok ? await trendsRes.json() : [];
         const shops = shopsRes.ok ? await shopsRes.json() : [];
         const timelineData = tlRes.ok ? await tlRes.json() : [];
+        const monthData = msRes.ok ? await msRes.json() : null;
 
         setData({ orderbookers, todayTxns: txnData.transactions, todayCredit, todayRecovery, totalShops, totalOutstanding });
         setTrends(trendsData);
         setAllShops(shops);
         setTimeline(timelineData);
+        setMonthSummary(monthData);
       } catch { /* silent */ }
       finally { setLoading(false); setTimelineLoading(false); }
     }
@@ -309,7 +334,7 @@ export default function AdminDashboard() {
             <Home className="h-5 w-5 text-blue-200" />
             <h2 className="text-lg font-bold">Welcome back, {user?.name?.split(' ')[0] || 'Admin'}</h2>
           </div>
-          <p className="text-sm text-blue-200">
+          <p className="text-sm text-blue-100">
             {new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             {' · '}
             {data.totalShops} shops across {data.orderbookers.length} orderbookers
@@ -370,6 +395,77 @@ export default function AdminDashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Monthly Overview Badge */}
+      <Card className="animate-fade-in overflow-hidden">
+        <CardContent className="p-0">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary/5 to-primary/[0.02] border-b border-border/40">
+            <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-xs font-semibold text-foreground">
+              Monthly Overview — {monthSummary?.monthLabel || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <div className="flex gap-2 px-4 py-3 min-w-max">
+              {/* Credit */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Credit:</span>
+                <span className="text-xs font-bold text-amber-600 tabular-nums">{formatCurrency(monthSummary?.totalCredit ?? 0)}</span>
+                {monthSummary && monthSummary.prevTotalCredit > 0 && (
+                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                    monthSummary.creditChangePct > 0
+                      ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                      : monthSummary.creditChangePct < 0
+                        ? 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {monthSummary.creditChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
+                    {Math.abs(monthSummary.creditChangePct)}%
+                  </span>
+                )}
+              </div>
+              <span className="text-border">|</span>
+              {/* Recovery */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Recovery:</span>
+                <span className="text-xs font-bold text-green-600 tabular-nums">{formatCurrency(monthSummary?.totalRecovery ?? 0)}</span>
+                {monthSummary && monthSummary.prevTotalRecovery > 0 && (
+                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                    monthSummary.recoveryChangePct > 0
+                      ? 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                      : monthSummary.recoveryChangePct < 0
+                        ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                        : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {monthSummary.recoveryChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
+                    {Math.abs(monthSummary.recoveryChangePct)}%
+                  </span>
+                )}
+              </div>
+              <span className="text-border">|</span>
+              {/* Net */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Net:</span>
+                <span className={`text-xs font-bold tabular-nums ${(monthSummary?.netPosition ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(monthSummary?.netPosition ?? 0)}
+                </span>
+                {monthSummary && monthSummary.prevNetPosition !== 0 && (
+                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                    monthSummary.netChangePct > 0
+                      ? 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                      : monthSummary.netChangePct < 0
+                        ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                        : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {monthSummary.netChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
+                    {Math.abs(monthSummary.netChangePct)}%
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-3 gap-3">

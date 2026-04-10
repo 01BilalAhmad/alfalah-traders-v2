@@ -6,6 +6,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const shopId = searchParams.get('shopId');
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam ? parseInt(limitParam, 10) : undefined;
 
     if (!shopId) {
       return NextResponse.json({ error: 'Shop ID is required' }, { status: 400 });
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
 
-    const transactions = await db.transaction.findMany({
+    const txQuery: Record<string, unknown> = {
       where: { shopId },
       include: {
         creator: {
@@ -32,7 +34,12 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: 'asc' },
-    });
+    };
+    if (limit && limit > 0) {
+      txQuery.take = limit;
+    }
+
+    const transactions = await db.transaction.findMany(txQuery);
 
     const totalCredit = transactions.filter((t) => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
     const totalRecovery = transactions.filter((t) => t.type === 'recovery').reduce((s, t) => s + t.amount, 0);

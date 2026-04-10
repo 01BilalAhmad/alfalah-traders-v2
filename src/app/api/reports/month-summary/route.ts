@@ -86,8 +86,39 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Fetch previous month for comparison
+    let prevYear = year;
+    let prevMonth = month - 1;
+    if (prevMonth < 1) { prevMonth = 12; prevYear -= 1; }
+    const prevStartDate = new Date(prevYear, prevMonth - 1, 1, 0, 0, 0, 0);
+    const prevEndDate = new Date(prevYear, prevMonth, 0, 23, 59, 59, 999);
+
+    const prevTransactions = await db.transaction.findMany({
+      where: {
+        createdAt: { gte: prevStartDate, lte: prevEndDate },
+      },
+      select: { type: true, amount: true },
+    });
+
+    const prevTotalCredit = prevTransactions
+      .filter((t) => t.type === 'credit')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const prevTotalRecovery = prevTransactions
+      .filter((t) => t.type === 'recovery')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const prevNetPosition = prevTotalRecovery - prevTotalCredit;
+
+    // Calculate percentage changes
+    function pctChange(current: number, previous: number): number {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 1000) / 10;
+    }
+
     return NextResponse.json({
       month: `${year}-${String(month).padStart(2, '0')}`,
+      monthLabel: new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       totalCredit: Math.round(totalCredit * 100) / 100,
       totalRecovery: Math.round(totalRecovery * 100) / 100,
       netPosition: Math.round(netPosition * 100) / 100,
@@ -103,6 +134,14 @@ export async function GET(request: NextRequest) {
         amount: Math.round(topCreditDay.amount * 100) / 100,
       } : null,
       activeDays: Object.keys({ ...recoveryByDay, ...creditByDay }).length,
+      // Previous month comparison
+      prevMonth: `${prevYear}-${String(prevMonth).padStart(2, '0')}`,
+      prevTotalCredit: Math.round(prevTotalCredit * 100) / 100,
+      prevTotalRecovery: Math.round(prevTotalRecovery * 100) / 100,
+      prevNetPosition: Math.round(prevNetPosition * 100) / 100,
+      creditChangePct: pctChange(totalCredit, prevTotalCredit),
+      recoveryChangePct: pctChange(totalRecovery, prevTotalRecovery),
+      netChangePct: pctChange(netPosition, prevNetPosition),
     });
   } catch (error) {
     console.error('Error generating month summary:', error);

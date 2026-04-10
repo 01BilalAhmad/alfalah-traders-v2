@@ -5,12 +5,11 @@ import { useAppStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
-  Home,
-  CreditCard,
   TrendingUp,
   Store,
   Banknote,
@@ -28,6 +27,9 @@ import {
   CheckCircle2,
   Zap,
   BarChart3,
+  CalendarDays,
+  MessageSquare,
+  X,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -36,7 +38,7 @@ import SessionTimeoutDialog from './SessionTimeoutDialog';
 const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  return new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(amount);
 }
 
 interface Shop {
@@ -44,8 +46,10 @@ interface Shop {
   name: string;
   ownerName: string | null;
   area: string | null;
+  phone: string | null;
   routeDay: string;
   balance: number;
+  creditLimit: number;
   status: string;
   orderbooker: { id: string; name: string };
 }
@@ -67,6 +71,30 @@ interface RecoveryTransaction {
     name: string;
     role: string;
   };
+}
+
+interface ShopTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  previousBalance: number;
+  newBalance: number;
+  description: string | null;
+  createdAt: string;
+  creator: {
+    id: string;
+    name: string;
+    role: string;
+  };
+}
+
+function formatNiceDate(): string {
+  return new Date().toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 }
 
 function SuccessOverlay({
@@ -276,7 +304,7 @@ export default function OrderbookerLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="alfalah-header sticky top-0 z-50 h-14 flex items-center justify-between px-4">
+      <header className="alfalah-header sticky top-0 z-50 relative flex items-center justify-between px-4 pb-3 pt-[env(safe-area-inset-top,0px)]">
         <div className="flex items-center gap-2.5">
           {isLedger && (
             <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 h-8 w-8" onClick={() => setCurrentView('orderbooker-dashboard')}>
@@ -301,6 +329,15 @@ export default function OrderbookerLayout() {
           <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold text-white sm:hidden">
             {user.name.charAt(0)}
           </div>
+        </div>
+        {/* Animated gradient underline */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] animate-gradient-underline" />
+        {/* Current date - mobile */}
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 sm:hidden">
+          <span className="text-[8px] text-blue-200/80 font-medium bg-black/10 px-2 py-0.5 rounded-full">
+            <CalendarDays className="h-2 w-2 inline mr-0.5 -mt-px" />
+            {formatNiceDate()}
+          </span>
         </div>
       </header>
 
@@ -355,6 +392,7 @@ function OrderbookerDashboard() {
   const [recoveryDialogOpen, setRecoveryDialogOpen] = useState(false);
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [recoveryAmount, setRecoveryAmount] = useState('');
+  const [recoveryNote, setRecoveryNote] = useState('');
   const [gpsLat, setGpsLat] = useState<number | null>(null);
   const [gpsLng, setGpsLng] = useState<number | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -369,6 +407,12 @@ function OrderbookerDashboard() {
   // Recovery summary state
   const [todayRecovery, setTodayRecovery] = useState<RecoveryTransaction[]>([]);
   const [recoverySummaryLoading, setRecoverySummaryLoading] = useState(true);
+
+  // Shop detail dialog state
+  const [shopDetailOpen, setShopDetailOpen] = useState(false);
+  const [shopDetailData, setShopDetailData] = useState<Shop | null>(null);
+  const [shopTransactions, setShopTransactions] = useState<ShopTransaction[]>([]);
+  const [shopTxLoading, setShopTxLoading] = useState(false);
 
   const todayDay = ROUTE_DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
 
@@ -430,9 +474,25 @@ function OrderbookerDashboard() {
   const openRecoveryDialog = (shop: Shop) => {
     setSelectedShop(shop);
     setRecoveryAmount('');
+    setRecoveryNote('');
     setGpsLat(null);
     setGpsLng(null);
     setRecoveryDialogOpen(true);
+  };
+
+  const openShopDetail = async (shop: Shop) => {
+    setShopDetailData(shop);
+    setShopDetailOpen(true);
+    setShopTxLoading(true);
+    setShopTransactions([]);
+    try {
+      const res = await fetch(`/api/reports/ledger?shopId=${shop.id}&limit=5`);
+      if (res.ok) {
+        const data = await res.json();
+        setShopTransactions(data.transactions || []);
+      }
+    } catch { /* silent */ }
+    finally { setShopTxLoading(false); }
   };
 
   const handlePostRecovery = async () => {
@@ -443,6 +503,10 @@ function OrderbookerDashboard() {
 
     setPosting(true);
     try {
+      const description = recoveryNote?.trim()
+        ? `Cash collected by orderbooker. Note: ${recoveryNote.trim()}`
+        : 'Cash collected by orderbooker';
+
       const res = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -450,7 +514,7 @@ function OrderbookerDashboard() {
           shopId: selectedShop.id,
           type: 'recovery',
           amount: parseFloat(recoveryAmount),
-          description: 'Cash collected by orderbooker',
+          description,
           createdBy: user.id,
           gpsLat: gpsLat || undefined,
           gpsLng: gpsLng || undefined,
@@ -624,7 +688,12 @@ function OrderbookerDashboard() {
       ) : (
         <div className="space-y-3">
           {shops.map((shop) => (
-            <Card key={shop.id} className="alfalah-card-hover hover-lift animate-card-entrance overflow-hidden" style={{ animationDelay: `${Math.min(shops.indexOf(shop) * 40, 300)}ms` }}>
+            <Card
+              key={shop.id}
+              className="alfalah-card-hover hover-lift animate-card-entrance overflow-hidden cursor-pointer"
+              style={{ animationDelay: `${Math.min(shops.indexOf(shop) * 40, 300)}ms` }}
+              onClick={() => openShopDetail(shop)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
@@ -655,7 +724,10 @@ function OrderbookerDashboard() {
                   <Button
                     size="sm"
                     className="flex-1 h-9 bg-primary hover:bg-primary/90 text-white text-xs font-medium hover-glow-primary btn-ripple"
-                    onClick={() => openRecoveryDialog(shop)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openRecoveryDialog(shop);
+                    }}
                   >
                     <Banknote className="h-3.5 w-3.5 mr-1.5" />
                     Collect Recovery
@@ -674,12 +746,27 @@ function OrderbookerDashboard() {
         shop={selectedShop}
         amount={recoveryAmount}
         setAmount={setRecoveryAmount}
+        note={recoveryNote}
+        setNote={setRecoveryNote}
         gpsLat={gpsLat}
         gpsLng={gpsLng}
         gpsLoading={gpsLoading}
         onCaptureGPS={captureGPS}
         onPost={handlePostRecovery}
         posting={posting}
+      />
+
+      {/* Shop Detail Dialog */}
+      <ShopDetailDialog
+        open={shopDetailOpen}
+        onOpenChange={setShopDetailOpen}
+        shop={shopDetailData}
+        transactions={shopTransactions}
+        loading={shopTxLoading}
+        onCollectRecovery={(shop) => {
+          setShopDetailOpen(false);
+          openRecoveryDialog(shop);
+        }}
       />
     </div>
   );
@@ -693,6 +780,8 @@ function RecoveryDialog({
   shop,
   amount,
   setAmount,
+  note,
+  setNote,
   gpsLat,
   gpsLng,
   gpsLoading,
@@ -705,6 +794,8 @@ function RecoveryDialog({
   shop: Shop | null;
   amount: string;
   setAmount: (v: string) => void;
+  note: string;
+  setNote: (v: string) => void;
   gpsLat: number | null;
   gpsLng: number | null;
   gpsLoading: boolean;
@@ -757,6 +848,20 @@ function RecoveryDialog({
               </div>
 
               <div>
+                <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                  Recovery Note <span className="text-[10px] text-muted-foreground font-normal">(optional)</span>
+                </label>
+                <Textarea
+                  placeholder="Add a note about this recovery..."
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="resize-none min-h-[60px] text-sm"
+                  rows={2}
+                />
+              </div>
+
+              <div>
                 <label className="text-sm font-medium mb-1.5 block">GPS Location</label>
                 <Button
                   variant="outline"
@@ -804,6 +909,192 @@ function RecoveryDialog({
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Shop Detail Dialog ───────────────────────────────────────────────────
+
+function ShopDetailDialog({
+  open,
+  onOpenChange,
+  shop,
+  transactions,
+  loading,
+  onCollectRecovery,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  shop: Shop | null;
+  transactions: ShopTransaction[];
+  loading: boolean;
+  onCollectRecovery: (shop: Shop) => void;
+}) {
+  if (!open || !shop) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 block">
+      <div className="fixed inset-0 bg-black/40" onClick={() => onOpenChange(false)} />
+      <div className="fixed inset-x-0 bottom-0 top-12 bg-card rounded-t-2xl shadow-xl animate-in slide-in-from-bottom duration-200 flex flex-col max-h-[calc(100vh-3rem)]">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 pb-2 shrink-0">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h3 className="text-sm font-bold">Shop Details</h3>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <ScrollArea className="flex-1 px-4 pb-4">
+          <div className="space-y-4">
+            {/* Shop Info Card */}
+            <div className="alfalah-gradient rounded-xl p-4 text-white relative overflow-hidden">
+              <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/10" />
+              <div className="absolute -bottom-6 -left-6 w-20 h-20 rounded-full bg-white/5" />
+              <div className="relative z-10">
+                <h2 className="text-lg font-bold">{shop.name}</h2>
+                {shop.area && (
+                  <p className="text-xs text-blue-100 mt-0.5 flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> {shop.area}
+                  </p>
+                )}
+                {shop.ownerName && (
+                  <p className="text-xs text-blue-100 mt-0.5 flex items-center gap-1">
+                    <Store className="h-3 w-3" /> {shop.ownerName}
+                  </p>
+                )}
+                {shop.phone && (
+                  <p className="text-xs text-blue-100 mt-0.5 flex items-center gap-1">
+                    <Phone className="h-3 w-3" /> {shop.phone}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Balance & Credit Limit */}
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="stat-card-red">
+                <CardContent className="p-3">
+                  <p className="text-[10px] text-muted-foreground font-medium">Current Balance</p>
+                  <p className={`text-lg font-bold ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'} tabular-nums`}>
+                    {formatCurrency(shop.balance)}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="stat-card-blue">
+                <CardContent className="p-3">
+                  <p className="text-[10px] text-muted-foreground font-medium">Credit Limit</p>
+                  <p className="text-lg font-bold text-blue-700 dark:text-blue-400 tabular-nums">
+                    {shop.creditLimit > 0 ? formatCurrency(shop.creditLimit) : 'N/A'}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Credit Limit Utilization */}
+            {shop.creditLimit > 0 && (
+              <Card className="overflow-hidden">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] text-muted-foreground font-medium">Limit Used</span>
+                    <span className="text-[10px] font-semibold text-foreground tabular-nums">
+                      {Math.min(Math.round((shop.balance / shop.creditLimit) * 100), 100)}%
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        shop.balance > shop.creditLimit
+                          ? 'bg-red-500'
+                          : shop.balance > shop.creditLimit * 0.8
+                            ? 'bg-amber-500'
+                            : 'bg-green-500'
+                      }`}
+                      style={{
+                        width: `${Math.min(Math.round((shop.balance / shop.creditLimit) * 100), 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-[9px] text-muted-foreground">0</span>
+                    <span className="text-[9px] text-muted-foreground">{formatCurrency(shop.creditLimit)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Recent Transactions */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-bold flex items-center gap-1.5">
+                  <Clock className="h-4 w-4 text-primary" />
+                  Recent Transactions
+                </h3>
+                <Badge variant="outline" className="text-[10px]">Last 5</Badge>
+              </div>
+
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : transactions.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+                    <FileText className="h-8 w-8 mb-2 opacity-20" />
+                    <p className="text-xs">No transactions yet</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {transactions.map((txn) => (
+                    <Card key={txn.id} className="overflow-hidden">
+                      <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge className={`text-[9px] px-1.5 py-0 ${txn.type === 'credit' ? 'badge-credit' : 'badge-recovery'}`}>
+                                {txn.type === 'credit' ? 'Credit' : 'Recovery'}
+                              </Badge>
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(txn.createdAt).toLocaleDateString('en-PK', {
+                                  day: '2-digit', month: 'short', year: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{txn.description || '—'}</p>
+                            {txn.creator && (
+                              <p className="text-[10px] text-muted-foreground mt-0.5">by {txn.creator.name}</p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0 ml-3">
+                            <p className={`font-bold text-sm tabular-nums ${txn.type === 'credit' ? 'text-amber-600' : 'text-green-600'}`}>
+                              {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground tabular-nums">Bal: {formatCurrency(txn.newBalance)}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </ScrollArea>
+
+        {/* Collect Recovery Button at Bottom */}
+        <div className="shrink-0 border-t border-border/50 bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <Button
+            className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-medium hover-glow-primary btn-ripple"
+            onClick={() => onCollectRecovery(shop)}
+          >
+            <Banknote className="h-4 w-4 mr-2" />
+            Collect Recovery
+          </Button>
+        </div>
       </div>
     </div>
   );

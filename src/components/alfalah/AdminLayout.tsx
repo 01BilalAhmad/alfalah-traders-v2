@@ -257,7 +257,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       {/* Footer */}
-      <footer className="glass-strong border-t border-border/50 px-6 py-3 flex items-center justify-between text-xs text-muted-foreground mt-auto">
+      <footer className="glass-strong dark:bg-slate-800/90 dark:border-slate-600/50 border-t border-border/50 px-6 py-3 flex items-center justify-between text-xs text-muted-foreground dark:text-slate-300 mt-auto">
         <span>&copy; {new Date().getFullYear()} Al-Falah Traders. All rights reserved.</span>
         <span>Smart Credit &amp; Route Management v1.0</span>
       </footer>

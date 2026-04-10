@@ -442,7 +442,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 space-y-6">
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 space-y-6 bg-background">
           {/* Appearance Section */}
           <section>
             <div className="flex items-center gap-2 mb-3">
