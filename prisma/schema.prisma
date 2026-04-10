@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  name      String
+  role      String   @default("orderbooker") // "admin" or "orderbooker"
+  phone     String?
+  status    String   @default("active") // "active" or "inactive"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderbookerShops Shop[]
+  creditTransactions Transaction[] @relation("CreditBy")
+  auditLogs         AuditLog[]
+
+  @@index([username])
+  @@index([role])
+}
+
+model Shop {
+  id             String   @id @default(cuid())
+  name           String
+  ownerName      String?
+  area           String?
+  address        String?
+  phone          String?
+  routeDay       String   // "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"
+  orderbookerId  String
+  balance        Float    @default(0) // running balance
+  status         String   @default("active") // "active" or "inactive"
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orderbooker  User          @relation(fields: [orderbookerId], references: [id])
+  transactions Transaction[]
+
+  @@index([orderbookerId])
+  @@index([routeDay])
+  @@index([name])
+  @@index([area])
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  shopId        String
+  type          String   // "credit" or "recovery"
+  amount        Float
+  previousBalance Float
+  newBalance    Float
+  description   String?
+  createdBy     String   // userId
+  gpsLat        Float?
+  gpsLng        Float?
+  gpsAddress    String?
+  createdAt     DateTime @default(now())
+
+  shop    Shop           @relation(fields: [shopId], references: [id])
+  creator User           @relation("CreditBy", fields: [createdBy], references: [id])
+
+  @@index([shopId])
+  @@index([type])
+  @@index([createdBy])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  action        String   // "create", "edit", "credit_post", "recovery_entry", "status_change"
+  entityType    String   // "shop", "user", "transaction"
+  entityId      String?
+  performedBy   String   // userId
+  oldValue      String?  // JSON string of old values
+  newValue      String?  // JSON string of new values
+  description   String?
+  createdAt     DateTime @default(now())
+
+  performer User @relation(fields: [performedBy], references: [id])
+
+  @@index([action])
+  @@index([entityType])
+  @@index([performedBy])
+  @@index([createdAt])
+}
