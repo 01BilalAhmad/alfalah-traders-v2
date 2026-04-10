@@ -141,7 +141,8 @@ export default function LoginView() {
 
               <Button
                 type="submit"
-                className="w-full h-11 alfalah-gradient text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-blue-900/20 hover-glow-primary btn-ripple focus-glow"
+                className="w-full h-11 text-white font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-blue-900/20 hover:shadow-blue-900/30 btn-ripple focus-glow disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100"
+                style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 50%, #3B82F6 100%)' }}
                 disabled={loading}
               >
                 {loading ? (

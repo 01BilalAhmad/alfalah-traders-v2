@@ -52,12 +52,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username, password, and name are required' }, { status: 400 });
     }
 
+    // Normalize username to lowercase
+    const normalizedUsername = username.trim().toLowerCase();
+
+    // Check if username already exists (case-insensitive)
+    const existingUser = await db.user.findFirst({
+      where: { username: normalizedUsername },
+      select: { id: true, name: true },
+    });
+    if (existingUser) {
+      return NextResponse.json({ error: `Username already exists (used by ${existingUser.name})` }, { status: 409 });
+    }
+
     const bcrypt = await import('bcryptjs');
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const orderbooker = await db.user.create({
       data: {
-        username,
+        username: normalizedUsername,
         password: hashedPassword,
         name,
         phone,

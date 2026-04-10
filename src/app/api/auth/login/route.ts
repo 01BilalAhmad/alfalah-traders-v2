@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
         role: true,
         phone: true,
         status: true,
+        createdAt: true,
         password: true,
       },
     });

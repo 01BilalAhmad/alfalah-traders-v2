@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -21,6 +22,8 @@ import {
   Store,
   ArrowLeftRight,
   FileText,
+  LogOut,
+  CalendarDays,
 } from 'lucide-react';
 
 interface BackupSettingsDialogProps {
@@ -333,6 +336,30 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
     </div>
   );
 
+  const user = useAppStore((s) => s.user);
+
+  // Compute user initials
+  const getUserInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((w) => w.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  // Format member since date
+  const formatMemberSince = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-PK', { month: 'short', year: 'numeric' });
+  };
+
+  const roleColors: Record<string, string> = {
+    admin: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    orderbooker: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  };
+
   if (!open) return null;
 
   return (
@@ -375,6 +402,44 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
 
         {/* Content */}
         <div className="px-6 pb-8 space-y-5">
+          {/* Profile Card */}
+          {user && (
+            <Card className="overflow-hidden border-0 shadow-md">
+              <CardContent className="p-0">
+                <div className="bg-gradient-to-br from-primary/90 to-primary relative overflow-hidden px-4 py-6">
+                  {/* Decorative circles */}
+                  <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
+                  <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-white/5" />
+                  <div className="absolute top-1/2 right-1/4 w-10 h-10 rounded-full bg-white/[0.06] blur-sm" />
+                  <div className="relative z-10 flex items-center gap-4">
+                    {/* Avatar Circle */}
+                    <div className="h-14 w-14 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shadow-lg backdrop-blur-sm">
+                      <span className="text-lg font-bold text-white">{getUserInitials(user.name)}</span>
+                    </div>
+                    {/* User Info */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-bold text-white truncate">{user.name}</h3>
+                      <p className="text-xs text-blue-200 mt-0.5 flex items-center gap-1.5">
+                        <span>@{user.username}</span>
+                        <span className="text-blue-300">·</span>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/15 backdrop-blur-sm">
+                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {/* Member Since */}
+                <div className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-muted/30 border-t border-border/30">
+                  <CalendarDays className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-[11px] text-muted-foreground">
+                    Member since {formatMemberSince(user.createdAt)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Google Drive Instructions Card */}
           <Card className="overflow-hidden border-0 shadow-md">
             <CardContent className="p-0">
@@ -605,6 +670,26 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
                 </>
               )}
             </Button>
+          </div>
+
+          <Separator className="opacity-50" />
+
+          {/* Logout Button */}
+          <div className="space-y-2">
+            <Button
+              onClick={() => {
+                useAppStore.getState().logout();
+                onOpenChange(false);
+                toast({ title: 'Logged Out', description: 'You have been logged out successfully' });
+              }}
+              className="w-full h-11 rounded-xl font-semibold text-sm transition-all duration-200 border-2 border-red-200 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400 dark:hover:text-red-300"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+            <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+              Sign out of your account
+            </p>
           </div>
 
           {/* Footer Info */}

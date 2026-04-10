@@ -207,6 +207,9 @@ export default function AdminDashboard() {
   const [timelineLoading, setTimelineLoading] = useState(true);
   const [monthSummary, setMonthSummary] = useState<MonthSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recentTxns, setRecentTxns] = useState<TodayTxn[]>([]);
+  const [recentTxnsLoading, setRecentTxnsLoading] = useState(true);
+  const [bizSummary, setBizSummary] = useState<{ totalCredit: number; totalRecovery: number; netBalance: number } | null>(null);
 
   // Animated number counters for KPI cards
   const animatedTodayCredit = useAnimatedNumber(data.todayCredit, 900);
@@ -217,13 +220,15 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [obRes, txnRes, shopsRes, trendsRes, tlRes, msRes] = await Promise.all([
+        const [obRes, txnRes, shopsRes, trendsRes, tlRes, msRes, rtRes, summaryRes] = await Promise.all([
           fetch('/api/orderbookers'),
           fetch(`/api/transactions?date=${new Date().toISOString().split('T')[0]}&limit=10`),
           fetch('/api/shops'),
           fetch('/api/reports/daily-trends'),
           fetch('/api/reports/activity-timeline?limit=20'),
           fetch('/api/reports/month-summary'),
+          fetch('/api/transactions?limit=5'),
+          fetch('/api/summary'),
         ]);
         const orderbookers = obRes.ok ? await obRes.json() : [];
         const txnData = txnRes.ok ? await txnRes.json() : { transactions: [] };
@@ -236,14 +241,17 @@ export default function AdminDashboard() {
         const shops = shopsRes.ok ? await shopsRes.json() : [];
         const timelineData = tlRes.ok ? await tlRes.json() : [];
         const monthData = msRes.ok ? await msRes.json() : null;
+        const rtData = rtRes.ok ? await rtRes.json() : { transactions: [] };
 
         setData({ orderbookers, todayTxns: txnData.transactions, todayCredit, todayRecovery, totalShops, totalOutstanding });
         setTrends(trendsData);
         setAllShops(shops);
         setTimeline(timelineData);
         setMonthSummary(monthData);
+        setRecentTxns(rtData.transactions || []);
+        if (summaryRes.ok) setBizSummary(await summaryRes.json());
       } catch { /* silent */ }
-      finally { setLoading(false); setTimelineLoading(false); }
+      finally { setLoading(false); setTimelineLoading(false); setRecentTxnsLoading(false); }
     }
     load();
   }, []);
@@ -548,6 +556,76 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Recent Activity Feed */}
+      <Card className="animate-fade-in">
+        <CardHeader className="pb-2 pt-4 px-5">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              Recent Activity
+            </CardTitle>
+            <button
+              className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
+              onClick={() => setCurrentView('admin-audit')}
+            >
+              View All
+              <ExternalLink className="h-3 w-3" />
+            </button>
+          </div>
+        </CardHeader>
+        <CardContent className="px-5 pb-4">
+          {recentTxnsLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="skeleton-shimmer h-6 w-6 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="skeleton-shimmer h-3.5 w-36" />
+                    <Skeleton className="skeleton-shimmer h-3 w-20" />
+                  </div>
+                  <Skeleton className="skeleton-shimmer h-4 w-16" />
+                </div>
+              ))}
+            </div>
+          ) : recentTxns.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-sm text-muted-foreground">No recent transactions</p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {recentTxns.map((txn) => (
+                <div
+                  key={txn.id}
+                  className="flex items-center justify-between gap-3 py-2 px-2 rounded-lg hover:bg-muted/50 transition-colors cursor-default"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${txn.type === 'credit' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-green-100 dark:bg-green-900/30'}`}>
+                      {txn.type === 'credit' ? (
+                        <ArrowUpRight className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                      ) : (
+                        <ArrowDownRight className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{txn.shop.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Badge className={`text-[9px] px-1.5 py-0 font-medium ${txn.type === 'credit' ? 'badge-credit' : 'badge-recovery'}`}>
+                          {txn.type === 'credit' ? 'Credit' : 'Recovery'}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground tabular-nums">{getTimeAgo(txn.createdAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`text-sm font-bold tabular-nums shrink-0 ${txn.type === 'credit' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                    {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1025,6 +1103,41 @@ export default function AdminDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Business Summary Widget */}
+      {bizSummary && (
+        <Card className="animate-fade-in overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary/5 to-primary/[0.02] border-b border-border/40">
+            <Activity className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-xs font-semibold text-foreground">All-Time Business Summary</span>
+          </div>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="h-9 w-9 rounded-xl bg-amber-50 flex items-center justify-center mx-auto mb-2">
+                  <ArrowUpRight className="h-4 w-4 text-amber-600" />
+                </div>
+                <p className="text-[10px] text-muted-foreground font-medium">Total Business Volume</p>
+                <p className="text-base font-bold text-amber-700 dark:text-amber-400 tabular-nums mt-0.5">{formatCurrency(bizSummary.totalCredit)}</p>
+              </div>
+              <div className="text-center">
+                <div className="h-9 w-9 rounded-xl bg-green-50 flex items-center justify-center mx-auto mb-2">
+                  <ArrowDownRight className="h-4 w-4 text-green-600" />
+                </div>
+                <p className="text-[10px] text-muted-foreground font-medium">Total Recovery Collected</p>
+                <p className="text-base font-bold text-green-700 dark:text-green-400 tabular-nums mt-0.5">{formatCurrency(bizSummary.totalRecovery)}</p>
+              </div>
+              <div className="text-center">
+                <div className={`h-9 w-9 rounded-xl flex items-center justify-center mx-auto mb-2 ${bizSummary.netBalance > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
+                  <Wallet className={`h-4 w-4 ${bizSummary.netBalance > 0 ? 'text-red-600' : 'text-green-600'}`} />
+                </div>
+                <p className="text-[10px] text-muted-foreground font-medium">Net Outstanding</p>
+                <p className={`text-base font-bold tabular-nums mt-0.5 ${bizSummary.netBalance > 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>{formatCurrency(bizSummary.netBalance)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,8 @@ import {
   Wallet,
   CheckCircle,
   XCircle,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -47,6 +49,16 @@ interface Orderbooker {
   totalShops: number;
   totalOutstanding: number;
   createdAt: string;
+}
+
+interface UsernameCheckResult {
+  available: boolean;
+  message: string;
+  existingUser?: {
+    name: string;
+    username: string;
+    status: string;
+  };
 }
 
 function formatCurrency(amount: number): string {
@@ -65,6 +77,11 @@ export default function AdminOrderbookers() {
   const [formPhone, setFormPhone] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Username validation state
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [usernameMessage, setUsernameMessage] = useState('');
+  const usernameCheckRef = useRef<NodeJS.Timeout | null>(null);
+
   // Confirmation dialog state
   const [confirmDeactivate, setConfirmDeactivate] = useState<Orderbooker | null>(null);
 
@@ -79,12 +96,63 @@ export default function AdminOrderbookers() {
 
   useEffect(() => { fetchOrderbookers(); }, [fetchOrderbookers]);
 
+  // Real-time username validation with debounce
+  const checkUsername = useCallback(async (username: string, excludeId?: string) => {
+    const trimmed = username.trim().toLowerCase();
+
+    if (trimmed.length === 0) {
+      setUsernameStatus('idle');
+      setUsernameMessage('');
+      return;
+    }
+
+    if (trimmed.length < 2) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Username must be at least 2 characters');
+      return;
+    }
+
+    // Only allow alphanumeric and underscores
+    if (!/^[a-z0-9_]+$/.test(trimmed)) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Only lowercase letters, numbers, and underscores allowed');
+      return;
+    }
+
+    setUsernameStatus('checking');
+    setUsernameMessage('Checking availability...');
+
+    try {
+      const params = new URLSearchParams({ username: trimmed });
+      if (excludeId) params.set('excludeId', excludeId);
+      const res = await fetch(`/api/orderbookers/check-username?${params}`);
+      if (res.ok) {
+        const data: UsernameCheckResult = await res.json();
+        setUsernameStatus(data.available ? 'available' : 'taken');
+        setUsernameMessage(data.message);
+      }
+    } catch {
+      setUsernameStatus('idle');
+      setUsernameMessage('');
+    }
+  }, []);
+
+  const handleUsernameChange = (value: string) => {
+    setFormUsername(value);
+    if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+    usernameCheckRef.current = setTimeout(() => {
+      checkUsername(value, editingOB?.id);
+    }, 400);
+  };
+
   const openAddDialog = () => {
     setEditingOB(null);
     setFormName('');
     setFormUsername('');
     setFormPassword('');
     setFormPhone('');
+    setUsernameStatus('idle');
+    setUsernameMessage('');
     setDialogOpen(true);
   };
 
@@ -94,6 +162,8 @@ export default function AdminOrderbookers() {
     setFormUsername(ob.username);
     setFormPassword('');
     setFormPhone(ob.phone || '');
+    setUsernameStatus('idle');
+    setUsernameMessage('');
     setDialogOpen(true);
   };
 
@@ -104,6 +174,11 @@ export default function AdminOrderbookers() {
     }
     if (!editingOB && (!formUsername.trim() || !formPassword.trim())) {
       toast({ title: 'Error', description: 'Username and password are required', variant: 'destructive' });
+      return;
+    }
+    // Block submit if username is taken
+    if (!editingOB && usernameStatus === 'taken') {
+      toast({ title: 'Error', description: 'Please choose a different username', variant: 'destructive' });
       return;
     }
     setSaving(true);
@@ -153,6 +228,8 @@ export default function AdminOrderbookers() {
       }
     } catch { /* silent */ }
   };
+
+  const canSubmit = formName.trim() && (editingOB ? true : (formUsername.trim() && formPassword.trim() && usernameStatus !== 'taken'));
 
   return (
     <div className="space-y-5">
@@ -250,7 +327,14 @@ export default function AdminOrderbookers() {
       )}
 
       {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setUsernameStatus('idle');
+          setUsernameMessage('');
+          if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+        }
+        setDialogOpen(open);
+      }}>
         <DialogContent className="sm:max-w-md dialog-content-animate">
           <DialogHeader>
             <DialogTitle>{editingOB ? 'Edit Orderbooker' : 'Add New Orderbooker'}</DialogTitle>
@@ -266,12 +350,50 @@ export default function AdminOrderbookers() {
             {!editingOB && (
               <div className="space-y-2">
                 <Label>Username *</Label>
-                <Input value={formUsername} onChange={(e) => setFormUsername(e.target.value)} placeholder="e.g., ahmed" className="input-enhanced" />
+                <div className="relative">
+                  <Input
+                    value={formUsername}
+                    onChange={(e) => handleUsernameChange(e.target.value)}
+                    placeholder="e.g., ahmed"
+                    className={`input-enhanced pr-9 ${
+                      usernameStatus === 'available' ? 'border-green-500 focus-visible:ring-green-500/20' :
+                      usernameStatus === 'taken' ? 'border-destructive focus-visible:ring-destructive/20' :
+                      usernameStatus === 'invalid' ? 'border-amber-500 focus-visible:ring-amber-500/20' :
+                      ''
+                    }`}
+                    autoComplete="off"
+                  />
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                    {usernameStatus === 'checking' && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                    {usernameStatus === 'available' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                    {usernameStatus === 'taken' && <XCircle className="h-4 w-4 text-destructive" />}
+                    {usernameStatus === 'invalid' && <AlertCircle className="h-4 w-4 text-amber-500" />}
+                  </div>
+                </div>
+                {usernameMessage && usernameStatus !== 'idle' && (
+                  <p className={`text-xs flex items-center gap-1 ${
+                    usernameStatus === 'available' ? 'text-green-600' :
+                    usernameStatus === 'taken' ? 'text-destructive' :
+                    usernameStatus === 'checking' ? 'text-muted-foreground' :
+                    'text-amber-600'
+                  }`}>
+                    {usernameMessage}
+                  </p>
+                )}
+                <p className="text-[10px] text-muted-foreground">Lowercase letters, numbers, and underscores only. This will be their login username.</p>
               </div>
             )}
             <div className="space-y-2">
               <Label>{editingOB ? 'New Password (leave blank to keep)' : 'Password *'}</Label>
               <Input type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} placeholder={editingOB ? 'Enter new password' : 'Set password'} className="input-enhanced" />
+              {!editingOB && formPassword && (
+                <div className="flex items-center gap-2">
+                  <div className={`h-1 flex-1 rounded-full ${formPassword.length < 4 ? 'bg-red-500' : formPassword.length < 6 ? 'bg-amber-500' : 'bg-green-500'}`} />
+                  <span className="text-[10px] text-muted-foreground">
+                    {formPassword.length < 4 ? 'Too short' : formPassword.length < 6 ? 'Weak' : 'Strong'}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Phone</Label>
@@ -280,7 +402,7 @@ export default function AdminOrderbookers() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !formName.trim()} className="bg-primary hover:bg-primary/90 focus-glow">
+            <Button onClick={handleSave} disabled={saving || !canSubmit} className="bg-primary hover:bg-primary/90 focus-glow">
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {editingOB ? 'Update' : 'Create'}
             </Button>

@@ -1640,3 +1640,35 @@ textarea:focus-visible {
   60% { transform: scale(1.2); }
   100% { transform: scale(1); }
 }
+
+/* ====== Task 8-a: Avatar Ring & Online Dot ====== */
+
+/* Gradient ring around avatars — padding-box technique */
+.avatar-ring {
+  padding: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #1E3A8A, #3B82F6, #10B981);
+}
+.avatar-ring > * {
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Pulsing green online status dot */
+.online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22C55E;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  border: 2px solid currentColor;
+  animation: onlinePulse 2s ease-in-out infinite;
+}
+@keyframes onlinePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

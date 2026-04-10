@@ -177,6 +177,9 @@ export default function AdminCreditPosting() {
   // Credit limit warning state
   const [creditLimitWarning, setCreditLimitWarning] = useState<CreditLimitWarning | null>(null);
 
+  // Duplicate credit detection state
+  const [duplicateCreditWarning, setDuplicateCreditWarning] = useState<{ shopName: string; todayTotal: number } | null>(null);
+
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const quickPostTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -327,13 +330,39 @@ export default function AdminCreditPosting() {
   const totalOutstanding = shops.reduce((sum, s) => sum + s.balance, 0);
   const averageBalance = shops.length > 0 ? totalOutstanding / shops.length : 0;
 
+  const checkDuplicateCreditToday = useCallback(async (shop: Shop) => {
+    try {
+      const todayDate = getTodayDateString();
+      const params = new URLSearchParams();
+      params.set('shopId', shop.id);
+      params.set('date', todayDate);
+      params.set('type', 'credit');
+      params.set('limit', '100');
+      const res = await fetch(`/api/transactions?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        const txns = data.transactions || [];
+        if (txns.length > 0) {
+          const totalToday = txns.reduce((s: number, t: { amount: number }) => s + t.amount, 0);
+          setDuplicateCreditWarning({ shopName: shop.name, todayTotal: totalToday });
+        } else {
+          setDuplicateCreditWarning(null);
+        }
+      }
+    } catch {
+      setDuplicateCreditWarning(null);
+    }
+  }, []);
+
   const handleOpenCreditDialog = (shop: Shop) => {
     setSelectedShop(shop);
     setCreditAmount('');
     setCreditDescription('');
     setQuickPostJustPosted(false);
     setCreditLimitWarning(null);
+    setDuplicateCreditWarning(null);
     setCreditDialogOpen(true);
+    checkDuplicateCreditToday(shop);
   };
 
   const handlePostCredit = async () => {
@@ -845,6 +874,21 @@ export default function AdminCreditPosting() {
               <div>
                 <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Credit Posted!</p>
                 <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70">Enter next amount or close to pick another shop</p>
+              </div>
+            </div>
+          )}
+
+          {/* Duplicate Credit Warning Banner */}
+          {duplicateCreditWarning && !quickPostJustPosted && (
+            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 animate-fade-in">
+              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                  ⚠ Credit already posted to {duplicateCreditWarning.shopName} today
+                </p>
+                <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+                  Total today: {formatCurrency(duplicateCreditWarning.todayTotal)}. You can still proceed with posting.
+                </p>
               </div>
             </div>
           )}

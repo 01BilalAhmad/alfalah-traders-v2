@@ -7,6 +7,7 @@ export interface AppUser {
   role: string;
   phone?: string;
   status: string;
+  createdAt?: string;
 }
 
 export interface AppState {

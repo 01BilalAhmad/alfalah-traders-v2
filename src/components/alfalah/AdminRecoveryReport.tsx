@@ -130,11 +130,14 @@ function RecoverySkeleton() {
   );
 }
 
+type GpsFilter = 'all' | 'with-gps' | 'without-gps';
+
 export default function AdminRecoveryReport() {
   const { selectedDate, setSelectedDate } = useAppStore();
   const [summary, setSummary] = useState<RecoverySummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedOB, setExpandedOB] = useState<Set<string>>(new Set());
+  const [gpsFilter, setGpsFilter] = useState<GpsFilter>('all');
 
   const fetchSummary = useCallback(async () => {
     setLoading(true);
@@ -176,12 +179,51 @@ export default function AdminRecoveryReport() {
 
   const anyExpanded = summary ? summary.orderbookers.some((ob) => expandedOB.has(ob.orderbookerId)) : false;
 
+  // Client-side GPS filter helper
+  const filterRecoveryEntries = (entries: RecoveryEntry[]): RecoveryEntry[] => {
+    if (gpsFilter === 'all') return entries;
+    if (gpsFilter === 'with-gps') return entries.filter((e) => e.hasGps);
+    return entries.filter((e) => !e.hasGps);
+  };
+
+  const filterShops = (shops: ShopRecovery[]): ShopRecovery[] => {
+    if (gpsFilter === 'all') return shops;
+    return shops
+      .map((shop) => ({
+        ...shop,
+        recoveryEntries: filterRecoveryEntries(shop.recoveryEntries),
+        todayRecovery: filterRecoveryEntries(shop.recoveryEntries).reduce((s, e) => s + e.amount, 0),
+      }))
+      .filter((shop) => shop.recoveryEntries.length > 0);
+  };
+
+  const filterOrderbookers = (obs: OrderbookerRecovery[]): OrderbookerRecovery[] => {
+    if (gpsFilter === 'all') return obs;
+    return obs
+      .map((ob) => ({
+        ...ob,
+        shops: filterShops(ob.shops),
+        totalRecovery: filterShops(ob.shops).reduce((s, sh) => s + sh.todayRecovery, 0),
+        visitedShops: filterShops(ob.shops).filter((sh) => sh.visited).length,
+      }))
+      .filter((ob) => ob.shops.length > 0);
+  };
+
+  const filteredOrderbookers = summary ? filterOrderbookers(summary.orderbookers) : [];
+  const filteredGrandTotal = filteredOrderbookers.reduce((s, ob) => s + ob.totalRecovery, 0);
+
   const getTodayString = () => new Date().toISOString().split('T')[0];
   const getYesterdayString = () => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return d.toISOString().split('T')[0];
   };
+
+  const gpsFilterTabs: { value: GpsFilter; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'with-gps', label: 'With GPS' },
+    { value: 'without-gps', label: 'Without GPS' },
+  ];
 
   if (loading) {
     return <RecoverySkeleton />;
@@ -303,6 +345,44 @@ export default function AdminRecoveryReport() {
         <div className="divider-gradient" />
       )}
 
+      {/* GPS Filter */}
+      {summary && summary.orderbookers.length > 0 && (
+        <div className="flex gap-1.5">
+          {gpsFilterTabs.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setGpsFilter(tab.value)}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                gpsFilter === tab.value
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'bg-muted text-muted-foreground hover:bg-accent'
+              }`}
+            >
+              {tab.label}
+              {tab.value !== 'all' && (
+                <span className="ml-1 opacity-70">
+                  {tab.value === 'with-gps'
+                    ? (() => {
+                        const count = summary.orderbookers.reduce(
+                          (s, ob) => s + ob.shops.filter((sh) => sh.recoveryEntries.some((e) => e.hasGps)).length,
+                          0
+                        );
+                        return count;
+                      })()
+                    : (() => {
+                        const count = summary.orderbookers.reduce(
+                          (s, ob) => s + ob.shops.filter((sh) => sh.recoveryEntries.some((e) => !e.hasGps)).length,
+                          0
+                        );
+                        return count;
+                      })()}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Orderbooker Accordion */}
       {summary && summary.orderbookers.length > 0 && (
         <div className="flex justify-end">
@@ -349,10 +429,11 @@ export default function AdminRecoveryReport() {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {summary.orderbookers.map((ob) => {
+              {(gpsFilter === 'all' ? summary.orderbookers : filteredOrderbookers).map((ob) => {
                 const isExpanded = expandedOB.has(ob.orderbookerId);
-                const obTotalCredit = ob.shops.reduce((s, sh) => s + sh.todayCredit, 0);
-                const obTotalRecovery = ob.totalRecovery;
+                const displayShops = gpsFilter === 'all' ? ob.shops : filterShops(ob.shops);
+                const obTotalCredit = displayShops.reduce((s, sh) => s + sh.todayCredit, 0);
+                const obTotalRecovery = displayShops.reduce((s, sh) => s + sh.todayRecovery, 0);
                 const obTotalOutstanding = obTotalCredit + obTotalRecovery;
                 const recoveryRate = obTotalOutstanding > 0 ? (obTotalRecovery / obTotalOutstanding) * 100 : 0;
                 const recoveryPct = Math.round(recoveryRate * 10) / 10;
@@ -388,7 +469,7 @@ export default function AdminRecoveryReport() {
                             ) : null}
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {ob.visitedShops}/{ob.totalShops} shops visited
+                            {displayShops.filter((sh) => sh.visited).length}/{ob.totalShops} shops visited
                             {ob.orderbookerPhone && ` \u2022 ${ob.orderbookerPhone}`}
                           </p>
                         </div>
@@ -448,7 +529,7 @@ export default function AdminRecoveryReport() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {ob.shops.map((shop, idx) => (
+                              {displayShops.map((shop, idx) => (
                                 <TableRow key={shop.shopId} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} transition-colors`}>
                                   <TableCell className="text-sm font-medium">
                                     <div className="flex items-center gap-1.5">
@@ -529,8 +610,8 @@ export default function AdminRecoveryReport() {
 
               {/* Grand Total */}
               <div className="flex items-center justify-between px-5 py-3 bg-primary/5">
-                <span className="font-bold text-sm">Grand Total</span>
-                <span className="font-bold text-sm text-primary number-display">{formatCurrency(summary.grandTotalRecovery)}</span>
+                <span className="font-bold text-sm">Grand Total {gpsFilter !== 'all' ? `(filtered)` : ''}</span>
+                <span className="font-bold text-sm text-primary number-display">{formatCurrency(gpsFilter === 'all' ? summary.grandTotalRecovery : filteredGrandTotal)}</span>
               </div>
             </div>
           )}

@@ -714,7 +714,7 @@ export default function AdminShops() {
                   {filteredShops.map((shop, idx) => {
                     const isSelected = selectedShopIds.has(shop.id);
                     return (
-                    <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} ${shop.status === 'inactive' ? 'opacity-60' : ''} ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''} hover-scale-102 transition-colors`}>
+                    <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} ${shop.status === 'inactive' ? 'opacity-60' : ''} ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''} ${shop.creditLimit > 0 && shop.balance > shop.creditLimit ? 'border-l-2 border-l-red-500 bg-red-50/50 dark:bg-red-950/20' : ''} hover-scale-102 transition-colors`}>
                       <TableCell className="hidden md:table-cell">
                         <Checkbox
                           checked={isSelected}
@@ -723,6 +723,11 @@ export default function AdminShops() {
                       </TableCell>
                       <TableCell>
                         <p className="font-medium text-sm">{shop.name}</p>
+                        {shop.creditLimit > 0 && shop.balance > shop.creditLimit && (
+                          <p className="text-[10px] text-red-600 dark:text-red-400 font-medium leading-tight">
+                            Over limit ({formatCurrency(shop.balance)} / {formatCurrency(shop.creditLimit)})
+                          </p>
+                        )}
                         <p className="text-xs text-muted-foreground sm:hidden">{shop.ownerName || ''} &bull; {shop.area || ''}</p>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{shop.ownerName || '—'}</TableCell>
@@ -741,22 +746,31 @@ export default function AdminShops() {
                           }
                           if (shop.balance > shop.creditLimit) {
                             return (
-                              <Badge className="bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 text-[10px] font-bold animate-pulse">
-                                Over Limit
-                              </Badge>
+                              <div className="flex flex-col gap-0.5">
+                                <Badge className="bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 text-[10px] font-bold animate-pulse">
+                                  ⚠ Over Limit
+                                </Badge>
+                                <span className="text-[9px] text-red-600 dark:text-red-400 font-medium">Limit: {formatCurrency(shop.creditLimit)}</span>
+                              </div>
                             );
                           }
                           if (shop.balance > shop.creditLimit * 0.8) {
                             return (
-                              <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border-amber-200 dark:border-amber-800 text-[10px] font-bold">
-                                Near Limit
-                              </Badge>
+                              <div className="flex flex-col gap-0.5">
+                                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border-amber-200 dark:border-amber-800 text-[10px] font-bold">
+                                  Near Limit
+                                </Badge>
+                                <span className="text-[9px] text-muted-foreground">Limit: {formatCurrency(shop.creditLimit)}</span>
+                              </div>
                             );
                           }
                           return (
-                            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 text-[10px] font-bold">
-                              Within Limit
-                            </Badge>
+                            <div className="flex flex-col gap-0.5">
+                              <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 text-[10px] font-bold">
+                                Within Limit
+                              </Badge>
+                              <span className="text-[9px] text-muted-foreground">Limit: {formatCurrency(shop.creditLimit)}</span>
+                            </div>
                           );
                         })()}
                       </TableCell>

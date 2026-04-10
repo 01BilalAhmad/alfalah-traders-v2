@@ -331,7 +331,7 @@ export default function OrderbookerLayout() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <div className="text-right hidden sm:block">
             <p className="text-xs font-medium text-white">{user.name}</p>
             <p className="text-[9px] text-blue-200">Orderbooker</p>
@@ -351,15 +351,20 @@ export default function OrderbookerLayout() {
           </Button>
           <Button
             variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10"
+            size="sm"
+            className="h-8 text-white/90 hover:text-white hover:bg-red-500/30 border border-white/20 gap-1.5 text-xs font-medium"
             onClick={handleLogout}
-            title="Logout"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="inline">Logout</span>
           </Button>
-          <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold text-white sm:hidden">
-            {user.name.charAt(0)}
+          <div className="relative sm:hidden">
+            <div className="avatar-ring">
+              <div className="h-7 w-7 bg-white/20 flex items-center justify-center text-xs font-bold text-white">
+                {user.name.charAt(0)}
+              </div>
+            </div>
+            <span className="online-dot text-white" />
           </div>
         </div>
         {/* Animated gradient underline - more visible */}
@@ -722,10 +727,12 @@ function OrderbookerDashboard() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {shops.map((shop) => (
+          {shops.map((shop) => {
+            const isOverLimit = shop.creditLimit > 0 && shop.balance > shop.creditLimit;
+            return (
             <Card
               key={shop.id}
-              className="alfalah-card-hover hover-lift animate-card-entrance overflow-hidden cursor-pointer"
+              className={`alfalah-card-hover hover-lift animate-card-entrance overflow-hidden cursor-pointer ${isOverLimit ? 'border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-950/20' : ''}`}
               style={{ animationDelay: `${Math.min(shops.indexOf(shop) * 40, 300)}ms` }}
               onClick={() => openShopDetail(shop)}
             >
@@ -737,6 +744,11 @@ function OrderbookerDashboard() {
                       {visitedShopIds.has(shop.id) && (
                         <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
                       )}
+                      {isOverLimit && (
+                        <Badge className="bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 text-[9px] font-bold animate-pulse shrink-0">
+                          ⚠ Over Limit
+                        </Badge>
+                      )}
                     </div>
                     {shop.area && (
                       <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
@@ -746,6 +758,18 @@ function OrderbookerDashboard() {
                     )}
                     {shop.ownerName && (
                       <p className="text-xs text-muted-foreground mt-0.5">Owner: {shop.ownerName}</p>
+                    )}
+                    {shop.creditLimit > 0 && (
+                      <>
+                        <p className={`text-[10px] mt-0.5 font-medium ${isOverLimit ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
+                          Limit: {formatCurrency(shop.creditLimit)}
+                        </p>
+                        {isOverLimit && (
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                            Over limit ({formatCurrency(shop.balance)} / {formatCurrency(shop.creditLimit)})
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                   <div className="text-right shrink-0 ml-3">
@@ -770,7 +794,8 @@ function OrderbookerDashboard() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
