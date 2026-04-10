@@ -40,6 +40,7 @@ import {
   CreditCard,
   ArrowUpRight,
   ArrowDownRight,
+  Pencil,
   ArrowUp,
   ArrowDown,
   Activity,
@@ -239,7 +240,20 @@ export default function AdminDashboard() {
 
         const trendsData = trendsRes.ok ? await trendsRes.json() : [];
         const shops = shopsRes.ok ? await shopsRes.json() : [];
-        const timelineData = tlRes.ok ? await tlRes.json() : [];
+        const tlResult = tlRes.ok ? await tlRes.json() : null;
+        const rawTimeline = Array.isArray(tlResult) ? tlResult : (tlResult?.activities || []);
+        // Map activity-timeline API fields to TimelineEntry shape expected by UI
+        const timelineData: TimelineEntry[] = rawTimeline.map((item: Record<string, unknown>) => ({
+          id: item.id as string,
+          type: (item.type as string) || 'credit',
+          shopName: (item.shopName as string) || 'N/A',
+          shopArea: item.shopArea as string | null,
+          amount: (item.amount as number) || 0,
+          description: item.description as string | null,
+          createdBy: (item.performedBy as string) || (item.createdBy as string) || 'System',
+          createdAt: item.createdAt as string,
+          balanceAfter: (item.balanceAfter as number) || 0,
+        }));
         const monthData = msRes.ok ? await msRes.json() : null;
         const rtData = rtRes.ok ? await rtRes.json() : { transactions: [] };
 
@@ -1109,11 +1123,13 @@ export default function AdminDashboard() {
                         {group.entries.map((entry) => (
                           <div key={entry.id} className="relative pb-4 last:pb-0 group">
                             {/* Timeline dot with icon */}
-                            <div className={`absolute -left-8 top-0.5 h-[22px] w-[22px] rounded-full flex items-center justify-center ring-4 ring-background z-10 ${entry.type === 'credit' ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-green-100 dark:bg-green-900/40'}`}>
+                            <div className={`absolute -left-8 top-0.5 h-[22px] w-[22px] rounded-full flex items-center justify-center ring-4 ring-background z-10 ${entry.type === 'credit' ? 'bg-amber-100 dark:bg-amber-900/40' : entry.type === 'recovery' ? 'bg-green-100 dark:bg-green-900/40' : 'bg-blue-100 dark:bg-blue-900/40'}`}>
                               {entry.type === 'credit' ? (
                                 <ArrowUpRight className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                              ) : (
+                              ) : entry.type === 'recovery' ? (
                                 <ArrowDownRight className="h-3 w-3 text-green-600 dark:text-green-400" />
+                              ) : (
+                                <Pencil className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                               )}
                             </div>
                             {/* Timeline card */}
@@ -1123,13 +1139,13 @@ export default function AdminDashboard() {
                                   {/* Time and badge */}
                                   <div className="flex items-center gap-2 mb-1.5">
                                     <span className="text-[11px] text-muted-foreground tabular-nums">{formatTimeFull(entry.createdAt)}</span>
-                                    <Badge className={`text-[9px] px-1.5 py-0 ${entry.type === 'credit' ? 'badge-credit' : 'badge-recovery'}`}>
-                                      {entry.type === 'credit' ? 'Credit' : 'Recovery'}
+                                    <Badge className={`text-[9px] px-1.5 py-0 ${entry.type === 'credit' ? 'badge-credit' : entry.type === 'recovery' ? 'badge-recovery' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800'}`}>
+                                      {entry.type === 'credit' ? 'Credit' : entry.type === 'recovery' ? 'Recovery' : 'Edit'}
                                     </Badge>
                                   </div>
                                   {/* Shop name and area */}
                                   <p className="text-sm font-medium leading-snug">
-                                    {entry.type === 'credit' ? 'Posted to' : 'Collected from'}{' '}
+                                    {entry.type === 'credit' ? 'Posted to' : entry.type === 'recovery' ? 'Collected from' : 'Updated'}{' '}
                                     <span className="font-semibold">{entry.shopName}</span>
                                     <span className="hidden sm:inline text-muted-foreground">{entry.shopArea ? ` · ${entry.shopArea}` : ''}</span>
                                   </p>
@@ -1140,11 +1156,13 @@ export default function AdminDashboard() {
                                 </div>
                                 {/* Amount */}
                                 <div className="text-right shrink-0">
-                                  <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full ${entry.type === 'credit' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>
-                                    {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
-                                  </span>
+                                  {entry.amount > 0 && (
+                                    <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full ${entry.type === 'credit' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>
+                                      {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
+                                    </span>
+                                  )}
                                   <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
-                                    Bal: {formatCurrency(entry.balanceAfter)}
+                                    {entry.balanceAfter > 0 ? `Bal: ${formatCurrency(entry.balanceAfter)}` : ''}
                                   </p>
                                 </div>
                               </div>

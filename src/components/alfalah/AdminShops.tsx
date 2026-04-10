@@ -70,6 +70,7 @@ import {
   CreditCard,
   FileDown,
   X,
+  TrendingUp,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -103,7 +104,7 @@ function formatCurrency(amount: number): string {
 }
 
 export default function AdminShops() {
-  const { setCurrentView } = useAppStore();
+  const { setCurrentView, setSelectedShopId, setSelectedShopName } = useAppStore();
   const [shops, setShops] = useState<Shop[]>([]);
   const [allShops, setAllShops] = useState<Shop[]>([]);
   const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
@@ -790,6 +791,13 @@ export default function AdminShops() {
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple" onClick={() => openLedger(shop)} title="View Ledger">
                             <BookOpen className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple text-primary" onClick={() => {
+                            setSelectedShopId(shop.id);
+                            setSelectedShopName(shop.name);
+                            setCurrentView('admin-shop-detail');
+                          }} title="View Analytics">
+                            <TrendingUp className="h-3.5 w-3.5" />
                           </Button>
                           {shop.status === 'active' && (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover-lift btn-ripple" onClick={() => setConfirmDeactivate(shop)} title="Deactivate">

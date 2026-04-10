@@ -24,6 +24,7 @@ import {
   Settings,
   KeyRound,
   CalendarDays,
+  Activity,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -54,6 +55,7 @@ const adminNavItems: NavItem[] = [
   { id: 'admin-audit', label: 'Audit Log', icon: <Shield className="h-5 w-5" /> },
   { id: 'admin-ob-analytics', label: 'OB Analytics', icon: <BarChart3 className="h-5 w-5" /> },
   { id: 'admin-monthly-summary', label: 'Monthly Summary', icon: <CalendarDays className="h-5 w-5" /> },
+  { id: 'admin-activity', label: 'Activity', icon: <Activity className="h-5 w-5" /> },
 ];
 
 interface AdminLayoutProps {
