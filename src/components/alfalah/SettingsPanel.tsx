@@ -21,6 +21,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +38,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import {
   Settings,
   User,
@@ -48,6 +59,11 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  AlertTriangle,
+  Upload,
+  HardDrive,
+  CheckCircle2,
+  FileJson,
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -64,6 +80,16 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
   const [exporting, setExporting] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
 
+  // Backup & Restore state
+  const [backingUp, setBackingUp] = useState(false);
+  const [lastBackupDate, setLastBackupDate] = useState<string | null>(null);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restorePreview, setRestorePreview] = useState<{ users: number; shops: number; transactions: number; auditLogs: number; exportDate: string } | null>(null);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreProgress, setRestoreProgress] = useState(0);
+
   // Password change state
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -73,6 +99,12 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+
+  // Load last backup date from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('alfalah-last-backup');
+    if (saved) setLastBackupDate(saved);
+  }, []);
 
   // Load compact mode from localStorage
   useEffect(() => {
@@ -175,6 +207,113 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
       setExporting(false);
     }
   }, []);
+
+  // Download backup
+  const handleBackup = useCallback(async () => {
+    setBackingUp(true);
+    try {
+      const res = await fetch('/api/admin/backup');
+      if (!res.ok) {
+        toast({ title: 'Backup Failed', description: 'Could not create backup file.', variant: 'destructive' });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const contentDisposition = res.headers.get('content-disposition');
+      const filename = contentDisposition
+        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+        : `alfalah-backup-${new Date().toISOString().split('T')[0]}.json`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      const now = new Date().toLocaleString('en-PK');
+      setLastBackupDate(now);
+      localStorage.setItem('alfalah-last-backup', now);
+      toast({ title: 'Backup Downloaded', description: 'Full database backup saved successfully.' });
+    } catch {
+      toast({ title: 'Backup Failed', description: 'Network error. Please try again.', variant: 'destructive' });
+    } finally {
+      setBackingUp(false);
+    }
+  }, []);
+
+  // Handle file selection for restore
+  const handleRestoreFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setRestoreFile(file);
+    // Try to read the file for preview
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/admin/restore', {
+        method: 'POST',
+        headers: { 'X-Restore-Preview': 'true' },
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRestorePreview(data.preview);
+        setPreviewDialogOpen(true);
+      } else {
+        const data = await res.json();
+        toast({ title: 'Invalid Backup File', description: data.error || 'Could not read the backup file.', variant: 'destructive' });
+        setRestoreFile(null);
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Could not read file.', variant: 'destructive' });
+      setRestoreFile(null);
+    }
+    // Reset the input
+    e.target.value = '';
+  }, []);
+
+  // Perform restore
+  const handleRestore = useCallback(async () => {
+    if (!restoreFile) return;
+    setRestoring(true);
+    setRestoreProgress(10);
+    setPreviewDialogOpen(false);
+    setConfirmDialogOpen(false);
+    try {
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setRestoreProgress((prev) => Math.min(prev + Math.random() * 20, 90));
+      }, 500);
+
+      const formData = new FormData();
+      formData.append('file', restoreFile);
+      const res = await fetch('/api/admin/restore', {
+        method: 'POST',
+        body: formData,
+      });
+      clearInterval(progressInterval);
+
+      if (res.ok) {
+        const data = await res.json();
+        setRestoreProgress(100);
+        const imported = data.imported;
+        toast({
+          title: 'Restore Complete',
+          description: `Imported: ${imported.users} users, ${imported.shops} shops, ${imported.transactions} transactions, ${imported.auditLogs} audit logs.`,
+        });
+        setRestoreFile(null);
+        setRestorePreview(null);
+      } else {
+        const data = await res.json();
+        toast({ title: 'Restore Failed', description: data.error || 'Could not restore data.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Restore Failed', description: 'Network error. Please try again.', variant: 'destructive' });
+    } finally {
+      setRestoring(false);
+      setRestoreProgress(0);
+    }
+  }, [restoreFile]);
 
   // Clear localStorage cache
   const handleClearCache = useCallback(() => {
@@ -443,6 +582,126 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
             </Card>
           </section>
 
+          {/* Backup & Restore Section - Admin Only */}
+          {user?.role === 'admin' && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <HardDrive className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Backup & Restore</h3>
+              </div>
+
+              {/* Export Backup */}
+              <Card className="py-0 gap-0 mb-3">
+                <div className="px-4 py-3.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center">
+                        <Download className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Download Backup</p>
+                        <p className="text-xs text-muted-foreground">Export all data as a JSON file</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBackup}
+                      disabled={backingUp}
+                      className="h-8 text-xs"
+                    >
+                      {backingUp ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5 mr-1.5" />
+                      )}
+                      {backingUp ? 'Exporting...' : 'Download'}
+                    </Button>
+                  </div>
+                  {lastBackupDate && (
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 pl-11">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      Last backup: {lastBackupDate}
+                    </p>
+                  )}
+                  <p className="text-[11px] text-muted-foreground/70 pl-11 leading-relaxed">
+                    Includes users, shops, transactions, and audit logs. Use this to migrate or safeguard your data.
+                  </p>
+                </div>
+              </Card>
+
+              {/* Import / Restore */}
+              <Card className="py-0 gap-0">
+                <div className="px-4 py-3.5 space-y-3">
+                  {/* Warning banner */}
+                  <div className="flex items-start gap-2.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 px-3 py-2.5">
+                    <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                    <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
+                      <span className="font-semibold">Warning:</span> Restoring will replace ALL current orderbooker data, shops, transactions, and audit logs. This action cannot be undone.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center">
+                        <Upload className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Import Data</p>
+                        <p className="text-xs text-muted-foreground">Restore from a backup file</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* File upload area */}
+                  <div className="pl-11">
+                    <label
+                      className={`flex items-center justify-center gap-2 h-20 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+                        restoreFile
+                          ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30'
+                          : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50'
+                      } ${restoring ? 'pointer-events-none opacity-60' : ''}`}
+                    >
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={handleRestoreFileSelect}
+                        className="hidden"
+                        disabled={restoring}
+                      />
+                      {restoring ? (
+                        <div className="text-center">
+                          <Loader2 className="h-5 w-5 animate-spin text-primary mx-auto" />
+                          <p className="text-xs text-muted-foreground mt-1">Restoring data...</p>
+                        </div>
+                      ) : restoreFile ? (
+                        <div className="text-center">
+                          <FileJson className="h-5 w-5 text-emerald-600 mx-auto" />
+                          <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1 font-medium">{restoreFile.name}</p>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <Upload className="h-5 w-5 text-muted-foreground mx-auto" />
+                          <p className="text-xs text-muted-foreground mt-1">Click to select .json backup file</p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+
+                  {/* Progress bar during restore */}
+                  {restoring && (
+                    <div className="pl-11 space-y-1.5">
+                      <Progress value={restoreProgress} className="h-2" />
+                      <p className="text-[11px] text-muted-foreground text-center">
+                        {restoreProgress < 90 ? 'Restoring data...' : 'Finalizing...'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </section>
+          )}
+
           {/* Account Security Section */}
           <section>
             <div className="flex items-center gap-2 mb-3">
@@ -694,6 +953,110 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Restore Preview Dialog */}
+      <Dialog open={previewDialogOpen} onOpenChange={(open) => {
+        setPreviewDialogOpen(open);
+        if (!open) { setRestoreFile(null); setRestorePreview(null); }
+      }}>
+        <DialogContent className="sm:max-w-md dialog-content-animate">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center">
+                <FileJson className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              Restore Preview
+            </DialogTitle>
+            <DialogDescription>
+              Review the contents of this backup file before restoring.
+            </DialogDescription>
+          </DialogHeader>
+
+          {restorePreview && (
+            <div className="space-y-4 py-2">
+              {/* Backup date */}
+              <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50">
+                <span className="text-sm text-muted-foreground">Backup Date</span>
+                <span className="text-sm font-medium">
+                  {new Date(restorePreview.exportDate).toLocaleDateString('en-PK', {
+                    year: 'numeric', month: 'short', day: 'numeric',
+                  })}
+                </span>
+              </div>
+
+              {/* Counts */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border px-3 py-2.5 text-center">
+                  <p className="text-lg font-bold tabular-nums text-primary">{restorePreview.users}</p>
+                  <p className="text-[11px] text-muted-foreground">Users</p>
+                </div>
+                <div className="rounded-lg border px-3 py-2.5 text-center">
+                  <p className="text-lg font-bold tabular-nums text-primary">{restorePreview.shops}</p>
+                  <p className="text-[11px] text-muted-foreground">Shops</p>
+                </div>
+                <div className="rounded-lg border px-3 py-2.5 text-center">
+                  <p className="text-lg font-bold tabular-nums text-primary">{restorePreview.transactions}</p>
+                  <p className="text-[11px] text-muted-foreground">Transactions</p>
+                </div>
+                <div className="rounded-lg border px-3 py-2.5 text-center">
+                  <p className="text-lg font-bold tabular-nums text-primary">{restorePreview.auditLogs}</p>
+                  <p className="text-[11px] text-muted-foreground">Audit Logs</p>
+                </div>
+              </div>
+
+              {/* Warning */}
+              <div className="flex items-start gap-2.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 px-3 py-2.5">
+                <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
+                  This will permanently replace all current data. Make sure you have a backup of your current data before proceeding.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPreviewDialogOpen(false); setRestoreFile(null); setRestorePreview(null); }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => setConfirmDialogOpen(true)}
+            >
+              <Upload className="h-4 w-4 mr-1.5" />
+              Restore This Backup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Restore Confirmation AlertDialog */}
+      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+                <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+              </div>
+              Confirm Data Restore
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-red-600 dark:text-red-400">This action cannot be undone.</span>
+              <br />
+              All current orderbookers, shops, transactions, and audit logs will be deleted and replaced with data from the backup file. The admin account will be preserved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setConfirmDialogOpen(false); }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRestore}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              Yes, Restore Now
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }

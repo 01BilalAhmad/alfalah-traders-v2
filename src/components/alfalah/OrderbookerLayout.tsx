@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
+import SessionTimeoutDialog from './SessionTimeoutDialog';
 
 const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -312,7 +313,7 @@ export default function OrderbookerLayout() {
 
       {/* Bottom Nav */}
       {showBottomNav && (
-        <nav className="sticky bottom-0 glass-strong border-t border-border/50 z-40 safe-area-bottom">
+        <nav className="sticky bottom-0 glass-strong border-t border-border/50 z-40 safe-area-bottom shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
           <div className="flex items-center justify-around py-2">
             <button
               className={`flex flex-col items-center gap-0.5 px-4 py-1 transition-colors ${isDashboard ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
@@ -338,6 +339,9 @@ export default function OrderbookerLayout() {
           </div>
         </nav>
       )}
+
+      {/* Session Timeout Dialog */}
+      <SessionTimeoutDialog />
     </div>
   );
 }
@@ -493,6 +497,8 @@ function OrderbookerDashboard() {
         <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
         <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-white/5" />
         <div className="absolute top-2 right-14 w-8 h-8 rounded-full bg-white/8" />
+        <div className="absolute bottom-3 left-1/3 w-12 h-12 rounded-full bg-white/[0.04]" />
+        <div className="absolute top-1/2 right-1/4 w-6 h-6 rounded-full bg-white/[0.06]" />
         <div className="relative z-10">
           <p className="text-xs text-blue-200 uppercase tracking-wider font-medium">Today&apos;s Route</p>
           <h2 className="text-xl font-bold mt-0.5">{todayDay.charAt(0).toUpperCase() + todayDay.slice(1)}</h2>
@@ -520,28 +526,29 @@ function OrderbookerDashboard() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <Card className="stat-card-blue">
+        <Card className="stat-card-blue animate-fade-in">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <Store className="h-4 w-4 text-blue-600" />
               <span className="text-[10px] text-muted-foreground font-medium">Total Shops</span>
             </div>
-            <p className="text-xl font-bold">{shops.length}</p>
+            <p className="text-xl font-bold number-display">{shops.length}</p>
           </CardContent>
         </Card>
-        <Card className="stat-card-red">
+        <Card className="stat-card-red animate-fade-in">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
               <Wallet className="h-4 w-4 text-red-500" />
               <span className="text-[10px] text-muted-foreground font-medium">Outstanding</span>
             </div>
-            <p className="text-lg font-bold text-red-600">{formatCurrency(totalOutstanding)}</p>
+            <p className="text-lg font-bold text-red-600 number-display">{formatCurrency(totalOutstanding)}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Today's Recovery Summary */}
-      <Card className="overflow-hidden animate-fade-in">
+      <Card className="overflow-hidden animate-fade-in relative">
+        <div className="mesh-gradient absolute inset-0 pointer-events-none" />
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-3">
           <div className="flex items-center gap-2">
             <div className="h-7 w-7 rounded-lg bg-white/20 flex items-center justify-center">
@@ -617,7 +624,7 @@ function OrderbookerDashboard() {
       ) : (
         <div className="space-y-3">
           {shops.map((shop) => (
-            <Card key={shop.id} className="alfalah-card-hover hover-lift animate-card-entrance overflow-hidden">
+            <Card key={shop.id} className="alfalah-card-hover hover-lift animate-card-entrance overflow-hidden" style={{ animationDelay: `${Math.min(shops.indexOf(shop) * 40, 300)}ms` }}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">

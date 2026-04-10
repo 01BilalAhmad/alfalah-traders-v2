@@ -267,8 +267,11 @@ export default function AdminReconciliation() {
         )}
       </div>
 
+      {/* Thin gradient divider */}
+      <div className="divider-gradient my-2" />
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
+        <div className="animate-fade-in">
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
             Daily Reconciliation
@@ -278,7 +281,7 @@ export default function AdminReconciliation() {
         <div className="flex items-center gap-2">
           <div className="relative">
             <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="pl-9 w-44" />
+            <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="pl-9 w-44 input-enhanced" />
           </div>
           <Button variant="outline" size="sm" onClick={fetchReport} disabled={loading} className="btn-ripple">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -321,9 +324,9 @@ export default function AdminReconciliation() {
         const creditPct = totalFlow > 0 ? (report.totalCredit / totalFlow) * 100 : 0;
         const recoveryPct = totalFlow > 0 ? (report.totalRecovery / totalFlow) * 100 : 0;
         return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Credit — amber themed with mini bar */}
-          <Card className="stat-card-amber alfalah-card-hover animate-card-entrance">
+          <Card className="stat-card-amber alfalah-card-hover animate-card-entrance" style={{ animationDelay: '0ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
                 <div className="h-11 w-11 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
@@ -331,7 +334,7 @@ export default function AdminReconciliation() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-medium">Total Credit</p>
-                  <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{formatCurrency(report.totalCredit)}</p>
+                  <p className="text-lg font-bold text-amber-700 dark:text-amber-400 number-display">{formatCurrency(report.totalCredit)}</p>
                 </div>
               </div>
               <div className="mt-3">
@@ -350,7 +353,7 @@ export default function AdminReconciliation() {
           </Card>
 
           {/* Total Recovery — green themed with mini bar */}
-          <Card className="stat-card-green alfalah-card-hover animate-card-entrance">
+          <Card className="stat-card-green alfalah-card-hover animate-card-entrance" style={{ animationDelay: '50ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
                 <div className="h-11 w-11 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
@@ -358,7 +361,7 @@ export default function AdminReconciliation() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-medium">Total Recovery</p>
-                  <p className="text-lg font-bold text-green-700 dark:text-green-400">{formatCurrency(report.totalRecovery)}</p>
+                  <p className="text-lg font-bold text-green-700 dark:text-green-400 number-display">{formatCurrency(report.totalRecovery)}</p>
                 </div>
               </div>
               <div className="mt-3">
@@ -377,7 +380,7 @@ export default function AdminReconciliation() {
           </Card>
 
           {/* Net Position — red/green based on sign */}
-          <Card className={`alfalah-card-hover animate-card-entrance ${report.netChange >= 0 ? 'stat-card-green' : 'stat-card-red'}`}>
+          <Card className={`alfalah-card-hover animate-card-entrance ${report.netChange >= 0 ? 'stat-card-green' : 'stat-card-red'}`} style={{ animationDelay: '100ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
                 <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${report.netChange >= 0 ? 'bg-green-500/15' : 'bg-red-500/15'}`}>
@@ -385,7 +388,7 @@ export default function AdminReconciliation() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-medium">Net Position</p>
-                  <p className={`text-xl font-extrabold tabular-nums ${report.netChange >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                  <p className={`text-xl font-extrabold tabular-nums number-display ${report.netChange >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
                     {report.netChange >= 0 ? '+' : ''}{formatCurrency(report.netChange)}
                   </p>
                 </div>
@@ -401,7 +404,7 @@ export default function AdminReconciliation() {
           </Card>
 
           {/* Transactions */}
-          <Card className="stat-card-blue alfalah-card-hover animate-card-entrance">
+          <Card className="stat-card-blue alfalah-card-hover animate-card-entrance" style={{ animationDelay: '150ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
                 <div className="h-11 w-11 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">

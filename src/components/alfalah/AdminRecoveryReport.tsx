@@ -190,7 +190,7 @@ export default function AdminRecoveryReport() {
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
+        <div className="animate-fade-in">
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-primary" />
             Recovery Report
@@ -211,7 +211,7 @@ export default function AdminRecoveryReport() {
             variant={selectedDate === getTodayString() ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedDate(getTodayString())}
-            className="text-xs"
+            className="text-xs hover-glow-primary"
           >
             Today
           </Button>
@@ -219,7 +219,7 @@ export default function AdminRecoveryReport() {
             variant={selectedDate === getYesterdayString() ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedDate(getYesterdayString())}
-            className="text-xs"
+            className="text-xs hover-glow-primary"
           >
             Yesterday
           </Button>
@@ -259,19 +259,19 @@ export default function AdminRecoveryReport() {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 stagger-children">
-          <Card className="alfalah-card-hover animate-card-entrance">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="alfalah-card-hover animate-card-entrance" style={{ animationDelay: '0ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
                 <Banknote className="h-5 w-5 text-green-600" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Grand Total Recovery</p>
-                <p className="text-xl font-bold text-green-600 animate-live-pulse">{formatCurrency(summary.grandTotalRecovery)}</p>
+                <p className="text-xl font-bold text-green-600 animate-live-pulse number-display">{formatCurrency(summary.grandTotalRecovery)}</p>
               </div>
             </CardContent>
           </Card>
-          <Card className="alfalah-card-hover animate-card-entrance">
+          <Card className="alfalah-card-hover animate-card-entrance" style={{ animationDelay: '50ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                 <Users className="h-5 w-5 text-blue-600" />
@@ -282,7 +282,7 @@ export default function AdminRecoveryReport() {
               </div>
             </CardContent>
           </Card>
-          <Card className="alfalah-card-hover animate-card-entrance">
+          <Card className="alfalah-card-hover animate-card-entrance" style={{ animationDelay: '100ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
                 <MapPin className="h-5 w-5 text-amber-600" />
@@ -296,6 +296,11 @@ export default function AdminRecoveryReport() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Subtle gradient divider between summary and accordion */}
+      {summary && (
+        <div className="divider-gradient" />
       )}
 
       {/* Orderbooker Accordion */}
@@ -525,7 +530,7 @@ export default function AdminRecoveryReport() {
               {/* Grand Total */}
               <div className="flex items-center justify-between px-5 py-3 bg-primary/5">
                 <span className="font-bold text-sm">Grand Total</span>
-                <span className="font-bold text-sm text-primary">{formatCurrency(summary.grandTotalRecovery)}</span>
+                <span className="font-bold text-sm text-primary number-display">{formatCurrency(summary.grandTotalRecovery)}</span>
               </div>
             </div>
           )}

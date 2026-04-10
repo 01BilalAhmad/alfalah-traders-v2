@@ -1660,3 +1660,239 @@ The Al-Falah Traders system is a highly mature, feature-rich credit and route ma
 8. Add shop credit limit auto-enforcement (block credit posting when over limit)
 9. Implement user session management with timeout and activity tracking
 10. Add monthly/quarterly report generation with charts and PDF export
+
+---
+Task ID: 8
+Agent: Frontend Styling Expert (Round 3)
+Task: Comprehensive Styling & UX Polish Round 3
+
+Work Log:
+- Read worklog.md last section for full project context (Tasks 1-7 complete, 16+ components)
+- Read AdminReconciliation.tsx, AdminRecoveryReport.tsx, OrderbookerLayout.tsx, AdminDashboard.tsx, globals.css
+- Identified existing CSS classes: divider-gradient, animate-fade-in, animate-card-entrance, hover-lift, hover-glow-primary, input-enhanced, mesh-gradient, stagger-children
+
+### Files Modified:
+
+**1. `/src/components/alfalah/AdminReconciliation.tsx`**
+- Added `.divider-gradient` thin gradient divider between Month-to-Date Overview and Daily Reconciliation sections
+- Added `.animate-fade-in` to the Daily Reconciliation section header
+- Replaced `stagger-children` with explicit staggered `animate-card-entrance` using inline `style={{ animationDelay }}` (0ms, 50ms, 100ms, 150ms) on all 4 summary cards
+- Added `.input-enhanced` class to the date picker input for enhanced focus glow
+- Added `.number-display` class to Total Credit, Total Recovery, and Net Position amount displays
+
+**2. `/src/components/alfalah/AdminRecoveryReport.tsx`**
+- Added `.animate-fade-in` to the section header (Recovery Report title + description)
+- Added `.hover-glow-primary` to "Today" and "Yesterday" quick date buttons
+- Replaced `stagger-children` with explicit staggered `animate-card-entrance` using inline `style={{ animationDelay }}` (0ms, 50ms, 100ms) on 3 summary cards
+- Added `.divider-gradient` between summary cards and the accordion section
+- Added `.number-display` class to Grand Total Recovery value (both in summary card and accordion footer)
+
+**3. `/src/components/alfalah/OrderbookerLayout.tsx`**
+- Added 2 additional decorative circles to the Today's Route header card (absolute positioned, matching existing pattern)
+- Added `.mesh-gradient` overlay to the Today's Recovery Summary card with `relative` positioning and `pointer-events-none`
+- Added subtle top shadow to bottom navigation bar: `shadow-[0_-4px_12px_rgba(0,0,0,0.06)]`
+- Added `.animate-fade-in` to both Quick Stats cards (Total Shops and Outstanding)
+- Added `.number-display` to Total Shops count and Outstanding balance
+- Added staggered `animate-card-entrance` with dynamic delay (`shops.indexOf(shop) * 40, max 300ms`) to shop cards
+
+**4. `/src/components/alfalah/AdminDashboard.tsx`**
+- Added `.number-display` class to all 4 KPI value displays: Today's Credit, Today's Recovery, Total Outstanding, Total Active Shops
+
+**5. `/src/app/globals.css`** — Added 6 new CSS utility classes at end of file:
+- `.heat-bar` / `.heat-bar::before` — Heatmap gradient bar (green→amber→red) with 15% opacity, for data-heavy tables
+- `.glass-card` / `.dark .glass-card` — Enhanced glassmorphism card with 85% opacity background, blur(16px), and subtle border
+- `.data-glow` / `.dark .data-glow` — Subtle text-shadow glow for important data values (navy blue in light, blue in dark)
+- `.accordion-chevron` — Smooth cubic-bezier(0.4, 0, 0.2, 1) transform transition for accordion chevrons
+- `.number-display` — Tabular-nums font variant with -0.02em letter-spacing for proper number alignment
+- `.section-divider` / `.section-divider::before` / `.section-divider::after` — Flex layout with gradient fade lines on both sides
+
+### Verification:
+- `npx eslint` on all 4 modified component files: zero errors (globals.css ignored as non-JS, which is expected)
+- Pre-existing lint errors in session-manager.ts (not modified) remain unchanged
+- All new CSS classes include dark mode variants where applicable
+- No existing functionality broken — all changes are purely visual/class additions
+
+Stage Summary:
+- Styling & UX polish round 3 applied across 5 files
+- Admin Reconciliation: gradient divider, fade-in header, staggered card animations, enhanced date picker, number display
+- Admin Recovery Report: fade-in header, hover-glow quick date buttons, staggered cards, gradient divider, number display
+- Orderbooker Portal: extra decorative circles, mesh-gradient overlay, bottom nav shadow, fade-in stats, staggered shop cards
+- Dashboard: number-display on all 4 KPI values
+- 6 new CSS utility classes added (heat-bar, glass-card, data-glow, accordion-chevron, number-display, section-divider)
+- All changes include dark mode support
+- Zero lint errors introduced
+---
+Task ID: 8
+Agent: Main Agent
+Task: Session Management with Idle Timeout + Enhanced Toast Notifications
+
+Work Log:
+- Read worklog.md (Tasks 1-7) to understand full project state
+- Read existing toast system: use-toast.ts (radix-based), sonner.tsx (Sonner), globals.css toast styles
+- Read AdminLayout.tsx, OrderbookerLayout.tsx, store.ts, Dialog component for integration planning
+
+### Feature 1: Session Management with Idle Timeout
+
+**1. Created `/src/lib/session-manager.ts`** — Client-side session management hook
+- Constants: IDLE_TIMEOUT (30min), WARNING_BEFORE (5min), CHECK_INTERVAL (30s), COUNTDOWN_INTERVAL (1s)
+- localStorage persistence via `alfalah_last_activity` key
+- `useSessionManager()` hook returns: `{ showWarning, countdownSeconds, resetTimer, logout }`
+- On mount: checks if user was already idle past timeout → auto-logout silently
+- Activity events tracked: mousemove, keydown, click, touchstart, scroll (all passive listeners)
+- Periodic check (30s interval): compares current time with last activity timestamp
+- When idle for 25+ minutes: shows warning dialog with countdown
+- Countdown (1s interval): ticks down from remaining seconds, auto-logs out at 0
+- Activity during warning: resets timer and dismisses dialog
+- Only active when `isAuthenticated` is true from useAppStore
+- Uses refs for stale-closure-safe interval callbacks
+- Compliant with React Compiler lint rules (no setState in effects, refs updated via useEffect)
+
+**2. Created `/src/components/alfalah/SessionTimeoutDialog.tsx`** — Warning dialog component
+- Uses shadcn/ui Dialog with custom amber/orange gradient header
+- AlertTriangle icon in white circle with glassmorphism border
+- Large countdown display (MM:SS format) with tabular-nums for stable width
+- Dynamic urgency colors: amber (>2min) → amber-bold (≤2min) → red (≤1min)
+- Animated progress bar that shrinks as countdown decreases
+- Progress bar color matches urgency: amber → amber → red
+- Two action buttons: "Stay Logged In" (amber) and "Log Out" (red-outlined)
+- Prevents closing via outside click or ESC (ESC resets timer instead)
+- Descriptive text: "You have been inactive for a while. Would you like to stay logged in?"
+- Only renders when user is authenticated (early return guard)
+
+**3. Integrated into `/src/components/alfalah/AdminLayout.tsx`**
+- Imported SessionTimeoutDialog component
+- Rendered after SettingsPanel at bottom of root div
+- Dialog portal renders via Radix Dialog, so position in DOM tree does not affect layout
+
+**4. Integrated into `/src/components/alfalah/OrderbookerLayout.tsx`**
+- Imported SessionTimeoutDialog component
+- Rendered after bottom nav at end of root div
+- Same session timeout behavior for orderbooker portal as admin portal
+
+### Feature 2: Enhanced Sonner Toast Styling
+
+**Modified `/src/app/globals.css`** — Added Sonner toast enhancement styles
+- Success toasts (`[data-type="success"]`): green left border (#10B981), light green gradient background
+- Error toasts (`[data-type="error"]`): red left border (#EF4444), light red gradient background
+- Warning toasts (`[data-type="warning"]`): amber left border (#F59E0B), light amber gradient background
+- Info toasts (`[data-type="info"]`): blue left border (#3B82F6), light blue gradient background
+- All variants have dark mode support with subtle tinted backgrounds
+- Default Sonner toast enhancement: 12px border-radius, improved box-shadow, subtle border, backdrop-blur
+- Dark mode variant: darker shadow, subtle white border
+- Preserved existing `.toast-credit`, `.toast-recovery`, `.toast-error` classes for radix-based toast system
+
+### Files Created:
+- `/src/lib/session-manager.ts` (199 lines)
+- `/src/components/alfalah/SessionTimeoutDialog.tsx` (107 lines)
+
+### Files Modified:
+- `/src/components/alfalah/AdminLayout.tsx` (import + render SessionTimeoutDialog)
+- `/src/components/alfalah/OrderbookerLayout.tsx` (import + render SessionTimeoutDialog)
+- `/src/app/globals.css` (added ~50 lines of Sonner toast styles)
+
+### Verification:
+- `bun run lint` passes cleanly with zero errors
+- Dev server compiles successfully (GET / 200)
+- All existing features preserved — no breaking changes
+
+Stage Summary:
+- Complete session timeout system with 30-minute idle detection
+- Warning dialog appears 5 minutes before auto-logout with live countdown
+- Activity during warning resets the timer
+- Users idle past 30 minutes are silently logged out on next visit
+- Works for both admin and orderbooker portals
+- Sonner toast styling enhanced with color-coded variants (success/error/warning/info)
+- Dark mode fully supported for all new components and styles
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Build OB Performance Analytics Page and Data Backup/Restore System
+
+Work Log:
+- Read worklog.md (Tasks 1-7) to understand full project state (16 components, 14 API routes, ~10k LOC)
+- Explored existing patterns: AdminLayout nav, page.tsx router, SettingsPanel, recharts usage, formatCurrency, csv-export utility
+- Lint passes cleanly before changes
+
+### Feature 1: Orderbooker Performance Analytics Page
+
+**API Route: `/api/reports/ob-performance/route.ts`**
+- GET endpoint with `period` query parameter (week/month/quarter)
+- Computes per-orderbooker: totalShops, totalOutstanding, todayRecovery, periodRecovery, lastActive, avgRecoveryPerShop, recoveryRate
+- Date range calculation: week (Monday start), month (1st), quarter (quarter start)
+- Recovery rate = min(100, periodRecovery / totalOutstanding * 100)
+- Returns array sorted by periodRecovery descending
+
+**Frontend Component: `AdminOBAnalytics.tsx`**
+- Page title with BarChart3 icon and period description
+- Filter bar with Select dropdown (This Week / This Month / This Quarter)
+- 4 Summary KPI cards: Total OBs (blue), Total Outstanding (red), Recovery This Period (green), Avg Recovery per OB (amber)
+- Performance Bar Chart (Recharts BarChart) showing top 10 orderbookers by recovery with green gradient fill
+- Performance Rankings Table: Rank (medal badges), Name, Shops, Outstanding, Recovery, Avg/Shop, Last Active (relative time), Performance Badge
+- Performance Badge color-coded: green (≥80%), amber (≥50%), red (<50%)
+- CSV Export button with loading state using existing `exportToCSV` utility
+- Uses existing patterns: formatCurrency, stat-card-*, card-elevated, hover-scale-102, data-table-header, stagger-children, animate-fade-in, number-animate, skeleton-shimmer
+- Responsive: hidden columns on sm/md/lg breakpoints
+
+**Router & Navigation:**
+- Added `case 'admin-ob-analytics'` to AdminRouter in page.tsx
+- Added nav item with BarChart3 icon after Audit Log in AdminLayout.tsx sidebar
+
+### Feature 2: Data Backup & Restore System
+
+**API Route: `/api/admin/backup/route.ts`**
+- GET endpoint exports all data as JSON
+- Exports: users, shops, transactions, auditLogs with selected fields (plain JSON, not Prisma objects)
+- Returns JSON with metadata: exportDate, version, application, counts per entity
+- Response header: `Content-Disposition: attachment; filename="alfalah-backup-YYYY-MM-DD.json"`
+- Password field excluded from export for security
+
+**API Route: `/api/admin/restore/route.ts`**
+- POST handler accepts multipart form with "file" field (.json)
+- Preview mode: header `X-Restore-Preview: true` returns counts without restoring
+- Full restore mode: validates backup structure (metadata + data with users/shops arrays)
+- Uses Prisma transaction for atomic restore:
+  1. Clears auditLogs, transactions, shops, orderbooker users (admin preserved)
+  2. Re-imports users with ID mapping (username-based matching)
+  3. Re-imports shops with mapped orderbooker IDs
+  4. Re-imports transactions with mapped shop/creator IDs
+  5. Re-imports audit logs with mapped performer IDs
+- Returns { success, imported: { users, shops, transactions, auditLogs } }
+
+**Frontend: SettingsPanel.tsx Enhancement**
+- Added "Backup & Restore" section (admin-only) between Data Management and Account Security
+- **Export Backup** card:
+  - Description explaining what gets exported
+  - "Download Backup" button with animated Loader2 while exporting
+  - Last backup date display from localStorage (green CheckCircle2 badge)
+  - Stores last backup timestamp in `alfalah-last-backup` localStorage key
+- **Import Data** card:
+  - WARNING banner with AlertTriangle icon: "Restoring will replace ALL current data"
+  - File upload area (dashed border, accepts .json) with Upload/FileJson icons
+  - File preview state (emerald border when file selected)
+  - Progress bar during restore with percentage
+- **Restore Preview Dialog:**
+  - Shows backup date, and counts grid (Users, Shops, Transactions, Audit Logs)
+  - Warning about permanent data replacement
+  - "Cancel" and "Restore This Backup" (destructive variant) buttons
+- **Confirm Restore AlertDialog:**
+  - Red-themed confirmation with AlertTriangle icon
+  - "This action cannot be undone" warning
+  - "Cancel" and "Yes, Restore Now" buttons
+- Uses AlertDialog, Dialog, Progress components from shadcn/ui
+
+### Verification:
+- `bun run lint` passes cleanly with zero errors
+- Dev server compiles without issues (GET / 200)
+- API tests:
+  - GET /api/reports/ob-performance?period=month → returns 2 orderbookers with correct aggregated stats
+  - GET /api/admin/backup → 200 with proper JSON metadata (3 users, 20 shops, 5 transactions)
+- All existing features preserved
+
+Stage Summary:
+- 2 new features added (OB Analytics, Backup & Restore)
+- 3 new API routes created (ob-performance, backup, restore)
+- 1 new frontend component (AdminOBAnalytics)
+- 1 existing component enhanced (SettingsPanel with backup/restore UI)
+- 2 files modified for routing (page.tsx, AdminLayout.tsx)
+- System is stable, fully linted

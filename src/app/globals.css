@@ -538,6 +538,57 @@
   border-left: 4px solid #EF4444;
 }
 
+/* ====== Sonner Toast Enhancement ====== */
+/* Success toast — green left border with subtle background */
+[data-type="success"] [data-sonner-toast] {
+  border-left: 4px solid #10B981;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+}
+.dark [data-type="success"] [data-sonner-toast] {
+  background: linear-gradient(135deg, rgba(20, 83, 45, 0.3) 0%, rgba(30, 41, 59, 0.95) 100%);
+}
+
+/* Error toast — red left border with subtle background */
+[data-type="error"] [data-sonner-toast] {
+  border-left: 4px solid #EF4444;
+  background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+}
+.dark [data-type="error"] [data-sonner-toast] {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.3) 0%, rgba(30, 41, 59, 0.95) 100%);
+}
+
+/* Warning toast — amber left border with subtle background */
+[data-type="warning"] [data-sonner-toast] {
+  border-left: 4px solid #F59E0B;
+  background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+}
+.dark [data-type="warning"] [data-sonner-toast] {
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.3) 0%, rgba(30, 41, 59, 0.95) 100%);
+}
+
+/* Info toast — blue left border with subtle background */
+[data-type="info"] [data-sonner-toast] {
+  border-left: 4px solid #3B82F6;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+}
+.dark [data-type="info"] [data-sonner-toast] {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.3) 0%, rgba(30, 41, 59, 0.95) 100%);
+}
+
+/* Default Sonner toast styling enhancement */
+[data-sonner-toast] {
+  border-radius: 12px !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 8px -2px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark [data-sonner-toast] {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.4), 0 4px 8px -2px rgba(0, 0, 0, 0.3) !important;
+}
+
 /* ====== Search Overlay ====== */
 .search-overlay-backdrop {
   backdrop-filter: blur(8px);
@@ -1345,4 +1396,70 @@ textarea:focus-visible {
 }
 .action-btn-group > button:hover {
   background-color: var(--muted);
+}
+
+/* ====== Styling & UX Round 3: New Utilities ====== */
+
+/* Heatmap gradient for data-heavy tables */
+.heat-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.heat-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #10B981, #F59E0B, #EF4444);
+  opacity: 0.15;
+  border-radius: 999px;
+}
+
+/* Glass card for floating elements */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+.dark .glass-card {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* Subtle inner glow for important data */
+.data-glow {
+  text-shadow: 0 0 8px rgba(30, 58, 138, 0.15);
+}
+.dark .data-glow {
+  text-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+}
+
+/* Enhanced accordion chevron animation */
+.accordion-chevron {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Number counter with tabular alignment */
+.number-display {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Section divider with label */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+}
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
 }

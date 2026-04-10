@@ -14,6 +14,7 @@ import {
   Users,
   FileText,
   Shield,
+  BarChart3,
   LogOut,
   Menu,
   X,
@@ -28,6 +29,7 @@ import NotificationPanel from './NotificationPanel';
 import GlobalSearch from './GlobalSearch';
 import SettingsPanel from './SettingsPanel';
 import KeyboardShortcuts from './KeyboardShortcuts';
+import SessionTimeoutDialog from './SessionTimeoutDialog';
 
 interface NavItem {
   id: string;
@@ -43,6 +45,7 @@ const adminNavItems: NavItem[] = [
   { id: 'admin-orderbookers', label: 'Manage Orderbookers', icon: <Users className="h-5 w-5" /> },
   { id: 'admin-reconciliation', label: 'Reconciliation', icon: <FileText className="h-5 w-5" /> },
   { id: 'admin-audit', label: 'Audit Log', icon: <Shield className="h-5 w-5" /> },
+  { id: 'admin-ob-analytics', label: 'OB Analytics', icon: <BarChart3 className="h-5 w-5" /> },
 ];
 
 interface AdminLayoutProps {
@@ -267,6 +270,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Settings Panel */}
       <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {/* Session Timeout Dialog */}
+      <SessionTimeoutDialog />
     </div>
   );
 }

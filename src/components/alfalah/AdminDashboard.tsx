@@ -329,7 +329,7 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Today&apos;s Credit</p>
-              <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate">{formatCurrency(animatedTodayCredit)}</p>
+              <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate number-display">{formatCurrency(animatedTodayCredit)}</p>
             </CardContent>
           </Card>
           <Card className="kpi-card stat-card-green hover-scale-102 animate-card-entrance">
@@ -341,7 +341,7 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Today&apos;s Recovery</p>
-              <p className="text-2xl font-bold text-green-600 tabular-nums number-animate">{formatCurrency(animatedTodayRecovery)}</p>
+              <p className="text-2xl font-bold text-green-600 tabular-nums number-animate number-display">{formatCurrency(animatedTodayRecovery)}</p>
             </CardContent>
           </Card>
           <Card className="kpi-card stat-card-red hover-scale-102 animate-card-entrance">
@@ -353,7 +353,7 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-red-500 font-medium bg-red-50 px-2 py-0.5 rounded-full">Alert</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Outstanding</p>
-              <p className="text-2xl font-bold text-red-600 tabular-nums number-animate">{formatCurrency(animatedOutstanding)}</p>
+              <p className="text-2xl font-bold text-red-600 tabular-nums number-animate number-display">{formatCurrency(animatedOutstanding)}</p>
             </CardContent>
           </Card>
           <Card className="kpi-card stat-card-blue hover-scale-102 animate-card-entrance">
@@ -365,7 +365,7 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">All</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Active Shops</p>
-              <p className="text-2xl font-bold tabular-nums number-animate">{animatedTotalShops}</p>
+              <p className="text-2xl font-bold tabular-nums number-animate number-display">{animatedTotalShops}</p>
             </CardContent>
           </Card>
         </div>
