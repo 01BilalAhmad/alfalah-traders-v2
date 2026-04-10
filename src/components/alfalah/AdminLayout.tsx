@@ -20,11 +20,13 @@ import {
   ChevronRight,
   Loader2,
   Search,
+  Settings,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ThemeToggle } from './ThemeToggle';
 import NotificationPanel from './NotificationPanel';
 import GlobalSearch from './GlobalSearch';
+import SettingsPanel from './SettingsPanel';
 
 interface NavItem {
   id: string;
@@ -49,6 +51,7 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { user, currentView, setCurrentView, logout } = useAppStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [miniStats, setMiniStats] = useState<{ totalShops: number; totalOBs: number }>({ totalShops: 0, totalOBs: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -105,7 +108,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {/* Global Search Button */}
           <button
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
-            className="hidden md:flex items-center gap-2 h-8 px-3 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-blue-100 hover:text-white text-xs font-medium transition-all duration-150"
+            className="hidden md:flex items-center gap-2 h-8 px-3 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-blue-100 hover:text-white text-xs font-medium transition-all duration-150 hover-glow-primary"
           >
             <Search className="h-3.5 w-3.5" />
             <span className="hidden lg:inline">Search</span>
@@ -128,6 +131,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <p className="text-[10px] text-blue-200 leading-tight">Administrator</p>
             </div>
           </div>
+          <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-blue-100 hover:bg-white/10 hover:text-white"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Open settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
           <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
           <ThemeToggle />
           <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
@@ -177,7 +190,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <Separator className="bg-white/10 mx-3" />
 
             {/* Navigation */}
-            <nav className="p-3 space-y-1">
+            <nav className="p-3 space-y-1 nav-stagger">
               {adminNavItems.map((item) => {
                 const isActive = currentView === item.id;
                 return (
@@ -236,13 +249,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-border px-6 py-3 flex items-center justify-between text-xs text-muted-foreground bg-card/50 mt-auto">
+      <footer className="glass-strong border-t border-border/50 px-6 py-3 flex items-center justify-between text-xs text-muted-foreground mt-auto">
         <span>&copy; {new Date().getFullYear()} Al-Falah Traders. All rights reserved.</span>
         <span>Smart Credit &amp; Route Management v1.0</span>
       </footer>
 
       {/* Global Search Overlay */}
       <GlobalSearch />
+
+      {/* Settings Panel */}
+      <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 }

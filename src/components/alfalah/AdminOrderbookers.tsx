@@ -181,7 +181,7 @@ export default function AdminOrderbookers() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {orderbookers.map((ob) => (
-            <Card key={ob.id} className={`alfalah-card-hover ${ob.status === 'inactive' ? 'opacity-60' : ''}`}>
+            <Card key={ob.id} className={`alfalah-card-hover hover-lift ${ob.status === 'inactive' ? 'opacity-60' : ''}`}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -220,11 +220,11 @@ export default function AdminOrderbookers() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => openEditDialog(ob)}>
+                  <Button variant="outline" size="sm" className="flex-1 text-xs hover-glow-primary" onClick={() => openEditDialog(ob)}>
                     <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                   </Button>
                   {ob.status === 'active' && (
-                    <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => setConfirmDeactivate(ob)}>
+                    <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive hover-glow-red" onClick={() => setConfirmDeactivate(ob)}>
                       <UserMinus className="h-3.5 w-3.5 mr-1" /> Deactivate
                     </Button>
                   )}

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,8 @@ import {
   Users,
   Receipt,
   X,
+  Zap,
+  BarChart3,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -113,6 +116,22 @@ function formatDateTime(isoString: string): string {
   });
 }
 
+/** Highlight matching text in shop name */
+function highlightMatch(text: string, query: string) {
+  if (!query.trim()) return <>{text}</>;
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const idx = lowerText.indexOf(lowerQuery);
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span className="font-bold text-primary">{text.slice(idx, idx + query.length)}</span>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
 export default function AdminCreditPosting() {
   const { user, creditSessionCount, incrementCreditSessionCount } = useAppStore();
   const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
@@ -141,9 +160,21 @@ export default function AdminCreditPosting() {
   // Day counts for badges
   const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
 
+  // Quick Post Mode state
+  const [quickPostMode, setQuickPostMode] = useState(false);
+  const [quickPostShops, setQuickPostShops] = useState(0);
+  const [quickPostTotal, setQuickPostTotal] = useState(0);
+  const [quickPostJustPosted, setQuickPostJustPosted] = useState(false);
+
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const quickPostTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const todayDay = ROUTE_DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+
+  // Total shops for current filter (without search)
+  const totalShopsForFilter = selectedDay
+    ? (dayCounts[selectedDay] || 0)
+    : Object.values(dayCounts).reduce((a, b) => a + b, 0);
 
   const fetchOrderbookers = useCallback(async () => {
     try {
@@ -283,11 +314,13 @@ export default function AdminCreditPosting() {
   }, [fetchTodaySummary]);
 
   const totalOutstanding = shops.reduce((sum, s) => sum + s.balance, 0);
+  const averageBalance = shops.length > 0 ? totalOutstanding / shops.length : 0;
 
   const handleOpenCreditDialog = (shop: Shop) => {
     setSelectedShop(shop);
     setCreditAmount('');
     setCreditDescription('');
+    setQuickPostJustPosted(false);
     setCreditDialogOpen(true);
   };
 
@@ -324,25 +357,43 @@ export default function AdminCreditPosting() {
 
       incrementCreditSessionCount();
 
-      // Build receipt data
-      setPostedReceipt({
-        shopName: selectedShop.name,
-        shopArea: selectedShop.area,
-        amount,
-        description: desc,
-        previousBalance: txn.previousBalance ?? selectedShop.balance,
-        newBalance: txn.newBalance ?? (selectedShop.balance + amount),
-        postedAt: new Date().toISOString(),
-        postedBy: user.name || 'Admin',
-      });
+      if (quickPostMode) {
+        // Quick Post Mode: stay in dialog, clear amount, show checkmark
+        setQuickPostShops((prev) => prev + 1);
+        setQuickPostTotal((prev) => prev + amount);
+        setCreditAmount('');
+        setCreditDescription('');
+        setQuickPostJustPosted(true);
 
-      // Close credit dialog, open receipt dialog
-      setCreditDialogOpen(false);
-      setReceiptDialogOpen(true);
+        // Clear checkmark after 1.5s
+        if (quickPostTimerRef.current) clearTimeout(quickPostTimerRef.current);
+        quickPostTimerRef.current = setTimeout(() => {
+          setQuickPostJustPosted(false);
+        }, 1500);
 
-      // Refresh data
-      fetchShops();
-      fetchTodaySummary();
+        // Refresh data in background
+        fetchShops();
+        fetchTodaySummary();
+        // Don't close dialog — stay ready for next input
+      } else {
+        // Normal mode: show receipt dialog
+        setPostedReceipt({
+          shopName: selectedShop.name,
+          shopArea: selectedShop.area,
+          amount,
+          description: desc,
+          previousBalance: txn.previousBalance ?? selectedShop.balance,
+          newBalance: txn.newBalance ?? (selectedShop.balance + amount),
+          postedAt: new Date().toISOString(),
+          postedBy: user.name || 'Admin',
+        });
+
+        setCreditDialogOpen(false);
+        setReceiptDialogOpen(true);
+
+        fetchShops();
+        fetchTodaySummary();
+      }
     } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     } finally {
@@ -350,9 +401,19 @@ export default function AdminCreditPosting() {
     }
   };
 
+  const handleExitQuickPost = () => {
+    setQuickPostMode(false);
+    setQuickPostShops(0);
+    setQuickPostTotal(0);
+    setQuickPostJustPosted(false);
+    setCreditDialogOpen(false);
+  };
+
   const handlePrintReceipt = () => {
     window.print();
   };
+
+  const isSearchActive = debouncedSearch.trim().length > 0;
 
   return (
     <div className="space-y-5">
@@ -361,38 +422,61 @@ export default function AdminCreditPosting() {
         <p className="text-sm text-muted-foreground mt-0.5">Post credit entries for shops</p>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards + Quick Post Toggle */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="alfalah-card-hover">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-              <PackagePlus className="h-5 w-5 text-amber-600" />
+            <div className="h-11 w-11 rounded-xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center shrink-0">
+              <PackagePlus className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Posted This Session</p>
-              <p className="text-xl font-bold text-foreground">{creditSessionCount}</p>
+              <p className="text-xl font-bold text-foreground tabular-nums">{creditSessionCount}</p>
+            </div>
+            {/* Quick Post Toggle */}
+            <div className="flex items-center gap-2 shrink-0">
+              <Switch
+                id="quickPostToggle"
+                checked={quickPostMode}
+                onCheckedChange={(checked) => {
+                  setQuickPostMode(checked);
+                  if (!checked) {
+                    setQuickPostShops(0);
+                    setQuickPostTotal(0);
+                    setQuickPostJustPosted(false);
+                  }
+                }}
+                className="data-[state=checked]:bg-emerald-500"
+              />
+              <label
+                htmlFor="quickPostToggle"
+                className="flex items-center gap-1 text-xs font-semibold cursor-pointer select-none text-muted-foreground"
+              >
+                <Zap className="h-3.5 w-3.5 text-amber-500" />
+                Quick Post
+              </label>
             </div>
           </CardContent>
         </Card>
         <Card className="alfalah-card-hover">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
-              <Wallet className="h-5 w-5 text-red-600" />
+            <div className="h-11 w-11 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0">
+              <Wallet className="h-5 w-5 text-red-600 dark:text-red-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
-              <p className="text-xl font-bold text-foreground">{formatCurrency(totalOutstanding)}</p>
+              <p className="text-xl font-bold text-foreground tabular-nums">{formatCurrency(totalOutstanding)}</p>
             </div>
           </CardContent>
         </Card>
         <Card className="alfalah-card-hover">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-              <Store className="h-5 w-5 text-blue-600" />
+            <div className="h-11 w-11 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center shrink-0">
+              <Store className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Shops Listed</p>
-              <p className="text-xl font-bold text-foreground">{shops.length}</p>
+              <p className="text-xl font-bold text-foreground tabular-nums">{shops.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -413,16 +497,47 @@ export default function AdminCreditPosting() {
                 ))}
               </SelectContent>
             </Select>
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            {/* Enhanced Search Input */}
+            <div className="relative flex-1 group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
                 placeholder="Search shop by name or area..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className={`pl-9 pr-8 h-10 text-sm transition-all ${
+                  isSearchActive
+                    ? 'border-primary/50 bg-primary/[0.02] ring-2 ring-primary/10 focus-visible:border-primary focus-visible:ring-primary/20'
+                    : ''
+                }`}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Search result count */}
+          {isSearchActive && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground animate-fade-in">
+              <Search className="h-3 w-3" />
+              <span>
+                Showing <span className="font-semibold text-foreground">{shops.length}</span> of{' '}
+                <span className="font-semibold text-foreground">{totalShopsForFilter}</span> shops
+                {debouncedSearch.trim() && (
+                  <>
+                    {' '}matching &ldquo;<span className="font-medium text-primary">{debouncedSearch.trim()}</span>&rdquo;
+                  </>
+                )}
+              </span>
+            </div>
+          )}
 
           {/* Day Tabs with counts */}
           <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -463,6 +578,34 @@ export default function AdminCreditPosting() {
         </CardContent>
       </Card>
 
+      {/* Credit Posting Stats Summary */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 justify-between">
+            <div className="flex items-center gap-2 text-sm">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-foreground">Stats</span>
+            </div>
+            <div className="flex items-center gap-5 sm:gap-6 text-xs">
+              <div className="flex flex-col items-center sm:items-start">
+                <span className="text-muted-foreground font-medium">Total Shops</span>
+                <span className="font-bold text-foreground text-sm tabular-nums">{totalShopsForFilter}</span>
+              </div>
+              <div className="w-px h-7 bg-border hidden sm:block" />
+              <div className="flex flex-col items-center sm:items-start">
+                <span className="text-muted-foreground font-medium">Outstanding</span>
+                <span className="font-bold text-red-600 dark:text-red-400 text-sm tabular-nums">{formatCurrency(totalOutstanding)}</span>
+              </div>
+              <div className="w-px h-7 bg-border hidden sm:block" />
+              <div className="flex flex-col items-center sm:items-start">
+                <span className="text-muted-foreground font-medium">Avg Balance</span>
+                <span className="font-bold text-foreground text-sm tabular-nums">{formatCurrency(Math.round(averageBalance))}</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Shop List */}
       <Card>
         <CardHeader className="pb-3 pt-4 px-5">
@@ -498,16 +641,28 @@ export default function AdminCreditPosting() {
                     <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} transition-colors`}>
                       <TableCell>
                         <div>
-                          <p className="font-medium text-sm">{shop.name}</p>
-                          <p className="text-xs text-muted-foreground sm:hidden">{shop.area || '—'}</p>
+                          <p className="font-medium text-sm">
+                            {isSearchActive
+                              ? highlightMatch(shop.name, debouncedSearch)
+                              : shop.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground sm:hidden">
+                            {isSearchActive && shop.area
+                              ? highlightMatch(shop.area, debouncedSearch)
+                              : (shop.area || '—')}
+                          </p>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{shop.area || '—'}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                        {isSearchActive && shop.area
+                          ? highlightMatch(shop.area, debouncedSearch)
+                          : (shop.area || '—')}
+                      </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <Badge variant="outline" className="text-[10px] font-medium">{shop.routeDay.charAt(0).toUpperCase() + shop.routeDay.slice(1)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600' : shop.balance < 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                        <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600 dark:text-red-400' : shop.balance < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
                           {formatCurrency(shop.balance)}
                         </span>
                       </TableCell>
@@ -592,7 +747,7 @@ export default function AdminCreditPosting() {
                         <TableCell className="font-medium text-sm">{item.shopName}</TableCell>
                         <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{item.shopArea || '—'}</TableCell>
                         <TableCell className="hidden sm:table-cell text-center text-sm text-muted-foreground">{item.transactionCount}</TableCell>
-                        <TableCell className="text-right font-semibold text-sm text-red-600">{formatCurrency(item.totalAmount)}</TableCell>
+                        <TableCell className="text-right font-semibold text-sm text-red-600 dark:text-red-400">{formatCurrency(item.totalAmount)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -603,18 +758,71 @@ export default function AdminCreditPosting() {
         </CardContent>
       </Card>
 
+      {/* Quick Post Floating Summary */}
+      {quickPostMode && quickPostShops > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up lg:left-64">
+          <div className="mx-auto max-w-3xl px-4 pb-4">
+            <div className="flex items-center justify-between rounded-xl bg-emerald-600 dark:bg-emerald-700 px-5 py-3 shadow-2xl text-white">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+                  <Zap className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs text-white/70 font-medium">Quick Post Session</p>
+                  <p className="text-sm font-bold">
+                    Posted <span className="tabular-nums">{quickPostShops}</span> shop{quickPostShops > 1 ? 's' : ''}, Total: <span className="tabular-nums">{formatCurrency(quickPostTotal)}</span>
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleExitQuickPost}
+                size="sm"
+                variant="ghost"
+                className="text-white/90 hover:text-white hover:bg-white/20 h-9 gap-1.5 font-semibold"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Credit Dialog */}
-      <Dialog open={creditDialogOpen} onOpenChange={setCreditDialogOpen}>
-        <DialogContent className="sm:max-w-md no-print">
+      <Dialog open={creditDialogOpen} onOpenChange={(open) => {
+        if (!open && quickPostMode) return; // Prevent closing in quick post mode via overlay
+        setCreditDialogOpen(open);
+      }}>
+        <DialogContent className="sm:max-w-md no-print" onInteractOutside={(e) => {
+          if (quickPostMode) e.preventDefault(); // Prevent closing in quick post mode
+        }}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5 text-primary" />
-              Post Credit
+              {quickPostMode ? 'Quick Post Credit' : 'Post Credit'}
+              {quickPostMode && (
+                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] ml-1">
+                  <Zap className="h-2.5 w-2.5 mr-0.5" />
+                  Quick Mode
+                </Badge>
+              )}
             </DialogTitle>
             <DialogDescription>
               Add credit entry for <span className="font-semibold text-foreground">{selectedShop?.name}</span>
             </DialogDescription>
           </DialogHeader>
+
+          {/* Quick Post Success Indicator */}
+          {quickPostJustPosted && (
+            <div className="flex items-center gap-2.5 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-800/30 animate-fade-in">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Credit Posted!</p>
+                <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70">Enter next amount or close to pick another shop</p>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4 py-3">
             {selectedShop && (
               <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
@@ -632,7 +840,8 @@ export default function AdminCreditPosting() {
                 onChange={(e) => setCreditAmount(e.target.value)}
                 min="1"
                 step="1"
-                autoFocus
+                autoFocus={!quickPostJustPosted}
+                disabled={postingCredit}
               />
             </div>
             <div className="space-y-2">
@@ -643,18 +852,33 @@ export default function AdminCreditPosting() {
                 value={creditDescription}
                 onChange={(e) => setCreditDescription(e.target.value)}
                 rows={2}
+                disabled={postingCredit}
               />
             </div>
           </div>
           <DialogFooter className="gap-2 no-print">
-            <Button variant="outline" onClick={() => setCreditDialogOpen(false)}>Cancel</Button>
+            {!quickPostMode && (
+              <Button variant="outline" onClick={() => setCreditDialogOpen(false)}>Cancel</Button>
+            )}
+            {quickPostMode && (
+              <Button variant="outline" onClick={handleExitQuickPost} className="gap-1.5">
+                <CheckCircle2 className="h-4 w-4" />
+                Done
+              </Button>
+            )}
             <Button
               onClick={handlePostCredit}
               disabled={postingCredit || !creditAmount || parseFloat(creditAmount) <= 0}
-              className="bg-primary hover:bg-primary/90"
+              className={`hover:opacity-90 ${quickPostMode ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-primary hover:bg-primary/90'}`}
             >
-              {postingCredit ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-              Post Credit
+              {postingCredit ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : quickPostMode ? (
+                <Zap className="h-4 w-4 mr-2" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              {postingCredit ? 'Posting...' : quickPostMode ? 'Quick Post' : 'Post Credit'}
             </Button>
           </DialogFooter>
         </DialogContent>

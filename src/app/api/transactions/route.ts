@@ -12,9 +12,11 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
+    const createdBy = searchParams.get('createdBy');
     const where: Record<string, unknown> = {};
     if (shopId) where.shopId = shopId;
     if (type) where.type = type;
+    if (createdBy) where.createdBy = createdBy;
     if (orderbookerId) {
       where.shop = { orderbookerId };
     }

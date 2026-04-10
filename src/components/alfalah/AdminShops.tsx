@@ -55,6 +55,11 @@ import {
   BookOpen,
   Download,
   ArrowLeft,
+  Users,
+  Wallet,
+  TrendingDown,
+  MapPin,
+  BarChart3,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -277,6 +282,23 @@ export default function AdminShops() {
     ? shops.filter((s) => s.routeDay === selectedDay)
     : shops;
 
+  // Analytics computation from allShops
+  const activeShops = allShops.filter((s) => s.status === 'active');
+  const inactiveShops = allShops.filter((s) => s.status === 'inactive');
+  const totalOutstanding = allShops.reduce((sum, s) => sum + s.balance, 0);
+  const averageBalance = allShops.length > 0 ? totalOutstanding / allShops.length : 0;
+  const highestBalanceShop = allShops.length > 0
+    ? allShops.reduce((max, s) => s.balance > max.balance ? s : max, allShops[0])
+    : null;
+
+  // Area with most shops
+  const areaCounts: Record<string, number> = {};
+  allShops.forEach((s) => {
+    const area = s.area || 'Unknown';
+    areaCounts[area] = (areaCounts[area] || 0) + 1;
+  });
+  const topArea = Object.entries(areaCounts).sort((a, b) => b[1] - a[1])[0] || null;
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -315,6 +337,114 @@ export default function AdminShops() {
           )}
         </div>
       </div>
+
+      {/* Analytics Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
+        {/* Total Active Shops */}
+        <Card className="stat-card-green alfalah-card-hover">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
+              <Store className="h-5 w-5 text-green-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">Active Shops</p>
+              <p className="text-lg font-bold text-green-700 dark:text-green-400">{activeShops.length}</p>
+            </div>
+            <Badge className="bg-green-500/15 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] font-bold">
+              Live
+            </Badge>
+          </CardContent>
+        </Card>
+
+        {/* Total Inactive Shops */}
+        <Card className="stat-card-red alfalah-card-hover">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
+              <Users className="h-5 w-5 text-red-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">Inactive Shops</p>
+              <p className="text-lg font-bold text-red-700 dark:text-red-400">{inactiveShops.length}</p>
+            </div>
+            <Badge className="bg-red-500/15 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 text-[10px] font-bold">
+              Off
+            </Badge>
+          </CardContent>
+        </Card>
+
+        {/* Total Outstanding Balance */}
+        <Card className="stat-card-amber alfalah-card-hover">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+              <Wallet className="h-5 w-5 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
+              <p className="text-lg font-bold text-red-600 dark:text-red-400">{formatCurrency(totalOutstanding)}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Average Balance */}
+        <Card className="stat-card-blue alfalah-card-hover">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
+              <TrendingDown className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">Average Balance</p>
+              <p className="text-lg font-bold text-foreground">{formatCurrency(Math.round(averageBalance))}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Highest Balance Shop */}
+        <Card className="stat-card-red alfalah-card-hover">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
+              <BarChart3 className="h-5 w-5 text-red-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">Highest Balance</p>
+              {highestBalanceShop ? (
+                <p className="text-sm font-bold text-foreground truncate">{highestBalanceShop.name}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">—</p>
+              )}
+            </div>
+            {highestBalanceShop && (
+              <span className="text-sm font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
+                {formatCurrency(highestBalanceShop.balance)}
+              </span>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Area with Most Shops */}
+        <Card className="stat-card-green alfalah-card-hover">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
+              <MapPin className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">Top Area</p>
+              {topArea ? (
+                <p className="text-sm font-bold text-foreground truncate">{topArea[0]}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">—</p>
+              )}
+            </div>
+            {topArea && (
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 text-[10px] font-bold">
+                {topArea[1]} shops
+              </Badge>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gradient Divider */}
+      <div className="divider-gradient" />
 
       {/* Filters */}
       <Card>
@@ -400,7 +530,7 @@ export default function AdminShops() {
                 </TableHeader>
                 <TableBody>
                   {filteredShops.map((shop, idx) => (
-                    <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} ${shop.status === 'inactive' ? 'opacity-60' : ''} transition-colors`}>
+                    <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} ${shop.status === 'inactive' ? 'opacity-60' : ''} hover-scale-102 transition-colors`}>
                       <TableCell>
                         <p className="font-medium text-sm">{shop.name}</p>
                         <p className="text-xs text-muted-foreground sm:hidden">{shop.ownerName || ''} &bull; {shop.area || ''}</p>
@@ -422,14 +552,14 @@ export default function AdminShops() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(shop)} title="Edit">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift" onClick={() => openEditDialog(shop)} title="Edit">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openLedger(shop)} title="View Ledger">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift" onClick={() => openLedger(shop)} title="View Ledger">
                             <BookOpen className="h-3.5 w-3.5" />
                           </Button>
                           {shop.status === 'active' && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeactivate(shop)} title="Deactivate">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover-lift" onClick={() => setConfirmDeactivate(shop)} title="Deactivate">
                               <UserMinus className="h-3.5 w-3.5" />
                             </Button>
                           )}

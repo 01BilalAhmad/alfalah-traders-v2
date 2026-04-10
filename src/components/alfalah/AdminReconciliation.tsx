@@ -145,56 +145,119 @@ export default function AdminReconciliation() {
       </div>
 
       {/* Summary */}
-      {report && (
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <Card className="alfalah-card-hover">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                <ArrowUpRight className="h-5 w-5 text-amber-600" />
+      {report && (() => {
+        const totalFlow = report.totalCredit + report.totalRecovery;
+        const creditPct = totalFlow > 0 ? (report.totalCredit / totalFlow) * 100 : 0;
+        const recoveryPct = totalFlow > 0 ? (report.totalRecovery / totalFlow) * 100 : 0;
+        return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Credit — amber themed with mini bar */}
+          <Card className="stat-card-amber alfalah-card-hover">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="h-11 w-11 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                  <ArrowUpRight className="h-5 w-5 text-amber-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium">Total Credit</p>
+                  <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{formatCurrency(report.totalCredit)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Total Credit</p>
-                <p className="text-lg font-bold text-amber-600">{formatCurrency(report.totalCredit)}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="alfalah-card-hover">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
-                <ArrowDownRight className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Total Recovery</p>
-                <p className="text-lg font-bold text-green-600">{formatCurrency(report.totalRecovery)}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="alfalah-card-hover">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${report.netChange >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-                <TrendingUp className={`h-5 w-5 ${report.netChange >= 0 ? 'text-green-600' : 'text-red-600'}`} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Net Change</p>
-                <p className={`text-lg font-bold ${report.netChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {report.netChange >= 0 ? '+' : ''}{formatCurrency(report.netChange)}
-                </p>
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground">Proportion</span>
+                  <span className="text-[10px] font-semibold text-amber-600">{creditPct.toFixed(0)}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-amber-100 dark:bg-amber-900/30 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-500"
+                    style={{ width: `${creditPct}%` }}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="alfalah-card-hover">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                <RefreshCw className="h-5 w-5 text-blue-600" />
+
+          {/* Total Recovery — green themed with mini bar */}
+          <Card className="stat-card-green alfalah-card-hover">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="h-11 w-11 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
+                  <ArrowDownRight className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium">Total Recovery</p>
+                  <p className="text-lg font-bold text-green-700 dark:text-green-400">{formatCurrency(report.totalRecovery)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Transactions</p>
-                <p className="text-lg font-bold text-foreground">{report.totalTransactions}</p>
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground">Proportion</span>
+                  <span className="text-[10px] font-semibold text-green-600">{recoveryPct.toFixed(0)}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-green-100 dark:bg-green-900/30 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full transition-all duration-500"
+                    style={{ width: `${recoveryPct}%` }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Net Position — red/green based on sign */}
+          <Card className={`alfalah-card-hover ${report.netChange >= 0 ? 'stat-card-green' : 'stat-card-red'}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${report.netChange >= 0 ? 'bg-green-500/15' : 'bg-red-500/15'}`}>
+                  <TrendingUp className={`h-5 w-5 ${report.netChange >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium">Net Position</p>
+                  <p className={`text-xl font-extrabold tabular-nums ${report.netChange >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                    {report.netChange >= 0 ? '+' : ''}{formatCurrency(report.netChange)}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-2">
+                <Badge className={`text-[10px] font-bold ${report.netChange >= 0
+                  ? 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'
+                  : 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'}`}>
+                  {report.netChange >= 0 ? '↑ Recovery Surplus' : '↓ Credit Excess'}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Transactions */}
+          <Card className="stat-card-blue alfalah-card-hover">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="h-11 w-11 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
+                  <RefreshCw className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium">Transactions</p>
+                  <p className="text-lg font-bold text-foreground">{report.totalTransactions}</p>
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground">OBs Active</span>
+                  <span className="text-[10px] font-semibold text-blue-600">{report.orderbookers.length}</span>
+                </div>
+                <div className="h-1.5 w-full bg-blue-100 dark:bg-blue-900/30 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(report.orderbookers.length * 33, 100)}%` }}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
-      )}
+        );
+      })()}
 
       {/* Orderbooker Breakdown */}
       <Card>
@@ -210,19 +273,28 @@ export default function AdminReconciliation() {
             <div className="divide-y divide-border">
               {report.orderbookers.map((ob) => {
                 const isExpanded = expandedOB.has(ob.orderbookerId);
+                const obTotal = ob.credit + ob.recovery;
+                const creditProportion = obTotal > 0 ? (ob.credit / obTotal) * 100 : 0;
+                const recoveryProportion = obTotal > 0 ? (ob.recovery / obTotal) * 100 : 0;
+                const recoveryRate = ob.credit > 0 ? Math.round((ob.recovery / ob.credit) * 100) : (ob.recovery > 0 ? 100 : 0);
+                const recoveryColorClass = recoveryRate >= 80
+                  ? 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800'
+                  : recoveryRate >= 50
+                    ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                    : 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800';
                 return (
                   <div key={ob.orderbookerId}>
                     <div className="flex items-center justify-between px-5 py-3.5 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => toggleExpand(ob.orderbookerId)}>
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                           <span className="text-xs font-bold text-primary">{ob.orderbookerName.charAt(0)}</span>
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm">{ob.orderbookerName}</p>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm truncate">{ob.orderbookerName}</p>
                           <p className="text-[10px] text-muted-foreground">{ob.shops.length} shops</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-5 text-sm">
+                      <div className="flex items-center gap-4 sm:gap-5 text-sm shrink-0">
                         <div className="hidden sm:block text-right">
                           <p className="text-[10px] text-muted-foreground">Credit</p>
                           <p className="font-semibold text-amber-600">{formatCurrency(ob.credit)}</p>
@@ -231,7 +303,36 @@ export default function AdminReconciliation() {
                           <p className="text-[10px] text-muted-foreground">Recovery</p>
                           <p className="font-semibold text-green-600">{formatCurrency(ob.recovery)}</p>
                         </div>
+                        <Badge className={`${recoveryColorClass} text-[10px] font-bold border`}>{recoveryRate}%</Badge>
                       </div>
+                    </div>
+                    {/* Stacked bar + recovery rate for each OB */}
+                    <div className="px-5 pb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 rounded-full overflow-hidden bg-muted flex">
+                          <div
+                            className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-500"
+                            style={{ width: `${creditProportion}%` }}
+                            title={`Credit: ${creditProportion.toFixed(0)}%`}
+                          />
+                          <div
+                            className="h-full bg-gradient-to-r from-green-400 to-green-500 transition-all duration-500"
+                            style={{ width: `${recoveryProportion}%` }}
+                            title={`Recovery: ${recoveryProportion.toFixed(0)}%`}
+                          />
+                        </div>
+                      </div>
+                      {obTotal > 0 && (
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-[10px] text-muted-foreground">
+                            <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1" />Credit {creditProportion.toFixed(0)}%
+                            <span className="inline-block w-2 h-2 rounded-full bg-green-400 ml-3 mr-1" />Recovery {recoveryProportion.toFixed(0)}%
+                          </span>
+                          <span className={`text-[10px] font-semibold ${recoveryRate >= 80 ? 'text-green-600' : recoveryRate >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                            {recoveryRate >= 80 ? '✓' : recoveryRate >= 50 ? '⚠' : '✗'} {recoveryRate}% recovered
+                          </span>
+                        </div>
+                      )}
                     </div>
                     {isExpanded && ob.shops.length > 0 && (
                       <div className="bg-muted/20 px-5 pb-3">

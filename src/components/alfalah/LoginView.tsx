@@ -64,6 +64,16 @@ export default function LoginView() {
         }}
       />
 
+      {/* Twinkling star particles */}
+      <div className="star-twinkle" />
+      <div className="star-twinkle" />
+      <div className="star-twinkle" />
+      <div className="star-twinkle" />
+      <div className="star-twinkle" />
+      <div className="star-twinkle" />
+      <div className="star-twinkle" />
+      <div className="star-twinkle" />
+
       <div className="w-full max-w-md relative z-10">
         {/* Brand Header */}
         <div className="rounded-2xl px-8 pt-10 pb-8 text-center bg-white/10 backdrop-blur-md border border-white/20">
@@ -75,7 +85,7 @@ export default function LoginView() {
         </div>
 
         {/* Login Card with Glow */}
-        <Card className="rounded-t-none border-t-0 shadow-2xl shadow-blue-900/30 card-glow bg-white/95 backdrop-blur-sm">
+        <Card className="rounded-t-none border-t-0 shadow-2xl shadow-blue-900/30 animate-card-glow bg-white/95 backdrop-blur-sm">
           <CardHeader className="pb-4 pt-6 px-8">
             <h2 className="text-lg font-semibold text-foreground">Sign In to Your Account</h2>
             <p className="text-sm text-muted-foreground">Enter your credentials to access the system</p>
@@ -121,7 +131,7 @@ export default function LoginView() {
 
               <Button
                 type="submit"
-                className="w-full h-11 alfalah-gradient text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-blue-900/20"
+                className="w-full h-11 alfalah-gradient text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-blue-900/20 hover-glow-primary"
                 disabled={loading}
               >
                 {loading ? (
@@ -134,15 +144,17 @@ export default function LoginView() {
             </form>
 
             <div className="mt-6 pt-5 border-t border-border">
-              <p className="text-xs text-muted-foreground text-center mb-3">Demo Credentials</p>
-              <div className="grid grid-cols-1 gap-2">
-                <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-xs">
-                  <span className="font-medium text-foreground">Admin</span>
-                  <code className="text-muted-foreground bg-muted px-2 py-0.5 rounded">admin / admin123</code>
-                </div>
-                <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-xs">
-                  <span className="font-medium text-foreground">Orderbooker</span>
-                  <code className="text-muted-foreground bg-muted px-2 py-0.5 rounded">ahmed / ob123</code>
+              <p className="text-xs text-muted-foreground text-center mb-3 font-medium">Demo Credentials</p>
+              <div className="rounded-xl p-3 glass-strong">
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="flex items-center justify-between rounded-lg bg-background/60 px-3 py-2.5 text-xs">
+                    <span className="font-medium text-foreground">Admin</span>
+                    <code className="text-primary bg-primary/10 px-2 py-0.5 rounded font-mono text-[11px]">admin / admin123</code>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-background/60 px-3 py-2.5 text-xs">
+                    <span className="font-medium text-foreground">Orderbooker</span>
+                    <code className="text-primary bg-primary/10 px-2 py-0.5 rounded font-mono text-[11px]">ahmed / ob123</code>
+                  </div>
                 </div>
               </div>
             </div>
