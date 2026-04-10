@@ -1672,3 +1672,43 @@ textarea:focus-visible {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+/* ====== Task 11-b: Login & Dashboard Enhancement Styles ====== */
+
+/* Subtle login link (e.g. Forgot Password) */
+.login-link {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  transition: color 0.15s ease;
+}
+.login-link:hover {
+  color: var(--primary);
+}
+
+/* Keyboard hint below login button */
+.keyboard-hint {
+  color: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
+  font-size: 0.6875rem;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+/* Transaction row slide-in from left */
+@keyframes transactionRowSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.transaction-row-enter {
+  animation: transactionRowSlideIn 0.25s ease-out both;
+}
+.transaction-row-enter:nth-child(1) { animation-delay: 0ms; }
+.transaction-row-enter:nth-child(2) { animation-delay: 40ms; }
+.transaction-row-enter:nth-child(3) { animation-delay: 80ms; }
+.transaction-row-enter:nth-child(4) { animation-delay: 120ms; }
+.transaction-row-enter:nth-child(5) { animation-delay: 160ms; }

@@ -137,6 +137,9 @@ export default function LoginView() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                <div className="text-right">
+                  <span className="login-link cursor-default">Forgot Password?</span>
+                </div>
               </div>
 
               <Button
@@ -152,12 +155,16 @@ export default function LoginView() {
                 )}
                 {loading ? 'Signing In...' : 'Sign In'}
               </Button>
+              <p className="keyboard-hint">Press Enter to sign in</p>
             </form>
           </CardContent>
         </Card>
 
         <p className="mt-6 text-center text-xs text-blue-200/60">
           &copy; {new Date().getFullYear()} Al-Falah Traders. All rights reserved.
+        </p>
+        <p className="mt-1.5 text-center text-[10px] text-blue-300/40">
+          Powered by Al-Falah Systems
         </p>
       </div>
     </div>

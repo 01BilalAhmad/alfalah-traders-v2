@@ -559,6 +559,76 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
+      {/* Recent Transactions Mini-Table */}
+      <Card className="animate-fade-in">
+        <CardHeader className="pb-2 pt-4 px-5">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              Activity Feed
+            </CardTitle>
+            <button
+              className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
+              onClick={() => setCurrentView('admin-audit')}
+            >
+              View All
+              <ExternalLink className="h-3 w-3" />
+            </button>
+          </div>
+        </CardHeader>
+        <CardContent className="px-5 pb-4">
+          {recentTxnsLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="skeleton-shimmer h-4 w-24" />
+                  <Skeleton className="skeleton-shimmer h-4 w-16" />
+                  <Skeleton className="skeleton-shimmer h-4 w-20 ml-auto" />
+                  <Skeleton className="skeleton-shimmer h-4 w-14" />
+                </div>
+              ))}
+            </div>
+          ) : recentTxns.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-sm text-muted-foreground">No recent transactions</p>
+            </div>
+          ) : (
+            <ScrollArea className="max-h-64 custom-scrollbar">
+              <Table>
+                <TableHeader>
+                  <TableRow className="data-table-header hover:bg-transparent">
+                    <TableHead className="text-white font-semibold text-xs">Shop</TableHead>
+                    <TableHead className="text-white font-semibold text-xs">Type</TableHead>
+                    <TableHead className="text-white font-semibold text-xs text-right">Amount</TableHead>
+                    <TableHead className="text-white font-semibold text-xs text-right">Time</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentTxns.map((txn, idx) => (
+                    <TableRow key={txn.id} className={`transaction-row-enter ${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'}`}>
+                      <TableCell className="text-sm font-medium truncate max-w-[140px]">{txn.shop.name}</TableCell>
+                      <TableCell>
+                        <Badge className={`text-[9px] px-1.5 py-0 font-medium ${txn.type === 'credit' ? 'badge-credit' : 'badge-recovery'}`}>
+                          {txn.type === 'credit' ? 'Credit' : 'Recovery'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={`text-sm font-semibold tabular-nums ${txn.type === 'credit' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                          {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="text-xs text-muted-foreground tabular-nums">{getTimeAgo(txn.createdAt)}</span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Recent Activity Feed */}
       <Card className="animate-fade-in">
         <CardHeader className="pb-2 pt-4 px-5">

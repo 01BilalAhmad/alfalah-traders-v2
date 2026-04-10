@@ -5,11 +5,11 @@ import bcrypt from 'bcryptjs';
 // POST /api/auth/change-password
 export async function POST(request: NextRequest) {
   try {
-    const { username, currentPassword, newPassword } = await request.json();
+    const { userId, currentPassword, newPassword } = await request.json();
 
-    if (!username || !currentPassword || !newPassword) {
+    if (!userId || !currentPassword || !newPassword) {
       return NextResponse.json(
-        { error: 'Username, current password, and new password are required' },
+        { error: 'User ID, current password, and new password are required' },
         { status: 400 }
       );
     }
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await db.user.findUnique({
-      where: { username },
+      where: { id: userId },
       select: {
         id: true,
         username: true,
