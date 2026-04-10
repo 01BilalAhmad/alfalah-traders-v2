@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,14 +15,15 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Users,
   Plus,
@@ -63,6 +64,9 @@ export default function AdminOrderbookers() {
   const [formPassword, setFormPassword] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Confirmation dialog state
+  const [confirmDeactivate, setConfirmDeactivate] = useState<Orderbooker | null>(null);
 
   const fetchOrderbookers = useCallback(async () => {
     setLoading(true);
@@ -134,16 +138,17 @@ export default function AdminOrderbookers() {
     }
   };
 
-  const handleDeactivate = async (ob: Orderbooker) => {
-    if (ob.status === 'inactive') return;
+  const handleDeactivate = async () => {
+    if (!confirmDeactivate || confirmDeactivate.status === 'inactive') return;
     try {
       const res = await fetch('/api/orderbookers', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: ob.id, status: 'inactive' }),
+        body: JSON.stringify({ id: confirmDeactivate.id, status: 'inactive' }),
       });
       if (res.ok) {
-        toast({ title: 'Deactivated', description: `${ob.name} has been deactivated` });
+        toast({ title: 'Deactivated', description: `${confirmDeactivate.name} has been deactivated` });
+        setConfirmDeactivate(null);
         fetchOrderbookers();
       }
     } catch { /* silent */ }
@@ -219,7 +224,7 @@ export default function AdminOrderbookers() {
                     <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                   </Button>
                   {ob.status === 'active' && (
-                    <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => handleDeactivate(ob)}>
+                    <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => setConfirmDeactivate(ob)}>
                       <UserMinus className="h-3.5 w-3.5 mr-1" /> Deactivate
                     </Button>
                   )}
@@ -268,6 +273,24 @@ export default function AdminOrderbookers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Deactivation Confirmation Dialog */}
+      <AlertDialog open={!!confirmDeactivate} onOpenChange={(open) => { if (!open) setConfirmDeactivate(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate {confirmDeactivate?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to deactivate {confirmDeactivate?.name}? This will hide them from active views but keep all data intact. You can reactivate them later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeactivate} className="bg-destructive hover:bg-destructive/90 text-white">
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

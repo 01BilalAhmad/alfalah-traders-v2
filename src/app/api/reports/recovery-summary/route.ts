@@ -38,11 +38,34 @@ export async function GET(request: NextRequest) {
                 createdAt: { gte: startDate, lte: endDate },
               },
               orderBy: { createdAt: 'desc' },
+              select: {
+                id: true,
+                type: true,
+                amount: true,
+                previousBalance: true,
+                newBalance: true,
+                createdAt: true,
+                description: true,
+                gpsLat: true,
+                gpsLng: true,
+              },
             });
 
             const todayCredit = dayTxns.filter((t) => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
-            const todayRecovery = dayTxns.filter((t) => t.type === 'recovery').reduce((s, t) => s + t.amount, 0);
+            const recoveryTxns = dayTxns.filter((t) => t.type === 'recovery');
+            const todayRecovery = recoveryTxns.reduce((s, t) => s + t.amount, 0);
             const prevBalance = dayTxns.length > 0 ? dayTxns[dayTxns.length - 1].previousBalance : shop.balance;
+
+            // Build recovery entries with GPS info
+            const recoveryEntries = recoveryTxns.map((t) => ({
+              id: t.id,
+              amount: Math.round(t.amount * 100) / 100,
+              time: t.createdAt.toISOString(),
+              description: t.description,
+              hasGps: !!(t.gpsLat && t.gpsLng),
+              gpsLat: t.gpsLat,
+              gpsLng: t.gpsLng,
+            }));
 
             return {
               shopId: shop.id,
@@ -52,7 +75,8 @@ export async function GET(request: NextRequest) {
               todayCredit: Math.round(todayCredit * 100) / 100,
               todayRecovery: Math.round(todayRecovery * 100) / 100,
               closingBalance: Math.round((prevBalance + todayCredit - todayRecovery) * 100) / 100,
-              visited: dayTxns.some((t) => t.type === 'recovery'),
+              visited: recoveryTxns.length > 0,
+              recoveryEntries,
             };
           })
         );

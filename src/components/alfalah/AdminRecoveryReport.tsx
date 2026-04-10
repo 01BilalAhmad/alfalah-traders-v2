@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -31,11 +32,23 @@ import {
   Banknote,
   Users,
   MapPin,
+  Navigation,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 function formatCurrency(amount: number): string {
   return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+interface RecoveryEntry {
+  id: string;
+  amount: number;
+  time: string;
+  description: string | null;
+  hasGps: boolean;
+  gpsLat: number | null;
+  gpsLng: number | null;
 }
 
 interface ShopRecovery {
@@ -47,6 +60,7 @@ interface ShopRecovery {
   todayRecovery: number;
   closingBalance: number;
   visited: boolean;
+  recoveryEntries: RecoveryEntry[];
 }
 
 interface OrderbookerRecovery {
@@ -63,6 +77,53 @@ interface RecoverySummary {
   date: string;
   grandTotalRecovery: number;
   orderbookers: OrderbookerRecovery[];
+}
+
+function RecoverySkeleton() {
+  return (
+    <div className="space-y-5">
+      <div>
+        <Skeleton className="h-7 w-48 mb-1" />
+        <Skeleton className="h-4 w-52" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-4 flex items-center gap-4">
+              <Skeleton className="h-11 w-11 rounded-xl" />
+              <div>
+                <Skeleton className="h-3 w-28 mb-2" />
+                <Skeleton className="h-6 w-24" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardContent className="p-0">
+          <div className="divide-y divide-border">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="px-5 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div>
+                      <Skeleton className="h-4 w-32 mb-1" />
+                      <Skeleton className="h-3 w-44" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-4" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 export default function AdminRecoveryReport() {
@@ -98,6 +159,10 @@ export default function AdminRecoveryReport() {
       return next;
     });
   };
+
+  if (loading) {
+    return <RecoverySkeleton />;
+  }
 
   return (
     <div className="space-y-5">
@@ -135,7 +200,7 @@ export default function AdminRecoveryReport() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Grand Total Recovery</p>
-                <p className="text-xl font-bold text-green-600">{formatCurrency(summary.grandTotalRecovery)}</p>
+                <p className="text-xl font-bold text-green-600 animate-live-pulse">{formatCurrency(summary.grandTotalRecovery)}</p>
               </div>
             </CardContent>
           </Card>
@@ -169,11 +234,7 @@ export default function AdminRecoveryReport() {
       {/* Orderbooker Accordion */}
       <Card>
         <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : !summary || summary.orderbookers.length === 0 ? (
+          {!summary || summary.orderbookers.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <TrendingUp className="h-10 w-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">No recovery data for this date</p>
@@ -197,7 +258,7 @@ export default function AdminRecoveryReport() {
                           <p className="font-semibold text-sm">{ob.orderbookerName}</p>
                           <p className="text-xs text-muted-foreground">
                             {ob.visitedShops}/{ob.totalShops} shops visited
-                            {ob.orderbookerPhone && ` • ${ob.orderbookerPhone}`}
+                            {ob.orderbookerPhone && ` \u2022 ${ob.orderbookerPhone}`}
                           </p>
                         </div>
                       </div>
@@ -227,31 +288,63 @@ export default function AdminRecoveryReport() {
                                 <TableHead className="text-xs font-semibold text-right">Credit</TableHead>
                                 <TableHead className="text-xs font-semibold text-right">Recovery</TableHead>
                                 <TableHead className="text-xs font-semibold text-right">Closing</TableHead>
+                                <TableHead className="text-xs font-semibold text-center hidden md:table-cell">GPS</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {ob.shops.map((shop) => (
-                                <TableRow key={shop.shopId}>
+                              {ob.shops.map((shop, idx) => (
+                                <TableRow key={shop.shopId} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} transition-colors`}>
                                   <TableCell className="text-sm font-medium">
-                                    {shop.shopName}
-                                    {shop.visited && (
-                                      <Badge className="ml-2 text-[9px] badge-recovery">Visited</Badge>
-                                    )}
+                                    <div className="flex items-center gap-1.5">
+                                      {shop.shopName}
+                                      {shop.visited && (
+                                        <Badge className="text-[9px] badge-recovery">Visited</Badge>
+                                      )}
+                                    </div>
                                   </TableCell>
                                   <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">
-                                    {shop.shopArea || '—'}
+                                    {shop.shopArea || '\u2014'}
                                   </TableCell>
                                   <TableCell className="text-right text-sm">
                                     {formatCurrency(shop.previousBalance)}
                                   </TableCell>
                                   <TableCell className="text-right text-sm text-amber-600 font-medium">
-                                    {shop.todayCredit > 0 ? `+${formatCurrency(shop.todayCredit)}` : '—'}
+                                    {shop.todayCredit > 0 ? `+${formatCurrency(shop.todayCredit)}` : '\u2014'}
                                   </TableCell>
                                   <TableCell className="text-right text-sm text-green-600 font-medium">
-                                    {shop.todayRecovery > 0 ? `-${formatCurrency(shop.todayRecovery)}` : '—'}
+                                    {shop.todayRecovery > 0 ? `-${formatCurrency(shop.todayRecovery)}` : '\u2014'}
                                   </TableCell>
                                   <TableCell className="text-right text-sm font-bold">
                                     {formatCurrency(shop.closingBalance)}
+                                  </TableCell>
+                                  <TableCell className="text-center hidden md:table-cell">
+                                    {shop.recoveryEntries.length > 0 ? (
+                                      shop.recoveryEntries.every((e) => e.hasGps) ? (
+                                        <a
+                                          href={`https://www.openstreetmap.org/?mlat=${shop.recoveryEntries[0].gpsLat}&mlon=${shop.recoveryEntries[0].gpsLng}#map=17/${shop.recoveryEntries[0].gpsLat}/${shop.recoveryEntries[0].gpsLng}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
+                                          title="All recoveries GPS verified"
+                                        >
+                                          <Navigation className="h-3.5 w-3.5" />
+                                          <ExternalLink className="h-3 w-3" />
+                                        </a>
+                                      ) : shop.recoveryEntries.some((e) => e.hasGps) ? (
+                                        <span className="inline-flex items-center gap-1 text-amber-600" title="Partial GPS verification">
+                                          <Navigation className="h-3.5 w-3.5" />
+                                          <span className="text-[9px]">
+                                            {shop.recoveryEntries.filter((e) => e.hasGps).length}/{shop.recoveryEntries.length}
+                                          </span>
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center text-muted-foreground" title="No GPS captured">
+                                          <Navigation className="h-3.5 w-3.5" />
+                                        </span>
+                                      )
+                                    ) : (
+                                      <span className="text-muted-foreground">\u2014</span>
+                                    )}
                                   </TableCell>
                                 </TableRow>
                               ))}

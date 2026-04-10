@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -77,12 +77,18 @@ export default function AdminCreditPosting() {
   const [selectedOrderbooker, setSelectedOrderbooker] = useState<string>('all');
   const [selectedDay, setSelectedDay] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [postingCredit, setPostingCredit] = useState(false);
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [creditAmount, setCreditAmount] = useState('');
   const [creditDescription, setCreditDescription] = useState('');
+
+  // Day counts for badges
+  const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
+
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const todayDay = ROUTE_DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
 
@@ -108,8 +114,8 @@ export default function AdminCreditPosting() {
       if (selectedDay) {
         params.set('routeDay', selectedDay);
       }
-      if (searchQuery.trim()) {
-        params.set('search', searchQuery.trim());
+      if (debouncedSearch.trim()) {
+        params.set('search', debouncedSearch.trim());
       }
       const res = await fetch(`/api/shops?${params.toString()}`);
       if (res.ok) {
@@ -121,7 +127,44 @@ export default function AdminCreditPosting() {
     } finally {
       setLoading(false);
     }
-  }, [selectedOrderbooker, selectedDay, searchQuery]);
+  }, [selectedOrderbooker, selectedDay, debouncedSearch]);
+
+  // Debounced search input
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  // Fetch day counts when orderbooker changes
+  const fetchDayCounts = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (selectedOrderbooker && selectedOrderbooker !== 'all') {
+        params.set('orderbookerId', selectedOrderbooker);
+      }
+      const res = await fetch(`/api/shops?${params.toString()}`);
+      if (res.ok) {
+        const data: Shop[] = await res.json();
+        const counts: Record<string, number> = {};
+        ROUTE_DAYS.forEach((d) => { counts[d] = 0; });
+        data.forEach((s) => {
+          if (counts[s.routeDay] !== undefined) {
+            counts[s.routeDay]++;
+          }
+        });
+        setDayCounts(counts);
+      }
+    } catch { /* silent */ }
+  }, [selectedOrderbooker]);
 
   useEffect(() => {
     fetchOrderbookers();
@@ -130,6 +173,10 @@ export default function AdminCreditPosting() {
   useEffect(() => {
     fetchShops();
   }, [fetchShops]);
+
+  useEffect(() => {
+    fetchDayCounts();
+  }, [fetchDayCounts]);
 
   const totalOutstanding = shops.reduce((sum, s) => sum + s.balance, 0);
 
@@ -251,11 +298,11 @@ export default function AdminCreditPosting() {
             </div>
           </div>
 
-          {/* Day Tabs */}
+          {/* Day Tabs with counts */}
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             <button
               onClick={() => setSelectedDay('')}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 !selectedDay
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
@@ -267,15 +314,22 @@ export default function AdminCreditPosting() {
               <button
                 key={day}
                 onClick={() => setSelectedDay(day)}
-                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
                   selectedDay === day
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 }`}
               >
                 {day.charAt(0).toUpperCase() + day.slice(1)}
+                {(dayCounts[day] || 0) > 0 && (
+                  <span className={`inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full text-[10px] font-bold px-1 ${
+                    selectedDay === day ? 'bg-white/20 text-primary-foreground' : 'bg-primary/10 text-primary'
+                  }`}>
+                    {dayCounts[day]}
+                  </span>
+                )}
                 {day === todayDay && (
-                  <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-green-400" />
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-400" />
                 )}
               </button>
             ))}
@@ -314,8 +368,8 @@ export default function AdminCreditPosting() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {shops.map((shop) => (
-                    <TableRow key={shop.id} className="hover:bg-muted/50 transition-colors">
+                  {shops.map((shop, idx) => (
+                    <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} transition-colors`}>
                       <TableCell>
                         <div>
                           <p className="font-medium text-sm">{shop.name}</p>

@@ -144,11 +144,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="p-4 lg:p-6">
+          <div className="p-4 lg:p-6 animate-fade-in" key={currentView}>
             {children}
           </div>
         </main>
       </div>
+
+      {/* Footer */}
+      <footer className="border-t border-border px-6 py-3 flex items-center justify-between text-xs text-muted-foreground bg-card/50 mt-auto">
+        <span>&copy; {new Date().getFullYear()} Al-Falah Traders. All rights reserved.</span>
+        <span>Smart Credit &amp; Route Management v1.0</span>
+      </footer>
     </div>
   );
 }

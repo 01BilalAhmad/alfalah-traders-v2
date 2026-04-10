@@ -135,15 +135,6 @@
   box-shadow: 0 4px 12px rgba(30, 58, 138, 0.25);
 }
 
-.alfalah-card-hover {
-  transition: all 0.2s ease-in-out;
-}
-
-.alfalah-card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(30, 58, 138, 0.12);
-}
-
 /* Professional Table Styling */
 .data-table-header {
   background: linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%);
@@ -222,6 +213,69 @@
 .badge-inactive {
   background-color: #FEE2E2;
   color: #991B1B;
+}
+
+/* Fade-in page transition */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Pulse animation for live stats */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-live-pulse {
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+/* Number flash on change */
+@keyframes numberFlash {
+  0% { color: inherit; }
+  25% { color: #1E3A8A; transform: scale(1.05); }
+  100% { color: inherit; transform: scale(1); }
+}
+
+.animate-number-flash {
+  animation: numberFlash 0.6s ease-out;
+}
+
+/* Enhanced card hover with gradient border */
+.alfalah-card-hover {
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+.alfalah-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(30, 58, 138, 0.12);
+  border-color: transparent;
+  background-image: linear-gradient(white, white), linear-gradient(135deg, #1E3A8A 0%, #3B82F6 50%, #60A5FA 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+/* Table row improvements */
+.data-table-row-even {
+  background-color: #F8FAFC;
+}
+
+.data-table-row-odd {
+  background-color: #FFFFFF;
+}
+
+.data-table-row-odd:hover,
+.data-table-row-even:hover {
+  background-color: #EFF6FF;
+  transition: background-color 0.15s ease-in-out;
 }
 
 /* Print styles */

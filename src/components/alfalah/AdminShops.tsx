@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,16 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -41,8 +52,12 @@ import {
   UserMinus,
   CheckCircle,
   XCircle,
+  BookOpen,
+  Download,
+  ArrowLeft,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
 
 const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -72,6 +87,7 @@ function formatCurrency(amount: number): string {
 
 export default function AdminShops() {
   const [shops, setShops] = useState<Shop[]>([]);
+  const [allShops, setAllShops] = useState<Shop[]>([]);
   const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDay, setSelectedDay] = useState<string>('');
@@ -90,10 +106,25 @@ export default function AdminShops() {
   const [formOrderbookerId, setFormOrderbookerId] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Confirmation dialog state
+  const [confirmDeactivate, setConfirmDeactivate] = useState<Shop | null>(null);
+
+  // Ledger dialog state
+  const [ledgerOpen, setLedgerOpen] = useState(false);
+  const [ledgerShop, setLedgerShop] = useState<Shop | null>(null);
+  const [ledgerData, setLedgerData] = useState<LedgerData | null>(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+
+  // Day counts
+  const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
+
   const fetchOrderbookers = useCallback(async () => {
     try {
       const res = await fetch('/api/orderbookers');
-      if (res.ok) setOrderbookers(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setOrderbookers(data);
+      }
     } catch { /* silent */ }
   }, []);
 
@@ -110,8 +141,27 @@ export default function AdminShops() {
     finally { setLoading(false); }
   }, [searchQuery, selectedDay, showInactive]);
 
+  const fetchAllShopsForCounts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/shops');
+      if (res.ok) {
+        const data: Shop[] = await res.json();
+        setAllShops(data);
+        const counts: Record<string, number> = {};
+        ROUTE_DAYS.forEach((d) => { counts[d] = 0; });
+        data.forEach((s) => {
+          if (counts[s.routeDay] !== undefined) {
+            counts[s.routeDay]++;
+          }
+        });
+        setDayCounts(counts);
+      }
+    } catch { /* silent */ }
+  }, []);
+
   useEffect(() => { fetchOrderbookers(); }, [fetchOrderbookers]);
   useEffect(() => { fetchShops(); }, [fetchShops]);
+  useEffect(() => { fetchAllShopsForCounts(); }, [fetchAllShopsForCounts]);
 
   const openAddDialog = () => {
     setEditingShop(null);
@@ -154,7 +204,7 @@ export default function AdminShops() {
         orderbookerId: formOrderbookerId,
       };
 
-      const url = editingShop ? '/api/shops' : '/api/shops';
+      const url = '/api/shops';
       const method = editingShop ? 'PATCH' : 'POST';
       const body = editingShop ? { ...payload, id: editingShop.id } : payload;
 
@@ -167,6 +217,7 @@ export default function AdminShops() {
       toast({ title: editingShop ? 'Shop Updated' : 'Shop Created', description: `${formName} has been ${editingShop ? 'updated' : 'created'}` });
       setDialogOpen(false);
       fetchShops();
+      fetchAllShopsForCounts();
     } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     } finally {
@@ -174,20 +225,56 @@ export default function AdminShops() {
     }
   };
 
-  const handleDeactivate = async (shop: Shop) => {
-    if (shop.status === 'inactive') return;
+  const handleDeactivate = async () => {
+    if (!confirmDeactivate || confirmDeactivate.status === 'inactive') return;
     try {
       const res = await fetch('/api/shops', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: shop.id, status: 'inactive' }),
+        body: JSON.stringify({ id: confirmDeactivate.id, status: 'inactive' }),
       });
       if (res.ok) {
-        toast({ title: 'Deactivated', description: `${shop.name} has been deactivated` });
+        toast({ title: 'Deactivated', description: `${confirmDeactivate.name} has been deactivated` });
+        setConfirmDeactivate(null);
         fetchShops();
+        fetchAllShopsForCounts();
       }
     } catch { /* silent */ }
   };
+
+  const openLedger = async (shop: Shop) => {
+    setLedgerShop(shop);
+    setLedgerData(null);
+    setLedgerOpen(true);
+    setLedgerLoading(true);
+    try {
+      const res = await fetch(`/api/reports/ledger?shopId=${shop.id}`);
+      if (res.ok) {
+        setLedgerData(await res.json());
+      }
+    } catch { /* silent */ }
+    finally { setLedgerLoading(false); }
+  };
+
+  const handleDownloadLedgerPDF = () => {
+    if (!ledgerData) return;
+    downloadLedgerPDF(ledgerData);
+    toast({ title: 'PDF Downloaded', description: `${ledgerData.shop.name} ledger saved` });
+  };
+
+  // Bug fix: Include shop's current orderbooker even if inactive
+  const orderbookerOptions = editingShop
+    ? [
+        ...orderbookers.filter((ob) => ob.status === 'active'),
+        ...(orderbookers.find((ob) => ob.id === editingShop.orderbooker.id && ob.status !== 'active')
+          ? [orderbookers.find((ob) => ob.id === editingShop.orderbooker.id)!]
+          : []),
+      ]
+    : orderbookers.filter((ob) => ob.status === 'active');
+
+  const filteredShops = selectedDay
+    ? shops.filter((s) => s.routeDay === selectedDay)
+    : shops;
 
   return (
     <div className="space-y-5">
@@ -231,13 +318,13 @@ export default function AdminShops() {
               onClick={() => setSelectedDay('')}
               className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${!selectedDay ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
             >
-              All Days
+              All Days ({allShops.length})
             </button>
             {ROUTE_DAYS.map((day) => (
               <button key={day} onClick={() => setSelectedDay(day)}
                 className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${selectedDay === day ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
               >
-                {day.charAt(0).toUpperCase() + day.slice(1)}
+                {day.charAt(0).toUpperCase() + day.slice(1)} ({dayCounts[day] || 0})
               </button>
             ))}
           </div>
@@ -248,8 +335,25 @@ export default function AdminShops() {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-          ) : shops.length === 0 ? (
+            <div className="p-5 space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-5 w-20 hidden sm:block" />
+                  <Skeleton className="h-5 w-24 hidden md:block" />
+                  <Skeleton className="h-5 w-16 hidden lg:block" />
+                  <Skeleton className="h-5 w-24 hidden lg:block" />
+                  <div className="flex-1" />
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-6 w-14" />
+                  <div className="flex gap-1">
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <Skeleton className="h-8 w-8 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredShops.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Store className="h-10 w-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">No shops found</p>
@@ -270,11 +374,11 @@ export default function AdminShops() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {shops.map((shop) => (
-                    <TableRow key={shop.id} className={`hover:bg-muted/50 ${shop.status === 'inactive' ? 'opacity-60' : ''}`}>
+                  {filteredShops.map((shop, idx) => (
+                    <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} ${shop.status === 'inactive' ? 'opacity-60' : ''} transition-colors`}>
                       <TableCell>
                         <p className="font-medium text-sm">{shop.name}</p>
-                        <p className="text-xs text-muted-foreground sm:hidden">{shop.ownerName || ''} • {shop.area || ''}</p>
+                        <p className="text-xs text-muted-foreground sm:hidden">{shop.ownerName || ''} &bull; {shop.area || ''}</p>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{shop.ownerName || '—'}</TableCell>
                       <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{shop.area || '—'}</TableCell>
@@ -293,11 +397,14 @@ export default function AdminShops() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(shop)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(shop)} title="Edit">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openLedger(shop)} title="View Ledger">
+                            <BookOpen className="h-3.5 w-3.5" />
+                          </Button>
                           {shop.status === 'active' && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeactivate(shop)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeactivate(shop)} title="Deactivate">
                               <UserMinus className="h-3.5 w-3.5" />
                             </Button>
                           )}
@@ -361,8 +468,10 @@ export default function AdminShops() {
                 <Select value={formOrderbookerId} onValueChange={setFormOrderbookerId}>
                   <SelectTrigger><SelectValue placeholder="Select orderbooker" /></SelectTrigger>
                   <SelectContent>
-                    {orderbookers.filter((ob) => ob.status === 'active').map((ob) => (
-                      <SelectItem key={ob.id} value={ob.id}>{ob.name}</SelectItem>
+                    {orderbookerOptions.map((ob) => (
+                      <SelectItem key={ob.id} value={ob.id}>
+                        {ob.name}{ob.status === 'inactive' ? ' (Inactive)' : ''}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -376,6 +485,127 @@ export default function AdminShops() {
               {editingShop ? 'Update Shop' : 'Create Shop'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deactivation Confirmation Dialog */}
+      <AlertDialog open={!!confirmDeactivate} onOpenChange={(open) => { if (!open) setConfirmDeactivate(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate {confirmDeactivate?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to deactivate {confirmDeactivate?.name}? This will hide them from active views but keep all data intact. You can reactivate them later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeactivate} className="bg-destructive hover:bg-destructive/90 text-white">
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Ledger Dialog */}
+      <Dialog open={ledgerOpen} onOpenChange={setLedgerOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            {ledgerData ? (
+              <div className="flex items-center justify-between pr-8">
+                <div>
+                  <DialogTitle className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    {ledgerData.shop.name} — Ledger
+                  </DialogTitle>
+                  <DialogDescription className="mt-1">
+                    {ledgerData.shop.area || 'No area'} &bull; {ledgerData.shop.orderbooker.name}
+                  </DialogDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleDownloadLedgerPDF}>
+                  <Download className="h-3.5 w-3.5 mr-1" /> PDF
+                </Button>
+              </div>
+            ) : (
+              <div>
+                <DialogTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  {ledgerShop?.name} — Ledger
+                </DialogTitle>
+                <DialogDescription>Loading transaction history...</DialogDescription>
+              </div>
+            )}
+          </DialogHeader>
+          {ledgerLoading ? (
+            <div className="flex-1 p-5 space-y-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-5 w-14 rounded" />
+                    <Skeleton className="h-4 w-40" />
+                  </div>
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : ledgerData ? (
+            <>
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-3 px-1">
+                <div className="bg-amber-50 rounded-lg p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground">Total Credit</p>
+                  <p className="text-sm font-bold text-amber-700">{formatCurrency(ledgerData.summary.totalCredit)}</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground">Total Recovery</p>
+                  <p className="text-sm font-bold text-green-700">{formatCurrency(ledgerData.summary.totalRecovery)}</p>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground">Balance</p>
+                  <p className="text-sm font-bold text-blue-700">{formatCurrency(ledgerData.summary.currentBalance)}</p>
+                </div>
+              </div>
+              {/* Transactions */}
+              <div className="flex-1 overflow-hidden">
+                <ScrollArea className="max-h-[400px]">
+                  <div className="divide-y divide-border">
+                    {[...ledgerData.transactions].reverse().map((txn) => (
+                      <div key={txn.id} className="px-1 py-3 hover:bg-muted/20 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Badge className={`text-[9px] ${txn.type === 'credit' ? 'badge-credit' : 'badge-recovery'}`}>
+                                {txn.type === 'credit' ? 'Credit' : 'Recovery'}
+                              </Badge>
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(txn.createdAt).toLocaleString('en-PK', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">{txn.description || '—'}</p>
+                            {txn.creator && (
+                              <p className="text-[10px] text-muted-foreground">by {txn.creator.name}</p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0 ml-3">
+                            <p className={`font-bold text-sm ${txn.type === 'credit' ? 'text-amber-600' : 'text-green-600'}`}>
+                              {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">Bal: {formatCurrency(txn.newBalance)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {ledgerData.transactions.length === 0 && (
+                      <div className="text-center py-8 text-sm text-muted-foreground">No transactions yet</div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center py-12">
+              <p className="text-sm text-muted-foreground">Failed to load ledger data</p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

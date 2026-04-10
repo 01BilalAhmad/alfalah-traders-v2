@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import {
   Navigation,
   ExternalLink,
   CheckCircle,
+  AnimatePresence,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -42,6 +43,44 @@ interface Shop {
   balance: number;
   status: string;
   orderbooker: { id: string; name: string };
+}
+
+function SuccessOverlay({
+  show,
+  shopName,
+  amount,
+  onClose,
+}: {
+  show: boolean;
+  shopName: string;
+  amount: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (show) {
+      const timer = setTimeout(onClose, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [show, onClose]);
+
+  if (!show) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+      <div className="absolute inset-0 bg-black/20" />
+      <div
+        className="relative bg-card rounded-2xl shadow-2xl p-6 mx-6 text-center pointer-events-auto animate-fade-in"
+        style={{ animation: 'fadeIn 0.3s ease-out' }}
+      >
+        <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+          <CheckCircle className="h-8 w-8 text-green-600" />
+        </div>
+        <h3 className="text-base font-bold text-foreground mb-1">Recovery Collected!</h3>
+        <p className="text-sm text-muted-foreground mb-2">{shopName}</p>
+        <p className="text-2xl font-bold text-green-600">{formatCurrency(parseFloat(amount))}</p>
+      </div>
+    </div>
+  );
 }
 
 export default function OrderbookerLayout() {
@@ -119,6 +158,11 @@ function OrderbookerDashboard() {
   const [posting, setPosting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Success overlay state
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successShopName, setSuccessShopName] = useState('');
+  const [successAmount, setSuccessAmount] = useState('');
+
   const todayDay = ROUTE_DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
 
   const fetchShops = useCallback(async () => {
@@ -190,11 +234,11 @@ function OrderbookerDashboard() {
         return;
       }
 
-      toast({
-        title: 'Recovery Collected',
-        description: `Rs. ${parseFloat(recoveryAmount).toLocaleString()} from ${selectedShop.name}`,
-      });
+      // Show success overlay
+      setSuccessShopName(selectedShop.name);
+      setSuccessAmount(recoveryAmount);
       setRecoveryDialogOpen(false);
+      setShowSuccess(true);
       setRefreshKey((k) => k + 1);
     } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
@@ -207,6 +251,14 @@ function OrderbookerDashboard() {
 
   return (
     <div className="space-y-4 p-4">
+      {/* Success Overlay */}
+      <SuccessOverlay
+        show={showSuccess}
+        shopName={successShopName}
+        amount={successAmount}
+        onClose={() => setShowSuccess(false)}
+      />
+
       {/* Day Header */}
       <div className="alfalah-gradient rounded-xl p-4 text-white">
         <p className="text-xs text-blue-200">Today&apos;s Route</p>
@@ -340,7 +392,7 @@ function RecoveryDialog({
         {shop && (
           <>
             <h3 className="font-bold text-base mb-1">Collect Recovery</h3>
-            <p className="text-sm text-muted-foreground mb-4">{shop.name} • Current: {formatCurrency(shop.balance)}</p>
+            <p className="text-sm text-muted-foreground mb-4">{shop.name} &bull; Current: {formatCurrency(shop.balance)}</p>
 
             <div className="space-y-4">
               <div>
@@ -500,7 +552,7 @@ function LedgerView() {
                                 {new Date(txn.createdAt).toLocaleString('en-PK', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">{txn.description || '—'}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{txn.description || '\u2014'}</p>
                             {txn.creator && (
                               <p className="text-[10px] text-muted-foreground">by {txn.creator.name}</p>
                             )}
@@ -547,7 +599,7 @@ function LedgerView() {
                   <CardContent className="p-4 flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-sm">{shop.name}</p>
-                      <p className="text-xs text-muted-foreground">{shop.area || '—'}</p>
+                      <p className="text-xs text-muted-foreground">{shop.area || '\u2014'}</p>
                     </div>
                     <div className="text-right">
                       <p className={`font-bold text-sm ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>

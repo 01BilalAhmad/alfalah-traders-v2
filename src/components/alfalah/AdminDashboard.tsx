@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
@@ -21,8 +23,8 @@ import {
   CreditCard,
   ArrowUpRight,
   ArrowDownRight,
-  Loader2,
   Activity,
+  Plus,
   BarChart3,
 } from 'lucide-react';
 
@@ -57,7 +59,69 @@ interface DashboardData {
   totalOutstanding: number;
 }
 
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <Skeleton className="h-7 w-40 mb-1" />
+        <Skeleton className="h-4 w-64" />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-4">
+              <Skeleton className="h-8 w-8 rounded-lg mb-3" />
+              <Skeleton className="h-3 w-24 mb-2" />
+              <Skeleton className="h-6 w-28" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <Card>
+          <CardHeader className="pb-3 pt-4 px-5">
+            <Skeleton className="h-5 w-36" />
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="px-5 py-3 space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <Skeleton className="h-4 w-28" />
+                  </div>
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3 pt-4 px-5">
+            <Skeleton className="h-5 w-36" />
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="px-5 py-3 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                  <div className="flex-1">
+                    <Skeleton className="h-4 w-32 mb-1" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                  <Skeleton className="h-4 w-16 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
+  const { setCurrentView } = useAppStore();
   const [data, setData] = useState<DashboardData>({
     orderbookers: [], todayTxns: [], todayCredit: 0, todayRecovery: 0, totalShops: 0, totalOutstanding: 0,
   });
@@ -85,11 +149,7 @@ export default function AdminDashboard() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
@@ -114,7 +174,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground font-medium">Today&apos;s Credit</p>
-            <p className="text-xl font-bold text-amber-600">{formatCurrency(data.todayCredit)}</p>
+            <p className="text-xl font-bold text-amber-600 animate-live-pulse">{formatCurrency(data.todayCredit)}</p>
           </CardContent>
         </Card>
         <Card className="alfalah-card-hover">
@@ -125,7 +185,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground font-medium">Today&apos;s Recovery</p>
-            <p className="text-xl font-bold text-green-600">{formatCurrency(data.todayRecovery)}</p>
+            <p className="text-xl font-bold text-green-600 animate-live-pulse">{formatCurrency(data.todayRecovery)}</p>
           </CardContent>
         </Card>
         <Card className="alfalah-card-hover">
@@ -136,7 +196,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
-            <p className="text-xl font-bold text-red-600">{formatCurrency(data.totalOutstanding)}</p>
+            <p className="text-xl font-bold text-red-600 animate-live-pulse">{formatCurrency(data.totalOutstanding)}</p>
           </CardContent>
         </Card>
         <Card className="alfalah-card-hover">
@@ -150,6 +210,34 @@ export default function AdminDashboard() {
             <p className="text-xl font-bold">{data.totalShops}</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-3 gap-3">
+        <Button
+          variant="outline"
+          className="h-auto py-3 px-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/30 transition-all"
+          onClick={() => setCurrentView('admin-credit')}
+        >
+          <CreditCard className="h-5 w-5 text-primary" />
+          <span className="text-xs font-medium">Post Credit</span>
+        </Button>
+        <Button
+          variant="outline"
+          className="h-auto py-3 px-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/30 transition-all"
+          onClick={() => setCurrentView('admin-recovery')}
+        >
+          <TrendingUp className="h-5 w-5 text-primary" />
+          <span className="text-xs font-medium">Recovery Report</span>
+        </Button>
+        <Button
+          variant="outline"
+          className="h-auto py-3 px-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/30 transition-all"
+          onClick={() => setCurrentView('admin-shops')}
+        >
+          <Plus className="h-5 w-5 text-primary" />
+          <span className="text-xs font-medium">Add Shop</span>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -172,8 +260,8 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.orderbookers.map((ob) => (
-                    <TableRow key={ob.id} className="hover:bg-muted/50">
+                  {data.orderbookers.map((ob, idx) => (
+                    <TableRow key={ob.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'}`}>
                       <TableCell className="text-sm font-medium">{ob.name}</TableCell>
                       <TableCell className="text-center">
                         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
@@ -211,7 +299,7 @@ export default function AdminDashboard() {
                   <div className="text-center py-8 text-sm text-muted-foreground">No activity today</div>
                 ) : (
                   data.todayTxns.map((txn) => (
-                    <div key={txn.id} className="px-5 py-3 flex items-start gap-3">
+                    <div key={txn.id} className="px-5 py-3 flex items-start gap-3 hover:bg-muted/20 transition-colors">
                       <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${txn.type === 'credit' ? 'bg-amber-50' : 'bg-green-50'}`}>
                         {txn.type === 'credit' ? (
                           <ArrowUpRight className="h-4 w-4 text-amber-600" />
@@ -222,7 +310,7 @@ export default function AdminDashboard() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{txn.shop.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {txn.type === 'credit' ? 'Credit posted' : 'Recovery collected'} • {txn.creator.name}
+                          {txn.type === 'credit' ? 'Credit posted' : 'Recovery collected'} &bull; {txn.creator.name}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
