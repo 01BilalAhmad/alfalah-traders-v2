@@ -30,10 +30,13 @@ import {
   CalendarDays,
   MessageSquare,
   X,
+  LogOut,
+  Settings,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
+import BackupSettingsDialog from './BackupSettingsDialog';
 
 const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -292,7 +295,13 @@ function RecoveryHistory() {
 // ─── Main Layout ────────────────────────────────────────────────────────────
 
 export default function OrderbookerLayout() {
-  const { user, currentView, setCurrentView } = useAppStore();
+  const { user, currentView, setCurrentView, logout } = useAppStore();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    toast({ title: 'Logged Out', description: 'You have been logged out successfully' });
+  };
 
   if (!user) return null;
 
@@ -326,6 +335,23 @@ export default function OrderbookerLayout() {
             <p className="text-xs font-medium text-white">{user.name}</p>
             <p className="text-[9px] text-blue-200">Orderbooker</p>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10"
+            onClick={handleLogout}
+            title="Logout"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
           <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold text-white sm:hidden">
             {user.name.charAt(0)}
           </div>
@@ -376,6 +402,9 @@ export default function OrderbookerLayout() {
           </div>
         </nav>
       )}
+
+      {/* Settings & Backup Dialog */}
+      <BackupSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
 
       {/* Session Timeout Dialog */}
       <SessionTimeoutDialog />
