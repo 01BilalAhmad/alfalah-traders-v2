@@ -61,16 +61,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await db.auditLog.create({
-      data: {
-        action: 'create',
-        entityType: 'shop',
-        entityId: shop.id,
-        performedBy: 'system',
-        newValue: JSON.stringify({ name, routeDay, orderbookerId }),
-        description: `Created shop: ${name}`,
-      },
-    });
+    // Audit log (best-effort)
+    try {
+      await db.auditLog.create({
+        data: {
+          action: 'create',
+          entityType: 'shop',
+          entityId: shop.id,
+          newValue: JSON.stringify({ name, routeDay, orderbookerId }),
+          description: `Created shop: ${name}`,
+        },
+      });
+    } catch { /* non-blocking */ }
 
     return NextResponse.json(shop, { status: 201 });
   } catch (error) {
@@ -105,17 +107,19 @@ export async function PATCH(request: NextRequest) {
       data: updateData,
     });
 
-    await db.auditLog.create({
-      data: {
-        action: 'edit',
-        entityType: 'shop',
-        entityId: id,
-        performedBy: 'system',
-        oldValue: JSON.stringify({ name: existing.name, area: existing.area, status: existing.status }),
-        newValue: JSON.stringify(updateData),
-        description: `Updated shop: ${existing.name}`,
-      },
-    });
+    // Audit log (best-effort)
+    try {
+      await db.auditLog.create({
+        data: {
+          action: 'edit',
+          entityType: 'shop',
+          entityId: id,
+          oldValue: JSON.stringify({ name: existing.name, area: existing.area, status: existing.status }),
+          newValue: JSON.stringify(updateData),
+          description: `Updated shop: ${existing.name}`,
+        },
+      });
+    } catch { /* non-blocking */ }
 
     return NextResponse.json(updated);
   } catch (error) {

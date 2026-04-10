@@ -77,16 +77,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await db.auditLog.create({
-      data: {
-        action: 'create',
-        entityType: 'user',
-        entityId: orderbooker.id,
-        performedBy: 'system',
-        newValue: JSON.stringify({ username, name, phone, role: 'orderbooker' }),
-        description: `Created orderbooker: ${name}`,
-      },
-    });
+    // Audit log (best-effort)
+    try {
+      await db.auditLog.create({
+        data: {
+          action: 'create',
+          entityType: 'user',
+          entityId: orderbooker.id,
+          newValue: JSON.stringify({ username: normalizedUsername, name, phone, role: 'orderbooker' }),
+          description: `Created orderbooker: ${name}`,
+        },
+      });
+    } catch { /* non-blocking */ }
 
     const { password: _, ...safeOrderbooker } = orderbooker;
     return NextResponse.json(safeOrderbooker, { status: 201 });
@@ -123,17 +125,19 @@ export async function PATCH(request: NextRequest) {
       data: updateData,
     });
 
-    await db.auditLog.create({
-      data: {
-        action: 'edit',
-        entityType: 'user',
-        entityId: id,
-        performedBy: 'system',
-        oldValue: JSON.stringify({ name: existing.name, phone: existing.phone, status: existing.status }),
-        newValue: JSON.stringify(updateData),
-        description: `Updated orderbooker: ${existing.name}`,
-      },
-    });
+    // Audit log (best-effort)
+    try {
+      await db.auditLog.create({
+        data: {
+          action: 'edit',
+          entityType: 'user',
+          entityId: id,
+          oldValue: JSON.stringify({ name: existing.name, phone: existing.phone, status: existing.status }),
+          newValue: JSON.stringify(updateData),
+          description: `Updated orderbooker: ${existing.name}`,
+        },
+      });
+    } catch { /* non-blocking */ }
 
     const { password: _, ...safeUser } = updated;
     return NextResponse.json(safeUser);

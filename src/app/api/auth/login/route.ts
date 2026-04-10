@@ -11,8 +11,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
     }
 
+    // Normalize username to lowercase
+    const normalizedUsername = username.trim().toLowerCase();
+
     const user = await db.user.findUnique({
-      where: { username },
+      where: { username: normalizedUsername },
       select: {
         id: true,
         username: true,

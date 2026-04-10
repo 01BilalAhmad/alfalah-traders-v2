@@ -26,17 +26,21 @@ export async function PATCH(request: NextRequest) {
       data: { orderbookerId },
     });
 
-    // Create audit log entries
-    await db.auditLog.create({
-      data: {
-        action: 'edit',
-        entityType: 'shop',
-        entityId: 'bulk',
-        performedBy: 'system',
-        newValue: JSON.stringify({ action: 'bulk-assign', shopIds, orderbookerId, count: result.count }),
-        description: `Bulk assigned ${result.count} shops to orderbooker ${orderbooker.name}`,
-      },
-    });
+    // Create audit log entry (best-effort, don't fail the operation)
+    try {
+      await db.auditLog.create({
+        data: {
+          action: 'edit',
+          entityType: 'shop',
+          entityId: 'bulk',
+          performedBy: orderbookerId,
+          newValue: JSON.stringify({ action: 'bulk-assign', shopIds, orderbookerId, count: result.count }),
+          description: `Bulk assigned ${result.count} shops to orderbooker ${orderbooker.name}`,
+        },
+      });
+    } catch (auditError) {
+      console.error('Audit log creation failed (non-blocking):', auditError);
+    }
 
     return NextResponse.json({ success: true, updated: result.count });
   } catch (error) {

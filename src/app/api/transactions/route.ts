@@ -135,25 +135,27 @@ export async function POST(request: NextRequest) {
       return txn;
     });
 
-    // Create audit log
-    await db.auditLog.create({
-      data: {
-        action: type === 'credit' ? 'credit_post' : 'recovery_entry',
-        entityType: 'transaction',
-        entityId: transaction.id,
-        performedBy: createdBy,
-        newValue: JSON.stringify({
-          shopName: shop.name,
-          type,
-          amount,
-          previousBalance,
-          newBalance: Math.round(newBalance * 100) / 100,
-          gpsLat,
-          gpsLng,
-        }),
-        description: `${type === 'credit' ? 'Credit posted' : 'Recovery collected'}: Rs. ${amount} at ${shop.name}`,
-      },
-    });
+    // Create audit log (best-effort)
+    try {
+      await db.auditLog.create({
+        data: {
+          action: type === 'credit' ? 'credit_post' : 'recovery_entry',
+          entityType: 'transaction',
+          entityId: transaction.id,
+          performedBy: createdBy,
+          newValue: JSON.stringify({
+            shopName: shop.name,
+            type,
+            amount,
+            previousBalance,
+            newBalance: Math.round(newBalance * 100) / 100,
+            gpsLat,
+            gpsLng,
+          }),
+          description: `${type === 'credit' ? 'Credit posted' : 'Recovery collected'}: Rs. ${amount} at ${shop.name}`,
+        },
+      });
+    } catch { /* non-blocking */ }
 
     return NextResponse.json({ ...transaction, creditLimitWarning }, { status: 201 });
   } catch (error) {

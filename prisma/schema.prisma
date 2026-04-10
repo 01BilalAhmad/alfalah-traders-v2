@@ -78,13 +78,13 @@ model AuditLog {
   action        String   // "create", "edit", "credit_post", "recovery_entry", "status_change"
   entityType    String   // "shop", "user", "transaction"
   entityId      String?
-  performedBy   String   // userId
+  performedBy   String?
   oldValue      String?  // JSON string of old values
   newValue      String?  // JSON string of new values
   description   String?
   createdAt     DateTime @default(now())
 
-  performer User @relation(fields: [performedBy], references: [id])
+  performer User? @relation(fields: [performedBy], references: [id])
 
   @@index([action])
   @@index([entityType])

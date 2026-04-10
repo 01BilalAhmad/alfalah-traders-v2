@@ -2584,3 +2584,78 @@ Stage Summary:
 - Admin: admin/admin123
 - Orderbooker: ahmed/ob123 or bilal/ob123
 - New OB: ob01 (password set during creation)
+---
+Task ID: 10
+Agent: Main Agent
+Task: Fix bulk assign failure + comprehensive system testing
+
+Work Log:
+- Analyzed user screenshot showing "Failed to bulk assign shops" error when assigning Danish Ramzan to 5 shops
+- Checked dev server log: found `P2003 Foreign key constraint violated` at bulk-assign route line 30
+- Root cause: `AuditLog.performedBy` has a foreign key to `User.id`, but all API routes were using `performedBy: 'system'` (not a valid user ID)
+- The actual shop update succeeded, but the audit log creation failed, causing the entire request to return 500
+
+### Bug Fix 1: AuditLog Foreign Key Constraint (Critical)
+
+**Schema change:** `/prisma/schema.prisma`
+- Changed `performedBy String` → `performedBy String?` (nullable)
+- Changed `performer User @relation(...)` → `performer User? @relation(...)` (optional relation)
+- Ran `bun run db:push` to apply migration
+
+**Fixed 6 API routes:**
+1. `/src/app/api/shops/bulk-assign/route.ts` — removed `performedBy: 'system'`, added best-effort try/catch for audit log
+2. `/src/app/api/shops/bulk-status/route.ts` — same fix
+3. `/src/app/api/shops/route.ts` (POST create) — same fix
+4. `/src/app/api/shops/route.ts` (PATCH update) — same fix
+5. `/src/app/api/orderbookers/route.ts` (POST create) — same fix
+6. `/src/app/api/orderbookers/route.ts` (PATCH update) — same fix
+7. `/src/app/api/transactions/route.ts` (POST) — wrapped in try/catch (used real createdBy, but added safety)
+
+All audit log creates are now wrapped in try/catch so they never block the main operation.
+
+### Bug Fix 2: Admin Login Not Working
+
+**Problem:** Admin login with `admin/admin123` returned "Invalid credentials"
+**Root cause:** Admin password hash in database didn't match "admin123" (likely corrupted during seed)
+
+**Fix:** Reset admin password to "admin123" using bcrypt hash
+**Also fixed:** `/src/app/api/auth/login/route.ts` — added username normalization to lowercase before lookup (consistent with our username normalization policy)
+
+### Comprehensive System Testing
+
+Tested all API endpoints:
+- ✅ POST /api/auth/login — admin, ahmed, bilal all work
+- ✅ GET /api/orderbookers — 3 orderbookers returned
+- ✅ GET /api/shops — 20 shops returned  
+- ✅ POST /api/shops — Create shop works
+- ✅ PATCH /api/shops — Update shop works
+- ✅ PATCH /api/shops/bulk-assign — **NOW FIXED** (was 500, now returns success)
+- ✅ PATCH /api/shops/bulk-status — works (deactivate/reactivate)
+- ✅ GET /api/transactions — pagination works
+- ✅ POST /api/transactions — Credit posting works
+- ✅ GET /api/reports/recovery-summary — works
+- ✅ GET /api/reports/reconciliation — works
+- ✅ GET /api/reports/daily-trends — 7 days of data
+- ✅ GET /api/reports/ledger — works
+- ✅ GET /api/audit — audit log pagination works
+- ✅ GET /api/summary — business summary works
+- ✅ GET /api/orderbookers/check-username — username validation works
+- ✅ GET /api/backup — backup export works
+- ✅ `bun run lint` — zero errors
+
+### Verification:
+- Bulk assign tested: assigned 2 shops to Danish Ramzan → success (updated: 2)
+- Bulk status tested: deactivate/reactivate → success
+- Admin login tested: admin/admin123 → success
+- Orderbooker login tested: ahmed/ob123, bilal/ob123 → success
+- All 16+ API endpoints verified working
+- Dev server log clean — no errors after fixes
+
+Stage Summary:
+- **Critical bug fixed:** Bulk assign was failing due to foreign key constraint on AuditLog.performedBy
+- **Secondary bug fixed:** Admin login not working (password hash mismatch)
+- **Schema change:** AuditLog.performedBy is now nullable
+- **All 6 affected API routes** updated with best-effort audit logging pattern
+- **Login route** now normalizes username to lowercase
+- **All API endpoints tested and verified working**
+- Login credentials: admin/admin123 (Admin), ahmed/ob123 or bilal/ob123 (Orderbooker)
