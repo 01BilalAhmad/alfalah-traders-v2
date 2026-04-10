@@ -28,10 +28,20 @@ export interface AppState {
   resetCreditSessionCount: () => void;
 }
 
+const DEFAULT_ADMIN: AppUser = {
+  id: 'cmnsqo2y20000qmvm6cwgsvmz',
+  username: 'al-falah trader',
+  name: 'AL-FALAH TRADER',
+  role: 'admin',
+  phone: '0300-0000001',
+  status: 'active',
+  createdAt: '2026-04-10T10:04:10.346Z',
+};
+
 export const useAppStore = create<AppState>((set) => ({
-  user: null,
-  isAuthenticated: false,
-  currentView: 'login',
+  user: DEFAULT_ADMIN,
+  isAuthenticated: true,
+  currentView: 'admin-dashboard',
   selectedShopId: null,
   selectedShopName: null,
   selectedDate: new Date().toISOString().split('T')[0],
