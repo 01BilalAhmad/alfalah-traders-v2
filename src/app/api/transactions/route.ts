@@ -93,6 +93,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Check credit limit warning for credit transactions
+    let creditLimitWarning: { limit: number; currentBalance: number; exceeded: boolean } | null = null;
+    if (type === 'credit' && shop.creditLimit && shop.creditLimit > 0) {
+      const projectedBalance = previousBalance + amount;
+      creditLimitWarning = {
+        limit: shop.creditLimit,
+        currentBalance: Math.round(projectedBalance * 100) / 100,
+        exceeded: projectedBalance > shop.creditLimit,
+      };
+    }
+
     // Use a transaction to ensure atomicity
     const transaction = await db.$transaction(async (tx) => {
       // Create transaction record
@@ -144,7 +155,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(transaction, { status: 201 });
+    return NextResponse.json({ ...transaction, creditLimitWarning }, { status: 201 });
   } catch (error) {
     console.error('Error creating transaction:', error);
     return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500 });

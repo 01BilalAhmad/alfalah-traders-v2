@@ -1,6 +1,6 @@
 // ====== Notification Types & Generation Utility ======
 
-export type NotificationType = 'high_balance' | 'zero_recovery' | 'new_shop';
+export type NotificationType = 'high_balance' | 'zero_recovery' | 'new_shop' | 'credit_limit_exceeded';
 
 export interface AppNotification {
   id: string;
@@ -29,6 +29,7 @@ interface ShopData {
   ownerName?: string | null;
   area?: string | null;
   balance: number;
+  creditLimit?: number;
   status: string;
   orderbookerId: string;
   orderbooker?: { id: string; name: string };
@@ -175,6 +176,47 @@ export function generateNotifications(
       });
     });
 
+  // ── 4. Credit Limit Exceeded ─────────────────────────────────
+  const creditLimitExceededShops = shops.filter(
+    (s) => s.status === 'active' && s.creditLimit && s.creditLimit > 0 && s.balance > s.creditLimit
+  );
+
+  creditLimitExceededShops
+    .sort((a, b) => (b.balance - b.creditLimit) - (a.balance - a.creditLimit))
+    .slice(0, 10)
+    .forEach((shop) => {
+      const overAmount = shop.balance - (shop.creditLimit || 0);
+      notifications.push({
+        id: `credit-limit-${shop.id}`,
+        type: 'credit_limit_exceeded',
+        title: 'Credit Limit Exceeded',
+        description: `${shop.name} has exceeded its limit by ${formatCurrency(overAmount)} (Balance: ${formatCurrency(shop.balance)}, Limit: ${formatCurrency(shop.creditLimit || 0)})`,
+        timestamp: now,
+        read: false,
+        actionRoute: 'admin-shops',
+        meta: {
+          shopName: shop.name,
+          balance: shop.balance,
+          creditLimit: shop.creditLimit || 0,
+          overAmount,
+          shopId: shop.id,
+        },
+      });
+    });
+
+  if (creditLimitExceededShops.length > 10) {
+    notifications.push({
+      id: 'credit-limit-summary',
+      type: 'credit_limit_exceeded',
+      title: 'Credit Limit Summary',
+      description: `${creditLimitExceededShops.length} shops have exceeded their credit limits`,
+      timestamp: now,
+      read: false,
+      actionRoute: 'admin-shops',
+      meta: { totalShops: creditLimitExceededShops.length },
+    });
+  }
+
   // Sort all notifications by timestamp descending (newest first)
   notifications.sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
@@ -227,6 +269,14 @@ export function getNotificationColorClasses(type: NotificationType) {
         iconBg: 'bg-emerald-100 dark:bg-emerald-900/50',
         iconText: 'text-emerald-600 dark:text-emerald-400',
         dot: 'bg-emerald-500',
+      };
+    case 'credit_limit_exceeded':
+      return {
+        bg: 'bg-orange-50 dark:bg-orange-950/30',
+        border: 'border-orange-200 dark:border-orange-800/50',
+        iconBg: 'bg-orange-100 dark:bg-orange-900/50',
+        iconText: 'text-orange-600 dark:text-orange-400',
+        dot: 'bg-orange-500',
       };
   }
 }

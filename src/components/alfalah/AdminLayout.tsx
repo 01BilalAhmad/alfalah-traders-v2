@@ -90,11 +90,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="text-white hover:bg-white/10 lg:hidden"
+            className="text-white hover:bg-white/10 lg:hidden min-w-[44px] min-h-[44px]"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
             {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
+          <Separator orientation="vertical" className="h-8 bg-white/10 lg:hidden" />
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
               <Building2 className="h-4.5 w-4.5 text-white" />

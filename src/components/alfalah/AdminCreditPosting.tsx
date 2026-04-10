@@ -50,6 +50,7 @@ import {
   X,
   Zap,
   BarChart3,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -62,6 +63,7 @@ interface Shop {
   area: string | null;
   routeDay: string;
   balance: number;
+  creditLimit: number;
   status: string;
   orderbooker: { id: string; name: string };
 }
@@ -92,6 +94,12 @@ interface TodaySummaryItem {
   shopArea: string | null;
   totalAmount: number;
   transactionCount: number;
+}
+
+interface CreditLimitWarning {
+  limit: number;
+  currentBalance: number;
+  exceeded: boolean;
 }
 
 function formatCurrency(amount: number): string {
@@ -165,6 +173,9 @@ export default function AdminCreditPosting() {
   const [quickPostShops, setQuickPostShops] = useState(0);
   const [quickPostTotal, setQuickPostTotal] = useState(0);
   const [quickPostJustPosted, setQuickPostJustPosted] = useState(false);
+
+  // Credit limit warning state
+  const [creditLimitWarning, setCreditLimitWarning] = useState<CreditLimitWarning | null>(null);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const quickPostTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -321,6 +332,7 @@ export default function AdminCreditPosting() {
     setCreditAmount('');
     setCreditDescription('');
     setQuickPostJustPosted(false);
+    setCreditLimitWarning(null);
     setCreditDialogOpen(true);
   };
 
@@ -354,6 +366,13 @@ export default function AdminCreditPosting() {
       const txn = await res.json();
       const amount = parseFloat(creditAmount);
       const desc = creditDescription.trim() || 'Goods supplied';
+
+      // Handle credit limit warning from API
+      if (txn.creditLimitWarning) {
+        setCreditLimitWarning(txn.creditLimitWarning);
+      } else {
+        setCreditLimitWarning(null);
+      }
 
       incrementCreditSessionCount();
 
@@ -662,9 +681,16 @@ export default function AdminCreditPosting() {
                         <Badge variant="outline" className="text-[10px] font-medium">{shop.routeDay.charAt(0).toUpperCase() + shop.routeDay.slice(1)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-              <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600 dark:text-red-400' : shop.balance < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+              <div className="flex items-center justify-end gap-1.5">
+                {shop.creditLimit > 0 && (
+                  <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                    /{formatCurrency(shop.creditLimit)}
+                  </span>
+                )}
+                <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600 dark:text-red-400' : shop.balance < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
                           {formatCurrency(shop.balance)}
-                        </span>
+                </span>
+              </div>
                       </TableCell>
                       <TableCell className="text-center">
                         <Button
@@ -827,7 +853,28 @@ export default function AdminCreditPosting() {
             {selectedShop && (
               <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                 <span className="text-sm text-muted-foreground">Current Balance</span>
-                <span className="font-bold text-sm">{formatCurrency(selectedShop.balance)}</span>
+                <div className="flex items-center gap-2">
+                  {selectedShop.creditLimit > 0 && (
+                    <span className="text-[10px] text-muted-foreground">
+                      Limit: {formatCurrency(selectedShop.creditLimit)}
+                    </span>
+                  )}
+                  <span className="font-bold text-sm">{formatCurrency(selectedShop.balance)}</span>
+                </div>
+              </div>
+            )}
+            {/* Credit Limit Warning Banner */}
+            {creditLimitWarning && creditLimitWarning.exceeded && (
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 animate-fade-in">
+                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                    Credit Limit Exceeded!
+                  </p>
+                  <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+                    This shop&apos;s balance ({formatCurrency(creditLimitWarning.currentBalance)}) exceeds its credit limit ({formatCurrency(creditLimitWarning.limit)}). The credit has been posted.
+                  </p>
+                </div>
               </div>
             )}
             <div className="space-y-2">

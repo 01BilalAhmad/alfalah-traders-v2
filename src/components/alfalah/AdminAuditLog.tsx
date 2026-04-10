@@ -78,6 +78,7 @@ const actionDotColors: Record<string, string> = {
   credit_post: 'bg-amber-500',
   recovery_entry: 'bg-green-500',
   status_change: 'bg-slate-500',
+  login: 'bg-purple-500',
 };
 
 const actionLabels: Record<string, string> = {
@@ -122,6 +123,35 @@ function isToday(dateStr: string): boolean {
 }
 
 type ViewMode = 'table' | 'timeline';
+
+function getDateLabel(dateStr: string): string {
+  const today = new Date();
+  const date = new Date(dateStr);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  ) {
+    return 'Today';
+  }
+
+  if (
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear()
+  ) {
+    return 'Yesterday';
+  }
+
+  return date.toLocaleDateString('en-PK', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
+  });
+}
 
 export default function AdminAuditLog() {
   const [data, setData] = useState<AuditData>({ logs: [], total: 0, page: 1, totalPages: 1 });
@@ -227,6 +257,31 @@ export default function AdminAuditLog() {
     setSearchQuery('');
     setPage(1);
   };
+
+  // Group timeline entries by date
+  const groupedLogs = useMemo(() => {
+    const groups: { label: string; dateKey: string; logs: AuditLogEntry[] }[] = [];
+    let currentLabel = '';
+    let currentGroup: AuditLogEntry[] = [];
+
+    data.logs.forEach((log) => {
+      const label = getDateLabel(log.createdAt);
+      if (label !== currentLabel) {
+        if (currentGroup.length > 0) {
+          groups.push({ label: currentLabel, dateKey: currentGroup[0].createdAt, logs: currentGroup });
+        }
+        currentLabel = label;
+        currentGroup = [log];
+      } else {
+        currentGroup.push(log);
+      }
+    });
+    if (currentGroup.length > 0) {
+      groups.push({ label: currentLabel, dateKey: currentGroup[0].createdAt, logs: currentGroup });
+    }
+
+    return groups;
+  }, [data.logs]);
 
   return (
     <div className="space-y-5">
@@ -334,12 +389,16 @@ export default function AdminAuditLog() {
 
       {/* Filters + Export Row */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <Card className="flex-1 w-full sm:w-auto">
+        <Card className="flex-1 w-full sm:w-auto card-elevated">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Filters</span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 flex-1 sm:flex-1">
               <Select value={actionFilter} onValueChange={(v) => { setActionFilter(v === 'all' ? '' : v); setPage(1); }}>
                 <SelectTrigger className="w-full sm:w-48">
-                  <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
                   <SelectValue placeholder="Filter by Action" />
                 </SelectTrigger>
                 <SelectContent>
@@ -383,6 +442,7 @@ export default function AdminAuditLog() {
                   <span className="text-xs hidden sm:inline">Timeline</span>
                 </Button>
               </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -411,7 +471,7 @@ export default function AdminAuditLog() {
 
       {/* Table View */}
       {viewMode === 'table' && (
-        <Card>
+        <Card className="card-elevated">
           <CardContent className="p-0">
             {loading ? (
               <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -481,106 +541,137 @@ export default function AdminAuditLog() {
 
       {/* Timeline View */}
       {viewMode === 'timeline' && (
-        <Card>
+        <Card className="card-elevated">
           <CardContent className="p-0">
             {loading ? (
               <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
             ) : data.logs.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Shield className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">No audit log entries found</p>
+                <p className="text-sm font-medium">No audit log entries</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">Activity will appear here as actions are performed</p>
               </div>
             ) : (
               <>
                 <ScrollArea className="max-h-[620px]">
                   <div className="px-4 sm:px-6 py-4">
-                    <div className="relative">
-                      {/* Vertical connecting line */}
-                      <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
-
-                      {data.logs.map((log) => {
-                        const isExpanded = expandedTimelineId === log.id;
-                        const dotColor = actionDotColors[log.action] || 'bg-muted-foreground';
-                        return (
-                          <div
-                            key={log.id}
-                            className="relative flex gap-4 pb-6 last:pb-0 group cursor-pointer"
-                            onClick={() => setExpandedTimelineId(isExpanded ? null : log.id)}
-                          >
-                            {/* Dot */}
-                            <div className="relative z-10 flex-shrink-0 mt-1">
-                              <div className={`h-[11px] w-[11px] rounded-full ${dotColor} ring-2 ring-background shadow-sm group-hover:scale-125 transition-transform`} />
+                    {groupedLogs.map((group, groupIdx) => (
+                      <div key={group.dateKey} className={groupIdx > 0 ? 'mt-6' : ''}>
+                        {/* Date Header */}
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Clock className="h-4 w-4 text-primary" />
                             </div>
-
-                            {/* Content */}
-                            <div className="flex-1 min-w-0 -mt-0.5">
-                              {/* Title row */}
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <Badge className={`text-[10px] animate-badge-pop ${actionColors[log.action] || 'bg-muted text-muted-foreground'}`}>
-                                      {actionLabels[log.action] || log.action}
-                                    </Badge>
-                                    <span className="text-xs font-medium text-foreground">
-                                      {entityLabels[log.entityType] || log.entityType}
-                                    </span>
-                                  </div>
-                                  <p className="text-sm text-foreground mt-0.5 truncate">
-                                    {log.description || 'No description'}
-                                  </p>
-                                </div>
-                                <span className="text-[11px] text-muted-foreground whitespace-nowrap flex-shrink-0">
-                                  {getRelativeTime(log.createdAt)}
-                                </span>
-                              </div>
-
-                              {/* Performer */}
-                              <div className="flex items-center gap-2 mt-1.5">
-                                <Users className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground">
-                                  {log.performer?.name || 'System'}
-                                </span>
-                                {log.performer?.role && (
-                                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
-                                    {log.performer.role}
-                                  </Badge>
-                                )}
-                              </div>
-
-                              {/* Expanded Details */}
-                              {isExpanded && (
-                                <div className="mt-3 ml-0 p-3 bg-muted/50 rounded-lg border border-border/50 space-y-2 animate-fade-in">
-                                  <div className="flex items-center gap-2 text-xs">
-                                    <Clock className="h-3 w-3 text-muted-foreground" />
-                                    <span className="text-muted-foreground">{formatDate(log.createdAt)}</span>
-                                  </div>
-                                  {log.description && (
-                                    <p className="text-xs text-foreground">{log.description}</p>
-                                  )}
-                                  {log.oldValue && (
-                                    <div className="text-xs">
-                                      <span className="text-muted-foreground font-medium">Before: </span>
-                                      <span className="text-red-600 dark:text-red-400">{log.oldValue}</span>
-                                    </div>
-                                  )}
-                                  {log.newValue && (
-                                    <div className="text-xs">
-                                      <span className="text-muted-foreground font-medium">After: </span>
-                                      <span className="text-green-600 dark:text-green-400">{log.newValue}</span>
-                                    </div>
-                                  )}
-                                  {log.entityId && (
-                                    <div className="text-xs text-muted-foreground">
-                                      Entity ID: <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{log.entityId}</code>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                            <div>
+                              <p className="text-sm font-bold text-foreground">{group.label}</p>
+                              <p className="text-[10px] text-muted-foreground">{group.logs.length} {group.logs.length === 1 ? 'entry' : 'entries'}</p>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                          <div className="flex-1 h-px bg-border" />
+                        </div>
+
+                        {/* Timeline entries */}
+                        <div className="relative ml-4">
+                          <div className="absolute left-[15px] top-3 bottom-3 w-px bg-border" />
+
+                          {group.logs.map((log, logIdx) => {
+                            const isExpanded = expandedTimelineId === log.id;
+                            const dotColor = actionDotColors[log.action] || 'bg-muted-foreground';
+                            const avatarInitial = log.performer?.name ? log.performer.name.charAt(0).toUpperCase() : 'S';
+                            const avatarBg = log.action === 'create'
+                              ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400'
+                              : log.action === 'edit'
+                                ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400'
+                                : (log.action === 'credit_post' || log.action === 'recovery_entry' || log.action === 'delete')
+                                  ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400'
+                                  : 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-400';
+
+                            return (
+                              <div
+                                key={log.id}
+                                className="relative flex gap-4 pb-4 last:pb-0 group cursor-pointer"
+                                onClick={() => setExpandedTimelineId(isExpanded ? null : log.id)}
+                                style={{ animationDelay: `${logIdx * 50}ms` }}
+                              >
+                                {/* Dot */}
+                                <div className="relative z-10 flex-shrink-0 mt-3">
+                                  <div className={`h-[11px] w-[11px] rounded-full ${dotColor} ring-2 ring-background shadow-sm group-hover:scale-125 transition-transform`} />
+                                </div>
+
+                                {/* Content Card */}
+                                <div className="flex-1 min-w-0 mb-1">
+                                  <div className="rounded-lg border border-border/50 bg-card p-3 hover:shadow-sm transition-shadow alfalah-card-hover">
+                                    {/* Top row: badge + time */}
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <Badge className={`text-[10px] animate-badge-pop ${actionColors[log.action] || 'bg-muted text-muted-foreground'}`}>
+                                          {actionLabels[log.action] || log.action}
+                                        </Badge>
+                                        <span className="text-[11px] font-medium text-muted-foreground">
+                                          {entityLabels[log.entityType] || log.entityType}
+                                        </span>
+                                      </div>
+                                      <span className="text-[10px] text-muted-foreground whitespace-nowrap flex-shrink-0">
+                                        {getRelativeTime(log.createdAt)}
+                                      </span>
+                                    </div>
+
+                                    {/* Description */}
+                                    <p className="text-sm text-foreground mt-1.5 leading-snug">
+                                      {log.description || 'No description'}
+                                    </p>
+
+                                    {/* Details row: user + entity */}
+                                    <div className="flex items-center gap-2 mt-2">
+                                      {/* Avatar initial */}
+                                      <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${avatarBg}`}>
+                                        {avatarInitial}
+                                      </div>
+                                      <span className="text-xs text-muted-foreground">
+                                        {log.performer?.name || 'System'}
+                                      </span>
+                                      {log.entityId && (
+                                        <span className="text-[10px] text-muted-foreground/60 hidden sm:inline">
+                                          &middot; ID: <code className="bg-muted px-1 py-0.5 rounded text-[9px]">{log.entityId.slice(0, 8)}</code>
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Expanded Details */}
+                                    {isExpanded && (
+                                      <div className="mt-3 pt-3 border-t border-border/50 space-y-2 animate-fade-in">
+                                        <div className="flex items-center gap-2 text-xs">
+                                          <Clock className="h-3 w-3 text-muted-foreground" />
+                                          <span className="text-muted-foreground">{formatDate(log.createdAt)}</span>
+                                        </div>
+                                        {log.oldValue && (
+                                          <div className="text-xs">
+                                            <span className="text-muted-foreground font-medium">Before: </span>
+                                            <span className="text-red-600 dark:text-red-400">{log.oldValue}</span>
+                                          </div>
+                                        )}
+                                        {log.newValue && (
+                                          <div className="text-xs">
+                                            <span className="text-muted-foreground font-medium">After: </span>
+                                            <span className="text-green-600 dark:text-green-400">{log.newValue}</span>
+                                          </div>
+                                        )}
+                                        {log.entityId && (
+                                          <div className="text-[10px] text-muted-foreground/60 hidden sm:block">
+                                            Entity ID: <code className="bg-muted px-1 py-0.5 rounded">{log.entityId}</code>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </ScrollArea>
                 {data.totalPages > 1 && (

@@ -14,6 +14,7 @@ export default function LoginView() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState(false);
   const { setUser } = useAppStore();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -35,12 +36,16 @@ export default function LoginView() {
 
       if (!res.ok) {
         toast({ title: 'Login Failed', description: data.error || 'Invalid credentials', variant: 'destructive' });
+        setLoginError(true);
+        setTimeout(() => setLoginError(false), 3000);
         return;
       }
 
+      setLoginError(false);
       setUser(data.user);
       toast({ title: 'Welcome!', description: `Logged in as ${data.user.name}` });
     } catch {
+      setLoginError(true);
       toast({ title: 'Error', description: 'Network error. Please try again.', variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -85,8 +90,13 @@ export default function LoginView() {
         </div>
 
         {/* Login Card with Glow */}
-        <Card className="rounded-t-none border-t-0 shadow-2xl shadow-blue-900/30 animate-card-glow animate-card-entrance bg-white/95 backdrop-blur-sm">
-          <CardHeader className="pb-4 pt-6 px-8">
+        <Card className={`rounded-t-none border-t-0 shadow-2xl shadow-blue-900/30 animate-card-glow animate-card-entrance bg-white/95 backdrop-blur-sm transition-all duration-300 ${loginError ? 'border-red-400 ring-2 ring-red-400/30 bg-red-50/90 dark:bg-red-950/30' : ''}`}>
+          <CardHeader className="pb-4 pt-6 px-8 transition-colors">
+            {loginError && (
+              <div className="mb-2 p-2 rounded-lg bg-red-100 dark:bg-red-950/50 border border-red-200 dark:border-red-800 animate-fade-in">
+                <p className="text-xs text-red-700 dark:text-red-400 font-medium">Invalid credentials. Please try again.</p>
+              </div>
+            )}
             <h2 className="text-lg font-semibold text-foreground">Sign In to Your Account</h2>
             <p className="text-sm text-muted-foreground">Enter your credentials to access the system</p>
           </CardHeader>
@@ -101,7 +111,7 @@ export default function LoginView() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
-                  className="h-11"
+                  className="h-11 input-enhanced focus-glow"
                   autoFocus
                 />
               </div>
@@ -116,7 +126,7 @@ export default function LoginView() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
-                    className="h-11 pr-10"
+                    className="h-11 pr-10 input-enhanced focus-glow"
                   />
                   <button
                     type="button"
@@ -143,9 +153,9 @@ export default function LoginView() {
               </Button>
             </form>
 
-            <div className="mt-6 pt-5 border-t border-border">
+            <div className="mt-6 pt-5 border-t border-border animate-fade-in" style={{ animationDelay: '0.4s' }}>
               <p className="text-xs text-muted-foreground text-center mb-3 font-medium">Demo Credentials</p>
-              <div className="rounded-xl p-3 glass-strong">
+              <div className="rounded-xl p-3 glass-strong animate-pulse" style={{ animationDuration: '4s' }}>
                 <div className="grid grid-cols-1 gap-2">
                   <div className="flex items-center justify-between rounded-lg bg-background/60 px-3 py-2.5 text-xs">
                     <span className="font-medium text-foreground">Admin</span>

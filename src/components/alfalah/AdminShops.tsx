@@ -44,6 +44,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Store,
   Search,
@@ -51,6 +52,8 @@ import {
   Pencil,
   Loader2,
   UserMinus,
+  UserCheck,
+  UserX,
   CheckCircle,
   XCircle,
   BookOpen,
@@ -66,6 +69,7 @@ import {
   User,
   CreditCard,
   FileDown,
+  X,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -82,6 +86,7 @@ interface Shop {
   phone: string | null;
   routeDay: string;
   balance: number;
+  creditLimit: number;
   status: string;
   orderbooker: { id: string; name: string };
 }
@@ -117,6 +122,7 @@ export default function AdminShops() {
   const [formPhone, setFormPhone] = useState('');
   const [formRouteDay, setFormRouteDay] = useState('');
   const [formOrderbookerId, setFormOrderbookerId] = useState('');
+  const [formCreditLimit, setFormCreditLimit] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Confirmation dialog state
@@ -136,6 +142,13 @@ export default function AdminShops() {
   const [detailShop, setDetailShop] = useState<Shop | null>(null);
   const [detailLedgerData, setDetailLedgerData] = useState<LedgerData | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // Bulk selection state
+  const [selectedShopIds, setSelectedShopIds] = useState<Set<string>>(new Set());
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkAction, setBulkAction] = useState<'assign' | 'deactivate' | 'reactivate' | null>(null);
+  const [bulkOrderbookerId, setBulkOrderbookerId] = useState('');
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const fetchOrderbookers = useCallback(async () => {
     try {
@@ -191,6 +204,7 @@ export default function AdminShops() {
     setFormPhone('');
     setFormRouteDay('');
     setFormOrderbookerId('');
+    setFormCreditLimit('');
     setDialogOpen(true);
   };
 
@@ -203,6 +217,7 @@ export default function AdminShops() {
     setFormPhone(shop.phone || '');
     setFormRouteDay(shop.routeDay);
     setFormOrderbookerId(shop.orderbooker.id);
+    setFormCreditLimit(shop.creditLimit > 0 ? String(shop.creditLimit) : '');
     setDialogOpen(true);
   };
 
@@ -221,6 +236,7 @@ export default function AdminShops() {
         phone: formPhone.trim() || null,
         routeDay: formRouteDay,
         orderbookerId: formOrderbookerId,
+        creditLimit: formCreditLimit ? parseFloat(formCreditLimit) : 0,
       };
 
       const url = '/api/shops';
@@ -308,6 +324,114 @@ export default function AdminShops() {
   const filteredShops = selectedDay
     ? shops.filter((s) => s.routeDay === selectedDay)
     : shops;
+
+  // Bulk selection helpers
+  const allSelected = filteredShops.length > 0 && filteredShops.every((s) => selectedShopIds.has(s.id));
+  const someSelected = filteredShops.some((s) => selectedShopIds.has(s.id));
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedShopIds(new Set());
+    } else {
+      setSelectedShopIds(new Set(filteredShops.map((s) => s.id)));
+    }
+  };
+
+  const toggleSelectShop = (id: string) => {
+    setSelectedShopIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedShopIds(new Set());
+
+  // Bulk action handlers
+  const openBulkAssign = () => {
+    setBulkAction('assign');
+    setBulkOrderbookerId('');
+    setBulkDialogOpen(true);
+  };
+
+  const openBulkDeactivate = () => {
+    setBulkAction('deactivate');
+    setBulkDialogOpen(true);
+  };
+
+  const openBulkReactivate = () => {
+    setBulkAction('reactivate');
+    setBulkDialogOpen(true);
+  };
+
+  const handleBulkAction = async () => {
+    if (selectedShopIds.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const ids = Array.from(selectedShopIds);
+
+      if (bulkAction === 'assign') {
+        if (!bulkOrderbookerId) {
+          toast({ title: 'Error', description: 'Please select an orderbooker', variant: 'destructive' });
+          setBulkLoading(false);
+          return;
+        }
+        const res = await fetch('/api/shops/bulk-assign', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shopIds: ids, orderbookerId: bulkOrderbookerId }),
+        });
+        if (res.ok) {
+          const obName = orderbookers.find((o) => o.id === bulkOrderbookerId)?.name || 'Unknown';
+          toast({ title: 'Bulk Assign Complete', description: `${ids.length} shops assigned to ${obName}` });
+          setBulkDialogOpen(false);
+          clearSelection();
+          fetchShops();
+          fetchAllShopsForCounts();
+        } else {
+          const data = await res.json();
+          toast({ title: 'Error', description: data.error, variant: 'destructive' });
+        }
+      } else if (bulkAction === 'deactivate') {
+        const res = await fetch('/api/shops/bulk-status', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shopIds: ids, status: 'inactive' }),
+        });
+        if (res.ok) {
+          toast({ title: 'Bulk Deactivate Complete', description: `${ids.length} shops deactivated` });
+          setBulkDialogOpen(false);
+          clearSelection();
+          fetchShops();
+          fetchAllShopsForCounts();
+        } else {
+          const data = await res.json();
+          toast({ title: 'Error', description: data.error, variant: 'destructive' });
+        }
+      } else if (bulkAction === 'reactivate') {
+        const res = await fetch('/api/shops/bulk-status', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shopIds: ids, status: 'active' }),
+        });
+        if (res.ok) {
+          toast({ title: 'Bulk Reactivate Complete', description: `${ids.length} shops reactivated` });
+          setBulkDialogOpen(false);
+          clearSelection();
+          fetchShops();
+          fetchAllShopsForCounts();
+        } else {
+          const data = await res.json();
+          toast({ title: 'Error', description: data.error, variant: 'destructive' });
+        }
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   // Analytics computation from allShops
   const activeShops = allShops.filter((s) => s.status === 'active');
@@ -474,7 +598,7 @@ export default function AdminShops() {
       <div className="divider-gradient" />
 
       {/* Filters */}
-      <Card>
+      <Card className="card-elevated">
         <CardContent className="p-4 space-y-3">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
@@ -514,7 +638,7 @@ export default function AdminShops() {
       </Card>
 
       {/* Shops Table */}
-      <Card>
+      <Card className="card-elevated">
         <CardContent className="p-0">
           {loading ? (
             <div className="p-5 space-y-4">
@@ -567,19 +691,36 @@ export default function AdminShops() {
               <Table>
                 <TableHeader>
                   <TableRow className="data-table-header hover:bg-transparent">
+                    <TableHead className="text-white font-semibold text-xs w-10 hidden md:table-cell">
+                      <Checkbox
+                        checked={allSelected}
+                        ref={(el) => { if (el) { (el as unknown as HTMLInputElement).indeterminate = someSelected && !allSelected; } }}
+                        onCheckedChange={toggleSelectAll}
+                        className="border-white/40 data-[state=checked]:bg-white data-[state=checked]:text-primary data-[state=checked]:border-white"
+                      />
+                    </TableHead>
                     <TableHead className="text-white font-semibold text-xs">Name</TableHead>
                     <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Owner</TableHead>
                     <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Area</TableHead>
                     <TableHead className="text-white font-semibold text-xs hidden lg:table-cell">Route</TableHead>
                     <TableHead className="text-white font-semibold text-xs hidden lg:table-cell">Orderbooker</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-right">Balance</TableHead>
+                    <TableHead className="text-white font-semibold text-xs">Credit Limit</TableHead>
                     <TableHead className="text-white font-semibold text-xs">Status</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredShops.map((shop, idx) => (
-                    <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} ${shop.status === 'inactive' ? 'opacity-60' : ''} hover-scale-102 transition-colors`}>
+                  {filteredShops.map((shop, idx) => {
+                    const isSelected = selectedShopIds.has(shop.id);
+                    return (
+                    <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} ${shop.status === 'inactive' ? 'opacity-60' : ''} ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''} hover-scale-102 transition-colors`}>
+                      <TableCell className="hidden md:table-cell">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelectShop(shop.id)}
+                        />
+                      </TableCell>
                       <TableCell>
                         <p className="font-medium text-sm">{shop.name}</p>
                         <p className="text-xs text-muted-foreground sm:hidden">{shop.ownerName || ''} &bull; {shop.area || ''}</p>
@@ -594,13 +735,39 @@ export default function AdminShops() {
                         <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(shop.balance)}</span>
                       </TableCell>
                       <TableCell>
+                        {(() => {
+                          if (!shop.creditLimit || shop.creditLimit <= 0) {
+                            return <span className="text-xs text-muted-foreground">—</span>;
+                          }
+                          if (shop.balance > shop.creditLimit) {
+                            return (
+                              <Badge className="bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 text-[10px] font-bold animate-pulse">
+                                Over Limit
+                              </Badge>
+                            );
+                          }
+                          if (shop.balance > shop.creditLimit * 0.8) {
+                            return (
+                              <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border-amber-200 dark:border-amber-800 text-[10px] font-bold">
+                                Near Limit
+                              </Badge>
+                            );
+                          }
+                          return (
+                            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 text-[10px] font-bold">
+                              Within Limit
+                            </Badge>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell>
                         <Badge className={`text-[10px] ${shop.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
                           {shop.status === 'active' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                           {shop.status.charAt(0).toUpperCase() + shop.status.slice(1)}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-1 action-btn-group">
                           <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple" onClick={() => openShopDetail(shop)} title="View Details">
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
@@ -618,13 +785,168 @@ export default function AdminShops() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </ScrollArea>
           )}
         </CardContent>
       </Card>
+
+      {/* Bulk Action Bar */}
+      {selectedShopIds.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up lg:left-64">
+          <div className="mx-2 mb-2">
+            <div className="bg-background border border-border shadow-lg rounded-xl px-4 py-3 flex items-center justify-between gap-3 backdrop-blur-sm bg-background/95">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-sm font-bold text-primary">{selectedShopIds.size}</span>
+                </div>
+                <span className="text-sm font-medium text-foreground">
+                  {selectedShopIds.size} {selectedShopIds.size === 1 ? 'shop' : 'shops'} selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5"
+                  onClick={openBulkAssign}
+                >
+                  <UserCheck className="h-3.5 w-3.5" />
+                  Assign OB
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-200"
+                  onClick={openBulkDeactivate}
+                >
+                  <UserMinus className="h-3.5 w-3.5" />
+                  Deactivate
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 hover:border-green-200"
+                  onClick={openBulkReactivate}
+                >
+                  <UserX className="h-3.5 w-3.5" />
+                  Reactivate
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={clearSelection}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Assign Dialog */}
+      <Dialog open={bulkDialogOpen && bulkAction === 'assign'} onOpenChange={(open) => { setBulkDialogOpen(open); if (!open) setBulkAction(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-primary" />
+              Assign Orderbooker
+            </DialogTitle>
+            <DialogDescription>
+              Assign an orderbooker to {selectedShopIds.size} selected {selectedShopIds.size === 1 ? 'shop' : 'shops'}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label className="text-sm font-medium mb-2 block">Select Orderbooker</Label>
+            <Select value={bulkOrderbookerId} onValueChange={setBulkOrderbookerId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose an orderbooker..." />
+              </SelectTrigger>
+              <SelectContent>
+                {orderbookers.filter((ob) => ob.status === 'active').map((ob) => (
+                  <SelectItem key={ob.id} value={ob.id}>
+                    {ob.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setBulkDialogOpen(false); setBulkAction(null); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkAction}
+              disabled={!bulkOrderbookerId || bulkLoading}
+              className="bg-primary hover:bg-primary/90 text-white"
+            >
+              {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Assign to {selectedShopIds.size} {selectedShopIds.size === 1 ? 'Shop' : 'Shops'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Deactivate Confirmation Dialog */}
+      <AlertDialog open={bulkDialogOpen && bulkAction === 'deactivate'} onOpenChange={(open) => { setBulkDialogOpen(open); if (!open) setBulkAction(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <UserMinus className="h-5 w-5 text-red-500" />
+              Deactivate {selectedShopIds.size} {selectedShopIds.size === 1 ? 'Shop' : 'Shops'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will deactivate {selectedShopIds.size} selected {selectedShopIds.size === 1 ? 'shop' : 'shops'}. They will be hidden from active lists but can be reactivated later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel onClick={() => { setBulkDialogOpen(false); setBulkAction(null); }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkAction}
+              disabled={bulkLoading}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Deactivate {selectedShopIds.size} {selectedShopIds.size === 1 ? 'Shop' : 'Shops'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Reactivate Confirmation Dialog */}
+      <AlertDialog open={bulkDialogOpen && bulkAction === 'reactivate'} onOpenChange={(open) => { setBulkDialogOpen(open); if (!open) setBulkAction(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <UserX className="h-5 w-5 text-green-500" />
+              Reactivate {selectedShopIds.size} {selectedShopIds.size === 1 ? 'Shop' : 'Shops'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will reactivate {selectedShopIds.size} selected {selectedShopIds.size === 1 ? 'shop' : 'shops'}. They will appear in active lists again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel onClick={() => { setBulkDialogOpen(false); setBulkAction(null); }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkAction}
+              disabled={bulkLoading}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Reactivate {selectedShopIds.size} {selectedShopIds.size === 1 ? 'Shop' : 'Shops'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Shop Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
@@ -704,6 +1026,44 @@ export default function AdminShops() {
                     <p className={`text-2xl font-bold tabular-nums ${detailShop.balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                       {formatCurrency(detailShop.balance)}
                     </p>
+
+                    {/* Credit Limit Progress Bar */}
+                    {detailShop.creditLimit && detailShop.creditLimit > 0 && (
+                      <div className="mt-3 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] text-muted-foreground font-medium">Credit Limit</span>
+                          <span className="text-[11px] font-semibold text-foreground">{formatCurrency(detailShop.creditLimit)}</span>
+                        </div>
+                        <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              detailShop.balance > detailShop.creditLimit
+                                ? 'bg-red-500'
+                                : detailShop.balance > detailShop.creditLimit * 0.8
+                                  ? 'bg-amber-500'
+                                  : 'bg-emerald-500'
+                            }`}
+                            style={{
+                              width: `${Math.min((detailShop.balance / detailShop.creditLimit) * 100, 100)}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[10px] font-medium ${
+                            detailShop.balance > detailShop.creditLimit
+                              ? 'text-red-600 dark:text-red-400'
+                              : detailShop.balance > detailShop.creditLimit * 0.8
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-emerald-600 dark:text-emerald-400'
+                          }`}>
+                            {detailShop.balance > detailShop.creditLimit
+                              ? `${formatCurrency(detailShop.balance)} — Over limit by ${formatCurrency(detailShop.balance - detailShop.creditLimit)}`
+                              : `${Math.round((detailShop.balance / detailShop.creditLimit) * 100)}% used`
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -893,7 +1253,7 @@ export default function AdminShops() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto dialog-content-animate">
           <DialogHeader>
             <DialogTitle>{editingShop ? 'Edit Shop' : 'Add New Shop'}</DialogTitle>
             <DialogDescription>
@@ -904,19 +1264,19 @@ export default function AdminShops() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Shop Name *</Label>
-                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g., Ali General Store" />
+                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g., Ali General Store" className="input-enhanced" />
               </div>
               <div className="space-y-2">
                 <Label>Owner Name</Label>
-                <Input value={formOwner} onChange={(e) => setFormOwner(e.target.value)} placeholder="e.g., Muhammad Ali" />
+                <Input value={formOwner} onChange={(e) => setFormOwner(e.target.value)} placeholder="e.g., Muhammad Ali" className="input-enhanced" />
               </div>
               <div className="space-y-2">
                 <Label>Area</Label>
-                <Input value={formArea} onChange={(e) => setFormArea(e.target.value)} placeholder="e.g., Gulshan-e-Iqbal" />
+                <Input value={formArea} onChange={(e) => setFormArea(e.target.value)} placeholder="e.g., Gulshan-e-Iqbal" className="input-enhanced" />
               </div>
               <div className="space-y-2">
                 <Label>Phone</Label>
-                <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="e.g., 0300-1234567" />
+                <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="e.g., 0300-1234567" className="input-enhanced" />
               </div>
             </div>
             <div className="space-y-2">
@@ -947,6 +1307,22 @@ export default function AdminShops() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Credit Limit</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">Rs.</span>
+                  <Input
+                    type="number"
+                    value={formCreditLimit}
+                    onChange={(e) => setFormCreditLimit(e.target.value)}
+                    placeholder="0 = No limit"
+                    className="pl-9 input-enhanced"
+                    min="0"
+                    step="1000"
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">Leave 0 for no credit limit</p>
               </div>
             </div>
           </div>

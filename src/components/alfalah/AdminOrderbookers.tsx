@@ -251,7 +251,7 @@ export default function AdminOrderbookers() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md dialog-content-animate">
           <DialogHeader>
             <DialogTitle>{editingOB ? 'Edit Orderbooker' : 'Add New Orderbooker'}</DialogTitle>
             <DialogDescription>
@@ -261,21 +261,21 @@ export default function AdminOrderbookers() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Full Name *</Label>
-              <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g., Muhammad Ahmed" />
+              <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g., Muhammad Ahmed" className="input-enhanced" />
             </div>
             {!editingOB && (
               <div className="space-y-2">
                 <Label>Username *</Label>
-                <Input value={formUsername} onChange={(e) => setFormUsername(e.target.value)} placeholder="e.g., ahmed" />
+                <Input value={formUsername} onChange={(e) => setFormUsername(e.target.value)} placeholder="e.g., ahmed" className="input-enhanced" />
               </div>
             )}
             <div className="space-y-2">
               <Label>{editingOB ? 'New Password (leave blank to keep)' : 'Password *'}</Label>
-              <Input type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} placeholder={editingOB ? 'Enter new password' : 'Set password'} />
+              <Input type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} placeholder={editingOB ? 'Enter new password' : 'Set password'} className="input-enhanced" />
             </div>
             <div className="space-y-2">
               <Label>Phone</Label>
-              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="e.g., 0300-1234567" />
+              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="e.g., 0300-1234567" className="input-enhanced" />
             </div>
           </div>
           <DialogFooter className="gap-2">

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useAnimatedNumber } from '@/lib/use-animated-number';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
@@ -89,6 +90,18 @@ interface DashboardData {
   totalOutstanding: number;
 }
 
+interface TimelineEntry {
+  id: string;
+  type: string;
+  shopName: string;
+  shopArea: string | null;
+  amount: number;
+  description: string | null;
+  createdBy: string;
+  createdAt: string;
+  balanceAfter: number;
+}
+
 interface Shop {
   id: string;
   name: string;
@@ -169,6 +182,8 @@ export default function AdminDashboard() {
   });
   const [trends, setTrends] = useState<DailyTrend[]>([]);
   const [allShops, setAllShops] = useState<Shop[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
   // Animated number counters for KPI cards
@@ -180,10 +195,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [obRes, txnRes, shopsRes] = await Promise.all([
+        const [obRes, txnRes, shopsRes, trendsRes, tlRes] = await Promise.all([
           fetch('/api/orderbookers'),
           fetch(`/api/transactions?date=${new Date().toISOString().split('T')[0]}&limit=10`),
           fetch('/api/shops'),
+          fetch('/api/reports/daily-trends'),
+          fetch('/api/reports/activity-timeline?limit=20'),
         ]);
         const orderbookers = obRes.ok ? await obRes.json() : [];
         const txnData = txnRes.ok ? await txnRes.json() : { transactions: [] };
@@ -192,21 +209,74 @@ export default function AdminDashboard() {
         const totalOutstanding = orderbookers.reduce((s: number, ob: Orderbooker) => s + ob.totalOutstanding, 0);
         const totalShops = orderbookers.reduce((s: number, ob: Orderbooker) => s + ob.totalShops, 0);
 
-        // Fetch daily trends
-        const trendsRes = await fetch('/api/reports/daily-trends');
         const trendsData = trendsRes.ok ? await trendsRes.json() : [];
-
         const shops = shopsRes.ok ? await shopsRes.json() : [];
+        const timelineData = tlRes.ok ? await tlRes.json() : [];
+
         setData({ orderbookers, todayTxns: txnData.transactions, todayCredit, todayRecovery, totalShops, totalOutstanding });
         setTrends(trendsData);
         setAllShops(shops);
+        setTimeline(timelineData);
       } catch { /* silent */ }
-      finally { setLoading(false); }
+      finally { setLoading(false); setTimelineLoading(false); }
     }
     load();
   }, []);
 
-  const hasFilters = searchQuery || selectedDay || showInactive;
+  // Relative time helper
+  function getTimeAgo(dateStr: string): string {
+    const now = new Date();
+    const date = new Date(dateStr);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    if (diffDay === 1) return 'Yesterday';
+    return `${diffDay}d ago`;
+  }
+
+  function formatTime(dateStr: string): string {
+    return new Date(dateStr).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function formatTimeFull(dateStr: string): string {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (date.toDateString() === today.toDateString()) {
+      return `Today, ${formatTime(dateStr)}`;
+    }
+    if (date.toDateString() === yesterday.toDateString()) {
+      return `Yesterday, ${formatTime(dateStr)}`;
+    }
+    return date.toLocaleDateString('en-PK', { day: 'numeric', month: 'short' }) + `, ${formatTime(dateStr)}`;
+  }
+
+  // Group timeline entries by date
+  const timelineGroups = useMemo(() => {
+    const groups: { key: string; label: string; entries: TimelineEntry[] }[] = [];
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    timeline.forEach((entry) => {
+      const entryDate = new Date(entry.createdAt);
+      const dateStr = entryDate.toDateString();
+      let label: string;
+      if (dateStr === today.toDateString()) label = 'Today';
+      else if (dateStr === yesterday.toDateString()) label = 'Yesterday';
+      else label = entryDate.toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long' });
+
+      const existing = groups.find((g) => g.key === dateStr);
+      if (existing) existing.entries.push(entry);
+      else groups.push({ key: dateStr, label, entries: [entry] });
+    });
+    return groups;
+  }, [timeline]);
 
   if (loading) {
     return <DashboardSkeleton />;
@@ -734,25 +804,38 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Timeline Activity Feed */}
+      {/* Activity Timeline */}
       <Card className="animate-fade-in">
         <CardHeader className="pb-3 pt-4 px-5">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Activity className="h-4 w-4 text-primary" />
-            Recent Activity
+            Activity Timeline
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="max-h-96">
+          <ScrollArea className="max-h-[480px] custom-scrollbar">
             <div className="px-5 py-3">
-              {data.todayTxns.length === 0 ? (
+              {timelineLoading ? (
+                <div className="space-y-6">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex gap-3">
+                      <Skeleton className="skeleton-shimmer h-6 w-6 rounded-full shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="skeleton-shimmer h-4 w-48" />
+                        <Skeleton className="skeleton-shimmer h-3 w-32" />
+                      </div>
+                      <Skeleton className="skeleton-shimmer h-5 w-16" />
+                    </div>
+                  ))}
+                </div>
+              ) : timelineGroups.length === 0 ? (
                 <div className="text-center py-10">
                   <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
                     <div className="relative z-10 h-20 w-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-100 dark:from-primary/20 dark:to-blue-900/30 flex items-center justify-center">
                       <Clock className="h-9 w-9 text-primary/60 animate-gentle-float" />
                     </div>
                   </div>
-                  <p className="font-semibold text-muted-foreground text-sm">No activity recorded today</p>
+                  <p className="font-semibold text-muted-foreground text-sm">No recent activity</p>
                   <p className="text-xs text-muted-foreground/70 mt-1.5 max-w-xs mx-auto leading-relaxed">
                     Post credit or collect recovery to see activity here.
                   </p>
@@ -768,38 +851,62 @@ export default function AdminDashboard() {
                 <div className="relative pl-8">
                   {/* Vertical timeline line */}
                   <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
-                  {data.todayTxns.map((txn, idx) => (
-                    <div key={txn.id} className="relative pb-6 last:pb-0 group">
-                      {/* Timeline dot with icon */}
-                      <div className={`absolute -left-8 top-0.5 h-[22px] w-[22px] rounded-full flex items-center justify-center ring-4 ring-background z-10 ${txn.type === 'credit' ? 'bg-amber-100' : 'bg-green-100'}`}>
-                        {txn.type === 'credit' ? (
-                          <ArrowUpRight className="h-3 w-3 text-amber-600" />
-                        ) : (
-                          <ArrowDownRight className="h-3 w-3 text-green-600" />
-                        )}
+                  {timelineGroups.map((group) => (
+                    <div key={group.key} className="mb-6 last:mb-0">
+                      {/* Date Header */}
+                      <div className="flex items-center gap-3 mb-3 -ml-8">
+                        <div className="h-[22px] w-[22px] rounded-full bg-primary/10 flex items-center justify-center ring-4 ring-background z-10 shrink-0">
+                          <div className="h-2 w-2 rounded-full bg-primary" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-foreground">{group.label}</h3>
                       </div>
-                      {/* Activity content */}
-                      <div className="flex items-start justify-between gap-3 rounded-lg p-2 -mx-2 hover:bg-muted/30 transition-colors">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium leading-snug">
-                            {txn.type === 'credit'
-                              ? <>Credit of <span className="font-bold text-amber-600">{formatCurrency(txn.amount)}</span> posted to <span className="font-semibold">{txn.shop.name}</span></>
-                              : <>Recovery of <span className="font-bold text-green-600">{formatCurrency(txn.amount)}</span> collected from <span className="font-semibold">{txn.shop.name}</span></>
-                            }
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            by {txn.creator.name}
-                            {txn.shop.area && <span className="text-muted-foreground/50"> &middot; {txn.shop.area}</span>}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${txn.type === 'credit' ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
-                            {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
-                          </span>
-                          <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
-                            {new Date(txn.createdAt).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
+                      {/* Entries for this date */}
+                      <div className="stagger-children">
+                        {group.entries.map((entry) => (
+                          <div key={entry.id} className="relative pb-4 last:pb-0 group">
+                            {/* Timeline dot with icon */}
+                            <div className={`absolute -left-8 top-0.5 h-[22px] w-[22px] rounded-full flex items-center justify-center ring-4 ring-background z-10 ${entry.type === 'credit' ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-green-100 dark:bg-green-900/40'}`}>
+                              {entry.type === 'credit' ? (
+                                <ArrowUpRight className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                              ) : (
+                                <ArrowDownRight className="h-3 w-3 text-green-600 dark:text-green-400" />
+                              )}
+                            </div>
+                            {/* Timeline card */}
+                            <div className="rounded-lg border border-border/50 bg-card p-3 -mx-2 alfalah-card-hover transition-all">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  {/* Time and badge */}
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <span className="text-[11px] text-muted-foreground tabular-nums">{formatTimeFull(entry.createdAt)}</span>
+                                    <Badge className={`text-[9px] px-1.5 py-0 ${entry.type === 'credit' ? 'badge-credit' : 'badge-recovery'}`}>
+                                      {entry.type === 'credit' ? 'Credit' : 'Recovery'}
+                                    </Badge>
+                                  </div>
+                                  {/* Shop name and area */}
+                                  <p className="text-sm font-medium leading-snug">
+                                    {entry.type === 'credit' ? 'Posted to' : 'Collected from'}{' '}
+                                    <span className="font-semibold">{entry.shopName}</span>
+                                    <span className="hidden sm:inline text-muted-foreground">{entry.shopArea ? ` · ${entry.shopArea}` : ''}</span>
+                                  </p>
+                                  {/* Posted by - hidden on mobile */}
+                                  <p className="text-[11px] text-muted-foreground mt-0.5 hidden sm:block">
+                                    by {entry.createdBy}
+                                  </p>
+                                </div>
+                                {/* Amount */}
+                                <div className="text-right shrink-0">
+                                  <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full ${entry.type === 'credit' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>
+                                    {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
+                                  </span>
+                                  <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+                                    Bal: {formatCurrency(entry.balanceAfter)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -808,7 +915,7 @@ export default function AdminDashboard() {
             </div>
           </ScrollArea>
           {/* View All Activity Link */}
-          {data.todayTxns.length > 0 && (
+          {timeline.length > 0 && (
             <div className="border-t border-border/60 px-5 py-3">
               <button
                 className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors group"

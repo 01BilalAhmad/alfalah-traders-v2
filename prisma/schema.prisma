@@ -36,6 +36,7 @@ model Shop {
   routeDay       String   // "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"
   orderbookerId  String
   balance        Float    @default(0) // running balance
+  creditLimit    Float    @default(0) // 0 = no limit
   status         String   @default("active") // "active" or "inactive"
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

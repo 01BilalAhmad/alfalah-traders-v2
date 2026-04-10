@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 // POST /api/shops - Create a new shop
 export async function POST(request: NextRequest) {
   try {
-    const { name, ownerName, area, address, phone, routeDay, orderbookerId } = await request.json();
+    const { name, ownerName, area, address, phone, routeDay, orderbookerId, creditLimit } = await request.json();
 
     if (!name || !routeDay || !orderbookerId) {
       return NextResponse.json({ error: 'Name, route day, and orderbooker are required' }, { status: 400 });
@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
         phone,
         routeDay,
         orderbookerId,
+        creditLimit: creditLimit && creditLimit > 0 ? creditLimit : 0,
       },
     });
 
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
 // PATCH /api/shops - Update shop (soft delete)
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, name, ownerName, area, address, phone, routeDay, orderbookerId, status } = await request.json();
+    const { id, name, ownerName, area, address, phone, routeDay, orderbookerId, status, creditLimit } = await request.json();
 
     const existing = await db.shop.findUnique({ where: { id } });
     if (!existing) {
@@ -97,6 +98,7 @@ export async function PATCH(request: NextRequest) {
     if (routeDay) updateData.routeDay = routeDay;
     if (orderbookerId) updateData.orderbookerId = orderbookerId;
     if (status) updateData.status = status;
+    if (creditLimit !== undefined) updateData.creditLimit = creditLimit > 0 ? creditLimit : 0;
 
     const updated = await db.shop.update({
       where: { id },
