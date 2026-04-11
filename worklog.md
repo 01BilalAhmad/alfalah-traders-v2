@@ -3884,3 +3884,29 @@ Stage Summary:
 2. Implement offline/localStorage caching for orderbooker app
 3. Add WhatsApp notification integration for recovery reminders
 4. Add multi-language support (Urdu/English toggle)
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Fix runtime error - AlertTriangle not defined in AdminShops.tsx
+
+Work Log:
+- Received runtime error: `ReferenceError: AlertTriangle is not defined` at AdminShops.tsx:691
+- Identified that `AlertTriangle` was used in the non-working-day filter tabs (line 691) but was not imported
+- Added `AlertTriangle` to the lucide-react import statement in AdminShops.tsx (line 74)
+- Verified all other requested features were already implemented:
+  - Friday off day (WORKING_DAYS: Sat-Thu, Friday excluded) ✅
+  - Admin edit/delete credits (AdminCreditPosting.tsx) ✅
+  - Admin edit/delete recoveries (AdminRecoveryReport.tsx) ✅
+  - Admin add recoveries for any orderbooker (AdminRecoveryReport.tsx) ✅
+  - API PATCH/DELETE on /api/transactions ✅
+
+### Verification:
+- `bun run lint` passes cleanly with zero errors
+- Dev server running and responding to all API requests (200 status)
+- All existing features confirmed working
+
+Stage Summary:
+- Fixed missing AlertTriangle import that caused runtime crash in AdminShops
+- All user-requested features (Friday off, admin CRUD on credits/recoveries, admin add recovery) were already implemented in previous sessions
+- System is stable and fully operational

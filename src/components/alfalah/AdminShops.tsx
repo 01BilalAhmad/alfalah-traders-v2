@@ -71,6 +71,7 @@ import {
   FileDown,
   X,
   TrendingUp,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
