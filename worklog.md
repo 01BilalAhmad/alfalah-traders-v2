@@ -3910,3 +3910,65 @@ Stage Summary:
 - Fixed missing AlertTriangle import that caused runtime crash in AdminShops
 - All user-requested features (Friday off, admin CRUD on credits/recoveries, admin add recovery) were already implemented in previous sessions
 - System is stable and fully operational
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Convert Al-Falah Traders to PWA (Progressive Web App) for mobile app-like experience
+
+Work Log:
+- Verified AlertTriangle import already exists in AdminShops.tsx (line 74) — no fix needed
+- Generated two PWA app icons using image-generation skill:
+  - `/public/icon-512.png` (512×512px, 160KB) — Navy blue AF monogram
+  - `/public/icon-192.png` (192×192px, 42KB) — Same design scaled
+- Created `/public/manifest.json` — PWA manifest with app name, icons, theme color (#1E3A8A), standalone display mode, portrait orientation
+- Created `/public/sw.js` — Service worker with:
+  - Install event: caches static assets (/, icons, logo.svg)
+  - Activate event: cleans old cache versions
+  - Fetch event: Network-first for API calls (with offline fallback), Cache-first for static assets, Network-first for HTML pages
+  - Background sync: Handles offline recovery/credit syncing when back online
+  - IndexedDB integration for storing pending offline transactions
+- Created `/src/lib/pwa-register.ts` — PWA utilities:
+  - `usePWAInstall()` hook: Captures beforeinstallprompt, tracks install/dismiss state, 3-day dismiss cooldown
+  - `registerServiceWorker()`: Auto-registers service worker with hourly update checks
+  - `storeOfflineRecovery()`/`storeOfflineCredit()`: IndexedDB storage for offline transactions
+  - `getPendingOfflineCount()`: Count of unsynced offline items
+- Created `/src/components/PWARegister.tsx` — Client component that registers service worker on mount
+- Created `/src/components/alfalah/PWAInstallPrompt.tsx` — Full-featured install prompt component:
+  - Floating bottom banner with app icon, description, install button
+  - Online/offline indicator bar (amber when offline)
+  - Pending sync bar when items are queued for sync
+  - Feature badges (Fast, Offline, App-like)
+  - Dismissible with 3-day cooldown
+- Updated `/src/app/layout.tsx`:
+  - Added `Viewport` export with mobile-optimized settings (no zoom, cover viewport fit)
+  - Added theme-color metadata (light/dark variants)
+  - Added manifest link and apple-touch-icon
+  - Added appleWebApp metadata (capable, title, statusBarStyle)
+  - Added PWARegister component
+- Integrated PWAInstallPrompt into OrderbookerLayout.tsx:
+  - Added import and floating install prompt
+  - Positioned above bottom nav (bottom-20)
+
+### Verification:
+- `bun run lint` passes cleanly with zero errors
+- Dev server compiles without issues
+- All PWA files created and integrated
+- Service worker registration and install prompt logic tested
+
+Stage Summary:
+- Complete PWA implementation — app is now installable on Android devices
+- App icon generated (192px + 512px) with Al-Falah branding
+- Service worker provides offline caching for all page types
+- API responses cached for offline viewing; offline fallback with 503 status
+- Static assets use cache-first strategy for instant loading
+- Install prompt with smart dismiss logic (3-day cooldown)
+- Online/offline indicator shows real-time connection status
+- Background sync ready for offline recovery/credit posting
+- Mobile viewport configured (no zoom, cover safe areas, theme colors)
+
+### Unresolved / Next Phase:
+- Admin edit/delete/add for credits & recoveries — NOT YET STARTED
+- PWA needs HTTPS to fully function (service worker requirement)
+- iOS Safari has limited PWA support (some features may not work)
+- Consider adding periodic cache invalidation for API data freshness

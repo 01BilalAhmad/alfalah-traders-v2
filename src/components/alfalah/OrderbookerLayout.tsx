@@ -50,6 +50,7 @@ import SessionTimeoutDialog from './SessionTimeoutDialog';
 import BackupSettingsDialog from './BackupSettingsDialog';
 import ChangePasswordDialog from './ChangePasswordDialog';
 import ShareMenu from './ShareMenu';
+import PWAInstallPrompt from './PWAInstallPrompt';
 import { useOnlineStatus } from '@/lib/use-online-status';
 import {
   cacheShops,
@@ -795,6 +796,9 @@ export default function OrderbookerLayout() {
 
       {/* Session Timeout Dialog */}
       <SessionTimeoutDialog />
+
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt floating />
     </div>
   );
 }
