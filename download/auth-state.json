@@ -1,0 +1,31 @@
+{
+  "cookies": [
+    {
+      "name": "NID",
+      "value": "530=Jed4fRcSdMyE2SBrAzwNBMFl21GgdqUVHq9BW3JCdBy8qnJLaQgD4QH7DtIl4FE_LJHistZl_M_OqTqbs5sXk4GU0dkkdCxfbCNNWdO1bDOX71_3yHyxorjMHfUDc79u_2mnrQo5QYUGDmpYHBrV1bQK3_r1YANd43sshKlshUa74sReFpNvkC4ASp8n7fTNDvaBADSL6DL7dQay5Q",
+      "domain": ".google.com",
+      "path": "/",
+      "expires": 1791739499.003246,
+      "size": 217,
+      "httpOnly": true,
+      "secure": false,
+      "session": false
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3000",
+      "localStorage": [
+        {
+          "name": "alfalah-session",
+          "value": "{\"user\":{\"id\":\"cmnsqo2y20000qmvm6cwgsvmz\",\"username\":\"al-falah trader\",\"name\":\"AL-FALAH TRADER\",\"role\":\"admin\",\"phone\":\"0300-0000001\",\"status\":\"active\",\"createdAt\":\"2026-04-10T10:04:10.346Z\"}}"
+        },
+        {
+          "name": "alfalah_last_activity",
+          "value": "1775934792298"
+        }
+      ],
+      "sessionStorage": []
+    }
+  ]
+}
