@@ -3582,3 +3582,76 @@ Stage Summary:
 - Brief flash of login screen before redirecting to dashboard (acceptable tradeoff)
 - Lint passes cleanly, dev server compiles without errors
 
+
+---
+Task ID: 9
+Agent: Feature Enhancement Agent
+Task: Add Orderbooker Profile, Shop Call, History Filters, Pull-to-Refresh
+
+Work Log:
+- Read worklog.md and all relevant source files (OrderbookerLayout.tsx 1512 lines, store.ts, transactions API route, ShareMenu component)
+- Verified project state: all previous features working, lint clean, dev server compiling
+
+### Feature 1: Orderbooker Profile Tab
+- Added 4th bottom navigation tab "Profile" with User icon (`orderbooker-profile` view)
+- Created `ProfileView` component with:
+  - Profile card with emerald gradient header, avatar initials (2-letter), name, @username, phone
+  - Role badge showing "Orderbooker"
+  - Performance stats card fetching this month's recovery via `/api/transactions?limit=200&type=recovery&createdBy={user.id}&startDate={firstOfMonth}`
+  - 3 stat cells: Total Recovery (green), Shops Visited (blue), Avg / Visit (amber)
+  - Quick Actions card with Change Password and Settings buttons (wired to existing dialogs)
+  - Share Profile card using existing ShareMenu component with pre-filled recovery summary text
+- Updated `OrderbookerLayout` main component to recognize `isProfile` state
+- Header subtitle updates to "My Profile" when on profile tab
+- Bottom nav adjusted to 4 tabs with equal spacing (reduced px-5 to px-4)
+- Removed unused `Wifi` import, added `User`, `PhoneCall`, `UserCircle`, `Shield`, `Share2` imports
+
+### Feature 2: Shop Call Button
+- Added green "Call" button (PhoneCall icon) next to "Collect Recovery" in shop cards
+- Button only renders when `shop.phone` exists
+- Opens `tel:{phone}` via `window.location.href`
+- Button has green theme: border-green-200, text-green-600, hover:bg-green-50
+- Added matching Call button in ShopDetailDialog bottom action bar (next to Collect Recovery)
+- `e.stopPropagation()` prevents card click when tapping Call button
+
+### Feature 3: Recovery History Quick Filter
+- Enhanced `RecoveryHistory` component with summary row at top:
+  - 3-column grid card showing: Entries count, Total Recovered (green bold), Avg / Entry
+- Added date range filter buttons: "Last 7 days", "Last 30 days", "All Time"
+- Changed fetch to `limit=500` for comprehensive history
+- Client-side filtering based on selected date range (calculates cutoff date)
+- Empty state when filtered range has no entries with helpful message
+- Active filter button uses primary variant, inactive uses outline
+
+### Feature 4: Pull-to-Refresh for Dashboard
+- Created `usePullToRefresh` custom hook:
+  - Uses touch events (touchstart, touchmove, touchend) on dashboard container
+  - Tracks pull distance with state (not refs) to enable proper React re-renders
+  - Shows visual indicator: RefreshCw icon + text ("Pull to refresh" / "Refreshing...")
+  - Threshold at 80% of 80px triggers refresh
+  - Spinning animation during refresh (1s minimum)
+  - Prevents default browser pull-to-refresh behavior
+  - Indicator height animates smoothly with transition-all
+- Dashboard container gets `ref={containerRef}` and `touchAction: 'pan-y'`
+- Refresh triggers `setRefreshKey(k => k + 1)` which refetches shops and recovery data
+
+### API Change: startDate Parameter
+- Updated `/api/transactions/route.ts` GET handler to support `startDate` query parameter
+- `startDate` filter creates `createdAt >= startDate` range (no upper bound)
+- `date` parameter still takes priority (both start and end of day)
+- Variable renamed from `startDate` to `dStart` inside `date` block to avoid shadowing
+
+### Verification:
+- `bun run lint` passes cleanly with zero errors
+- Dev server compiles successfully (✓ Compiled)
+- All 4 tabs render correctly in bottom navigation
+- Pull-to-refresh uses state instead of refs to satisfy React hooks lint rule
+
+Stage Summary:
+- 4 new features added to Orderbooker portal
+- Profile tab with performance stats, quick actions, and share functionality
+- Shop Call button in both shop cards and shop detail dialog
+- History view enhanced with summary stats and date range filtering
+- Pull-to-refresh on dashboard with smooth visual indicator
+- Transactions API extended with `startDate` query parameter
+- No existing functionality broken, all components lint clean

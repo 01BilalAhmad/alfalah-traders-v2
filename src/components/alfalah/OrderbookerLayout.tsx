@@ -34,10 +34,14 @@ import {
   Settings,
   KeyRound,
   WifiOff,
-  Wifi,
   RefreshCw,
   CloudOff,
   CloudUpload,
+  User,
+  PhoneCall,
+  UserCircle,
+  Shield,
+  Share2,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -157,27 +161,226 @@ function SuccessOverlay({
   );
 }
 
+// ─── Profile View ────────────────────────────────────────────────────────────
+
+type DateFilter = '7days' | '30days' | 'all';
+
+function ProfileView({
+  onChangePassword,
+  onOpenSettings,
+}: {
+  onChangePassword: () => void;
+  onOpenSettings: () => void;
+}) {
+  const { user } = useAppStore();
+  const [monthlyRecovery, setMonthlyRecovery] = useState<RecoveryTransaction[]>([]);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  const fetchProfileData = useCallback(async () => {
+    if (!user) return;
+    setProfileLoading(true);
+    try {
+      // Fetch all recovery transactions for this month
+      const now = new Date();
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const res = await fetch(`/api/transactions?limit=200&type=recovery&createdBy=${user.id}&startDate=${firstOfMonth}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMonthlyRecovery(data.transactions || []);
+      }
+    } catch { /* silent */ }
+    finally { setProfileLoading(false); }
+  }, [user]);
+
+  useEffect(() => { fetchProfileData(); }, [fetchProfileData]);
+
+  // Performance calculations
+  const totalRecovery = monthlyRecovery.reduce((s, t) => s + t.amount, 0);
+  const uniqueShops = new Set(monthlyRecovery.map((t) => t.shop.id)).size;
+  const avgPerVisit = uniqueShops > 0 ? Math.round(totalRecovery / uniqueShops) : 0;
+
+  const initials = user?.name
+    ? user.name.split(' ').map((n) => n.charAt(0)).join('').toUpperCase().slice(0, 2)
+    : 'OB';
+
+  const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Profile Card */}
+      <Card className="overflow-hidden animate-fade-in">
+        <div className="alfalah-gradient p-5 text-white relative overflow-hidden">
+          {/* Decorative circles */}
+          <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
+          <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-white/5" />
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shadow-lg">
+              <span className="text-2xl font-bold text-white">{initials}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-bold truncate">{user?.name || 'Orderbooker'}</h2>
+              {user?.username && (
+                <p className="text-xs text-blue-200 mt-0.5 flex items-center gap-1">
+                  <UserCircle className="h-3 w-3" />
+                  @{user.username}
+                </p>
+              )}
+              {user?.phone && (
+                <p className="text-xs text-blue-100 mt-0.5 flex items-center gap-1">
+                  <Phone className="h-3 w-3" />
+                  {user.phone}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Shield className="h-4 w-4 text-primary" />
+            <span className="text-xs font-semibold text-primary uppercase tracking-wider">Role</span>
+          </div>
+          <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs font-medium">
+            Orderbooker
+          </Badge>
+        </CardContent>
+      </Card>
+
+      {/* Performance Stats */}
+      <Card className="animate-fade-in relative overflow-hidden" style={{ animationDelay: '100ms' }}>
+        <div className="mesh-gradient absolute inset-0 pointer-events-none" />
+        <CardHeader className="pb-2 relative z-10">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            Performance — {currentMonth}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0 relative z-10">
+          {profileLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="flex flex-col items-center gap-1 p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                </div>
+                <p className="text-sm font-bold text-green-600">{formatCurrency(totalRecovery)}</p>
+                <p className="text-[9px] text-muted-foreground">Total Recovery</p>
+              </div>
+              <div className="flex flex-col items-center gap-1 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                  <MapPin className="h-4 w-4 text-blue-600" />
+                </div>
+                <p className="text-sm font-bold text-blue-600">{uniqueShops}</p>
+                <p className="text-[9px] text-muted-foreground">Shops Visited</p>
+              </div>
+              <div className="flex flex-col items-center gap-1 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                  <BarChart3 className="h-4 w-4 text-amber-600" />
+                </div>
+                <p className="text-sm font-bold text-amber-600">{formatCurrency(avgPerVisit)}</p>
+                <p className="text-[9px] text-muted-foreground">Avg / Visit</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions */}
+      <Card className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+        <CardContent className="p-4 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Quick Actions</p>
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 h-11"
+            onClick={onChangePassword}
+          >
+            <div className="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+              <KeyRound className="h-4 w-4 text-blue-600" />
+            </div>
+            <div className="text-left">
+              <span className="text-sm font-medium">Change Password</span>
+              <p className="text-[10px] text-muted-foreground">Update your account password</p>
+            </div>
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 h-11"
+            onClick={onOpenSettings}
+          >
+            <div className="h-8 w-8 rounded-lg bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center">
+              <Settings className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+            </div>
+            <div className="text-left">
+              <span className="text-sm font-medium">Settings</span>
+              <p className="text-[10px] text-muted-foreground">Backup, sync & app settings</p>
+            </div>
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Share Profile */}
+      <Card className="animate-fade-in" style={{ animationDelay: '300ms' }}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Share2 className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Share Profile</span>
+            </div>
+            <ShareMenu
+              title="Share Profile"
+              text={`${user?.name} is an orderbooker at Al-Falah Traders. Recovery this month: ${formatCurrency(totalRecovery)}`}
+              className="h-9 w-9"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Share your profile info with shops or team members
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ─── Recovery History View ───────────────────────────────────────────────────
+
+type HistoryDateFilter = '7days' | '30days' | 'all';
 
 function RecoveryHistory() {
   const { user } = useAppStore();
-  const [transactions, setTransactions] = useState<RecoveryTransaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<RecoveryTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dateFilter, setDateFilter] = useState<HistoryDateFilter>('all');
 
   const fetchHistory = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/transactions?limit=100&type=recovery&createdBy=${user.id}`);
+      const res = await fetch(`/api/transactions?limit=500&type=recovery&createdBy=${user.id}`);
       if (res.ok) {
         const data = await res.json();
-        setTransactions(data.transactions || []);
+        setAllTransactions(data.transactions || []);
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
   }, [user]);
 
   useEffect(() => { fetchHistory(); }, [fetchHistory]);
+
+  // Filter by date range
+  const transactions = allTransactions.filter((txn) => {
+    if (dateFilter === 'all') return true;
+    const now = new Date();
+    const txnDate = new Date(txn.createdAt);
+    const cutoff = new Date();
+    if (dateFilter === '7days') {
+      cutoff.setDate(now.getDate() - 7);
+    } else {
+      cutoff.setDate(now.getDate() - 30);
+    }
+    return txnDate >= cutoff;
+  });
 
   // Group by date
   const grouped = transactions.reduce<Record<string, RecoveryTransaction[]>>((acc, txn) => {
@@ -195,6 +398,13 @@ function RecoveryHistory() {
   const dateKeys = Object.keys(grouped);
 
   const totalRecovered = transactions.reduce((s, t) => s + t.amount, 0);
+  const avgPerEntry = transactions.length > 0 ? Math.round(totalRecovered / transactions.length) : 0;
+
+  const filterButtons: { key: HistoryDateFilter; label: string }[] = [
+    { key: '7days', label: 'Last 7 days' },
+    { key: '30days', label: 'Last 30 days' },
+    { key: 'all', label: 'All Time' },
+  ];
 
   if (loading) {
     return (
@@ -204,7 +414,7 @@ function RecoveryHistory() {
     );
   }
 
-  if (transactions.length === 0) {
+  if (allTransactions.length === 0) {
     return (
       <div className="p-4 space-y-4">
         <div className="flex items-center gap-2">
@@ -229,92 +439,135 @@ function RecoveryHistory() {
           <Clock className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-bold">Recovery History</h2>
         </div>
-        <Badge variant="secondary" className="text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-          {formatCurrency(totalRecovered)} total
-        </Badge>
       </div>
 
-      <ScrollArea className="max-h-[calc(100vh-12rem)]">
-        <div className="space-y-4 pb-4">
-          {dateKeys.map((dateKey) => {
-            const items = grouped[dateKey];
-            const dayTotal = items.reduce((s, t) => s + t.amount, 0);
-            return (
-              <div key={dateKey}>
-                {/* Date Header */}
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                    <span className="text-sm font-semibold">{dateKey}</span>
-                    <Badge variant="outline" className="text-[10px]">{items.length} entries</Badge>
+      {/* Summary Row */}
+      <Card className="overflow-hidden animate-fade-in">
+        <CardContent className="p-3">
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className="text-[10px] text-muted-foreground font-medium">Entries</p>
+              <p className="text-sm font-bold tabular-nums">{transactions.length}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground font-medium">Total Recovered</p>
+              <p className="text-sm font-bold text-green-600 tabular-nums">{formatCurrency(totalRecovered)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground font-medium">Avg / Entry</p>
+              <p className="text-sm font-bold tabular-nums">{formatCurrency(avgPerEntry)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Date Range Filter */}
+      <div className="flex gap-2">
+        {filterButtons.map((btn) => (
+          <Button
+            key={btn.key}
+            size="sm"
+            variant={dateFilter === btn.key ? 'default' : 'outline'}
+            className={`flex-1 text-xs font-medium h-8 ${dateFilter === btn.key ? 'bg-primary hover:bg-primary/90 text-white' : 'hover:bg-muted'}`}
+            onClick={() => setDateFilter(btn.key)}
+          >
+            {btn.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* Filtered content */}
+      {transactions.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+            <Clock className="h-8 w-8 mb-2 opacity-20" />
+            <p className="text-sm">No recovery entries in this period</p>
+            <p className="text-xs mt-1">Try selecting a different time range</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <ScrollArea className="max-h-[calc(100vh-18rem)]">
+          <div className="space-y-4 pb-4">
+            {dateKeys.map((dateKey) => {
+              const items = grouped[dateKey];
+              const dayTotal = items.reduce((s, t) => s + t.amount, 0);
+              return (
+                <div key={dateKey}>
+                  {/* Date Header */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                      <span className="text-sm font-semibold">{dateKey}</span>
+                      <Badge variant="outline" className="text-[10px]">{items.length} entries</Badge>
+                    </div>
+                    <span className="text-sm font-bold text-green-600">{formatCurrency(dayTotal)}</span>
                   </div>
-                  <span className="text-sm font-bold text-green-600">{formatCurrency(dayTotal)}</span>
-                </div>
 
-                {/* Transactions */}
-                <div className="space-y-2">
-                  {items.map((txn) => (
-                    <Card key={txn.id} className="alfalah-card-hover overflow-hidden">
-                      <CardContent className="p-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <h4 className="text-sm font-semibold truncate">{txn.shop.name}</h4>
-                              {txn.gpsLat && txn.gpsLng ? (
-                                <div className="h-2 w-2 rounded-full bg-green-500 shrink-0" title="GPS captured" />
-                              ) : (
-                                <div className="h-2 w-2 rounded-full bg-gray-300 dark:bg-gray-600 shrink-0" title="No GPS" />
+                  {/* Transactions */}
+                  <div className="space-y-2">
+                    {items.map((txn) => (
+                      <Card key={txn.id} className="alfalah-card-hover overflow-hidden">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <h4 className="text-sm font-semibold truncate">{txn.shop.name}</h4>
+                                {txn.gpsLat && txn.gpsLng ? (
+                                  <div className="h-2 w-2 rounded-full bg-green-500 shrink-0" title="GPS captured" />
+                                ) : (
+                                  <div className="h-2 w-2 rounded-full bg-gray-300 dark:bg-gray-600 shrink-0" title="No GPS" />
+                                )}
+                              </div>
+                              {txn.shop.area && (
+                                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {txn.shop.area}
+                                </p>
                               )}
-                            </div>
-                            {txn.shop.area && (
-                              <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {txn.shop.area}
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {new Date(txn.createdAt).toLocaleTimeString('en-PK', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
                               </p>
-                            )}
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {new Date(txn.createdAt).toLocaleTimeString('en-PK', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </p>
-                          </div>
-                          <div className="text-right shrink-0 ml-3">
-                            <p className="text-sm font-bold text-green-600">
-                              +{formatCurrency(txn.amount)}
-                            </p>
-                            <div className="flex items-center gap-1 justify-end mt-0.5">
-                              <Navigation className="h-2.5 w-2.5 text-muted-foreground" />
-                              <span className="text-[9px] text-muted-foreground">
-                                {txn.gpsLat && txn.gpsLng ? 'GPS' : 'No GPS'}
-                              </span>
+                            </div>
+                            <div className="text-right shrink-0 ml-3">
+                              <p className="text-sm font-bold text-green-600">
+                                +{formatCurrency(txn.amount)}
+                              </p>
+                              <div className="flex items-center gap-1 justify-end mt-0.5">
+                                <Navigation className="h-2.5 w-2.5 text-muted-foreground" />
+                                <span className="text-[9px] text-muted-foreground">
+                                  {txn.gpsLat && txn.gpsLng ? 'GPS' : 'No GPS'}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
 
-                {/* Day Total */}
-                <div className="flex items-center justify-end mt-2 pr-1">
-                  <span className="text-[10px] text-muted-foreground">Day total:&nbsp;</span>
-                  <span className="text-xs font-bold text-green-600">{formatCurrency(dayTotal)}</span>
-                </div>
+                  {/* Day Total */}
+                  <div className="flex items-center justify-end mt-2 pr-1">
+                    <span className="text-[10px] text-muted-foreground">Day total:&nbsp;</span>
+                    <span className="text-xs font-bold text-green-600">{formatCurrency(dayTotal)}</span>
+                  </div>
 
-                <Separator className="mt-3" />
-              </div>
-            );
-          })}
-        </div>
-      </ScrollArea>
+                  <Separator className="mt-3" />
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+      )}
     </div>
   );
 }
 
 // ─── Main Layout ────────────────────────────────────────────────────────────
 
-export default function OfflineBanner({ isOnline, unsyncedCount, syncing, onSync }: { isOnline: boolean; unsyncedCount: number; syncing: boolean; onSync: () => void }) {
+function OfflineBanner({ isOnline, unsyncedCount, syncing, onSync }: { isOnline: boolean; unsyncedCount: number; syncing: boolean; onSync: () => void }) {
   if (isOnline && unsyncedCount === 0) return null;
 
   if (!isOnline) {
@@ -375,7 +628,7 @@ function PendingSyncCard({ transactions }: { transactions: PendingTransaction[] 
   );
 }
 
-function OrderbookerLayout() {
+export default function OrderbookerLayout() {
   const { user, currentView, setCurrentView, logout } = useAppStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
@@ -391,7 +644,8 @@ function OrderbookerLayout() {
   const isDashboard = currentView === 'orderbooker-dashboard';
   const isHistory = currentView === 'orderbooker-history';
   const isLedger = currentView === 'orderbooker-ledger';
-  const showBottomNav = isDashboard || isHistory || isLedger;
+  const isProfile = currentView === 'orderbooker-profile';
+  const showBottomNav = isDashboard || isHistory || isLedger || isProfile;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -419,7 +673,7 @@ function OrderbookerLayout() {
           <div>
             <h1 className="text-sm font-bold text-white leading-tight">Al-Falah Traders</h1>
             <p className="text-[9px] text-blue-200 leading-tight hidden sm:block">
-              {isHistory ? 'Recovery History' : isLedger ? 'Shop Ledger' : 'Orderbooker Portal'}
+              {isHistory ? 'Recovery History' : isLedger ? 'Shop Ledger' : isProfile ? 'My Profile' : 'Orderbooker Portal'}
             </p>
           </div>
         </div>
@@ -485,6 +739,7 @@ function OrderbookerLayout() {
         {isDashboard && <OrderbookerDashboard />}
         {isHistory && <RecoveryHistory />}
         {isLedger && <LedgerView />}
+        {isProfile && <ProfileView onChangePassword={() => setChangePasswordOpen(true)} onOpenSettings={() => setSettingsOpen(true)} />}
       </main>
 
       {/* Bottom Nav */}
@@ -492,7 +747,7 @@ function OrderbookerLayout() {
         <nav className="sticky bottom-0 bottom-nav-glass z-40 safe-area-bottom">
           <div className="flex items-center justify-around py-2 px-2">
             <button
-              className={`tab-indicator flex flex-col items-center gap-0.5 px-5 py-1.5 rounded-xl transition-all duration-200 ${isDashboard ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+              className={`tab-indicator flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200 ${isDashboard ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
               onClick={() => setCurrentView('orderbooker-dashboard')}
             >
               <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${isDashboard ? 'bg-primary/10' : ''}`}>
@@ -501,7 +756,7 @@ function OrderbookerLayout() {
               <span className="text-[10px] font-semibold">My Route</span>
             </button>
             <button
-              className={`tab-indicator flex flex-col items-center gap-0.5 px-5 py-1.5 rounded-xl transition-all duration-200 ${isHistory ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+              className={`tab-indicator flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200 ${isHistory ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
               onClick={() => setCurrentView('orderbooker-history')}
             >
               <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${isHistory ? 'bg-primary/10' : ''}`}>
@@ -510,13 +765,22 @@ function OrderbookerLayout() {
               <span className="text-[10px] font-semibold">History</span>
             </button>
             <button
-              className={`tab-indicator flex flex-col items-center gap-0.5 px-5 py-1.5 rounded-xl transition-all duration-200 ${isLedger ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+              className={`tab-indicator flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200 ${isLedger ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
               onClick={() => setCurrentView('orderbooker-ledger')}
             >
               <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${isLedger ? 'bg-primary/10' : ''}`}>
                 <FileText className={`h-4.5 w-4.5 ${isLedger ? 'text-primary' : ''}`} />
               </div>
               <span className="text-[10px] font-semibold">Ledger</span>
+            </button>
+            <button
+              className={`tab-indicator flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200 ${isProfile ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+              onClick={() => setCurrentView('orderbooker-profile')}
+            >
+              <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${isProfile ? 'bg-primary/10' : ''}`}>
+                <User className={`h-4.5 w-4.5 ${isProfile ? 'text-primary' : ''}`} />
+              </div>
+              <span className="text-[10px] font-semibold">Profile</span>
             </button>
           </div>
         </nav>
@@ -532,6 +796,75 @@ function OrderbookerLayout() {
       <SessionTimeoutDialog />
     </div>
   );
+}
+
+// ─── Pull to Refresh Hook ────────────────────────────────────────────────────
+
+function usePullToRefresh(onRefresh: () => void) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const startYRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const threshold = 80;
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (el.scrollTop <= 0 && !isRefreshing) {
+        startYRef.current = e.touches[0].clientY;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isRefreshing) return;
+      if (el.scrollTop > 0) {
+        setPullDistance(0);
+        return;
+      }
+      const diff = e.touches[0].clientY - startYRef.current;
+
+      if (diff < 0) {
+        setPullDistance(0);
+        return;
+      }
+
+      const distance = Math.max(0, Math.min((diff - 20) * 0.5, threshold));
+      setPullDistance(distance);
+
+      if (diff > 20) {
+        e.preventDefault();
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (isRefreshing) return;
+      if (pullDistance >= threshold * 0.8) {
+        setIsRefreshing(true);
+        setPullDistance(0);
+        onRefresh();
+        setTimeout(() => {
+          setIsRefreshing(false);
+        }, 1000);
+      } else {
+        setPullDistance(0);
+      }
+    };
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isRefreshing, pullDistance, onRefresh]);
+
+  return { containerRef, isRefreshing, pullDistance };
 }
 
 // ─── Orderbooker Dashboard ──────────────────────────────────────────────────
@@ -642,6 +975,13 @@ function OrderbookerDashboard() {
     setPendingTxns(getPendingTransactions());
   }, [refreshKey]);
 
+  // Pull to refresh
+  const handlePullRefresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
+
+  const { containerRef, isRefreshing, pullDistance } = usePullToRefresh(handlePullRefresh);
+
   // Recovery summary calculations
   const totalRecovered = todayRecovery.reduce((s, t) => s + t.amount, 0);
   const visitedShopIds = new Set(todayRecovery.map((t) => t.shop.id));
@@ -735,7 +1075,7 @@ function OrderbookerDashboard() {
       setRefreshKey((k) => k + 1);
     } catch {
       // Network error — queue for offline sync
-      const queued = addPendingTransaction({
+      addPendingTransaction({
         shopId: selectedShop.id,
         shopName: selectedShop.name,
         type: 'recovery',
@@ -772,7 +1112,21 @@ function OrderbookerDashboard() {
   const visitProgress = shopsTotal > 0 ? Math.round((shopsVisited / shopsTotal) * 100) : 0;
 
   return (
-    <div className="space-y-4 p-4">
+    <div ref={containerRef} className="space-y-4 p-4" style={{ touchAction: 'pan-y' }}>
+      {/* Pull to Refresh Indicator */}
+      <div
+        className="flex items-center justify-center overflow-hidden transition-all duration-200"
+        style={{
+          height: isRefreshing ? 48 : pullDistance,
+          opacity: (isRefreshing || pullDistance > 10) ? 1 : 0,
+        }}
+      >
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span className="text-xs font-medium">{isRefreshing ? 'Refreshing...' : 'Pull to refresh'}</span>
+        </div>
+      </div>
+
       {/* Success Overlay */}
       <SuccessOverlay
         show={showSuccess}
@@ -983,6 +1337,20 @@ function OrderbookerDashboard() {
                     <Banknote className="h-3.5 w-3.5 mr-1.5" />
                     Collect Recovery
                   </Button>
+                  {shop.phone && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-9 w-9 p-0 shrink-0 border-green-200 dark:border-green-800 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.location.href = `tel:${shop.phone}`;
+                      }}
+                      aria-label={`Call ${shop.name}`}
+                    >
+                      <PhoneCall className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1339,13 +1707,25 @@ function ShopDetailDialog({
 
         {/* Collect Recovery Button at Bottom */}
         <div className="shrink-0 border-t border-border/50 bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <Button
-            className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-medium hover-glow-primary btn-ripple"
-            onClick={() => onCollectRecovery(shop)}
-          >
-            <Banknote className="h-4 w-4 mr-2" />
-            Collect Recovery
-          </Button>
+          <div className="flex gap-2">
+            {shop.phone && (
+              <Button
+                variant="outline"
+                className="h-11 w-11 p-0 shrink-0 border-green-200 dark:border-green-800 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+                onClick={() => { window.location.href = `tel:${shop.phone}`; }}
+                aria-label={`Call ${shop.name}`}
+              >
+                <PhoneCall className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              className="flex-1 h-11 bg-primary hover:bg-primary/90 text-white font-medium hover-glow-primary btn-ripple"
+              onClick={() => onCollectRecovery(shop)}
+            >
+              <Banknote className="h-4 w-4 mr-2" />
+              Collect Recovery
+            </Button>
+          </div>
         </div>
       </div>
     </div>

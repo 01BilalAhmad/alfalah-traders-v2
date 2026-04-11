@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-// GET /api/transactions?shopId=xxx&orderbookerId=xxx&date=xxx&type=xxx
+// GET /api/transactions?shopId=xxx&orderbookerId=xxx&date=xxx&startDate=xxx&type=xxx
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const shopId = searchParams.get('shopId');
     const orderbookerId = searchParams.get('orderbookerId');
     const date = searchParams.get('date');
+    const startDate = searchParams.get('startDate');
     const type = searchParams.get('type');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
@@ -21,11 +22,15 @@ export async function GET(request: NextRequest) {
       where.shop = { orderbookerId };
     }
     if (date) {
-      const startDate = new Date(date);
-      startDate.setHours(0, 0, 0, 0);
-      const endDate = new Date(date);
-      endDate.setHours(23, 59, 59, 999);
-      where.createdAt = { gte: startDate, lte: endDate };
+      const dStart = new Date(date);
+      dStart.setHours(0, 0, 0, 0);
+      const dEnd = new Date(date);
+      dEnd.setHours(23, 59, 59, 999);
+      where.createdAt = { gte: dStart, lte: dEnd };
+    } else if (startDate) {
+      const sDate = new Date(startDate);
+      sDate.setHours(0, 0, 0, 0);
+      where.createdAt = { gte: sDate };
     }
 
     const [transactions, total] = await Promise.all([
