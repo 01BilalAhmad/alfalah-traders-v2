@@ -13,6 +13,7 @@ import AdminReconciliation from '@/components/alfalah/AdminReconciliation';
 import AdminAuditLog from '@/components/alfalah/AdminAuditLog';
 import AdminOBAnalytics from '@/components/alfalah/AdminOBAnalytics';
 import AdminMonthlySummary from '@/components/alfalah/AdminMonthlySummary';
+import AdminTransactions from '@/components/alfalah/AdminTransactions';
 import ShopDetailAnalytics from '@/components/alfalah/ShopDetailAnalytics';
 import ActivityTimeline from '@/components/alfalah/ActivityTimeline';
 import OrderbookerLayout from '@/components/alfalah/OrderbookerLayout';
@@ -27,6 +28,8 @@ function AdminRouter() {
       return <AdminCreditPosting />;
     case 'admin-recovery':
       return <AdminRecoveryReport />;
+    case 'admin-transactions':
+      return <AdminTransactions />;
     case 'admin-shops':
       return <AdminShops />;
     case 'admin-orderbookers':

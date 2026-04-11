@@ -63,6 +63,7 @@ import {
   AlertTriangle,
   Pencil,
   Trash2,
+  Clock,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { WORKING_DAYS, getTodayRouteDay } from '@/lib/utils';
@@ -199,6 +200,10 @@ export default function AdminCreditPosting() {
 
   // Duplicate credit detection state
   const [duplicateCreditWarning, setDuplicateCreditWarning] = useState<{ shopName: string; todayTotal: number } | null>(null);
+
+  // Session timer state
+  const [sessionSeconds, setSessionSeconds] = useState(0);
+  const sessionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Edit transaction state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -342,6 +347,24 @@ export default function AdminCreditPosting() {
       }
     } catch { /* silent */ }
   }, [selectedOrderbooker]);
+
+  // Session timer - starts on mount, shows elapsed time
+  useEffect(() => {
+    sessionTimerRef.current = setInterval(() => {
+      setSessionSeconds((s) => s + 1);
+    }, 1000);
+    return () => {
+      if (sessionTimerRef.current) clearInterval(sessionTimerRef.current);
+    };
+  }, []);
+
+  const sessionMinutes = Math.floor(sessionSeconds / 60);
+  const sessionHrs = Math.floor(sessionMinutes / 60);
+  const sessionMins = sessionMinutes % 60;
+  const sessionSecs = sessionSeconds % 60;
+  const sessionTimeString = sessionHrs > 0
+    ? `${sessionHrs}:${String(sessionMins).padStart(2, '0')}:${String(sessionSecs).padStart(2, '0')}`
+    : `${String(sessionMins).padStart(2, '0')}:${String(sessionSecs).padStart(2, '0')}`;
 
   useEffect(() => {
     fetchOrderbookers();
@@ -636,6 +659,14 @@ export default function AdminCreditPosting() {
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Posted This Session</p>
               <p className="text-xl font-bold text-foreground tabular-nums number-animate">{creditSessionCount}</p>
+            </div>
+            {/* Session Timer */}
+            <div className="flex flex-col items-end shrink-0">
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                <span className="text-[10px] font-medium">Session</span>
+              </div>
+              <p className="text-sm font-mono font-bold text-foreground/70 tabular-nums">{sessionTimeString}</p>
             </div>
             {/* Quick Post Toggle */}
             <div className="flex items-center gap-2 shrink-0">

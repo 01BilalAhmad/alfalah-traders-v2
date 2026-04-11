@@ -27,6 +27,7 @@ import {
   Activity,
   Banknote,
   ArrowDownRight,
+  Receipt,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ThemeToggle } from './ThemeToggle';
@@ -48,6 +49,7 @@ const adminNavItems: NavItem[] = [
   { id: 'admin-dashboard', label: 'Dashboard', icon: <Home className="h-5 w-5" /> },
   { id: 'admin-credit', label: 'Credit Posting', icon: <CreditCard className="h-5 w-5" /> },
   { id: 'admin-recovery', label: 'Recovery Report', icon: <TrendingUp className="h-5 w-5" /> },
+  { id: 'admin-transactions', label: 'Transactions', icon: <Receipt className="h-5 w-5" /> },
   { id: 'admin-shops', label: 'Manage Shops', icon: <Store className="h-5 w-5" /> },
   { id: 'admin-orderbookers', label: 'Manage Orderbookers', icon: <Users className="h-5 w-5" /> },
   { id: 'admin-reconciliation', label: 'Reconciliation', icon: <FileText className="h-5 w-5" /> },
