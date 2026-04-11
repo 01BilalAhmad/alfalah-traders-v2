@@ -55,6 +55,7 @@ import {
   ExternalLink,
   Calendar,
   Banknote,
+  Sparkles,
 } from 'lucide-react';
 
 function formatCurrency(amount: number): string {
@@ -135,8 +136,109 @@ interface MonthSummary {
   prevNetPosition: number;
 }
 
+interface SparklineData {
+  orderbookerId: string;
+  orderbookerName: string;
+  data: number[];
+  total: number;
+  avg: number;
+  trend: string;
+}
+
 const ROUTE_DAYS = [...WORKING_DAYS];
 const ROUTE_COLORS = ['#1E3A8A', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+
+function RecoverySparkline({ data, width = 100, height = 28 }: { data: number[]; width?: number; height?: number }) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const padding = 2;
+  const chartHeight = height - padding * 2;
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - padding - ((val - min) / range) * chartHeight;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const areaPoints = `0,${height} ${points} ${width},${height}`;
+
+  // Determine color based on trend (last 3 vs first 3)
+  const halfLen = Math.floor(data.length / 2);
+  const firstHalf = data.slice(0, halfLen);
+  const secondHalf = data.slice(halfLen);
+  const firstAvg = firstHalf.reduce((s, v) => s + v, 0) / firstHalf.length;
+  const secondAvg = secondHalf.reduce((s, v) => s + v, 0) / secondHalf.length;
+  const isUp = secondAvg > firstAvg;
+  const hasData = data.some(d => d > 0);
+
+  const strokeColor = isUp ? '#10B981' : hasData ? '#F59E0B' : '#94A3B8';
+  const fillColor = isUp ? 'rgba(16, 185, 129, 0.12)' : hasData ? 'rgba(245, 158, 11, 0.06)' : 'rgba(148, 163, 184, 0.06)';
+
+  // Generate day labels for tooltip
+  const today = new Date();
+  const dayLabels = data.map((_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (data.length - 1 - i));
+    return d.toLocaleDateString('en-PK', { weekday: 'short', day: 'numeric' });
+  });
+
+  return (
+    <div className="group relative inline-flex items-center">
+      <svg
+        width={width}
+        height={height}
+        className="overflow-visible"
+        onMouseLeave={() => setHoveredIdx(null)}
+      >
+        <polygon points={areaPoints} fill={fillColor} />
+        <polyline
+          points={points}
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Interactive hover areas */}
+        {data.map((val, i) => {
+          const cx = (i / (data.length - 1)) * width;
+          const cy = height - padding - ((val - min) / range) * chartHeight;
+          return (
+            <g key={i}>
+              <rect
+                x={cx - width / data.length / 2}
+                y={0}
+                width={width / data.length}
+                height={height}
+                fill="transparent"
+                className="cursor-pointer"
+                onMouseEnter={() => setHoveredIdx(i)}
+              />
+              {hoveredIdx === i && (
+                <>
+                  <circle cx={cx} cy={cy} r={3.5} fill={strokeColor} stroke="white" strokeWidth={1.5} />
+                  <line x1={cx} y1={cy} x2={cx} y2={height} stroke={strokeColor} strokeWidth={0.5} strokeDasharray="2 2" opacity={0.5} />
+                </>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+      {/* Tooltip */}
+      {hoveredIdx !== null && (
+        <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="bg-popover text-popover-foreground text-[10px] font-medium rounded-md px-2 py-1 shadow-md border border-border whitespace-nowrap">
+            <span className="text-muted-foreground">{dayLabels[hoveredIdx]}:</span>{' '}
+            <span className="font-bold tabular-nums">{formatCurrency(data[hoveredIdx])}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function DashboardSkeleton() {
   return (
@@ -213,6 +315,8 @@ export default function AdminDashboard() {
   const [recentTxns, setRecentTxns] = useState<TodayTxn[]>([]);
   const [recentTxnsLoading, setRecentTxnsLoading] = useState(true);
   const [bizSummary, setBizSummary] = useState<{ totalCredit: number; totalRecovery: number; netBalance: number } | null>(null);
+  const [sparklineData, setSparklineData] = useState<SparklineData[]>([]);
+  const [sparklineLoading, setSparklineLoading] = useState(true);
 
   // Animated number counters for KPI cards
   const animatedTodayCredit = useAnimatedNumber(data.todayCredit, 900);
@@ -267,6 +371,18 @@ export default function AdminDashboard() {
       if (summaryRes.ok) setBizSummary(await summaryRes.json());
     } catch { /* silent */ }
     finally { setLoading(false); setTimelineLoading(false); setRecentTxnsLoading(false); }
+  }, []);
+
+  // Fetch OB recovery sparkline data
+  useEffect(() => {
+    async function fetchSparkline() {
+      try {
+        const res = await fetch('/api/reports/ob-recovery-sparkline?days=7');
+        if (res.ok) setSparklineData(await res.json());
+      } catch { /* silent */ }
+      finally { setSparklineLoading(false); }
+    }
+    fetchSparkline();
   }, []);
 
   // Initial load on mount
@@ -1003,9 +1119,15 @@ export default function AdminDashboard() {
               <Users className="h-4 w-4 text-primary" />
               OB Performance Summary
             </CardTitle>
-            <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">
-              {data.orderbookers.length} orderbookers
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-primary/50" />
+                7d Recovery Trend
+              </span>
+              <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">
+                {data.orderbookers.length} orderbookers
+              </span>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="px-5 pb-4">
@@ -1017,6 +1139,7 @@ export default function AdminDashboard() {
               const progressClass = ob.totalOutstanding > 50000 ? 'progress-gradient-red' : ob.totalOutstanding > 25000 ? 'progress-gradient-amber' : 'progress-gradient-green';
               const avatarColors = ['bg-primary/15 text-primary', 'bg-emerald-500/15 text-emerald-600', 'bg-amber-500/15 text-amber-600', 'bg-rose-500/15 text-rose-600', 'bg-violet-500/15 text-violet-600'];
               const avatarIdx = ob.name.charCodeAt(0) % avatarColors.length;
+              const spark = sparklineData.find(s => s.orderbookerId === ob.id);
               return (
                 <div key={ob.id} className="alfalah-card-hover rounded-xl p-3.5 cursor-default" onClick={() => setCurrentView('admin-ob-analytics')}>
                   <div className="flex items-center gap-3 mb-3">
@@ -1032,8 +1155,39 @@ export default function AdminDashboard() {
                     <span className="text-xs text-muted-foreground">Outstanding</span>
                     <span className={`text-sm font-bold tabular-nums ${colorClass}`}>{formatCurrency(ob.totalOutstanding)}</span>
                   </div>
-                  <div className={`progress-gradient ${progressClass}`}>
+                  <div className={`progress-gradient ${progressClass} mb-2.5`}>
                     <div style={{ width: `${Math.min(pct, 100)}%` }} />
+                  </div>
+                  {/* Recovery Trend Sparkline */}
+                  <div className="bg-muted/40 rounded-lg p-2 border border-border/30">
+                    {sparklineLoading ? (
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="skeleton-shimmer h-4 w-20" />
+                        <Skeleton className="skeleton-shimmer h-5 w-16" />
+                      </div>
+                    ) : spark && spark.data.length >= 2 ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <RecoverySparkline data={spark.data} width={80} height={24} />
+                          <span className="text-[9px] text-muted-foreground leading-tight">
+                            7d avg: <span className="font-semibold text-foreground tabular-nums">{formatCurrency(spark.avg)}</span>
+                          </span>
+                        </div>
+                        <span className={`text-[10px] font-bold tabular-nums shrink-0 flex items-center gap-0.5 ${
+                          spark.trend === 'up' ? 'text-green-600 dark:text-green-400' : spark.trend === 'down' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'
+                        }`}>
+                          {spark.trend === 'up' ? <ArrowUp className="h-3 w-3" /> : spark.trend === 'down' ? <ArrowDown className="h-3 w-3" /> : <span className="text-[8px]">—</span>}
+                          {spark.trend !== 'stable' ? (
+                            <span>{spark.trend === 'up' ? 'Up' : 'Down'}</span>
+                          ) : null}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-16 flex items-center justify-center text-[10px] text-muted-foreground/50">No data</div>
+                        <span className="text-[9px] text-muted-foreground/50">No recovery in 7 days</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

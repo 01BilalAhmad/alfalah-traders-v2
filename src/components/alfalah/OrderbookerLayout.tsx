@@ -167,6 +167,25 @@ function SuccessOverlay({
 
 type DateFilter = '7days' | '30days' | 'all';
 
+interface WeeklyData {
+  weekLabel: string;
+  startDate: string;
+  endDate: string;
+  total: number;
+  days: number;
+  avg: number;
+  shopsVisited: number;
+}
+
+interface WeeklyPerformance {
+  orderbookerName: string;
+  totalRecovered: number;
+  totalDays: number;
+  avgDaily: number;
+  bestDay: { date: string; amount: number } | null;
+  weeklyData: WeeklyData[];
+}
+
 function ProfileView({
   onChangePassword,
   onOpenSettings,
@@ -177,10 +196,13 @@ function ProfileView({
   const { user } = useAppStore();
   const [monthlyRecovery, setMonthlyRecovery] = useState<RecoveryTransaction[]>([]);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [weeklyPerf, setWeeklyPerf] = useState<WeeklyPerformance | null>(null);
+  const [weeklyLoading, setWeeklyLoading] = useState(true);
 
   const fetchProfileData = useCallback(async () => {
     if (!user) return;
     setProfileLoading(true);
+    setWeeklyLoading(true);
     try {
       // Fetch all recovery transactions for this month
       const now = new Date();
@@ -190,8 +212,18 @@ function ProfileView({
         const data = await res.json();
         setMonthlyRecovery(data.transactions || []);
       }
+
+      // Fetch weekly performance data
+      const weeklyRes = await fetch(`/api/reports/ob-weekly-performance?orderbookerId=${user.id}&weeks=4`);
+      if (weeklyRes.ok) {
+        const weeklyData = await weeklyRes.json();
+        setWeeklyPerf(weeklyData);
+      }
     } catch { /* silent */ }
-    finally { setProfileLoading(false); }
+    finally {
+      setProfileLoading(false);
+      setWeeklyLoading(false);
+    }
   }, [user]);
 
   useEffect(() => { fetchProfileData(); }, [fetchProfileData]);
@@ -289,8 +321,111 @@ function ProfileView({
         </CardContent>
       </Card>
 
+      {/* Weekly Performance Summary Row */}
+      <Card className="animate-fade-in relative overflow-hidden" style={{ animationDelay: '150ms' }}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            Weekly Performance — Last 4 Weeks
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          {weeklyLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : weeklyPerf ? (
+            <div className="space-y-4">
+              {/* 3 Stat Cards */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col items-center gap-1 p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+                  <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                  </div>
+                  <p className="text-sm font-bold text-green-600">{formatCurrency(weeklyPerf.totalRecovered)}</p>
+                  <p className="text-[9px] text-muted-foreground">Total Recovered</p>
+                </div>
+                <div className="flex flex-col items-center gap-1 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                  <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <BarChart3 className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <p className="text-sm font-bold text-blue-600">{formatCurrency(weeklyPerf.avgDaily)}</p>
+                  <p className="text-[9px] text-muted-foreground">Daily Average</p>
+                </div>
+                <div className="flex flex-col items-center gap-1 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                  <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                    <Zap className="h-4 w-4 text-amber-600" />
+                  </div>
+                  <p className="text-sm font-bold text-amber-600">
+                    {weeklyPerf.bestDay ? formatCurrency(weeklyPerf.bestDay.amount) : '—'}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground">Best Single Day</p>
+                </div>
+              </div>
+
+              {/* Weekly Recovery Bar Chart */}
+              {weeklyPerf.weeklyData.length > 0 && (
+                <div className="space-y-2.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Week-by-Week Breakdown</p>
+                  {(() => {
+                    const maxTotal = Math.max(...weeklyPerf.weeklyData.map((w) => w.total), 1);
+                    const bestWeekIdx = weeklyPerf.weeklyData.reduce((best, w, i) => w.total > weeklyPerf.weeklyData[best].total ? i : best, 0);
+                    const lowestWeekIdx = weeklyPerf.weeklyData.reduce((lowest, w, i) => w.total < weeklyPerf.weeklyData[lowest].total ? i : lowest, 0);
+
+                    return weeklyPerf.weeklyData.map((week, idx) => {
+                      const pct = maxTotal > 0 ? Math.round((week.total / maxTotal) * 100) : 0;
+                      const isBest = idx === bestWeekIdx;
+                      const isLowest = idx === lowestWeekIdx && weeklyPerf.weeklyData.length > 1;
+
+                      let barClass = 'from-primary to-blue-500';
+                      if (isBest) barClass = 'from-green-500 to-emerald-400';
+                      else if (isLowest) barClass = 'from-amber-500 to-yellow-400';
+
+                      return (
+                        <div key={week.weekLabel}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] font-medium text-foreground">{week.weekLabel}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-muted-foreground">{week.shopsVisited} shops</span>
+                              <span className="text-xs font-bold tabular-nums">{formatCurrency(week.total)}</span>
+                            </div>
+                          </div>
+                          <div className="w-full h-6 bg-muted/50 dark:bg-muted/20 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full bg-gradient-to-r ${barClass} transition-all duration-700 ease-out`}
+                              style={{ width: `${Math.max(pct, 4)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
+
+              {/* Best day callout */}
+              {weeklyPerf.bestDay && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/40">
+                  <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                    Best day: <span className="font-semibold">{weeklyPerf.bestDay.date}</span> — collected{' '}
+                    <span className="font-bold">{formatCurrency(weeklyPerf.bestDay.amount)}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+              <BarChart3 className="h-8 w-8 mb-2 opacity-20" />
+              <p className="text-xs font-medium">No weekly data available</p>
+              <p className="text-[10px] mt-0.5">Start collecting recovery to see your weekly stats</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Quick Actions */}
-      <Card className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+      <Card className="animate-fade-in" style={{ animationDelay: '250ms' }}>
         <CardContent className="p-4 space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Quick Actions</p>
           <Button
@@ -323,7 +458,7 @@ function ProfileView({
       </Card>
 
       {/* Share Profile */}
-      <Card className="animate-fade-in" style={{ animationDelay: '300ms' }}>
+      <Card className="animate-fade-in" style={{ animationDelay: '350ms' }}>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

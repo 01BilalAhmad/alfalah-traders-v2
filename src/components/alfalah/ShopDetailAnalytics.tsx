@@ -9,7 +9,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
 import { useAppStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -108,6 +107,207 @@ interface ShopDetailData {
   recoveryRate: number;
 }
 
+// Balance trend types
+interface BalanceTrendData {
+  shopId: string;
+  shopName: string;
+  currentBalance: number;
+  startBalance: number;
+  change: number;
+  changePercent: number;
+  data: { date: string; balance: number }[];
+}
+
+// ─── Sparkline Mini Chart Component ───
+function SparklineMini({
+  data,
+  direction,
+  width = 100,
+  height = 36,
+}: {
+  data: { date: string; balance: number }[];
+  direction: 'down' | 'up' | 'flat';
+  width?: number;
+  height?: number;
+}) {
+  const balances = data.map((d) => d.balance);
+  const min = Math.min(...balances);
+  const max = Math.max(...balances);
+  const range = max - min || 1;
+  const pad = 2;
+  const chartW = width - pad * 2;
+  const chartH = height - pad * 2;
+
+  const points = balances
+    .map((b, i) => {
+      const x = pad + (i / Math.max(balances.length - 1, 1)) * chartW;
+      const y = pad + chartH - ((b - min) / range) * chartH;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  const color = direction === 'down' ? '#10B981' : direction === 'up' ? '#EF4444' : '#64748B';
+  const fillColor = direction === 'down' ? 'rgba(16,185,129,0.15)' : direction === 'up' ? 'rgba(239,68,68,0.15)' : 'rgba(100,116,139,0.1)';
+
+  // Build filled area path
+  const firstX = pad;
+  const lastX = pad + chartW;
+  const baseline = pad + chartH;
+  const areaPath = `M ${firstX},${baseline} L ${points.split(' ').join(' L ')} L ${lastX},${baseline} Z`;
+
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="flex-shrink-0">
+      <defs>
+        <linearGradient id={`spark-fill-${direction}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#spark-fill-${direction})`} />
+      <polyline points={points} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// ─── Balance Trend Chart Component (Full SVG) ───
+function BalanceTrendChart({
+  data,
+  direction,
+}: {
+  data: { date: string; balance: number }[];
+  direction: 'down' | 'up' | 'flat';
+}) {
+  const balances = data.map((d) => d.balance);
+  const min = Math.min(...balances);
+  const max = Math.max(...balances);
+  const range = max - min || 1;
+
+  // Chart dimensions
+  const svgW = 700;
+  const svgH = 140;
+  const padLeft = 45;
+  const padRight = 12;
+  const padTop = 8;
+  const padBottom = 24;
+  const chartW = svgW - padLeft - padRight;
+  const chartH = svgH - padTop - padBottom;
+
+  const color = direction === 'down' ? '#10B981' : direction === 'up' ? '#EF4444' : '#64748B';
+
+  // Map data to SVG coordinates
+  const points = balances.map((b, i) => ({
+    x: padLeft + (i / Math.max(balances.length - 1, 1)) * chartW,
+    y: padTop + chartH - ((b - min) / range) * chartH,
+  }));
+
+  const polyline = points.map((p) => `${p.x},${p.y}`).join(' ');
+  const baseline = padTop + chartH;
+  const areaPath = `M ${points[0].x},${baseline} L ${polyline.replace(/,/g, ' ').split(' ').join(' L ')} L ${points[points.length - 1].x},${baseline} Z`;
+
+  // Y-axis labels (3 labels)
+  const yTicks = [max, min + (max - min) / 2, min];
+  const yLabels = yTicks.map((v) => {
+    if (v >= 100000) return `${(v / 1000).toFixed(0)}k`;
+    if (v >= 1000) return `${(v / 1000).toFixed(1)}k`;
+    return String(Math.round(v));
+  });
+  const yPositions = yTicks.map((v) => padTop + chartH - ((v - min) / range) * chartH);
+
+  // X-axis labels: every 5th date
+  const xLabels: { label: string; x: number }[] = [];
+  data.forEach((d, i) => {
+    if (i % 5 === 0 || i === data.length - 1) {
+      const dateObj = new Date(d.date + 'T00:00:00');
+      const label = `${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
+      const x = padLeft + (i / Math.max(data.length - 1, 1)) * chartW;
+      xLabels.push({ label, x });
+    }
+  });
+
+  // Grid lines
+  const gridLines = yPositions.map((y) => ({ y }));
+
+  return (
+    <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full h-32" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id={`trend-fill-${direction}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.25} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+        </linearGradient>
+      </defs>
+
+      {/* Grid lines */}
+      {gridLines.map((line, i) => (
+        <line
+          key={`grid-${i}`}
+          x1={padLeft}
+          y1={line.y}
+          x2={svgW - padRight}
+          y2={line.y}
+          stroke="currentColor"
+          className="text-muted-foreground/15"
+          strokeWidth={0.5}
+          strokeDasharray={i === 0 ? 'none' : '3 3'}
+        />
+      ))}
+
+      {/* Y-axis labels */}
+      {yLabels.map((label, i) => (
+        <text
+          key={`ylabel-${i}`}
+          x={padLeft - 6}
+          y={yPositions[i] + 3}
+          textAnchor="end"
+          className="fill-muted-foreground"
+          style={{ fontSize: '10px' }}
+        >
+          Rs. {label}
+        </text>
+      ))}
+
+      {/* X-axis labels */}
+      {xLabels.map((xl, i) => (
+        <text
+          key={`xlabel-${i}`}
+          x={xl.x}
+          y={svgH - 4}
+          textAnchor="middle"
+          className="fill-muted-foreground"
+          style={{ fontSize: '10px' }}
+        >
+          {xl.label}
+        </text>
+      ))}
+
+      {/* Area fill */}
+      <path d={areaPath} fill={`url(#trend-fill-${direction})`} />
+
+      {/* Line */}
+      <polyline
+        points={polyline}
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Start dot */}
+      <circle cx={points[0].x} cy={points[0].y} r={3} fill="white" stroke={color} strokeWidth={2} />
+
+      {/* End dot */}
+      <circle
+        cx={points[points.length - 1].x}
+        cy={points[points.length - 1].y}
+        r={3.5}
+        fill={color}
+        stroke="white"
+        strokeWidth={2}
+      />
+    </svg>
+  );
+}
+
 function DetailSkeleton() {
   return (
     <div className="space-y-6 animate-fade-in">
@@ -130,9 +330,9 @@ function DetailSkeleton() {
 export default function ShopDetailAnalytics() {
   const { selectedShopId, selectedShopName, setCurrentView } = useAppStore();
   const [data, setData] = useState<ShopDetailData | null>(null);
+  const [balanceTrend, setBalanceTrend] = useState<BalanceTrendData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
-
   const fetchShopDetail = useCallback(async () => {
     if (!selectedShopId) return;
     setLoading(true);
@@ -151,9 +351,23 @@ export default function ShopDetailAnalytics() {
     }
   }, [selectedShopId]);
 
+  const fetchBalanceTrend = useCallback(async () => {
+    if (!selectedShopId) return;
+    try {
+      const res = await fetch(`/api/reports/shop-balance-trend?shopId=${selectedShopId}&days=30`);
+      if (res.ok) {
+        const result = await res.json();
+        setBalanceTrend(result);
+      }
+    } catch {
+      // Silently fail — balance trend is supplementary
+    }
+  }, [selectedShopId]);
+
   useEffect(() => {
     fetchShopDetail();
-  }, [fetchShopDetail]);
+    fetchBalanceTrend();
+  }, [fetchShopDetail, fetchBalanceTrend]);
 
   const handleBack = () => {
     setCurrentView('admin-shops');
@@ -200,6 +414,14 @@ export default function ShopDetailAnalytics() {
     if (usage >= 0.8) return 'text-amber-600 dark:text-amber-400';
     return 'text-green-600 dark:text-green-400';
   }, [data]);
+
+  // Balance trend direction: balance down = good (green), balance up = bad (red)
+  const balanceTrendDirection = useMemo<'down' | 'up' | 'flat'>(() => {
+    if (!balanceTrend) return 'flat';
+    if (balanceTrend.change < -10) return 'down';
+    if (balanceTrend.change > 10) return 'up';
+    return 'flat';
+  }, [balanceTrend]);
 
   // Recovery rate color
   const recoveryColor = useMemo(() => {
@@ -330,6 +552,95 @@ export default function ShopDetailAnalytics() {
           </div>
         )}
       </Card>
+
+      {/* Balance Trend Section */}
+      {balanceTrend && (
+        <Card className="card-elevated overflow-hidden">
+          <div className="p-5 pb-0">
+            <div className="flex items-center gap-2 mb-4">
+              <Activity className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">30-Day Balance Trend</h3>
+              {balanceTrendDirection === 'down' && (
+                <Badge className="ml-auto bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] font-bold">
+                  <TrendingDown className="h-3 w-3 mr-0.5" />
+                  Debt Reducing
+                </Badge>
+              )}
+              {balanceTrendDirection === 'up' && (
+                <Badge className="ml-auto bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 text-[10px] font-bold">
+                  <TrendingUp className="h-3 w-3 mr-0.5" />
+                  Debt Growing
+                </Badge>
+              )}
+              {balanceTrendDirection === 'flat' && (
+                <Badge variant="secondary" className="ml-auto text-[10px] font-bold">
+                  Stable
+                </Badge>
+              )}
+            </div>
+
+            {/* Balance Change Card */}
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4 mb-4">
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground font-medium mb-1">Current Balance</p>
+                <p className={`text-3xl font-bold tabular-nums ${
+                  balanceTrendDirection === 'down'
+                    ? 'text-green-700 dark:text-green-400'
+                    : balanceTrendDirection === 'up'
+                      ? 'text-red-700 dark:text-red-400'
+                      : 'text-foreground'
+                }`}>
+                  {formatCurrency(Math.round(balanceTrend.currentBalance))}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground font-medium mb-0.5">30-Day Change</p>
+                  <div className="flex items-center gap-1.5">
+                    {balanceTrend.change <= 0 ? (
+                      <TrendingDown className={`h-4 w-4 ${balanceTrend.change < -10 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
+                    ) : (
+                      <TrendingUp className={`h-4 w-4 ${balanceTrend.change > 10 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`} />
+                    )}
+                    <span className={`text-sm font-bold tabular-nums ${
+                      balanceTrend.change < -10
+                        ? 'text-green-600 dark:text-green-400'
+                        : balanceTrend.change > 10
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-muted-foreground'
+                    }`}>
+                      {balanceTrend.change >= 0 ? '+' : ''}{formatCurrency(Math.round(balanceTrend.change))}
+                    </span>
+                    {balanceTrend.changePercent !== 0 && (
+                      <span className={`text-xs font-medium tabular-nums ${
+                        balanceTrend.change < -10
+                          ? 'text-green-600 dark:text-green-400'
+                          : balanceTrend.change > 10
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-muted-foreground'
+                      }`}>
+                        ({balanceTrend.changePercent >= 0 ? '+' : ''}{balanceTrend.changePercent}%)
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {/* Mini Sparkline */}
+                <SparklineMini
+                  data={balanceTrend.data}
+                  direction={balanceTrendDirection}
+                  width={100}
+                  height={36}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SVG Balance Trend Chart */}
+          <div className="px-5 pb-5">
+            <BalanceTrendChart data={balanceTrend.data} direction={balanceTrendDirection} />
+          </div>
+        </Card>
+      )}
 
       {/* 6 Stat Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">

@@ -66,7 +66,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { WORKING_DAYS, getTodayRouteDay, validateTransaction, TRANSACTION_RULES } from '@/lib/utils';
+import { WORKING_DAYS, getTodayRouteDay, validateTransaction, TRANSACTION_RULES, getCreditLimitStatus } from '@/lib/utils';
 
 const ROUTE_DAYS = [...WORKING_DAYS];
 
@@ -1231,16 +1231,49 @@ export default function AdminCreditPosting() {
 
           <div className="space-y-4 py-3">
             {selectedShop && (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                <span className="text-sm text-muted-foreground">Current Balance</span>
-                <div className="flex items-center gap-2">
-                  {selectedShop.creditLimit > 0 && (
-                    <span className="text-[10px] text-muted-foreground">
-                      Limit: {formatCurrency(selectedShop.creditLimit)}
-                    </span>
-                  )}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                  <span className="text-sm text-muted-foreground">Current Balance</span>
                   <span className="font-bold text-sm">{formatCurrency(selectedShop.balance)}</span>
                 </div>
+                {selectedShop.creditLimit > 0 && (() => {
+                  const limitStatus = getCreditLimitStatus(selectedShop.balance, selectedShop.creditLimit);
+                  const projectedBalance = selectedShop.balance + (parseFloat(creditAmount) || 0);
+                  const projectedStatus = getCreditLimitStatus(projectedBalance, selectedShop.creditLimit);
+                  return (
+                    <div className="p-3 rounded-lg border border-border/60 space-y-2 animate-fade-in">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">Credit Limit Usage</span>
+                        <span className={`text-xs font-bold ${limitStatus.className}`}>
+                          {limitStatus.percentage}% — {limitStatus.label}
+                        </span>
+                      </div>
+                      <div className="credit-limit-bar">
+                        <div
+                          className="credit-limit-bar-fill"
+                          style={{
+                            width: `${Math.min(limitStatus.percentage, 100)}%`,
+                            backgroundColor: limitStatus.color,
+                          }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>{formatCurrency(selectedShop.balance)} of {formatCurrency(selectedShop.creditLimit)}</span>
+                        {creditAmount && !amountError && (
+                          <span className="text-foreground/60">
+                            → {formatCurrency(projectedBalance)} ({projectedStatus.percentage}%)
+                          </span>
+                        )}
+                      </div>
+                      {creditAmount && !amountError && projectedStatus.status === 'exceeded' && (
+                        <p className="text-[10px] text-destructive font-medium flex items-center gap-1 animate-fade-in">
+                          <AlertTriangle className="h-3 w-3" />
+                          This credit will exceed the limit by {formatCurrency(projectedBalance - selectedShop.creditLimit)}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
             {/* Credit Limit Warning Banner */}
