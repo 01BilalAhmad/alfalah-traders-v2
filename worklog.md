@@ -3553,3 +3553,32 @@ Stage Summary:
   - Visual indicators (banner, dot, badge) show offline/pending state
 - No API changes needed — all offline logic is client-side
 - Lint passes cleanly, dev server compiles without errors
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Fix hydration mismatch error in OrderbookerLayout
+
+Work Log:
+- User reported "Hydration failed because the server rendered HTML did not match the client"
+- Root cause: Zustand store was reading from localStorage at module initialization time
+- Server renders with user=null (no localStorage) → LoginView
+- Client hydrates with user from localStorage → OrderbookerLayout (mismatch!)
+- Fixed by making store hydration-safe:
+  1. Store always starts with user=null (unauthenticated)
+  2. Created `/src/lib/use-session-rehydrate.ts` hook
+  3. Hook uses useEffect to read localStorage AFTER React hydration completes
+  4. Updated `/src/app/page.tsx` to call useSessionRehydrate()
+- Cleaned up unused loadSessionFromStorage from store.ts
+
+Files Modified:
+- `/src/lib/store.ts` — Removed localStorage read at module init, always starts unauthenticated
+- `/src/lib/use-session-rehydrate.ts` — NEW: React hook that rehydrates auth from localStorage via useEffect
+- `/src/app/page.tsx` — Added useSessionRehydrate() call in Page component
+
+Stage Summary:
+- Hydration mismatch error fixed
+- Login session persistence still works (localStorage read after mount)
+- Brief flash of login screen before redirecting to dashboard (acceptable tradeoff)
+- Lint passes cleanly, dev server compiles without errors
+

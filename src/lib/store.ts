@@ -28,31 +28,9 @@ export interface AppState {
   resetCreditSessionCount: () => void;
 }
 
-// Load saved session from localStorage
+// Session persistence helpers
 const STORAGE_KEY = 'alfalah-session';
-function loadSession(): { user: AppUser | null; isAuthenticated: boolean; currentView: string } {
-  if (typeof window === 'undefined') {
-    return { user: null, isAuthenticated: false, currentView: 'login' };
-  }
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.user) {
-        return {
-          user: parsed.user,
-          isAuthenticated: true,
-          currentView: parsed.user.role === 'admin' ? 'admin-dashboard' : 'orderbooker-dashboard',
-        };
-      }
-    }
-  } catch {
-    // ignore parse errors
-  }
-  return { user: null, isAuthenticated: false, currentView: 'login' };
-}
 
-// Save session to localStorage
 function saveSession(user: AppUser | null) {
   if (typeof window === 'undefined') return;
   try {
@@ -66,12 +44,12 @@ function saveSession(user: AppUser | null) {
   }
 }
 
-const initial = loadSession();
-
+// Hydration-safe: always start unauthenticated so server & client match.
+// Rehydration happens via useSessionRehydrate() hook from @/lib/use-session-rehydrate
 export const useAppStore = create<AppState>((set) => ({
-  user: initial.user,
-  isAuthenticated: initial.isAuthenticated,
-  currentView: initial.currentView,
+  user: null,
+  isAuthenticated: false,
+  currentView: 'login',
   selectedShopId: null,
   selectedShopName: null,
   selectedDate: new Date().toISOString().split('T')[0],

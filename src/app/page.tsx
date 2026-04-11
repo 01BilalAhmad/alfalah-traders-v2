@@ -1,6 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
+import { useSessionRehydrate } from '@/lib/use-session-rehydrate';
 import LoginView from '@/components/alfalah/LoginView';
 import AdminLayout from '@/components/alfalah/AdminLayout';
 import AdminDashboard from '@/components/alfalah/AdminDashboard';
@@ -48,7 +49,10 @@ function AdminRouter() {
 }
 
 export default function Page() {
-  const { isAuthenticated, user, currentView } = useAppStore();
+  // Rehydrate auth from localStorage AFTER hydration (prevents mismatch)
+  useSessionRehydrate();
+
+  const { isAuthenticated, user } = useAppStore();
 
   if (!isAuthenticated || !user) {
     return <LoginView />;
