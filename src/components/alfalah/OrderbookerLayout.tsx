@@ -33,6 +33,11 @@ import {
   LogOut,
   Settings,
   KeyRound,
+  WifiOff,
+  Wifi,
+  RefreshCw,
+  CloudOff,
+  CloudUpload,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -40,6 +45,18 @@ import SessionTimeoutDialog from './SessionTimeoutDialog';
 import BackupSettingsDialog from './BackupSettingsDialog';
 import ChangePasswordDialog from './ChangePasswordDialog';
 import ShareMenu from './ShareMenu';
+import { useOnlineStatus } from '@/lib/use-online-status';
+import {
+  cacheShops,
+  getCachedShops,
+  addPendingTransaction,
+  getPendingTransactions,
+  getUnsyncedCount,
+  hasCachedShops,
+  getCacheAge,
+  type CachedShop,
+  type PendingTransaction,
+} from '@/lib/offline-store';
 
 const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -297,10 +314,72 @@ function RecoveryHistory() {
 
 // ─── Main Layout ────────────────────────────────────────────────────────────
 
-export default function OrderbookerLayout() {
+export default function OfflineBanner({ isOnline, unsyncedCount, syncing, onSync }: { isOnline: boolean; unsyncedCount: number; syncing: boolean; onSync: () => void }) {
+  if (isOnline && unsyncedCount === 0) return null;
+
+  if (!isOnline) {
+    return (
+      <div className="bg-amber-500 text-white px-4 py-2 text-center text-xs font-medium flex items-center justify-center gap-2 animate-slide-down">
+        <WifiOff className="h-3.5 w-3.5" />
+        <span>You&apos;re offline. Shops loaded from cache. Recovery will be queued.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-blue-500 text-white px-4 py-2 text-center text-xs font-medium flex items-center justify-center gap-2 animate-slide-down">
+      <CloudUpload className="h-3.5 w-3.5" />
+      <span>{unsyncedCount} pending recovery{unsyncedCount > 1 ? 'ies' : 'y'} to sync</span>
+      <button
+        onClick={onSync}
+        disabled={syncing}
+        className="ml-1 bg-white/20 hover:bg-white/30 px-2.5 py-0.5 rounded-full flex items-center gap-1 transition-colors disabled:opacity-50"
+      >
+        <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
+        {syncing ? 'Syncing...' : 'Sync Now'}
+      </button>
+    </div>
+  );
+}
+
+function PendingSyncCard({ transactions }: { transactions: PendingTransaction[] }) {
+  if (transactions.length === 0) return null;
+
+  return (
+    <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800">
+      <CardContent className="p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <CloudOff className="h-4 w-4 text-amber-600" />
+          <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+            Pending Offline Recovery ({transactions.length})
+          </span>
+        </div>
+        <div className="space-y-1.5">
+          {transactions.map((txn) => (
+            <div key={txn.id} className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className={`h-2 w-2 rounded-full shrink-0 ${txn.synced ? 'bg-green-500' : txn.syncError ? 'bg-red-500' : 'bg-amber-500 animate-pulse'}`} />
+                <span className="truncate">{txn.shopName}</span>
+              </div>
+              <span className="font-semibold text-amber-700 dark:text-amber-400 shrink-0 ml-2">
+                Rs. {txn.amount.toLocaleString('en-PK')}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-2">
+          These will sync automatically when you&apos;re back online.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function OrderbookerLayout() {
   const { user, currentView, setCurrentView, logout } = useAppStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const onlineStatus = useOnlineStatus();
 
   const handleLogout = () => {
     logout();
@@ -316,9 +395,19 @@ export default function OrderbookerLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* Offline Banner */}
+      <OfflineBanner
+        isOnline={onlineStatus.isOnline}
+        unsyncedCount={onlineStatus.unsyncedCount}
+        syncing={onlineStatus.syncing}
+        onSync={onlineStatus.sync}
+      />
+
       {/* Header */}
       <header className="sticky top-0 z-50 relative flex items-center justify-between px-4 pb-4 pt-[env(safe-area-inset-top,0px)] bg-gradient-to-r from-[#065F46] to-[#047857] shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
         <div className="flex items-center gap-2.5">
+          {/* Online/Offline indicator */}
+          <div className={`h-2 w-2 rounded-full ${onlineStatus.isOnline ? 'bg-green-400 animate-pulse' : 'bg-amber-400'}`} title={onlineStatus.isOnline ? 'Online' : 'Offline'} />
           {isLedger && (
             <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 h-8 w-8" onClick={() => setCurrentView('orderbooker-dashboard')}>
               <ArrowLeft className="h-4 w-4" />
@@ -460,6 +549,7 @@ function OrderbookerDashboard() {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
 
   // Success overlay state
   const [showSuccess, setShowSuccess] = useState(false);
@@ -476,6 +566,9 @@ function OrderbookerDashboard() {
   const [shopTransactions, setShopTransactions] = useState<ShopTransaction[]>([]);
   const [shopTxLoading, setShopTxLoading] = useState(false);
 
+  // Pending offline transactions
+  const [pendingTxns, setPendingTxns] = useState<PendingTransaction[]>([]);
+
   const todayDay = ROUTE_DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
 
   const fetchShops = useCallback(async () => {
@@ -483,9 +576,48 @@ function OrderbookerDashboard() {
     setLoading(true);
     try {
       const res = await fetch(`/api/shops?orderbookerId=${user.id}&routeDay=${todayDay}`);
-      if (res.ok) setShops(await res.json());
-    } catch { /* silent */ }
-    finally { setLoading(false); }
+      if (res.ok) {
+        const data = await res.json();
+        setShops(data);
+        setIsOfflineMode(false);
+        // Cache shops for offline use
+        cacheShops(data.map((s: Shop) => ({
+          id: s.id,
+          name: s.name,
+          ownerName: s.ownerName,
+          area: s.area,
+          phone: s.phone,
+          routeDay: s.routeDay,
+          balance: s.balance,
+          creditLimit: s.creditLimit,
+          status: s.status,
+          orderbookerId: s.orderbooker?.id || '',
+          orderbookerName: s.orderbooker?.name || '',
+        })));
+      }
+    } catch {
+      // Network error — try loading from cache
+      const cached = getCachedShops();
+      if (cached.length > 0) {
+        const todayCached = cached.filter(s => s.routeDay === todayDay);
+        if (todayCached.length > 0) {
+          setShops(todayCached.map((s: CachedShop) => ({
+            id: s.id,
+            name: s.name,
+            ownerName: s.ownerName,
+            area: s.area,
+            phone: s.phone,
+            routeDay: s.routeDay,
+            balance: s.balance,
+            creditLimit: s.creditLimit,
+            status: s.status,
+            orderbooker: { id: s.orderbookerId, name: s.orderbookerName },
+          })));
+          setIsOfflineMode(true);
+          toast({ title: 'Offline Mode', description: `Loaded ${todayCached.length} shops from cache (${getCacheAge()})` });
+        }
+      }
+    } finally { setLoading(false); }
   }, [user, todayDay, refreshKey]);
 
   const fetchTodayRecovery = useCallback(async () => {
@@ -504,6 +636,11 @@ function OrderbookerDashboard() {
 
   useEffect(() => { fetchShops(); }, [fetchShops]);
   useEffect(() => { fetchTodayRecovery(); }, [fetchTodayRecovery, refreshKey]);
+
+  // Load pending transactions
+  useEffect(() => {
+    setPendingTxns(getPendingTransactions());
+  }, [refreshKey]);
 
   // Recovery summary calculations
   const totalRecovered = todayRecovery.reduce((s, t) => s + t.amount, 0);
@@ -563,19 +700,20 @@ function OrderbookerDashboard() {
       return;
     }
 
+    const amount = parseFloat(recoveryAmount);
+    const description = recoveryNote?.trim()
+      ? `Cash collected by orderbooker. Note: ${recoveryNote.trim()}`
+      : 'Cash collected by orderbooker';
+
     setPosting(true);
     try {
-      const description = recoveryNote?.trim()
-        ? `Cash collected by orderbooker. Note: ${recoveryNote.trim()}`
-        : 'Cash collected by orderbooker';
-
       const res = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shopId: selectedShop.id,
           type: 'recovery',
-          amount: parseFloat(recoveryAmount),
+          amount,
           description,
           createdBy: user.id,
           gpsLat: gpsLat || undefined,
@@ -589,14 +727,40 @@ function OrderbookerDashboard() {
         return;
       }
 
-      // Show success overlay
+      // Success — online
       setSuccessShopName(selectedShop.name);
       setSuccessAmount(recoveryAmount);
       setRecoveryDialogOpen(false);
       setShowSuccess(true);
       setRefreshKey((k) => k + 1);
     } catch {
-      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+      // Network error — queue for offline sync
+      const queued = addPendingTransaction({
+        shopId: selectedShop.id,
+        shopName: selectedShop.name,
+        type: 'recovery',
+        amount,
+        description,
+        createdBy: user.id,
+        gpsLat,
+        gpsLng,
+      });
+
+      setPendingTxns(getPendingTransactions());
+      setSuccessShopName(selectedShop.name);
+      setSuccessAmount(recoveryAmount);
+      setRecoveryDialogOpen(false);
+      setShowSuccess(true);
+
+      toast({
+        title: 'Saved Offline',
+        description: `Recovery Rs. ${amount.toLocaleString('en-PK')} queued. Will sync when online.`,
+      });
+
+      // Update local balance optimistically
+      setShops(prev => prev.map(s =>
+        s.id === selectedShop.id ? { ...s, balance: Math.max(0, s.balance - amount) } : s
+      ));
     } finally {
       setPosting(false);
     }
@@ -684,6 +848,9 @@ function OrderbookerDashboard() {
               <p className="text-xs font-bold text-white">Today&apos;s Recovery</p>
               <p className="text-[9px] text-green-100">Collection performance</p>
             </div>
+            {isOfflineMode && (
+              <Badge className="ml-auto bg-amber-100 text-amber-700 text-[9px] border-0">OFFLINE</Badge>
+            )}
           </div>
         </div>
         <CardContent className="p-4 glass-card">
@@ -734,6 +901,9 @@ function OrderbookerDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pending Offline Recovery Card */}
+      <PendingSyncCard transactions={pendingTxns.filter(t => !t.synced)} />
 
       {/* Shop Cards */}
       {loading ? (

@@ -3521,3 +3521,35 @@ Stage Summary:
 - Login: admin (`AL-FALAH TRADERS` / `@AFE@123654`), orderbookers (ahmed/bilal)
 - Key features: Dashboard with charts, Credit Posting with Quick Post mode, Recovery Reports, Shops CRUD, Orderbooker Management, Reconciliation, Audit Log, Global Search (Cmd+K), Notifications, Dark Mode, Print Receipts, CSV Export, Forgot Password
 - CSS: 2800+ lines with comprehensive animations, glassmorphism, dark mode support
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Login fix, persistent session, and offline mode for orderbooker
+
+Work Log:
+- Fixed admin login: username was `al-falah traders` (plural) in DB but login sent `al-falah trader` (singular). Updated DB to correct username.
+- Added `autoCapitalize="off"`, `autoCorrect="off"`, `spellCheck={false}` to login inputs to prevent mobile keyboard from modifying username/password
+- Added persistent session via localStorage (`alfalah-session` key) — login survives page refresh
+- Built complete offline mode system for orderbooker:
+  1. Created `/src/lib/offline-store.ts` — localStorage-based shop cache + pending transaction queue
+  2. Created `/src/lib/use-online-status.ts` — online/offline detection hook with auto-sync
+  3. Modified `OrderbookerLayout.tsx` with:
+     - OfflineBanner: shows amber when offline, blue with sync button when pending
+     - Online/Offline dot indicator in header (green/amber)
+     - Shop cache: shops cached on every successful fetch, loaded from cache when offline
+     - Recovery queue: failed recovery posts saved to localStorage queue
+     - Auto-sync: when coming back online with pending items, auto-sync triggers
+     - PendingSyncCard: shows list of queued offline recoveries
+     - Optimistic balance update: local balance adjusts immediately on offline recovery
+
+Stage Summary:
+- Login now works correctly with credentials: AL-FALAH TRADER / @AFE@123654
+- Session persists across page refresh via localStorage
+- Orderbooker app fully functional offline:
+  - Shops load from last cached data
+  - Recovery can be posted — queued locally
+  - When back online, queued transactions auto-sync to server
+  - Visual indicators (banner, dot, badge) show offline/pending state
+- No API changes needed — all offline logic is client-side
+- Lint passes cleanly, dev server compiles without errors
