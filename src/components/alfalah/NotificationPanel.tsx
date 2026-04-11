@@ -26,6 +26,7 @@ import {
   getNotificationColorClasses,
 } from '@/lib/notifications';
 import { useAppStore } from '@/lib/store';
+import { getLocalDateString } from '@/lib/utils';
 
 // ── Icon per notification type ──────────────────────────────
 function NotificationIcon({ type, className }: { type: string; className?: string }) {
@@ -151,7 +152,7 @@ export default function NotificationPanel() {
       const [shopsRes, obsRes, recoveryRes] = await Promise.all([
         fetch('/api/shops?includeInactive=true'),
         fetch('/api/orderbookers'),
-        fetch(`/api/reports/recovery-summary?date=${new Date().toISOString().split('T')[0]}`),
+        fetch(`/api/reports/recovery-summary?date=${getLocalDateString()}`),
       ]);
 
       const shops = shopsRes.ok ? await shopsRes.json() : [];

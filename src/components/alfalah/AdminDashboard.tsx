@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useAnimatedNumber } from '@/lib/use-animated-number';
+import { getLocalDateString } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -223,7 +224,7 @@ export default function AdminDashboard() {
       try {
         const [obRes, txnRes, shopsRes, trendsRes, tlRes, msRes, rtRes, summaryRes] = await Promise.all([
           fetch('/api/orderbookers'),
-          fetch(`/api/transactions?date=${new Date().toISOString().split('T')[0]}&limit=10`),
+          fetch(`/api/transactions?date=${getLocalDateString()}&limit=10`),
           fetch('/api/shops'),
           fetch('/api/reports/daily-trends'),
           fetch('/api/reports/activity-timeline?limit=20'),

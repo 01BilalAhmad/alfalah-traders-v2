@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
+import { getLocalDateString, getYesterdayDateString } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ import {
 } from 'lucide-react';
 import { exportToCSV } from '@/lib/csv-export';
 import { toast } from '@/hooks/use-toast';
+import { RefreshCw } from 'lucide-react';
 
 function formatCurrency(amount: number): string {
   return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -212,12 +214,25 @@ export default function AdminRecoveryReport() {
   const filteredOrderbookers = summary ? filterOrderbookers(summary.orderbookers) : [];
   const filteredGrandTotal = filteredOrderbookers.reduce((s, ob) => s + ob.totalRecovery, 0);
 
-  const getTodayString = () => new Date().toISOString().split('T')[0];
-  const getYesterdayString = () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return d.toISOString().split('T')[0];
-  };
+  // Auto-refresh every 30 seconds so new recovery data from orderbookers appears automatically
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
+
+  useEffect(() => {
+    autoRefreshRef.current = setInterval(() => {
+      fetchSummary();
+    }, 30000); // 30 seconds
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
+  }, [fetchSummary]);
+
+  // Track last updated time
+  useEffect(() => {
+    if (summary) {
+      setLastUpdated(new Date().toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true }));
+    }
+  }, [summary]);
 
   const gpsFilterTabs: { value: GpsFilter; label: string }[] = [
     { value: 'all', label: 'All' },
@@ -250,24 +265,29 @@ export default function AdminRecoveryReport() {
             />
           </div>
           <Button
-            variant={selectedDate === getTodayString() ? 'default' : 'outline'}
+            variant={selectedDate === getLocalDateString() ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setSelectedDate(getTodayString())}
+            onClick={() => setSelectedDate(getLocalDateString())}
             className="text-xs hover-glow-primary"
           >
             Today
           </Button>
           <Button
-            variant={selectedDate === getYesterdayString() ? 'default' : 'outline'}
+            variant={selectedDate === getYesterdayDateString() ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setSelectedDate(getYesterdayString())}
+            onClick={() => setSelectedDate(getYesterdayDateString())}
             className="text-xs hover-glow-primary"
           >
             Yesterday
           </Button>
           <Button variant="outline" size="sm" onClick={fetchSummary} disabled={loading} className="btn-ripple">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><RefreshCw className="h-4 w-4 mr-1" />Refresh</>}
           </Button>
+          {lastUpdated && (
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+              Updated {lastUpdated}
+            </span>
+          )}
           {summary && summary.orderbookers.length > 0 && (
             <Button
               variant="outline"

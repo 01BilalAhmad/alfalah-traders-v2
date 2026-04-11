@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+// Helper: Convert a date string (YYYY-MM-DD) to Pakistan timezone boundaries
+function getPakistanDayRange(dateStr: string): { start: Date; end: Date } {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  // Pakistan is UTC+5, so midnight PKT = 19:00 UTC previous day
+  const start = new Date(Date.UTC(year, month - 1, day, -5, 0, 0, 0)); // 00:00 PKT = 19:00 UTC prev
+  const end = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999)); // 23:59:59 PKT = 18:59:59 UTC
+  return { start, end };
+}
+
 // GET /api/transactions?shopId=xxx&orderbookerId=xxx&date=xxx&startDate=xxx&type=xxx
 export async function GET(request: NextRequest) {
   try {
@@ -22,15 +31,13 @@ export async function GET(request: NextRequest) {
       where.shop = { orderbookerId };
     }
     if (date) {
-      const dStart = new Date(date);
-      dStart.setHours(0, 0, 0, 0);
-      const dEnd = new Date(date);
-      dEnd.setHours(23, 59, 59, 999);
-      where.createdAt = { gte: dStart, lte: dEnd };
+      // Use Pakistan timezone for date filtering
+      const { start, end } = getPakistanDayRange(date);
+      where.createdAt = { gte: start, lte: end };
     } else if (startDate) {
-      const sDate = new Date(startDate);
-      sDate.setHours(0, 0, 0, 0);
-      where.createdAt = { gte: sDate };
+      // Use Pakistan timezone for start date
+      const { start } = getPakistanDayRange(startDate);
+      where.createdAt = { gte: start };
     }
 
     const [transactions, total] = await Promise.all([

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getLocalDateString } from '@/lib/utils';
 
 export interface AppUser {
   id: string;
@@ -52,7 +53,7 @@ export const useAppStore = create<AppState>((set) => ({
   currentView: 'login',
   selectedShopId: null,
   selectedShopName: null,
-  selectedDate: new Date().toISOString().split('T')[0],
+  selectedDate: getLocalDateString(),
   creditSessionCount: 0,
   setUser: (user) => {
     saveSession(user);

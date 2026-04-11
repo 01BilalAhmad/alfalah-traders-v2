@@ -45,6 +45,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
+import { getLocalDateString } from '@/lib/utils';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
 import BackupSettingsDialog from './BackupSettingsDialog';
 import ChangePasswordDialog from './ChangePasswordDialog';
@@ -182,7 +183,7 @@ function ProfileView({
     try {
       // Fetch all recovery transactions for this month
       const now = new Date();
-      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
       const res = await fetch(`/api/transactions?limit=200&type=recovery&createdBy=${user.id}&startDate=${firstOfMonth}`);
       if (res.ok) {
         const data = await res.json();
@@ -957,7 +958,7 @@ function OrderbookerDashboard() {
     if (!user) return;
     setRecoverySummaryLoading(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString();
       const res = await fetch(`/api/transactions?date=${today}&limit=50&type=recovery&createdBy=${user.id}`);
       if (res.ok) {
         const data = await res.json();

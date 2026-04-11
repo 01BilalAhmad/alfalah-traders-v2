@@ -3655,3 +3655,69 @@ Stage Summary:
 - Pull-to-refresh on dashboard with smooth visual indicator
 - Transactions API extended with `startDate` query parameter
 - No existing functionality broken, all components lint clean
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Fix recovery data not syncing to admin panel — timezone bug + auto-refresh
+
+Work Log:
+- Investigated user report: Orderbooker Danish's recoveries not appearing in admin panel
+- Root Cause Analysis found TWO critical bugs:
+  1. **Timezone Bug**: Server runs in UTC but all date handling used `toISOString().split('T')[0]` which returns UTC date, not Pakistan date (UTC+5). Between midnight-5AM PKT, dates were off by one day.
+  2. **No Auto-Refresh**: Admin Recovery Report only fetched data on mount — never refreshed to show new recoveries from orderbookers.
+
+### Files Created:
+
+1. **`/src/lib/utils.ts`** — Enhanced with timezone-safe date utilities:
+   - `getLocalDateString(date?)` — Returns YYYY-MM-DD in Asia/Karachi timezone (replaces `toISOString().split('T')[0]`)
+   - `getYesterdayDateString()` — Yesterday's date in Pakistan timezone
+   - `getLocalStartOfDay(dateStr?)` / `getLocalEndOfDay(dateStr?)` — Pakistan midnight boundaries
+   - `formatLocalDate()` / `formatLocalDateTime()` — Pakistan timezone formatting
+   - `formatPKR(amount)` — Pakistani Rupee currency formatter
+
+### Files Modified:
+
+2. **`/src/lib/store.ts`** — `selectedDate` now uses `getLocalDateString()` instead of UTC date
+
+3. **`/src/app/api/transactions/route.ts`** — GET handler now uses `getPakistanDayRange()` for date filtering:
+   - Midnight PKT = 19:00 UTC (previous day)
+   - End of day PKT = 18:59:59 UTC (same day)
+   - Ensures transactions posted in Pakistan are correctly grouped by Pakistani day
+
+4. **`/src/app/api/reports/recovery-summary/route.ts`** — Complete rewrite of date handling:
+   - Extracted `generateReport()` helper function
+   - Uses Pakistan timezone boundaries for all date filtering
+   - Returns `displayDate` in original date string format (not UTC-converted)
+
+5. **`/src/app/api/reports/reconciliation/route.ts`** — Same timezone fix:
+   - Added `getPakistanDayRange()` helper
+   - Date filtering now uses Pakistan midnight boundaries
+
+6. **`/src/components/alfalah/AdminRecoveryReport.tsx`** — Major enhancement:
+   - Added **30-second auto-refresh** via `setInterval` so new recovery data appears automatically
+   - Added **"Last updated" timestamp** showing when data was last fetched (Pakistan time)
+   - Replaced UTC date functions with `getLocalDateString()` / `getYesterdayDateString()`
+   - Added `RefreshCw` icon to Refresh button
+   - Added `useRef` import for interval cleanup
+
+7. **`/src/components/alfalah/AdminDashboard.tsx`** — Fixed today's transaction fetch to use `getLocalDateString()`
+
+8. **`/src/components/alfalah/OrderbookerLayout.tsx`** — Fixed:
+   - Today's recovery fetch uses `getLocalDateString()`
+   - Profile monthly data fetch uses local month calculation
+
+9. **`/src/components/alfalah/NotificationPanel.tsx`** — Fixed recovery summary fetch to use `getLocalDateString()`
+
+### Verification:
+- `bun run lint` passes cleanly with zero errors
+- Timezone math verified: 3 AM PKT transaction correctly falls within Pakistan day range, 10 PM PKT previous day correctly excluded
+- Dev server compiles all pages without errors
+- API tested: recovery-summary returns correct data structure with proper date
+
+Stage Summary:
+- **Critical timezone bug fixed** across all 4 API routes and 5 frontend components
+- **Auto-refresh added** to Admin Recovery Report (30-second interval)
+- **Last updated timestamp** shows admin when data was last fetched
+- All date boundaries now correctly aligned with Pakistan timezone (UTC+5)
+- Recovery data from orderbookers will now appear in admin panel immediately (within 30 seconds)

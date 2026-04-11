@@ -1,17 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+// Helper: Convert a date string (YYYY-MM-DD) to Pakistan timezone boundaries
+function getPakistanDayRange(dateStr: string): { start: Date; end: Date } {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const start = new Date(Date.UTC(year, month - 1, day, -5, 0, 0, 0));
+  const end = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
+  return { start, end };
+}
+
 // GET /api/reports/reconciliation?date=xxx
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get('date');
-    const date = dateStr ? new Date(dateStr) : new Date();
 
-    const startDate = new Date(date);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(date);
-    endDate.setHours(23, 59, 59, 999);
+    // Use Pakistan timezone
+    let startDate: Date;
+    let endDate: Date;
+    let displayDate: string;
+
+    if (dateStr) {
+      const range = getPakistanDayRange(dateStr);
+      startDate = range.start;
+      endDate = range.end;
+      displayDate = dateStr;
+    } else {
+      const today = new Date();
+      const pkOffset = 5 * 60;
+      const pkNow = new Date(today.getTime() + pkOffset * 60 * 1000);
+      const y = pkNow.getUTCFullYear();
+      const m = pkNow.getUTCMonth();
+      const d = pkNow.getUTCDate();
+      startDate = new Date(Date.UTC(y, m, d, -5, 0, 0, 0));
+      endDate = new Date(Date.UTC(y, m, d, 18, 59, 59, 999));
+      displayDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
 
     // Get all transactions for the day
     const dayTransactions = await db.transaction.findMany({
@@ -78,7 +102,7 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json({
-      date: startDate.toISOString().split('T')[0],
+      date: displayDate,
       totalCredit: Math.round(totalCredit * 100) / 100,
       totalRecovery: Math.round(totalRecovery * 100) / 100,
       netChange: Math.round((totalRecovery - totalCredit) * 100) / 100,
