@@ -75,8 +75,9 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
 import { exportToCSV } from '@/lib/csv-export';
+import { WORKING_DAYS } from '@/lib/utils';
 
-const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const ROUTE_DAYS = [...WORKING_DAYS];
 
 interface Shop {
   id: string;

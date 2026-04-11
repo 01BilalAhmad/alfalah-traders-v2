@@ -6,6 +6,7 @@ import { getLocalDateString, getYesterdayDateString } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -25,9 +26,28 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   TrendingUp,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Loader2,
   CalendarDays,
   Banknote,
@@ -38,6 +58,9 @@ import {
   Download,
   CheckCircle,
   AlertTriangle,
+  Pencil,
+  Trash2,
+  Plus,
 } from 'lucide-react';
 import { exportToCSV } from '@/lib/csv-export';
 import { toast } from '@/hooks/use-toast';
@@ -83,6 +106,18 @@ interface RecoverySummary {
   date: string;
   grandTotalRecovery: number;
   orderbookers: OrderbookerRecovery[];
+}
+
+interface OrderbookerOption {
+  id: string;
+  name: string;
+}
+
+interface ShopOption {
+  id: string;
+  name: string;
+  area: string;
+  orderbooker: { id: string; name: string };
 }
 
 function RecoverySkeleton() {
@@ -135,11 +170,37 @@ function RecoverySkeleton() {
 type GpsFilter = 'all' | 'with-gps' | 'without-gps';
 
 export default function AdminRecoveryReport() {
-  const { selectedDate, setSelectedDate } = useAppStore();
+  const { selectedDate, setSelectedDate, user } = useAppStore();
   const [summary, setSummary] = useState<RecoverySummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedOB, setExpandedOB] = useState<Set<string>>(new Set());
+  const [expandedShops, setExpandedShops] = useState<Set<string>>(new Set());
   const [gpsFilter, setGpsFilter] = useState<GpsFilter>('all');
+
+  // Edit recovery state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editEntry, setEditEntry] = useState<RecoveryEntry | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editConfirmOpen, setEditConfirmOpen] = useState(false);
+
+  // Delete recovery state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteEntry, setDeleteEntry] = useState<RecoveryEntry | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+
+  // Add recovery state
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addStep, setAddStep] = useState<1 | 2 | 3>(1);
+  const [orderbookers, setOrderbookers] = useState<OrderbookerOption[]>([]);
+  const [shops, setShops] = useState<ShopOption[]>([]);
+  const [selectedOBId, setSelectedOBId] = useState('');
+  const [selectedShopId, setSelectedShopId] = useState('');
+  const [addAmount, setAddAmount] = useState('');
+  const [addDescription, setAddDescription] = useState('');
+  const [addSaving, setAddSaving] = useState(false);
+  const [fetchingDropdowns, setFetchingDropdowns] = useState(false);
 
   const fetchSummary = useCallback(async () => {
     setLoading(true);
@@ -177,6 +238,15 @@ export default function AdminRecoveryReport() {
     } else {
       setExpandedOB(new Set(allIds));
     }
+  };
+
+  const toggleShopExpand = (shopKey: string) => {
+    setExpandedShops((prev) => {
+      const next = new Set(prev);
+      if (next.has(shopKey)) next.delete(shopKey);
+      else next.add(shopKey);
+      return next;
+    });
   };
 
   const anyExpanded = summary ? summary.orderbookers.some((ob) => expandedOB.has(ob.orderbookerId)) : false;
@@ -240,6 +310,137 @@ export default function AdminRecoveryReport() {
     { value: 'without-gps', label: 'Without GPS' },
   ];
 
+  // ─── Edit Recovery Handlers ───
+  const openEditDialog = (entry: RecoveryEntry) => {
+    setEditEntry(entry);
+    setEditAmount(String(entry.amount));
+    setEditDescription(entry.description || '');
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editEntry || !user) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch('/api/transactions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editEntry.id,
+          amount: parseFloat(editAmount),
+          description: editDescription.trim() || null,
+          updatedBy: user.id,
+        }),
+      });
+      if (res.ok) {
+        toast({ title: 'Updated', description: 'Recovery entry updated successfully' });
+        setEditConfirmOpen(false);
+        setEditDialogOpen(false);
+        setEditEntry(null);
+        fetchSummary();
+      } else {
+        const data = await res.json();
+        toast({ title: 'Error', description: data.error || 'Failed to update recovery', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update recovery', variant: 'destructive' });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // ─── Delete Recovery Handlers ───
+  const openDeleteConfirm = (entry: RecoveryEntry) => {
+    setDeleteEntry(entry);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteEntry || !user) return;
+    setDeleteSaving(true);
+    try {
+      const res = await fetch(`/api/transactions?id=${deleteEntry.id}&deletedBy=${user.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        toast({ title: 'Deleted', description: 'Recovery entry deleted successfully' });
+        setDeleteConfirmOpen(false);
+        setDeleteEntry(null);
+        fetchSummary();
+      } else {
+        const data = await res.json();
+        toast({ title: 'Error', description: data.error || 'Failed to delete recovery', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete recovery', variant: 'destructive' });
+    } finally {
+      setDeleteSaving(false);
+    }
+  };
+
+  // ─── Add Recovery Handlers ───
+  const openAddDialog = async () => {
+    setAddStep(1);
+    setSelectedOBId('');
+    setSelectedShopId('');
+    setAddAmount('');
+    setAddDescription('');
+    setAddDialogOpen(true);
+    setFetchingDropdowns(true);
+    try {
+      const [obRes, shopRes] = await Promise.all([
+        fetch('/api/orderbookers'),
+        fetch('/api/shops'),
+      ]);
+      if (obRes.ok) {
+        const obData = await obRes.json();
+        setOrderbookers(Array.isArray(obData) ? obData : obData.orderbookers || []);
+      }
+      if (shopRes.ok) {
+        const shopData = await shopRes.json();
+        setShops(Array.isArray(shopData) ? shopData : shopData.shops || []);
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load dropdown data', variant: 'destructive' });
+    } finally {
+      setFetchingDropdowns(false);
+    }
+  };
+
+  const filteredShops = selectedOBId
+    ? shops.filter((s) => s.orderbooker?.id === selectedOBId)
+    : shops;
+
+  const handleAddSubmit = async () => {
+    if (!selectedShopId || !addAmount || !user) return;
+    setAddSaving(true);
+    try {
+      const res = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopId: selectedShopId,
+          type: 'recovery',
+          amount: parseFloat(addAmount),
+          description: addDescription.trim() || undefined,
+          createdBy: user.id,
+        }),
+      });
+      if (res.ok) {
+        toast({ title: 'Added', description: 'Recovery entry added successfully' });
+        setAddDialogOpen(false);
+        fetchSummary();
+      } else {
+        const data = await res.json();
+        toast({ title: 'Error', description: data.error || 'Failed to add recovery', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to add recovery', variant: 'destructive' });
+    } finally {
+      setAddSaving(false);
+    }
+  };
+
   if (loading) {
     return <RecoverySkeleton />;
   }
@@ -255,6 +456,15 @@ export default function AdminRecoveryReport() {
           <p className="text-sm text-muted-foreground mt-0.5">Daily recovery summary by orderbooker</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Add Recovery Button */}
+          <Button
+            onClick={openAddDialog}
+            className="bg-green-600 hover:bg-green-700 text-white btn-ripple"
+            size="sm"
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add Recovery
+          </Button>
           <div className="relative">
             <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -539,6 +749,7 @@ export default function AdminRecoveryReport() {
                           <Table>
                             <TableHeader>
                               <TableRow className="hover:bg-transparent">
+                                <TableHead className="text-xs font-semibold w-8" />
                                 <TableHead className="text-xs font-semibold">Shop</TableHead>
                                 <TableHead className="text-xs font-semibold hidden sm:table-cell">Area</TableHead>
                                 <TableHead className="text-xs font-semibold text-right">Prev. Balance</TableHead>
@@ -549,73 +760,172 @@ export default function AdminRecoveryReport() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {displayShops.map((shop, idx) => (
-                                <TableRow key={shop.shopId} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} transition-colors`}>
-                                  <TableCell className="text-sm font-medium">
-                                    <div className="flex items-center gap-1.5">
-                                      {shop.shopName}
-                                      {shop.visited && (
-                                        <Badge className="text-[9px] badge-recovery">Visited</Badge>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">
-                                    {shop.shopArea || '\u2014'}
-                                  </TableCell>
-                                  <TableCell className="text-right text-sm">
-                                    {formatCurrency(shop.previousBalance)}
-                                  </TableCell>
-                                  <TableCell className="text-right text-sm text-amber-600 font-medium">
-                                    {shop.todayCredit > 0 ? `+${formatCurrency(shop.todayCredit)}` : '\u2014'}
-                                  </TableCell>
-                                  <TableCell className="text-right text-sm text-green-600 font-medium">
-                                    {shop.todayRecovery > 0 ? `-${formatCurrency(shop.todayRecovery)}` : '\u2014'}
-                                  </TableCell>
-                                  <TableCell className="text-right text-sm">
-                                    <div className="flex items-center justify-end gap-1.5">
-                                      {shop.closingBalance === 0 ? (
-                                        <Badge className="text-[9px] bg-green-100 text-green-700 hover:bg-green-100 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
-                                          <CheckCircle className="h-3 w-3 mr-0.5" />
-                                          Settled
-                                        </Badge>
-                                      ) : (
-                                        <span className={shop.closingBalance > shop.previousBalance + shop.todayCredit ? 'font-bold text-red-600' : 'font-bold'}>
-                                          {formatCurrency(shop.closingBalance)}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-center hidden md:table-cell">
-                                    {shop.recoveryEntries.length > 0 ? (
-                                      shop.recoveryEntries.every((e) => e.hasGps) ? (
-                                        <a
-                                          href={`https://www.openstreetmap.org/?mlat=${shop.recoveryEntries[0].gpsLat}&mlon=${shop.recoveryEntries[0].gpsLng}#map=17/${shop.recoveryEntries[0].gpsLat}/${shop.recoveryEntries[0].gpsLng}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
-                                          title="All recoveries GPS verified"
-                                        >
-                                          <Navigation className="h-3.5 w-3.5" />
-                                          <ExternalLink className="h-3 w-3" />
-                                        </a>
-                                      ) : shop.recoveryEntries.some((e) => e.hasGps) ? (
-                                        <span className="inline-flex items-center gap-1 text-amber-600" title="Partial GPS verification">
-                                          <Navigation className="h-3.5 w-3.5" />
-                                          <span className="text-[9px]">
-                                            {shop.recoveryEntries.filter((e) => e.hasGps).length}/{shop.recoveryEntries.length}
-                                          </span>
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center text-muted-foreground" title="No GPS captured">
-                                          <Navigation className="h-3.5 w-3.5" />
-                                        </span>
-                                      )
-                                    ) : (
-                                      <span className="text-muted-foreground">\u2014</span>
+                              {displayShops.map((shop, idx) => {
+                                const shopKey = `${ob.orderbookerId}-${shop.shopId}`;
+                                const isShopExpanded = expandedShops.has(shopKey);
+                                const shopEntries = filterRecoveryEntries(shop.recoveryEntries);
+                                return (
+                                  <>
+                                    {/* Shop Summary Row */}
+                                    <TableRow
+                                      key={shop.shopId}
+                                      className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} transition-colors`}
+                                    >
+                                      <TableCell className="w-8 px-2">
+                                        {shopEntries.length > 0 && (
+                                          <button
+                                            onClick={() => toggleShopExpand(shopKey)}
+                                            className="p-0.5 hover:bg-muted rounded transition-colors"
+                                          >
+                                            {isShopExpanded ? (
+                                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                            ) : (
+                                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                            )}
+                                          </button>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-sm font-medium">
+                                        <div className="flex items-center gap-1.5">
+                                          {shop.shopName}
+                                          {shop.visited && (
+                                            <Badge className="text-[9px] badge-recovery">Visited</Badge>
+                                          )}
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">
+                                        {shop.shopArea || '\u2014'}
+                                      </TableCell>
+                                      <TableCell className="text-right text-sm">
+                                        {formatCurrency(shop.previousBalance)}
+                                      </TableCell>
+                                      <TableCell className="text-right text-sm text-amber-600 font-medium">
+                                        {shop.todayCredit > 0 ? `+${formatCurrency(shop.todayCredit)}` : '\u2014'}
+                                      </TableCell>
+                                      <TableCell className="text-right text-sm text-green-600 font-medium">
+                                        {shop.todayRecovery > 0 ? `-${formatCurrency(shop.todayRecovery)}` : '\u2014'}
+                                      </TableCell>
+                                      <TableCell className="text-right text-sm">
+                                        <div className="flex items-center justify-end gap-1.5">
+                                          {shop.closingBalance === 0 ? (
+                                            <Badge className="text-[9px] bg-green-100 text-green-700 hover:bg-green-100 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
+                                              <CheckCircle className="h-3 w-3 mr-0.5" />
+                                              Settled
+                                            </Badge>
+                                          ) : (
+                                            <span className={shop.closingBalance > shop.previousBalance + shop.todayCredit ? 'font-bold text-red-600' : 'font-bold'}>
+                                              {formatCurrency(shop.closingBalance)}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-center hidden md:table-cell">
+                                        {shop.recoveryEntries.length > 0 ? (
+                                          shop.recoveryEntries.every((e) => e.hasGps) ? (
+                                            <a
+                                              href={`https://www.openstreetmap.org/?mlat=${shop.recoveryEntries[0].gpsLat}&mlon=${shop.recoveryEntries[0].gpsLng}#map=17/${shop.recoveryEntries[0].gpsLat}/${shop.recoveryEntries[0].gpsLng}`}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
+                                              title="All recoveries GPS verified"
+                                            >
+                                              <Navigation className="h-3.5 w-3.5" />
+                                              <ExternalLink className="h-3 w-3" />
+                                            </a>
+                                          ) : shop.recoveryEntries.some((e) => e.hasGps) ? (
+                                            <span className="inline-flex items-center gap-1 text-amber-600" title="Partial GPS verification">
+                                              <Navigation className="h-3.5 w-3.5" />
+                                              <span className="text-[9px]">
+                                                {shop.recoveryEntries.filter((e) => e.hasGps).length}/{shop.recoveryEntries.length}
+                                              </span>
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center text-muted-foreground" title="No GPS captured">
+                                              <Navigation className="h-3.5 w-3.5" />
+                                            </span>
+                                          )
+                                        ) : (
+                                          <span className="text-muted-foreground">\u2014</span>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+
+                                    {/* Expanded Recovery Entries for this shop */}
+                                    {isShopExpanded && shopEntries.length > 0 && (
+                                      <TableRow key={`${shop.shopId}-entries`} className="bg-muted/40">
+                                        <TableCell colSpan={8} className="p-0">
+                                          <div className="px-8 py-3">
+                                            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                              Recovery Entries ({shopEntries.length})
+                                            </div>
+                                            <div className="rounded-lg border overflow-hidden">
+                                              <Table>
+                                                <TableHeader>
+                                                  <TableRow className="hover:bg-transparent bg-muted/50">
+                                                    <TableHead className="text-[11px] font-semibold">Time</TableHead>
+                                                    <TableHead className="text-[11px] font-semibold text-right">Amount</TableHead>
+                                                    <TableHead className="text-[11px] font-semibold hidden sm:table-cell">Description</TableHead>
+                                                    <TableHead className="text-[11px] font-semibold text-center hidden sm:table-cell">GPS</TableHead>
+                                                    <TableHead className="text-[11px] font-semibold text-right hidden md:table-cell">Actions</TableHead>
+                                                  </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                  {shopEntries.map((entry) => (
+                                                    <TableRow key={entry.id} className="text-sm">
+                                                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                                        {entry.time
+                                                          ? new Date(entry.time).toLocaleTimeString('en-PK', {
+                                                              hour: '2-digit',
+                                                              minute: '2-digit',
+                                                              hour12: true,
+                                                            })
+                                                          : '\u2014'}
+                                                      </TableCell>
+                                                      <TableCell className="text-right text-sm font-medium text-green-600">
+                                                        {formatCurrency(entry.amount)}
+                                                      </TableCell>
+                                                      <TableCell className="text-xs text-muted-foreground hidden sm:table-cell max-w-[200px] truncate">
+                                                        {entry.description || '\u2014'}
+                                                      </TableCell>
+                                                      <TableCell className="text-center hidden sm:table-cell">
+                                                        {entry.hasGps ? (
+                                                          <Navigation className="h-3.5 w-3.5 text-green-600 mx-auto" />
+                                                        ) : (
+                                                          <span className="text-muted-foreground text-xs">\u2014</span>
+                                                        )}
+                                                      </TableCell>
+                                                      <TableCell className="text-right hidden md:table-cell">
+                                                        <div className="flex items-center justify-end gap-1">
+                                                          <Button
+                                                            variant="ghost"
+                                                            className="h-7 w-7 p-0"
+                                                            onClick={() => openEditDialog(entry)}
+                                                            title="Edit recovery"
+                                                          >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                          </Button>
+                                                          <Button
+                                                            variant="ghost"
+                                                            className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                                                            onClick={() => openDeleteConfirm(entry)}
+                                                            title="Delete recovery"
+                                                          >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                          </Button>
+                                                        </div>
+                                                      </TableCell>
+                                                    </TableRow>
+                                                  ))}
+                                                </TableBody>
+                                              </Table>
+                                            </div>
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
                                     )}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
+                                  </>
+                                );
+                              })}
                             </TableBody>
                           </Table>
                         </ScrollArea>
@@ -637,6 +947,264 @@ export default function AdminRecoveryReport() {
           )}
         </CardContent>
       </Card>
+
+      {/* ─── Edit Recovery Dialog ─── */}
+      <Dialog open={editDialogOpen} onOpenChange={(open) => {
+        if (!open) { setEditDialogOpen(false); setEditEntry(null); }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Recovery Entry</DialogTitle>
+            <DialogDescription>
+              Modify the amount and description for this recovery entry.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-amount">Amount (Rs.)</Label>
+              <Input
+                id="edit-amount"
+                type="number"
+                min="0"
+                step="1"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                placeholder="Enter amount"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description (optional)</Label>
+              <Input
+                id="edit-description"
+                type="text"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Enter description"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setEditDialogOpen(false); setEditEntry(null); }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => setEditConfirmOpen(true)}
+              disabled={!editAmount || parseFloat(editAmount) <= 0 || editSaving}
+            >
+              {editSaving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Confirmation AlertDialog */}
+      <AlertDialog open={editConfirmOpen} onOpenChange={setEditConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to update this recovery entry to {formatCurrency(parseFloat(editAmount) || 0)}?
+              {editDescription.trim() && ` Description: "${editDescription.trim()}"`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={editSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleEditSave}
+              disabled={editSaving}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {editSaving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              Confirm Update
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Delete Recovery AlertDialog ─── */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={(open) => {
+        if (!open) setDeleteEntry(null);
+        setDeleteConfirmOpen(open);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Recovery Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteEntry
+                ? `Delete this recovery entry of ${formatCurrency(deleteEntry.amount)}? This action cannot be undone.`
+                : 'Are you sure you want to delete this recovery entry?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleteSaving}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteSaving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Add Recovery Dialog (3-step) ─── */}
+      <Dialog open={addDialogOpen} onOpenChange={(open) => {
+        if (!open) { setAddDialogOpen(false); setAddStep(1); }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Recovery</DialogTitle>
+            <DialogDescription>
+              {addStep === 1 && 'Step 1: Select an orderbooker'}
+              {addStep === 2 && 'Step 2: Select a shop'}
+              {addStep === 3 && 'Step 3: Enter recovery details'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Step indicator */}
+          <div className="flex items-center gap-2 mb-2">
+            {[1, 2, 3].map((step) => (
+              <div
+                key={step}
+                className={`h-1.5 flex-1 rounded-full transition-colors ${
+                  step <= addStep ? 'bg-green-500' : 'bg-muted'
+                }`}
+              />
+            ))}
+          </div>
+
+          {fetchingDropdowns ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-sm text-muted-foreground">Loading data...</span>
+            </div>
+          ) : (
+            <>
+              {/* Step 1: Select Orderbooker */}
+              {addStep === 1 && (
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label>Select Orderbooker</Label>
+                    <Select
+                      value={selectedOBId}
+                      onValueChange={(val) => {
+                        setSelectedOBId(val);
+                        setSelectedShopId('');
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose an orderbooker" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orderbookers.map((ob) => (
+                          <SelectItem key={ob.id} value={ob.id}>
+                            {ob.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Select Shop */}
+              {addStep === 2 && (
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label>Select Shop</Label>
+                    <Select value={selectedShopId} onValueChange={setSelectedShopId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a shop" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredShops.map((shop) => (
+                          <SelectItem key={shop.id} value={shop.id}>
+                            {shop.name}{shop.area ? ` — ${shop.area}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {filteredShops.length === 0 && (
+                      <p className="text-xs text-muted-foreground">No shops found for this orderbooker.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Enter Amount & Description */}
+              {addStep === 3 && (
+                <div className="space-y-4 py-2">
+                  <div className="rounded-lg bg-muted/50 p-3 text-xs">
+                    <span className="font-medium text-muted-foreground">Shop: </span>
+                    <span className="text-foreground">{filteredShops.find((s) => s.id === selectedShopId)?.name}</span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="add-amount">Amount (Rs.)</Label>
+                    <Input
+                      id="add-amount"
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={addAmount}
+                      onChange={(e) => setAddAmount(e.target.value)}
+                      placeholder="Enter recovery amount"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="add-description">Description (optional)</Label>
+                    <Input
+                      id="add-description"
+                      type="text"
+                      value={addDescription}
+                      onChange={(e) => setAddDescription(e.target.value)}
+                      placeholder="e.g., Cash payment, Cheque #123"
+                    />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (addStep === 1) { setAddDialogOpen(false); }
+                else { setAddStep((addStep - 1) as 1 | 2); }
+              }}
+            >
+              {addStep === 1 ? 'Cancel' : 'Back'}
+            </Button>
+            {addStep < 3 ? (
+              <Button
+                onClick={() => setAddStep((addStep + 1) as 2 | 3)}
+                disabled={
+                  (addStep === 1 && !selectedOBId) ||
+                  (addStep === 2 && !selectedShopId)
+                }
+              >
+                Next
+              </Button>
+            ) : (
+              <Button
+                onClick={handleAddSubmit}
+                disabled={!addAmount || parseFloat(addAmount) <= 0 || addSaving}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {addSaving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Plus className="h-4 w-4 mr-1.5" />}
+                Add Recovery
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

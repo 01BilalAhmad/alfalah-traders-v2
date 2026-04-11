@@ -45,7 +45,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
-import { getLocalDateString } from '@/lib/utils';
+import { getLocalDateString, WORKING_DAYS, getTodayRouteDay } from '@/lib/utils';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
 import BackupSettingsDialog from './BackupSettingsDialog';
 import ChangePasswordDialog from './ChangePasswordDialog';
@@ -63,7 +63,7 @@ import {
   type PendingTransaction,
 } from '@/lib/offline-store';
 
-const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const ROUTE_DAYS = [...WORKING_DAYS];
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(amount);
@@ -903,7 +903,7 @@ function OrderbookerDashboard() {
   // Pending offline transactions
   const [pendingTxns, setPendingTxns] = useState<PendingTransaction[]>([]);
 
-  const todayDay = ROUTE_DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+  const todayDay = getTodayRouteDay();
 
   const fetchShops = useCallback(async () => {
     if (!user) return;

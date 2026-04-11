@@ -17,6 +17,16 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -51,10 +61,13 @@ import {
   Zap,
   BarChart3,
   AlertTriangle,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { WORKING_DAYS, getTodayRouteDay } from '@/lib/utils';
 
-const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const ROUTE_DAYS = [...WORKING_DAYS];
 
 interface Shop {
   id: string;
@@ -100,6 +113,13 @@ interface CreditLimitWarning {
   limit: number;
   currentBalance: number;
   exceeded: boolean;
+}
+
+interface EditableTransaction {
+  id: string;
+  amount: string;
+  description: string;
+  createdAt: string;
 }
 
 function formatCurrency(amount: number): string {
@@ -180,10 +200,23 @@ export default function AdminCreditPosting() {
   // Duplicate credit detection state
   const [duplicateCreditWarning, setDuplicateCreditWarning] = useState<{ shopName: string; todayTotal: number } | null>(null);
 
+  // Edit transaction state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editTransactions, setEditTransactions] = useState<EditableTransaction[]>([]);
+  const [editShopName, setEditShopName] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [editConfirmOpen, setEditConfirmOpen] = useState(false);
+  const [editConfirmIndex, setEditConfirmIndex] = useState(-1);
+
+  // Delete transaction state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<TodaySummaryItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const quickPostTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const todayDay = ROUTE_DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+  const todayDay = getTodayRouteDay();
 
   // Total shops for current filter (without search)
   const totalShopsForFilter = selectedDay
@@ -459,6 +492,130 @@ export default function AdminCreditPosting() {
 
   const handlePrintReceipt = () => {
     window.print();
+  };
+
+  // Edit transaction handlers
+  const handleOpenEditDialog = async (item: TodaySummaryItem) => {
+    try {
+      const todayDate = getTodayDateString();
+      const params = new URLSearchParams();
+      params.set('shopId', item.shopId);
+      params.set('date', todayDate);
+      params.set('type', 'credit');
+      params.set('limit', '100');
+      const res = await fetch(`/api/transactions?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        const txns = data.transactions || [];
+        setEditTransactions(txns.map((t: { id: string; amount: number; description: string; createdAt: string }) => ({
+          id: t.id,
+          amount: String(t.amount),
+          description: t.description,
+          createdAt: t.createdAt,
+        })));
+        setEditShopName(item.shopName);
+        setEditDialogOpen(true);
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load transactions', variant: 'destructive' });
+    }
+  };
+
+  const handleUpdateTransactionAmount = (index: number, value: string) => {
+    setEditTransactions((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], amount: value };
+      return updated;
+    });
+  };
+
+  const handleUpdateTransactionDescription = (index: number, value: string) => {
+    setEditTransactions((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], description: value };
+      return updated;
+    });
+  };
+
+  const handleEditSave = () => {
+    const txn = editTransactions[editConfirmIndex];
+    if (!txn || !user) return;
+
+    const newAmount = parseFloat(txn.amount);
+    if (isNaN(newAmount) || newAmount <= 0) {
+      toast({ title: 'Error', description: 'Please enter a valid amount', variant: 'destructive' });
+      return;
+    }
+
+    setEditLoading(true);
+    fetch('/api/transactions', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: txn.id,
+        amount: newAmount,
+        description: txn.description.trim() || 'Goods supplied',
+        updatedBy: user.id,
+      }),
+    })
+      .then((res) => {
+        if (!res.ok) return res.json().then((d: { error?: string }) => { throw new Error(d.error || 'Failed to update'); });
+        return res.json();
+      })
+      .then(() => {
+        toast({ title: 'Updated', description: `Transaction for ${editShopName} updated successfully` });
+        setEditConfirmOpen(false);
+        setEditDialogOpen(false);
+        fetchTodaySummary();
+        fetchShops();
+      })
+      .catch((err: Error) => {
+        toast({ title: 'Error', description: err.message || 'Failed to update transaction', variant: 'destructive' });
+      })
+      .finally(() => {
+        setEditLoading(false);
+      });
+  };
+
+  // Delete transaction handlers
+  const handleOpenDeleteDialog = (item: TodaySummaryItem) => {
+    setDeleteTarget(item);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget || !user) return;
+
+    setDeleting(true);
+    try {
+      const todayDate = getTodayDateString();
+      const params = new URLSearchParams();
+      params.set('shopId', deleteTarget.shopId);
+      params.set('date', todayDate);
+      params.set('type', 'credit');
+      params.set('limit', '100');
+      const res = await fetch(`/api/transactions?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        const txns = data.transactions || [];
+
+        // Delete each transaction for this shop today
+        const deletePromises = txns.map((t: { id: string }) =>
+          fetch(`/api/transactions?id=${t.id}&deletedBy=${user!.id}`, { method: 'DELETE' })
+        );
+        await Promise.all(deletePromises);
+
+        toast({ title: 'Deleted', description: `All credit entries for ${deleteTarget.shopName} have been removed` });
+        setDeleteDialogOpen(false);
+        setDeleteTarget(null);
+        fetchTodaySummary();
+        fetchShops();
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete transactions', variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const isSearchActive = debouncedSearch.trim().length > 0;
@@ -793,6 +950,7 @@ export default function AdminCreditPosting() {
                       <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Area</TableHead>
                       <TableHead className="text-white font-semibold text-xs text-center hidden sm:table-cell">Entries</TableHead>
                       <TableHead className="text-white font-semibold text-xs text-right">Amount</TableHead>
+                      <TableHead className="text-white font-semibold text-xs text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -803,6 +961,26 @@ export default function AdminCreditPosting() {
                         <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{item.shopArea || '—'}</TableCell>
                         <TableCell className="hidden sm:table-cell text-center text-sm text-muted-foreground">{item.transactionCount}</TableCell>
                         <TableCell className="text-right font-semibold text-sm text-red-600 dark:text-red-400">{formatCurrency(item.totalAmount)}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                              onClick={() => handleOpenEditDialog(item)}
+                              aria-label={`Edit credit for ${item.shopName}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleOpenDeleteDialog(item)}
+                              aria-label={`Delete credit for ${item.shopName}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1089,6 +1267,162 @@ export default function AdminCreditPosting() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Transaction Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" />
+              Edit Credit Entries
+            </DialogTitle>
+            <DialogDescription>
+              Modify credit transactions for <span className="font-semibold text-foreground">{editShopName}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          {editTransactions.length === 0 ? (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              <span className="text-sm">Loading transactions...</span>
+            </div>
+          ) : (
+            <ScrollArea className="flex-1 -mx-6 px-6">
+              <div className="space-y-4 pb-2">
+                {editTransactions.map((txn, idx) => (
+                  <div key={txn.id} className="p-4 rounded-lg border bg-muted/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-muted-foreground">Entry #{idx + 1}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDateTime(txn.createdAt)}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`edit-amount-${idx}`} className="text-xs">Amount (Rs.)</Label>
+                      <Input
+                        id={`edit-amount-${idx}`}
+                        type="number"
+                        value={txn.amount}
+                        onChange={(e) => handleUpdateTransactionAmount(idx, e.target.value)}
+                        min="1"
+                        step="1"
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`edit-desc-${idx}`} className="text-xs">Description</Label>
+                      <Textarea
+                        id={`edit-desc-${idx}`}
+                        value={txn.description}
+                        onChange={(e) => handleUpdateTransactionDescription(idx, e.target.value)}
+                        rows={2}
+                        className="resize-none"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={() => {
+                          setEditConfirmIndex(idx);
+                          setEditConfirmOpen(true);
+                        }}
+                        disabled={!txn.amount || parseFloat(txn.amount) <= 0}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                        Save Changes
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Confirm AlertDialog */}
+      <AlertDialog open={editConfirmOpen} onOpenChange={setEditConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Edit</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to update this credit entry for <span className="font-semibold text-foreground">{editShopName}</span>?
+              The shop&apos;s balance will be recalculated based on the new amount.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={editLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleEditSave}
+              disabled={editLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {editLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Yes, Update'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirm AlertDialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => {
+        if (!open) setDeleteTarget(null);
+        setDeleteDialogOpen(open);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Delete Credit Entry
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <p>
+                Are you sure you want to delete this credit entry of{' '}
+                <span className="font-bold text-foreground">
+                  {deleteTarget ? formatCurrency(deleteTarget.totalAmount) : ''}
+                </span>{' '}
+                from <span className="font-semibold text-foreground">{deleteTarget?.shopName}</span>?
+                {deleteTarget && deleteTarget.transactionCount > 1 && (
+                  <span className="block mt-1 text-xs">
+                    This will delete {deleteTarget.transactionCount} transaction{deleteTarget.transactionCount > 1 ? 's' : ''}.
+                  </span>
+                )}
+                <span className="block mt-1">
+                  This will reverse the amount from the shop&apos;s balance.
+                </span>
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Yes, Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

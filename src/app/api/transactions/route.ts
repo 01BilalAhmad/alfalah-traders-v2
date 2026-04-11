@@ -175,3 +175,174 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500 });
   }
 }
+
+// PATCH /api/transactions - Edit a transaction (amount, description)
+// Reverses the old transaction's effect, applies the new one, updates shop balance
+export async function PATCH(request: NextRequest) {
+  try {
+    const { id, amount, description, updatedBy } = await request.json();
+
+    if (!id || !amount || !updatedBy) {
+      return NextResponse.json({ error: 'Transaction ID, amount, and updater are required' }, { status: 400 });
+    }
+
+    if (amount <= 0) {
+      return NextResponse.json({ error: 'Amount must be greater than 0' }, { status: 400 });
+    }
+
+    const existingTxn = await db.transaction.findUnique({
+      where: { id },
+      include: { shop: { select: { id: true, name: true, balance: true } } },
+    });
+
+    if (!existingTxn) {
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+    }
+
+    const shop = existingTxn.shop;
+    const oldAmount = existingTxn.amount;
+    const oldType = existingTxn.type;
+    const newAmount = amount;
+
+    // Step 1: Reverse old transaction's effect on shop balance
+    let balanceAfterReverse: number;
+    if (oldType === 'credit') {
+      balanceAfterReverse = shop.balance - oldAmount; // undo credit
+    } else {
+      balanceAfterReverse = shop.balance + oldAmount; // undo recovery
+    }
+
+    // Step 2: Apply new amount
+    let newShopBalance: number;
+    if (oldType === 'credit') {
+      newShopBalance = balanceAfterReverse + newAmount;
+    } else {
+      newShopBalance = balanceAfterReverse - newAmount;
+    }
+
+    newShopBalance = Math.round(newShopBalance * 100) / 100;
+
+    // Step 3: Update in transaction
+    const updatedTxn = await db.$transaction(async (tx) => {
+      const txn = await tx.transaction.update({
+        where: { id },
+        data: {
+          amount: newAmount,
+          description: description !== undefined ? description : existingTxn.description,
+          newBalance: newShopBalance,
+        },
+        include: {
+          shop: { select: { id: true, name: true } },
+          creator: { select: { id: true, name: true } },
+        },
+      });
+
+      await tx.shop.update({
+        where: { id: shop.id },
+        data: { balance: newShopBalance },
+      });
+
+      return txn;
+    });
+
+    // Audit log
+    try {
+      await db.auditLog.create({
+        data: {
+          action: 'edit',
+          entityType: 'transaction',
+          entityId: id,
+          performedBy: updatedBy,
+          oldValue: JSON.stringify({
+            shopName: shop.name,
+            type: oldType,
+            amount: oldAmount,
+            description: existingTxn.description,
+          }),
+          newValue: JSON.stringify({
+            shopName: shop.name,
+            type: oldType,
+            amount: newAmount,
+            description: description !== undefined ? description : existingTxn.description,
+          }),
+          description: `Transaction edited: ${oldType} Rs. ${oldAmount} → Rs. ${newAmount} at ${shop.name}`,
+        },
+      });
+    } catch { /* non-blocking */ }
+
+    return NextResponse.json(updatedTxn);
+  } catch (error) {
+    console.error('Error updating transaction:', error);
+    return NextResponse.json({ error: 'Failed to update transaction' }, { status: 500 });
+  }
+}
+
+// DELETE /api/transactions - Delete a transaction and reverse its effect on shop balance
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const deletedBy = searchParams.get('deletedBy');
+
+    if (!id || !deletedBy) {
+      return NextResponse.json({ error: 'Transaction ID and deleter are required' }, { status: 400 });
+    }
+
+    const existingTxn = await db.transaction.findUnique({
+      where: { id },
+      include: { shop: { select: { id: true, name: true, balance: true } } },
+    });
+
+    if (!existingTxn) {
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+    }
+
+    const shop = existingTxn.shop;
+
+    // Reverse the effect on shop balance
+    let newShopBalance: number;
+    if (existingTxn.type === 'credit') {
+      newShopBalance = shop.balance - existingTxn.amount;
+    } else {
+      newShopBalance = shop.balance + existingTxn.amount;
+    }
+
+    newShopBalance = Math.round(newShopBalance * 100) / 100;
+
+    // Delete in transaction
+    await db.$transaction(async (tx) => {
+      await tx.transaction.delete({ where: { id } });
+      await tx.shop.update({
+        where: { id: shop.id },
+        data: { balance: newShopBalance },
+      });
+    });
+
+    // Audit log
+    try {
+      await db.auditLog.create({
+        data: {
+          action: 'delete',
+          entityType: 'transaction',
+          entityId: id,
+          performedBy: deletedBy,
+          oldValue: JSON.stringify({
+            shopName: shop.name,
+            type: existingTxn.type,
+            amount: existingTxn.amount,
+            previousBalance: existingTxn.previousBalance,
+            newBalance: existingTxn.newBalance,
+            description: existingTxn.description,
+          }),
+          newValue: JSON.stringify({ shopName: shop.name, newBalance: newShopBalance }),
+          description: `Transaction deleted: ${existingTxn.type} Rs. ${existingTxn.amount} at ${shop.name}`,
+        },
+      });
+    } catch { /* non-blocking */ }
+
+    return NextResponse.json({ success: true, deletedId: id, newShopBalance });
+  } catch (error) {
+    console.error('Error deleting transaction:', error);
+    return NextResponse.json({ error: 'Failed to delete transaction' }, { status: 500 });
+  }
+}

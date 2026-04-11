@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useAnimatedNumber } from '@/lib/use-animated-number';
-import { getLocalDateString } from '@/lib/utils';
+import { getLocalDateString, WORKING_DAYS } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -135,7 +135,7 @@ interface MonthSummary {
   prevNetPosition: number;
 }
 
-const ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const ROUTE_DAYS = [...WORKING_DAYS];
 const ROUTE_COLORS = ['#1E3A8A', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 function DashboardSkeleton() {

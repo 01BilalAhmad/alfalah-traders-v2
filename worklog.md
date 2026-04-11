@@ -3786,3 +3786,101 @@ Stage Summary:
 3. Implement data backup/restore functionality
 4. Add route optimization suggestions based on shop locations
 5. Add multi-language support (Urdu/English toggle)
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Change off day (Friday), add admin edit/delete permissions for credit & recovery entries, admin add recovery
+
+Work Log:
+- Read worklog.md and assessed full project state (Tasks 1-7, 20+ components, 10+ API routes)
+- Identified 3 main requirements from user
+
+### 1. Changed Off Day from Sunday to Friday
+**Files Modified:**
+
+1. **`/src/lib/utils.ts`** — Added shared utility functions:
+   - `WORKING_DAYS` constant: `['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday']`
+   - `getTodayRouteDay()`: Returns today's route day using Asia/Karachi timezone. Returns '' on Friday (off day).
+   - Maps JS getDay() output (0=Sun...5=Fri...6=Sat) to working days array
+
+2. **`/src/components/alfalah/AdminCreditPosting.tsx`** — Updated:
+   - Imported `WORKING_DAYS, getTodayRouteDay` from utils
+   - `ROUTE_DAYS` now uses `[...WORKING_DAYS]`
+   - `todayDay` uses `getTodayRouteDay()` instead of manual getDay() math
+
+3. **`/src/components/alfalah/AdminShops.tsx`** — Updated:
+   - Imported `WORKING_DAYS` from utils
+   - `ROUTE_DAYS` now uses `[...WORKING_DAYS]`
+
+4. **`/src/components/alfalah/OrderbookerLayout.tsx`** — Updated:
+   - Imported `WORKING_DAYS, getTodayRouteDay` from utils
+   - `ROUTE_DAYS` now uses `[...WORKING_DAYS]`
+   - `todayDay` uses `getTodayRouteDay()`
+
+5. **`/src/components/alfalah/AdminDashboard.tsx`** — Updated:
+   - Imported `WORKING_DAYS` from utils
+   - `ROUTE_DAYS` now uses `[...WORKING_DAYS]`
+   - Pie chart now shows Saturday-Thursday distribution instead of Monday-Saturday
+
+### 2. Backend API: Transaction Edit/Delete Endpoints
+
+**File Modified: `/src/app/api/transactions/route.ts`**
+
+**PATCH /api/transactions:**
+- Body: `{ id, amount, description, updatedBy }`
+- Reverses old transaction's effect on shop balance
+- Applies new amount to shop balance
+- Updates transaction record with new amount, description, newBalance
+- Creates audit log with old and new values
+
+**DELETE /api/transactions?id=xxx&deletedBy=yyy:**
+- Reverses transaction's effect on shop balance (credit subtracted, recovery added back)
+- Deletes transaction record
+- Creates audit log with deleted values
+
+### 3. Admin Edit/Delete for Credit Entries
+
+**File Modified: `/src/components/alfalah/AdminCreditPosting.tsx`** (by subagent):
+- Added Edit (Pencil) and Delete (Trash2) buttons in Today's Posting Summary table
+- Edit Dialog: shows individual transactions per shop, editable amount/description
+- Delete AlertDialog: confirmation with warning about balance reversal
+- On success: refreshes summary + shops list
+
+### 4. Admin Edit/Delete/Add for Recovery Entries
+
+**File Modified: `/src/components/alfalah/AdminRecoveryReport.tsx`** (by subagent):
+- Added Edit (Pencil) and Delete (Trash2) buttons per recovery entry in expanded shop view
+- Edit Recovery Dialog: pre-filled amount/description, confirmation before save
+- Delete AlertDialog: confirmation before deletion
+- "Add Recovery" green button in header area
+- Add Recovery Dialog: 3-step flow (select orderbooker → select shop → enter amount/description)
+- All operations refresh data via fetchSummary()
+
+### Verification:
+- `bun run lint` passes cleanly with zero errors
+- Dev server compiles all pages without errors
+- All API endpoints (GET/POST/PATCH/DELETE /api/transactions) working correctly
+
+Stage Summary:
+- Friday is now the weekly off day, Sunday is a working day
+- Route days are now: Saturday, Sunday, Monday, Tuesday, Wednesday, Thursday
+- Admin can edit credit entries (amount + description) with automatic balance recalculation
+- Admin can delete credit entries with balance reversal
+- Admin can edit recovery entries (amount + description) with balance recalculation
+- Admin can delete recovery entries with balance reversal
+- Admin can manually add recovery entries for any shop (select orderbooker → shop → amount)
+- All changes are audit-logged
+- All changes support dark mode
+
+### Unresolved Issues:
+- agent-browser cannot reach app due to Docker networking — manual QA needed
+- Existing shops in database still have old route day values (monday-saturday), need manual reassignment if changing to new days
+- No automated tests (unit/integration)
+- Offline mode for orderbooker app not yet implemented
+
+### Priority Recommendations for Next Phase:
+1. Help user reassign route days for existing shops to match new Saturday-Thursday schedule
+2. Implement offline/localStorage caching for orderbooker app
+3. Add WhatsApp notification integration for recovery reminders
+4. Add multi-language support (Urdu/English toggle)

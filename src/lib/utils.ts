@@ -84,3 +84,35 @@ export function formatLocalDateTime(date: Date): string {
 export function formatPKR(amount: number): string {
   return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
+
+/**
+ * Working days for Al-Falah Traders.
+ * Friday is the weekly off day. Saturday through Thursday are working days.
+ */
+export const WORKING_DAYS = [
+  'saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday',
+] as const;
+
+/**
+ * Get today's route day name using Asia/Karachi timezone.
+ * Returns '' if today is Friday (weekly off day).
+ * Working days: Saturday, Sunday, Monday, Tuesday, Wednesday, Thursday.
+ */
+export function getTodayRouteDay(): string {
+  // Get current day-of-week in Pakistan timezone
+  const pkDay = new Date(
+    new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })
+  ).getDay();
+  // pkDay: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday(off), 6=Saturday
+  const dayIndexMap: Record<number, number> = {
+    6: 0, // Saturday → WORKING_DAYS[0]
+    0: 1, // Sunday → WORKING_DAYS[1]
+    1: 2, // Monday → WORKING_DAYS[2]
+    2: 3, // Tuesday → WORKING_DAYS[3]
+    3: 4, // Wednesday → WORKING_DAYS[4]
+    4: 5, // Thursday → WORKING_DAYS[5]
+    // 5 (Friday) = off day, no mapping
+  };
+  const idx = dayIndexMap[pkDay];
+  return idx !== undefined ? WORKING_DAYS[idx] : '';
+}
