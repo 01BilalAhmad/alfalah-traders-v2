@@ -116,3 +116,131 @@ export function getTodayRouteDay(): string {
   const idx = dayIndexMap[pkDay];
   return idx !== undefined ? WORKING_DAYS[idx] : '';
 }
+
+/**
+ * Business rule constants for transaction validation.
+ */
+export const TRANSACTION_RULES = {
+  MIN_AMOUNT: 100,
+  MAX_AMOUNT: 500000,
+  DAILY_CREDIT_CAP: 100000,
+  MAX_DESCRIPTION_LENGTH: 200,
+} as const;
+
+/**
+ * Validate a transaction against business rules.
+ * Returns errors (blocking) and warnings (non-blocking).
+ */
+export function validateTransaction(params: {
+  amount: number;
+  type: 'credit' | 'recovery';
+  shopBalance: number;
+  shopCreditLimit: number | null;
+  todayShopCredits: number;
+}): { valid: boolean; errors: string[]; warnings: string[] } {
+  const { amount, type, shopBalance, shopCreditLimit, todayShopCredits } = params;
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // 1. Minimum amount check
+  if (amount < TRANSACTION_RULES.MIN_AMOUNT) {
+    errors.push(`Minimum transaction amount is Rs. ${TRANSACTION_RULES.MIN_AMOUNT.toLocaleString()}`);
+  }
+
+  // 2. Maximum single transaction check
+  if (amount > TRANSACTION_RULES.MAX_AMOUNT) {
+    errors.push(`Maximum single transaction amount is Rs. ${TRANSACTION_RULES.MAX_AMOUNT.toLocaleString()}`);
+  }
+
+  // 3. For credit type: daily credit cap
+  if (type === 'credit') {
+    if (todayShopCredits + amount > TRANSACTION_RULES.DAILY_CREDIT_CAP) {
+      errors.push(
+        `Daily credit cap exceeded for this shop. Today's total: Rs. ${todayShopCredits.toLocaleString()}, ` +
+        `this entry: Rs. ${amount.toLocaleString()}, ` +
+        `combined: Rs. ${(todayShopCredits + amount).toLocaleString()} (limit: Rs. ${TRANSACTION_RULES.DAILY_CREDIT_CAP.toLocaleString()})`
+      );
+    }
+  }
+
+  // 4. For recovery type: cannot recover more than shop balance
+  if (type === 'recovery' && amount > shopBalance) {
+    errors.push(
+      `Recovery amount (Rs. ${amount.toLocaleString()}) exceeds shop balance (Rs. ${shopBalance.toLocaleString()}).`
+    );
+  }
+
+  // Warnings (non-blocking)
+  if (type === 'credit' && shopCreditLimit && shopCreditLimit > 0) {
+    const projectedBalance = shopBalance + amount;
+    if (projectedBalance > shopCreditLimit) {
+      warnings.push(
+        `Shop balance will exceed credit limit after this credit (projected: Rs. ${projectedBalance.toLocaleString()}, limit: Rs. ${shopCreditLimit.toLocaleString()})`
+      );
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+/**
+ * Credit limit status types for visual indicators.
+ */
+export interface CreditLimitStatus {
+  status: 'none' | 'safe' | 'caution' | 'warning' | 'exceeded';
+  percentage: number;
+  className: string;
+  label: string;
+  color: string;
+}
+
+/**
+ * Get credit limit status with visual styling info.
+ * Used to display credit limit indicators next to shop balances.
+ */
+export function getCreditLimitStatus(balance: number, creditLimit: number | null | undefined): CreditLimitStatus {
+  // No credit limit set
+  if (!creditLimit || creditLimit <= 0) {
+    return { status: 'none', percentage: 0, className: '', label: '', color: '' };
+  }
+
+  const percentage = Math.round((balance / creditLimit) * 100);
+
+  if (percentage < 50) {
+    return {
+      status: 'safe',
+      percentage,
+      className: 'credit-limit-safe',
+      label: 'Safe',
+      color: '#10B981',
+    };
+  } else if (percentage < 80) {
+    return {
+      status: 'caution',
+      percentage,
+      className: 'credit-limit-caution',
+      label: 'Caution',
+      color: '#F59E0B',
+    };
+  } else if (percentage < 100) {
+    return {
+      status: 'warning',
+      percentage,
+      className: 'credit-limit-warning',
+      label: 'Warning',
+      color: '#F97316',
+    };
+  } else {
+    return {
+      status: 'exceeded',
+      percentage,
+      className: 'credit-limit-exceeded',
+      label: 'Exceeded',
+      color: '#EF4444',
+    };
+  }
+}

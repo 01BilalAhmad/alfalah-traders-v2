@@ -510,7 +510,8 @@ export default function AdminReconciliation() {
                     </div>
                     {isExpanded && ob.shops.length > 0 && (
                       <div className="bg-muted/20 px-5 pb-3">
-                        <Table>
+                        <div className="overflow-x-auto">
+                        <Table className="min-w-[600px]">
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
                               <TableHead className="text-xs">Shop</TableHead>
@@ -537,6 +538,7 @@ export default function AdminReconciliation() {
                             ))}
                           </TableBody>
                         </Table>
+                        </div>
                       </div>
                     )}
                   </div>

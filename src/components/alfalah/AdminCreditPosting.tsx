@@ -66,7 +66,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { WORKING_DAYS, getTodayRouteDay } from '@/lib/utils';
+import { WORKING_DAYS, getTodayRouteDay, validateTransaction, TRANSACTION_RULES } from '@/lib/utils';
 
 const ROUTE_DAYS = [...WORKING_DAYS];
 
@@ -200,6 +200,13 @@ export default function AdminCreditPosting() {
 
   // Duplicate credit detection state
   const [duplicateCreditWarning, setDuplicateCreditWarning] = useState<{ shopName: string; todayTotal: number } | null>(null);
+
+  // Validation state
+  const [amountError, setAmountError] = useState<string>('');
+  const [descriptionError, setDescriptionError] = useState<string>('');
+  const [shopTodayCredits, setShopTodayCredits] = useState(0);
+  const [dailyCapOverrideOpen, setDailyCapOverrideOpen] = useState(false);
+  const [pendingOverrideAmount, setPendingOverrideAmount] = useState(0);
 
   // Session timer state
   const [sessionSeconds, setSessionSeconds] = useState(0);
@@ -397,8 +404,9 @@ export default function AdminCreditPosting() {
       if (res.ok) {
         const data = await res.json();
         const txns = data.transactions || [];
+        const totalToday = txns.reduce((s: number, t: { amount: number }) => s + t.amount, 0);
+        setShopTodayCredits(totalToday);
         if (txns.length > 0) {
-          const totalToday = txns.reduce((s: number, t: { amount: number }) => s + t.amount, 0);
           setDuplicateCreditWarning({ shopName: shop.name, todayTotal: totalToday });
         } else {
           setDuplicateCreditWarning(null);
@@ -406,6 +414,7 @@ export default function AdminCreditPosting() {
       }
     } catch {
       setDuplicateCreditWarning(null);
+      setShopTodayCredits(0);
     }
   }, []);
 
@@ -416,16 +425,43 @@ export default function AdminCreditPosting() {
     setQuickPostJustPosted(false);
     setCreditLimitWarning(null);
     setDuplicateCreditWarning(null);
+    setAmountError('');
+    setDescriptionError('');
+    setShopTodayCredits(0);
     setCreditDialogOpen(true);
     checkDuplicateCreditToday(shop);
   };
 
-  const handlePostCredit = async () => {
-    if (!selectedShop || !creditAmount || parseFloat(creditAmount) <= 0) {
-      toast({ title: 'Error', description: 'Please enter a valid amount', variant: 'destructive' });
-      return;
+  // Format amount as currency string while typing
+  const formatAmountDisplay = (value: string): string => {
+    const num = parseFloat(value);
+    if (isNaN(num) || value === '') return '';
+    return `Rs. ${num.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+
+  // Validate amount input and set inline error
+  const validateAmountInput = (value: string): string => {
+    if (!value) return '';
+    const num = parseFloat(value);
+    if (isNaN(num) || num <= 0) return '';
+    if (num < TRANSACTION_RULES.MIN_AMOUNT) {
+      return `Minimum amount is Rs. ${TRANSACTION_RULES.MIN_AMOUNT.toLocaleString()}`;
     }
-    if (!user) return;
+    if (num > TRANSACTION_RULES.MAX_AMOUNT) {
+      return `Maximum amount is Rs. ${TRANSACTION_RULES.MAX_AMOUNT.toLocaleString()}`;
+    }
+    return '';
+  };
+
+  // Handle daily cap override confirmed
+  const handleDailyCapOverrideConfirm = async () => {
+    setDailyCapOverrideOpen(false);
+    await submitCreditPost(pendingOverrideAmount);
+  };
+
+  // Actual API call for posting credit
+  const submitCreditPost = async (amount: number) => {
+    if (!selectedShop || !user) return;
 
     setPostingCredit(true);
     try {
@@ -435,7 +471,7 @@ export default function AdminCreditPosting() {
         body: JSON.stringify({
           shopId: selectedShop.id,
           type: 'credit',
-          amount: parseFloat(creditAmount),
+          amount,
           description: creditDescription.trim() || 'Goods supplied',
           createdBy: user.id,
         }),
@@ -448,8 +484,14 @@ export default function AdminCreditPosting() {
       }
 
       const txn = await res.json();
-      const amount = parseFloat(creditAmount);
       const desc = creditDescription.trim() || 'Goods supplied';
+
+      // Handle warnings from API (e.g., inactive orderbooker)
+      if (txn.warnings && Array.isArray(txn.warnings)) {
+        txn.warnings.forEach((w: string) => {
+          toast({ title: 'Warning', description: w });
+        });
+      }
 
       // Handle credit limit warning from API
       if (txn.creditLimitWarning) {
@@ -466,6 +508,8 @@ export default function AdminCreditPosting() {
         setQuickPostTotal((prev) => prev + amount);
         setCreditAmount('');
         setCreditDescription('');
+        setAmountError('');
+        setDescriptionError('');
         setQuickPostJustPosted(true);
 
         // Clear checkmark after 1.5s
@@ -502,6 +546,70 @@ export default function AdminCreditPosting() {
     } finally {
       setPostingCredit(false);
     }
+  };
+
+  const handlePostCredit = async () => {
+    if (!selectedShop || !creditAmount || parseFloat(creditAmount) <= 0) {
+      toast({ title: 'Error', description: 'Please enter a valid amount', variant: 'destructive' });
+      return;
+    }
+    if (!user) return;
+
+    const amount = parseFloat(creditAmount);
+
+    // Client-side validation
+    // 1. Amount range
+    const amtError = validateAmountInput(creditAmount);
+    if (amtError) {
+      setAmountError(amtError);
+      toast({ title: 'Validation Error', description: amtError, variant: 'destructive' });
+      return;
+    }
+    setAmountError('');
+
+    // 2. Description required & max length
+    if (!creditDescription.trim()) {
+      setDescriptionError('Description is required');
+      toast({ title: 'Validation Error', description: 'Description is required', variant: 'destructive' });
+      return;
+    }
+    if (creditDescription.trim().length > TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH) {
+      setDescriptionError(`Description must be ${TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH} characters or less`);
+      toast({ title: 'Validation Error', description: `Description must be ${TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH} characters or less`, variant: 'destructive' });
+      return;
+    }
+    setDescriptionError('');
+
+    // 3. Client-side daily credit cap check (with override option)
+    const combinedToday = shopTodayCredits + amount;
+    if (combinedToday > TRANSACTION_RULES.DAILY_CREDIT_CAP) {
+      setPendingOverrideAmount(amount);
+      setDailyCapOverrideOpen(true);
+      return;
+    }
+
+    // 4. Run the validateTransaction utility for any additional checks
+    const validation = validateTransaction({
+      amount,
+      type: 'credit',
+      shopBalance: selectedShop.balance,
+      shopCreditLimit: selectedShop.creditLimit > 0 ? selectedShop.creditLimit : null,
+      todayShopCredits: shopTodayCredits,
+    });
+
+    if (validation.errors.length > 0) {
+      toast({ title: 'Validation Error', description: validation.errors[0], variant: 'destructive' });
+      return;
+    }
+
+    if (validation.warnings.length > 0) {
+      // Show warnings but proceed
+      validation.warnings.forEach((w) => {
+        toast({ title: 'Warning', description: w });
+      });
+    }
+
+    await submitCreditPost(amount);
   };
 
   const handleExitQuickPost = () => {
@@ -1150,29 +1258,58 @@ export default function AdminCreditPosting() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="creditAmount">Amount (Rs.)</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="creditAmount">Amount (Rs.)</Label>
+                {creditAmount && !amountError && (
+                  <span className="text-xs font-medium text-primary">{formatAmountDisplay(creditAmount)}</span>
+                )}
+              </div>
               <Input
                 id="creditAmount"
                 type="number"
-                placeholder="Enter amount"
+                placeholder={`Min: ${TRANSACTION_RULES.MIN_AMOUNT.toLocaleString()} — Max: ${TRANSACTION_RULES.MAX_AMOUNT.toLocaleString()}`}
                 value={creditAmount}
-                onChange={(e) => setCreditAmount(e.target.value)}
-                min="1"
+                onChange={(e) => {
+                  setCreditAmount(e.target.value);
+                  setAmountError(validateAmountInput(e.target.value));
+                }}
+                min={TRANSACTION_RULES.MIN_AMOUNT}
+                max={TRANSACTION_RULES.MAX_AMOUNT}
                 step="1"
                 autoFocus={!quickPostJustPosted}
                 disabled={postingCredit}
+                className={amountError ? 'border-destructive focus-visible:ring-destructive/30' : ''}
               />
+              {amountError && (
+                <p className="text-xs text-destructive font-medium animate-fade-in">{amountError}</p>
+              )}
+              <p className="text-[10px] text-muted-foreground">
+                Allowed range: Rs. {TRANSACTION_RULES.MIN_AMOUNT.toLocaleString()} — Rs. {TRANSACTION_RULES.MAX_AMOUNT.toLocaleString()}
+              </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="creditDesc">Description</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="creditDesc">Description <span className="text-destructive">*</span></Label>
+                <span className={`text-[10px] font-medium ${creditDescription.length > TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {creditDescription.length} / {TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH}
+                </span>
+              </div>
               <Textarea
                 id="creditDesc"
                 placeholder="e.g., Goods supplied - Rice 10kg x 5"
                 value={creditDescription}
-                onChange={(e) => setCreditDescription(e.target.value)}
+                onChange={(e) => {
+                  setCreditDescription(e.target.value);
+                  setDescriptionError('');
+                }}
+                maxLength={TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH}
                 rows={2}
                 disabled={postingCredit}
+                className={descriptionError ? 'border-destructive focus-visible:ring-destructive/30' : ''}
               />
+              {descriptionError && (
+                <p className="text-xs text-destructive font-medium animate-fade-in">{descriptionError}</p>
+              )}
             </div>
           </div>
           <DialogFooter className="gap-2 no-print">
@@ -1187,7 +1324,7 @@ export default function AdminCreditPosting() {
             )}
             <Button
               onClick={handlePostCredit}
-              disabled={postingCredit || !creditAmount || parseFloat(creditAmount) <= 0}
+              disabled={postingCredit || !creditAmount || parseFloat(creditAmount) <= 0 || !!amountError || !creditDescription.trim()}
               className={`btn-ripple hover:opacity-90 focus-glow ${quickPostMode ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-primary hover:bg-primary/90'}`}
             >
               {postingCredit ? (
@@ -1202,6 +1339,40 @@ export default function AdminCreditPosting() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Daily Credit Cap Override Confirmation Dialog */}
+      <AlertDialog open={dailyCapOverrideOpen} onOpenChange={setDailyCapOverrideOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Daily Credit Cap Exceeded
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Posting <span className="font-bold">{formatCurrency(pendingOverrideAmount)}</span> to this shop
+                  will exceed the daily credit cap of <span className="font-bold">{formatCurrency(TRANSACTION_RULES.DAILY_CREDIT_CAP)}</span>.
+                </p>
+                <div className="p-2 rounded-md bg-muted text-sm">
+                  <p>Today&apos;s credits: <span className="font-semibold">{formatCurrency(shopTodayCredits)}</span></p>
+                  <p>This entry: <span className="font-semibold">{formatCurrency(pendingOverrideAmount)}</span></p>
+                  <p>Combined: <span className="font-bold text-amber-600 dark:text-amber-400">{formatCurrency(shopTodayCredits + pendingOverrideAmount)}</span></p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  The server will also reject this if it exceeds the cap. Do you want to try posting anyway?
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDailyCapOverrideConfirm}>
+              Post Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Receipt Confirmation Dialog */}
       <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>

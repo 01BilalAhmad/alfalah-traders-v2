@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+// Business rule constants
+const MIN_AMOUNT = 100;
+const MAX_AMOUNT = 500000;
+const DAILY_CREDIT_CAP = 100000;
+
+
 // Helper: Convert a date string (YYYY-MM-DD) to Pakistan timezone boundaries
 function getPakistanDayRange(dateStr: string): { start: Date; end: Date } {
   const [year, month, day] = dateStr.split('-').map(Number);
@@ -87,9 +93,77 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Amount must be greater than 0' }, { status: 400 });
     }
 
+    // Validation 1: Minimum amount
+    if (amount < MIN_AMOUNT) {
+      return NextResponse.json({ error: `Minimum transaction amount is Rs. ${MIN_AMOUNT.toLocaleString()}` }, { status: 400 });
+    }
+
+    // Validation 2: Maximum single transaction
+    if (amount > MAX_AMOUNT) {
+      return NextResponse.json({ error: `Maximum single transaction amount is Rs. ${MAX_AMOUNT.toLocaleString()}` }, { status: 400 });
+    }
+
+    // Validation 3: Description max length
+    if (description && typeof description === 'string' && description.length > 200) {
+      return NextResponse.json({ error: 'Description must be 200 characters or less' }, { status: 400 });
+    }
+
     const shop = await db.shop.findUnique({ where: { id: shopId } });
     if (!shop) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
+    }
+
+    // Validation 4: For credit type, check if shop is active
+    if (type === 'credit' && shop.status !== 'active') {
+      return NextResponse.json({ error: `Cannot post credit to inactive shop "${shop.name}". Activate the shop first.` }, { status: 400 });
+    }
+
+    // Validation 5: For recovery type, cannot recover more than shop balance
+    if (type === 'recovery' && amount > shop.balance) {
+      return NextResponse.json({
+        error: `Recovery amount (Rs. ${amount.toLocaleString()}) exceeds shop balance (Rs. ${shop.balance.toLocaleString()}). Maximum recovery allowed: Rs. ${shop.balance.toLocaleString()}`,
+      }, { status: 400 });
+    }
+
+    // Validation 6: For credit type, check daily credit cap per shop
+    const warnings: string[] = [];
+    if (type === 'credit') {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const [year, month, day] = todayStr.split('-').map(Number);
+      const dayStart = new Date(Date.UTC(year, month - 1, day, -5, 0, 0, 0));
+      const dayEnd = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
+
+      const todayCredits = await db.transaction.aggregate({
+        _sum: { amount: true },
+        where: {
+          shopId,
+          type: 'credit',
+          createdAt: { gte: dayStart, lte: dayEnd },
+        },
+      });
+
+      const todayCreditTotal = todayCredits._sum.amount || 0;
+      if (todayCreditTotal + amount > DAILY_CREDIT_CAP) {
+        return NextResponse.json({
+          error: `Daily credit cap exceeded for this shop. Today's total: Rs. ${todayCreditTotal.toLocaleString()}, this entry: Rs. ${amount.toLocaleString()}, combined: Rs. ${(todayCreditTotal + amount).toLocaleString()} (limit: Rs. ${DAILY_CREDIT_CAP.toLocaleString()})`,
+        }, { status: 400 });
+      }
+
+      // Validation 7: Check if shop's orderbooker is active (warning only)
+      if (shop.orderbookerId) {
+        try {
+          const orderbooker = await db.user.findUnique({
+            where: { id: shop.orderbookerId },
+            select: { id: true, name: true, status: true },
+          });
+          if (orderbooker && orderbooker.status === 'inactive') {
+            warnings.push(`The assigned orderbooker (${orderbooker.name}) is currently inactive. Credit has been posted with a warning.`);
+          }
+        } catch {
+          // Non-blocking — don't fail the transaction
+        }
+      }
     }
 
     const previousBalance = shop.balance;
@@ -169,7 +243,7 @@ export async function POST(request: NextRequest) {
       });
     } catch { /* non-blocking */ }
 
-    return NextResponse.json({ ...transaction, creditLimitWarning }, { status: 201 });
+    return NextResponse.json({ ...transaction, creditLimitWarning, warnings: warnings.length > 0 ? warnings : undefined }, { status: 201 });
   } catch (error) {
     console.error('Error creating transaction:', error);
     return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500 });
