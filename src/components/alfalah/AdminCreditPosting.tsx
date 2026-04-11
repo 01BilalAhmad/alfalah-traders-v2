@@ -335,9 +335,8 @@ export default function AdminCreditPosting() {
         const counts: Record<string, number> = {};
         ROUTE_DAYS.forEach((d) => { counts[d] = 0; });
         data.forEach((s) => {
-          if (counts[s.routeDay] !== undefined) {
-            counts[s.routeDay]++;
-          }
+          if (!counts[s.routeDay]) counts[s.routeDay] = 0;
+          counts[s.routeDay]++;
         });
         setDayCounts(counts);
       }
@@ -776,6 +775,26 @@ export default function AdminCreditPosting() {
                 )}
                 {day === todayDay && (
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-400" />
+                )}
+              </button>
+            ))}
+            {/* Non-working days (e.g., Friday) */}
+            {Object.entries(dayCounts).filter(([d]) => !ROUTE_DAYS.includes(d)).map(([day, count]) => (
+              <button
+                key={day}
+                onClick={() => setSelectedDay(day)}
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 border border-dashed border-amber-300 dark:border-amber-700 ${
+                  selectedDay === day
+                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
+                    : 'bg-amber-50 text-amber-600 dark:bg-amber-950/20 hover:bg-amber-100 dark:hover:bg-amber-900/30'
+                }`}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                {day.charAt(0).toUpperCase() + day.slice(1)}
+                {(count || 0) > 0 && (
+                  <span className="inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full text-[10px] font-bold px-1 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
+                    {count}
+                  </span>
                 )}
               </button>
             ))}

@@ -75,9 +75,12 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
 import { exportToCSV } from '@/lib/csv-export';
-import { WORKING_DAYS } from '@/lib/utils';
+import { WORKING_DAYS, getTodayRouteDay } from '@/lib/utils';
 
 const ROUTE_DAYS = [...WORKING_DAYS];
+
+// Off days not in working days (e.g., Friday)
+const OFF_DAYS = ['friday'];
 
 interface Shop {
   id: string;
@@ -113,6 +116,8 @@ export default function AdminShops() {
   const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDay, setSelectedDay] = useState<string>('');
+
+  const todayDay = getTodayRouteDay();
   const [selectedOBFilter, setSelectedOBFilter] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
@@ -187,9 +192,11 @@ export default function AdminShops() {
         const counts: Record<string, number> = {};
         ROUTE_DAYS.forEach((d) => { counts[d] = 0; });
         data.forEach((s) => {
-          if (counts[s.routeDay] !== undefined) {
-            counts[s.routeDay]++;
+          // Count all days, including non-working days like 'friday'
+          if (!counts[s.routeDay]) {
+            counts[s.routeDay] = 0;
           }
+          counts[s.routeDay]++;
         });
         setDayCounts(counts);
       }
@@ -655,13 +662,39 @@ export default function AdminShops() {
               onClick={() => setSelectedDay('')}
               className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${!selectedDay ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
             >
-              All Days ({allShops.length})
+              All Days ({Object.values(dayCounts).reduce((a, b) => a + b, 0)})
             </button>
             {ROUTE_DAYS.map((day) => (
               <button key={day} onClick={() => setSelectedDay(day)}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${selectedDay === day ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${selectedDay === day ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
               >
-                {day.charAt(0).toUpperCase() + day.slice(1)} ({dayCounts[day] || 0})
+                {day.charAt(0).toUpperCase() + day.slice(1)}
+                {(dayCounts[day] || 0) > 0 && (
+                  <span className={`inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full text-[10px] font-bold px-1 ${
+                    selectedDay === day ? 'bg-white/20 text-primary-foreground' : 'bg-primary/10 text-primary'
+                  }`}>
+                    {dayCounts[day]}
+                  </span>
+                )}
+                {day === todayDay && (
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-400" />
+                )}
+              </button>
+            ))}
+            {/* Non-working days (e.g., Friday) */}
+            {Object.entries(dayCounts).filter(([d]) => !ROUTE_DAYS.includes(d)).map(([day, count]) => (
+              <button
+                key={day}
+                onClick={() => setSelectedDay(day)}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 border border-dashed border-amber-300 dark:border-amber-700 ${selectedDay === day ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' : 'bg-amber-50 text-amber-600 dark:bg-amber-950/20 hover:bg-amber-100 dark:hover:bg-amber-900/30'}`}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                {day.charAt(0).toUpperCase() + day.slice(1)}
+                {(count || 0) > 0 && (
+                  <span className="inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full text-[10px] font-bold px-1 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
+                    {count}
+                  </span>
+                )}
               </button>
             ))}
           </div>
