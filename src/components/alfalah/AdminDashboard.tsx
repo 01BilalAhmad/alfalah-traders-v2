@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useAnimatedNumber } from '@/lib/use-animated-number';
 import { getLocalDateString } from '@/lib/utils';
@@ -54,6 +54,7 @@ import {
   Clock,
   ExternalLink,
   Calendar,
+  Banknote,
 } from 'lucide-react';
 
 function formatCurrency(amount: number): string {
@@ -219,57 +220,70 @@ export default function AdminDashboard() {
   const animatedOutstanding = useAnimatedNumber(data.totalOutstanding, 1000);
   const animatedTotalShops = useAnimatedNumber(data.totalShops, 600);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [obRes, txnRes, shopsRes, trendsRes, tlRes, msRes, rtRes, summaryRes] = await Promise.all([
-          fetch('/api/orderbookers'),
-          fetch(`/api/transactions?date=${getLocalDateString()}&limit=10`),
-          fetch('/api/shops'),
-          fetch('/api/reports/daily-trends'),
-          fetch('/api/reports/activity-timeline?limit=20'),
-          fetch('/api/reports/month-summary'),
-          fetch('/api/transactions?limit=5'),
-          fetch('/api/summary'),
-        ]);
-        const orderbookers = obRes.ok ? await obRes.json() : [];
-        const txnData = txnRes.ok ? await txnRes.json() : { transactions: [] };
-        const todayCredit = txnData.transactions.filter((t: TodayTxn) => t.type === 'credit').reduce((s: number, t: TodayTxn) => s + t.amount, 0);
-        const todayRecovery = txnData.transactions.filter((t: TodayTxn) => t.type === 'recovery').reduce((s: number, t: TodayTxn) => s + t.amount, 0);
-        const totalOutstanding = orderbookers.reduce((s: number, ob: Orderbooker) => s + ob.totalOutstanding, 0);
-        const totalShops = orderbookers.reduce((s: number, ob: Orderbooker) => s + ob.totalShops, 0);
+  const loadDashboard = useCallback(async () => {
+    try {
+      const [obRes, txnRes, shopsRes, trendsRes, tlRes, msRes, rtRes, summaryRes] = await Promise.all([
+        fetch('/api/orderbookers'),
+        fetch(`/api/transactions?date=${getLocalDateString()}&limit=10`),
+        fetch('/api/shops'),
+        fetch('/api/reports/daily-trends'),
+        fetch('/api/reports/activity-timeline?limit=20'),
+        fetch('/api/reports/month-summary'),
+        fetch('/api/transactions?limit=5'),
+        fetch('/api/summary'),
+      ]);
+      const orderbookers = obRes.ok ? await obRes.json() : [];
+      const txnData = txnRes.ok ? await txnRes.json() : { transactions: [] };
+      const todayCredit = txnData.transactions.filter((t: TodayTxn) => t.type === 'credit').reduce((s: number, t: TodayTxn) => s + t.amount, 0);
+      const todayRecovery = txnData.transactions.filter((t: TodayTxn) => t.type === 'recovery').reduce((s: number, t: TodayTxn) => s + t.amount, 0);
+      const totalOutstanding = orderbookers.reduce((s: number, ob: Orderbooker) => s + ob.totalOutstanding, 0);
+      const totalShops = orderbookers.reduce((s: number, ob: Orderbooker) => s + ob.totalShops, 0);
 
-        const trendsData = trendsRes.ok ? await trendsRes.json() : [];
-        const shops = shopsRes.ok ? await shopsRes.json() : [];
-        const tlResult = tlRes.ok ? await tlRes.json() : null;
-        const rawTimeline = Array.isArray(tlResult) ? tlResult : (tlResult?.activities || []);
-        // Map activity-timeline API fields to TimelineEntry shape expected by UI
-        const timelineData: TimelineEntry[] = rawTimeline.map((item: Record<string, unknown>) => ({
-          id: item.id as string,
-          type: (item.type as string) || 'credit',
-          shopName: (item.shopName as string) || 'N/A',
-          shopArea: item.shopArea as string | null,
-          amount: (item.amount as number) || 0,
-          description: item.description as string | null,
-          createdBy: (item.performedBy as string) || (item.createdBy as string) || 'System',
-          createdAt: item.createdAt as string,
-          balanceAfter: (item.balanceAfter as number) || 0,
-        }));
-        const monthData = msRes.ok ? await msRes.json() : null;
-        const rtData = rtRes.ok ? await rtRes.json() : { transactions: [] };
+      const trendsData = trendsRes.ok ? await trendsRes.json() : [];
+      const shops = shopsRes.ok ? await shopsRes.json() : [];
+      const tlResult = tlRes.ok ? await tlRes.json() : null;
+      const rawTimeline = Array.isArray(tlResult) ? tlResult : (tlResult?.activities || []);
+      // Map activity-timeline API fields to TimelineEntry shape expected by UI
+      const timelineData: TimelineEntry[] = rawTimeline.map((item: Record<string, unknown>) => ({
+        id: item.id as string,
+        type: (item.type as string) || 'credit',
+        shopName: (item.shopName as string) || 'N/A',
+        shopArea: item.shopArea as string | null,
+        amount: (item.amount as number) || 0,
+        description: item.description as string | null,
+        createdBy: (item.performedBy as string) || (item.createdBy as string) || 'System',
+        createdAt: item.createdAt as string,
+        balanceAfter: (item.balanceAfter as number) || 0,
+      }));
+      const monthData = msRes.ok ? await msRes.json() : null;
+      const rtData = rtRes.ok ? await rtRes.json() : { transactions: [] };
 
-        setData({ orderbookers, todayTxns: txnData.transactions, todayCredit, todayRecovery, totalShops, totalOutstanding });
-        setTrends(trendsData);
-        setAllShops(shops);
-        setTimeline(timelineData);
-        setMonthSummary(monthData);
-        setRecentTxns(rtData.transactions || []);
-        if (summaryRes.ok) setBizSummary(await summaryRes.json());
-      } catch { /* silent */ }
-      finally { setLoading(false); setTimelineLoading(false); setRecentTxnsLoading(false); }
-    }
-    load();
+      setData({ orderbookers, todayTxns: txnData.transactions, todayCredit, todayRecovery, totalShops, totalOutstanding });
+      setTrends(trendsData);
+      setAllShops(shops);
+      setTimeline(timelineData);
+      setMonthSummary(monthData);
+      setRecentTxns(rtData.transactions || []);
+      if (summaryRes.ok) setBizSummary(await summaryRes.json());
+    } catch { /* silent */ }
+    finally { setLoading(false); setTimelineLoading(false); setRecentTxnsLoading(false); }
   }, []);
+
+  // Initial load on mount
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  // Auto-refresh every 30 seconds
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    autoRefreshRef.current = setInterval(() => {
+      loadDashboard();
+    }, 30000);
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
+  }, [loadDashboard]);
 
   // Relative time helper
   function getTimeAgo(dateStr: string): string {
@@ -641,6 +655,88 @@ export default function AdminDashboard() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Live Recovery Feed */}
+      <Card className="animate-fade-in">
+        <CardHeader className="pb-2 pt-4 px-5">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              Live Recovery Feed
+            </CardTitle>
+            <button
+              className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
+              onClick={() => setCurrentView('admin-recovery')}
+            >
+              Full Report
+              <ExternalLink className="h-3 w-3" />
+            </button>
+          </div>
+        </CardHeader>
+        <CardContent className="px-5 pb-4">
+          {recentTxnsLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="skeleton-shimmer h-6 w-6 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="skeleton-shimmer h-3.5 w-36" />
+                    <Skeleton className="skeleton-shimmer h-3 w-20" />
+                  </div>
+                  <Skeleton className="skeleton-shimmer h-4 w-16" />
+                </div>
+              ))}
+            </div>
+          ) : (() => {
+            const recoveryTxns = recentTxns.filter(t => t.type === 'recovery').slice(0, 8);
+            if (recoveryTxns.length === 0) {
+              return (
+                <div className="text-center py-6">
+                  <p className="text-sm text-muted-foreground">No recovery entries today</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Recovery from orderbookers will appear here in real-time</p>
+                </div>
+              );
+            }
+            const totalLiveRecovery = recoveryTxns.reduce((s, t) => s + t.amount, 0);
+            return (
+              <>
+                <div className="flex items-center gap-2 mb-3 px-2">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                    <Banknote className="h-3 w-3 text-green-600" />
+                    <span className="text-xs font-bold text-green-700 dark:text-green-400">{formatCurrency(totalLiveRecovery)}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">across {recoveryTxns.length} entries</span>
+                </div>
+                <div className="space-y-1">
+                  {recoveryTxns.map((txn) => (
+                    <div
+                      key={txn.id}
+                      className="flex items-center justify-between gap-3 py-2.5 px-2 rounded-lg hover:bg-green-50/50 dark:hover:bg-green-900/10 transition-colors cursor-default"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="h-7 w-7 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
+                          <ArrowDownRight className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{txn.shop.name}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                            <span>{txn.creator.name}</span>
+                            <span>·</span>
+                            <span>{getTimeAgo(txn.createdAt)}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-bold text-green-600 dark:text-green-400 tabular-nums shrink-0">
+                        -{formatCurrency(txn.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
 

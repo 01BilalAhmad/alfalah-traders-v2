@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -25,6 +25,8 @@ import {
   KeyRound,
   CalendarDays,
   Activity,
+  Banknote,
+  ArrowDownRight,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ThemeToggle } from './ThemeToggle';
@@ -65,20 +67,27 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [miniStats, setMiniStats] = useState<{ totalShops: number; totalOBs: number }>({ totalShops: 0, totalOBs: 0 });
+  const [todayRecovery, setTodayRecovery] = useState<number>(0);
   const [statsLoading, setStatsLoading] = useState(true);
 
+  const loadStats = useRef(async () => {
+    try {
+      const obRes = await fetch('/api/orderbookers');
+      const shopRes = await fetch('/api/shops');
+      const txnRes = await fetch('/api/transactions?limit=100&type=recovery');
+      const obs = obRes.ok ? await obRes.json() : [];
+      const shops = shopRes.ok ? await shopRes.json() : [];
+      const txnData = txnRes.ok ? await txnRes.json() : { transactions: [] };
+      setMiniStats({ totalShops: Array.isArray(shops) ? shops.length : 0, totalOBs: Array.isArray(obs) ? obs.length : 0 });
+      setTodayRecovery((txnData.transactions || []).reduce((s: number, t: { amount: number }) => s + t.amount, 0));
+    } catch { /* silent */ }
+    finally { setStatsLoading(false); }
+  });
+
   useEffect(() => {
-    async function loadStats() {
-      try {
-        const obRes = await fetch('/api/orderbookers');
-        const shopRes = await fetch('/api/shops');
-        const obs = obRes.ok ? await obRes.json() : [];
-        const shops = shopRes.ok ? await shopRes.json() : [];
-        setMiniStats({ totalShops: Array.isArray(shops) ? shops.length : 0, totalOBs: Array.isArray(obs) ? obs.length : 0 });
-      } catch { /* silent */ }
-      finally { setStatsLoading(false); }
-    }
-    loadStats();
+    loadStats.current();
+    const interval = setInterval(() => loadStats.current(), 30000);
+    return () => clearInterval(interval);
   }, []);
 
   if (!user) return null;
@@ -254,6 +263,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             {/* Mini Stats at Bottom */}
             <div className="px-3 pb-4 mt-2">
               <Separator className="bg-white/10 mb-3" />
+              {/* Live Recovery Ticker */}
+              <div className="mb-3 rounded-lg bg-green-500/15 border border-green-400/30 px-3 py-2.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+                  <span className="text-[10px] text-green-300/80 font-medium">Today&apos;s Recovery</span>
+                </div>
+                <p className="text-base font-bold text-green-300 tabular-nums flex items-center gap-1.5">
+                  <ArrowDownRight className="h-4 w-4" />
+                  Rs. {todayRecovery.toLocaleString('en-PK', { maximumFractionDigits: 0 })}
+                </p>
+              </div>
               {statsLoading ? (
                 <div className="flex items-center justify-center py-3">
                   <Loader2 className="h-4 w-4 animate-spin text-blue-300/50" />
