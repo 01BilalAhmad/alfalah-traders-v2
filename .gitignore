@@ -52,3 +52,16 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Upload & Download (user files, not for deployment)
+/upload/
+/download/
+/agent-ctx/
+
+# Android/Capacitor build artifacts
+/android/
+/capacitor-app/
+/examples/
+
+# Mini services (separate processes)
+/mini-services/
