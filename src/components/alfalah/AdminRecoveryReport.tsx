@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useAppStore } from '@/lib/store';
 import { getLocalDateString, getYesterdayDateString } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -765,7 +765,7 @@ export default function AdminRecoveryReport() {
                                 const isShopExpanded = expandedShops.has(shopKey);
                                 const shopEntries = filterRecoveryEntries(shop.recoveryEntries);
                                 return (
-                                  <>
+                                  <Fragment key={shopKey}>
                                     {/* Shop Summary Row */}
                                     <TableRow
                                       key={shop.shopId}
@@ -923,7 +923,7 @@ export default function AdminRecoveryReport() {
                                         </TableCell>
                                       </TableRow>
                                     )}
-                                  </>
+                                  </Fragment>
                                 );
                               })}
                             </TableBody>
