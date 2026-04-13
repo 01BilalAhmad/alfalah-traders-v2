@@ -4657,3 +4657,63 @@ Stage Summary:
 - Code quality improved with cleaner imports
 - System is stable with zero errors across all pages
 - Login: AL-FALAH TRADER / @AFE@123654 (Admin), ahmed/ob123 or bilal/ob123 (Orderbooker)
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Fix React key prop warning, deployment issues, disk cleanup
+
+Work Log:
+- Fixed React key prop warning in AdminRecoveryReport.tsx (line 768)
+  - Added Fragment import from React
+  - Changed <> to <Fragment key={shopKey}> in .map() return
+- Cleaned deployment issues:
+  - upload/ folder was 250MB (videos/screenshots) → cleaned to 1MB
+  - /tmp/ had 1.8GB of old build artifacts → cleaned
+  - .next/dev cache was 337MB → cleaned
+  - Freed total ~2GB disk space (now 7.5GB free, 21% used)
+- Updated .gitignore to exclude heavy folders:
+  - /upload/, /download/, /agent-ctx/, /android/, /capacitor-app/, /examples/, /mini-services/
+- Build verified: passes cleanly with zero errors
+- Lint: passes cleanly
+
+Stage Summary:
+- React Fragment key warning fixed
+- Deployment should now work (disk space freed, heavy files excluded)
+- Dev server running on port 3000
+- System stable, no errors
+
+### CRITICAL PROJECT INFO FOR NEXT SESSION:
+- **Project Path**: /home/z/my-project/
+- **Tech**: Next.js 16 + Prisma SQLite + Tailwind CSS 4 + shadcn/ui + Turbopack
+- **Database**: SQLite at /home/z/my-project/db/dev.db
+- **APK**: capacitor-app/index.html (standalone ~2150 lines HTML, v2.5)
+- **Login**: AL-FALAH TRADER / @AFE@123654 (Admin), ahmed/bilal/ob01/ob02 (password: ob123)
+- **Important Rule**: ALWAYS ask user before making changes (铁律)
+- **APK Build**: Requires JAVA_HOME=/home/z/jdk21
+- **APK Location**: download/Al-Falah-Traders.apk (NOT in public/)
+- **VLM SDK**: Has auth issue (401 missing X-Token) — cannot read screenshots
+- **agent-browser**: Cannot reach localhost due to Docker networking
+
+### DISCUSSION NOTES (User Conversations):
+- User wants Billing System next (Products, Orders, Invoices) — said "abhi nai" (not now)
+- User wants SalesFlo-like SFA system — current system ~40% of SalesFlo level
+- User plans to demo current system to SE (Senior Engineer) first
+- User said they'll start billing in next chat session
+- User asked about limitations — documented above
+
+### PLANNED NEXT FEATURES (NOT STARTED):
+1. Product Catalog (add/edit/delete products)
+2. Order Booking (OB books orders in field)
+3. Invoice Generation (auto bill from orders)
+4. Stock/Inventory Management
+5. Delivery Management
+6. Return/Exchange Tracking
+7. Payment Collection (cash/cheque/online)
+8. Customer Statements (monthly PDF)
+9. Targets & Commissions for OBs
+10. Discount Schemes & Promotions
+11. Route Optimization
+12. Multi-admin with permissions
+13. WhatsApp/SMS Notifications
+14. Offline Mode (APK)
