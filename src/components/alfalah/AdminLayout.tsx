@@ -76,11 +76,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     try {
       const obRes = await fetch('/api/orderbookers');
       const shopRes = await fetch('/api/shops');
-      const txnRes = await fetch('/api/transactions?limit=100&type=recovery');
+      const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+      const txnRes = await fetch(`/api/transactions?date=${todayStr}&limit=500&type=recovery`);
       const obs = obRes.ok ? await obRes.json() : [];
       const shops = shopRes.ok ? await shopRes.json() : [];
       const txnData = txnRes.ok ? await txnRes.json() : { transactions: [] };
-      setMiniStats({ totalShops: Array.isArray(shops) ? shops.length : 0, totalOBs: Array.isArray(obs) ? obs.length : 0 });
+      setMiniStats({ totalShops: Array.isArray(shops) ? shops.length : 0, totalOBs: Array.isArray(obs) ? obs.filter((o: { status: string }) => o.status === 'active').length : 0 });
       setTodayRecovery((txnData.transactions || []).reduce((s: number, t: { amount: number }) => s + t.amount, 0));
     } catch { /* silent */ }
     finally { setStatsLoading(false); }

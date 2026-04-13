@@ -4598,3 +4598,62 @@ Stage Summary:
 - Admin credentials: AL-FALAH TRADER / @AFE@123654
 - OB credentials: ahmed/ob123 or bilal/ob123
 - Sync API: /api/mobile/sync (POST for batch sync, GET for initial data)
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Bug fixes and code quality improvements
+
+Work Log:
+- Attempted to analyze user's uploaded videos (2 screen recordings of the website) but VLM SDK had authentication token issues preventing video analysis
+- Proceeding with comprehensive code review and agent-browser QA testing instead
+- Read and reviewed all major source files:
+  - AdminDashboard.tsx (1200+ lines)
+  - AdminLayout.tsx (335 lines)
+  - AdminCreditPosting.tsx (1400+ lines)
+  - AdminShops.tsx (1400+ lines)
+  - AdminRecoveryReport.tsx (1000+ lines)
+  - LoginView.tsx (527 lines)
+  - store.ts (72 lines)
+  - All API routes (27 files)
+  - Prisma schema
+- Ran `bun run lint` — zero errors
+- Used agent-browser to QA test all 11 pages — zero browser errors
+- Tested all API endpoints via curl — all returning correct responses
+
+### Bugs Found and Fixed:
+
+1. **CRITICAL: Dashboard KPI cards showing wrong totals (AdminDashboard.tsx)**
+   - **Problem**: Dashboard fetched only 10 transactions for today's data (`limit=10`), so the "Today's Credit" and "Today's Recovery" KPI cards showed incorrect/incomplete totals when there were more than 10 transactions in a day
+   - **Fix**: Changed `limit=10` to `limit=500` for today's transaction fetch. Renamed variable from `txnRes` to `todayTxnRes` and `txnData` to `todayTxnData` for clarity
+   - **File**: `/src/components/alfalah/AdminDashboard.tsx` lines 329-365
+
+2. **HIGH: Sidebar "Today's Recovery" showing ALL-TIME recovery, not today's (AdminLayout.tsx)**
+   - **Problem**: Sidebar fetched ALL recovery transactions (`/api/transactions?limit=100&type=recovery`) without any date filter, so the "Today's Recovery" ticker in the sidebar showed the sum of last 100 recovery transactions ever, not today's recovery
+   - **Fix**: Added Pakistan timezone date filter: `date=${todayStr}` using `toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' })` to get the correct Pakistan date. Changed limit to 500 for completeness
+   - **File**: `/src/components/alfalah/AdminLayout.tsx` lines 79-80
+
+3. **MEDIUM: Sidebar "Total OBs" counting inactive orderbookers (AdminLayout.tsx)**
+   - **Problem**: The "Total OBs" stat in the sidebar counted ALL orderbookers including deactivated ones, making the count misleading
+   - **Fix**: Added `.filter((o) => o.status === 'active')` to the OB count calculation. The shops count was already correct (API only returns active shops by default)
+   - **File**: `/src/components/alfalah/AdminLayout.tsx` line 84
+
+4. **LOW: Duplicate lucide-react import in AdminRecoveryReport.tsx**
+   - **Problem**: `RefreshCw` was imported separately from the main lucide-react import block
+   - **Fix**: Merged `RefreshCw` into the existing import block from lucide-react
+   - **File**: `/src/components/alfalah/AdminRecoveryReport.tsx` lines 46-67
+
+### QA Verification:
+- `bun run lint` passes cleanly with zero errors
+- agent-browser tested all 11 pages: Dashboard, Credit Posting, Recovery Report, Transactions, Shops, Orderbookers, Reconciliation, Audit Log, OB Analytics, Monthly Summary, Activity — zero errors on all
+- Browser console clean (no runtime errors)
+- Dev server log clean (no API errors, all 200 responses)
+- All API endpoints verified returning correct JSON responses
+
+Stage Summary:
+- 4 bugs found and fixed (1 critical, 1 high, 1 medium, 1 low)
+- Critical bug where dashboard KPIs showed wrong totals is now fixed
+- Sidebar now correctly shows today's recovery and active OB count
+- Code quality improved with cleaner imports
+- System is stable with zero errors across all pages
+- Login: AL-FALAH TRADER / @AFE@123654 (Admin), ahmed/ob123 or bilal/ob123 (Orderbooker)

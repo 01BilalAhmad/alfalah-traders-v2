@@ -326,9 +326,9 @@ export default function AdminDashboard() {
 
   const loadDashboard = useCallback(async () => {
     try {
-      const [obRes, txnRes, shopsRes, trendsRes, tlRes, msRes, rtRes, summaryRes] = await Promise.all([
+      const [obRes, todayTxnRes, shopsRes, trendsRes, tlRes, msRes, rtRes, summaryRes] = await Promise.all([
         fetch('/api/orderbookers'),
-        fetch(`/api/transactions?date=${getLocalDateString()}&limit=10`),
+        fetch(`/api/transactions?date=${getLocalDateString()}&limit=500`),
         fetch('/api/shops'),
         fetch('/api/reports/daily-trends'),
         fetch('/api/reports/activity-timeline?limit=20'),
@@ -337,9 +337,9 @@ export default function AdminDashboard() {
         fetch('/api/summary'),
       ]);
       const orderbookers = obRes.ok ? await obRes.json() : [];
-      const txnData = txnRes.ok ? await txnRes.json() : { transactions: [] };
-      const todayCredit = txnData.transactions.filter((t: TodayTxn) => t.type === 'credit').reduce((s: number, t: TodayTxn) => s + t.amount, 0);
-      const todayRecovery = txnData.transactions.filter((t: TodayTxn) => t.type === 'recovery').reduce((s: number, t: TodayTxn) => s + t.amount, 0);
+      const todayTxnData = todayTxnRes.ok ? await todayTxnRes.json() : { transactions: [] };
+      const todayCredit = todayTxnData.transactions.filter((t: TodayTxn) => t.type === 'credit').reduce((s: number, t: TodayTxn) => s + t.amount, 0);
+      const todayRecovery = todayTxnData.transactions.filter((t: TodayTxn) => t.type === 'recovery').reduce((s: number, t: TodayTxn) => s + t.amount, 0);
       const totalOutstanding = orderbookers.reduce((s: number, ob: Orderbooker) => s + ob.totalOutstanding, 0);
       const totalShops = orderbookers.reduce((s: number, ob: Orderbooker) => s + ob.totalShops, 0);
 
@@ -362,7 +362,7 @@ export default function AdminDashboard() {
       const monthData = msRes.ok ? await msRes.json() : null;
       const rtData = rtRes.ok ? await rtRes.json() : { transactions: [] };
 
-      setData({ orderbookers, todayTxns: txnData.transactions, todayCredit, todayRecovery, totalShops, totalOutstanding });
+      setData({ orderbookers, todayTxns: todayTxnData.transactions, todayCredit, todayRecovery, totalShops, totalOutstanding });
       setTrends(trendsData);
       setAllShops(shops);
       setTimeline(timelineData);
