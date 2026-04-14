@@ -4717,3 +4717,30 @@ Stage Summary:
 12. Multi-admin with permissions
 13. WhatsApp/SMS Notifications
 14. Offline Mode (APK)
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix APK - Add Server URL field on login page, build new APK
+
+Work Log:
+- Analyzed APK issue: login page had no server URL field, users couldn't configure server before login
+- Updated capacitor-app/index.html renderLogin() - added Server URL input field on login page
+- Added showServerUrl state property
+- Updated login() function to read server URL from login form field first, then fallback to saved settings
+- Added "Configure Server URL" button for when URL field is hidden
+- Added "Connecting to server..." toast message during login
+- Updated error message to guide users: "Enter Server URL above or check your credentials"
+- Updated version in login footer to v2.0
+- Installed JDK 21 (Temurin) at /home/z/jdk21 since only JRE was available
+- Installed Android SDK (platforms;android-35, build-tools;35.0.0, platform-tools) at /home/z/android-sdk
+- Ran npx cap sync android to sync plugins
+- Built APK successfully: BUILD SUCCESSFUL in 55s
+- Copied APK to download/Al-Falah-Traders.apk (4.7MB)
+
+Stage Summary:
+- APK v2.0 built with server URL field on login page
+- Users can now enter their live server URL directly on the login screen
+- Server URL is saved to IndexedDB for future logins
+- APK location: download/Al-Falah-Traders.apk (4.7MB)
+- JDK 21 installed at /home/z/jdk21 for future builds
+- Android SDK installed at /home/z/android-sdk for future builds
