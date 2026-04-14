@@ -4744,3 +4744,25 @@ Stage Summary:
 - APK location: download/Al-Falah-Traders.apk (4.7MB)
 - JDK 21 installed at /home/z/jdk21 for future builds
 - Android SDK installed at /home/z/android-sdk for future builds
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Fix APK server connection - auto-detect not working
+
+Work Log:
+- Investigated why new APK wasn't connecting to server (old APK was working)
+- Found root cause: APK's `testURLQuick()` calls `/api/auth/validate` but that endpoint DID NOT EXIST in the web app
+- Without this endpoint, auto-detect server scan ALWAYS failed (returned false for all IPs)
+- Created `/src/app/api/auth/validate/route.ts` — simple health check returning `{ status: 'ok', app: 'Al-Falah Traders', timestamp }`
+- Verified endpoint works: `curl /api/auth/validate` returns 200 OK
+- Fixed `testURLQuick()` compatibility: replaced `AbortSignal.timeout(2500)` with manual `AbortController` + `setTimeout` for older Android WebView support
+- Copied updated `capacitor-app/index.html` to `android/app/src/main/assets/public/`
+- Rebuilt APK: `gradlew clean assembleDebug` — BUILD SUCCESSFUL (4.7MB)
+- APK saved to `/download/Al-Falah-Recovery.apk`
+
+Stage Summary:
+- Root cause found: Missing `/api/auth/validate` endpoint broke APK auto-detect server scan
+- Fix: Created validate endpoint + improved WebView compatibility in testURLQuick
+- APK rebuilt and ready for download
+- App name: "Al-Falah Recovery" (APK), "Al-Falah Traders" (Web)
