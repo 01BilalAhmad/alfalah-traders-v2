@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useSessionRehydrate } from '@/lib/use-session-rehydrate';
 import LoginView from '@/components/alfalah/LoginView';
@@ -52,10 +53,26 @@ function AdminRouter() {
 }
 
 export default function Page() {
-  // Rehydrate auth from localStorage AFTER hydration (prevents mismatch)
+  const [mounted, setMounted] = useState(false);
+
+  // Rehydrate auth from localStorage AFTER mount
   useSessionRehydrate();
 
   const { isAuthenticated, user } = useAppStore();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Before mount, render a blank shell matching login page background to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div
+        className="min-h-screen"
+        style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 25%, #1E40AF 50%, #1E3A8A 75%, #0F172A 100%)' }}
+      />
+    );
+  }
 
   if (!isAuthenticated || !user) {
     return <LoginView />;
