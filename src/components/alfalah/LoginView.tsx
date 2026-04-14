@@ -183,7 +183,7 @@ export default function LoginView() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4 animate-gradient-bg"
+    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4 animate-gradient-bg" suppressHydrationWarning
       style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 25%, #1E40AF 50%, #1E3A8A 75%, #0F172A 100%)' }}
     >
       {/* Floating Decorative Shapes */}
