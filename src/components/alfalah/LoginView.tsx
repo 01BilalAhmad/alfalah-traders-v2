@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Building2, Eye, EyeOff, LogIn, Loader2, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Building2, Eye, EyeOff, LogIn, Loader2, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck, Download, Smartphone } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 
@@ -513,6 +513,22 @@ export default function LoginView() {
             </CardContent>
           </Card>
         )}
+
+        {/* APK Download Button */}
+        <button
+          type="button"
+          onClick={() => window.open('/api/download', '_blank')}
+          className="mx-auto mt-5 flex items-center gap-2.5 rounded-xl px-5 py-3 text-sm font-medium text-white/90 bg-white/10 hover:bg-white/15 backdrop-blur-sm border border-white/15 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] group w-full justify-center"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 group-hover:bg-emerald-500/30 transition-colors">
+            <Download className="h-4 w-4 text-emerald-400" />
+          </div>
+          <div className="text-left">
+            <div className="text-sm font-semibold text-white">Download Mobile App (APK)</div>
+            <div className="text-[11px] text-blue-200/60">Al-Falah Recovery &middot; Android &middot; 4.7 MB</div>
+          </div>
+          <Smartphone className="h-5 w-5 text-white/40 ml-auto" />
+        </button>
 
         <p className="mt-6 text-center text-xs text-blue-200/60">
           &copy; {new Date().getFullYear()} Al-Falah Traders. All rights reserved.
