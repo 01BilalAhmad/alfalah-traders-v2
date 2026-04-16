@@ -207,7 +207,7 @@ export default function AdminApproveRecovery() {
     : grouped;
 
   const displayTxns = selectedOB
-    ? allTransactions.filter(t => t.createdBy === selectedOB)
+    ? allTransactions.filter(t => t.creator.id === selectedOB)
     : allTransactions;
 
   const selectedTxnsList = allTransactions.filter(t => selectedIds.has(t.id));
