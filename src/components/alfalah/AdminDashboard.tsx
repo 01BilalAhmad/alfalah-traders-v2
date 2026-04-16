@@ -56,7 +56,54 @@ import {
   Calendar,
   Banknote,
   Sparkles,
+  ShieldCheck,
+  ChevronRight,
 } from 'lucide-react';
+
+function PendingRecoveryBanner({ setCurrentView }: { setCurrentView: (v: string) => void }) {
+  const [pendingCount, setPendingCount] = useState(0);
+  const [pendingAmount, setPendingAmount] = useState(0);
+
+  useEffect(() => {
+    const fetchPending = async () => {
+      try {
+        const res = await fetch('/api/recoveries?status=pending');
+        if (res.ok) {
+          const data = await res.json();
+          setPendingCount(data.totalPending || 0);
+          setPendingAmount(data.totalAmount || 0);
+        }
+      } catch { /* silent */ }
+    };
+    fetchPending();
+    const interval = setInterval(fetchPending, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (pendingCount === 0) return null;
+
+  return (
+    <button
+      onClick={() => setCurrentView('admin-approve-recovery')}
+      className="w-full rounded-xl border-2 border-orange-200 dark:border-orange-800 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/40 dark:to-amber-950/40 p-4 flex items-center justify-between hover:shadow-md transition-all group cursor-pointer animate-fade-in"
+    >
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-lg bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center shrink-0">
+          <ShieldCheck className="h-5 w-5 text-orange-600" />
+        </div>
+        <div className="text-left">
+          <p className="text-sm font-bold text-orange-800 dark:text-orange-200">
+            {pendingCount} Pending Recover{pendingCount === 1 ? 'y' : 'ies'}
+          </p>
+          <p className="text-xs text-orange-600/70 dark:text-orange-400/70">
+            Total: {formatCurrency(pendingAmount)} — Click to review &amp; approve
+          </p>
+        </div>
+      </div>
+      <ChevronRight className="h-5 w-5 text-orange-400 group-hover:translate-x-1 transition-transform" />
+    </button>
+  );
+}
 
 function formatCurrency(amount: number): string {
   return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -619,6 +666,9 @@ export default function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pending Recovery Alert Banner */}
+      <PendingRecoveryBanner setCurrentView={setCurrentView} />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-3 gap-3">

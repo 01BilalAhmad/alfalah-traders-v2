@@ -4819,3 +4819,50 @@ Stage Summary:
   - Bug fix: creator ID reference corrected ✅
 - Page will show "All Clear!" until an orderbooker submits recovery (it goes to pending)
 - To test: login as orderbooker → submit recovery → login as admin → Approve Recovery page
+
+---
+Task ID: 9
+Agent: Main Agent
+Task: Fix Approve Recovery system - full debugging and rewrite
+
+Work Log:
+- User reported: "orderbooker app sy recoveries bhyjta hy but wo approve kiy bagair hi system main enter ho rhi hy"
+- Debugged the complete flow:
+  - Checked transactions API route.ts: Line 192 `const txnStatus = type === 'recovery' ? 'pending' : 'approved'` — CORRECT
+  - Checked recovery balance logic: Line 177 `newBalance = previousBalance` (NOT deducted) — CORRECT
+  - Checked shop balance update: Line 219 `if (type === 'credit')` only updates for credit — CORRECT
+  - Ran direct DB test: created recovery → status is "pending", balance unchanged → approve → status "approved", balance deducted ✅
+  - All 10 older recoveries were "approved" because they were created BEFORE the approval feature was added
+  - 7 test pending recoveries exist in DB, all correctly "pending"
+
+- Root cause: Frontend component issues
+  1. OB groups were COLLAPSED by default — user couldn't see any data
+  2. No error handling if API call failed — showed "All Clear!" silently
+  3. No console logging for debugging
+
+- Complete rewrite of AdminApproveRecovery.tsx:
+  1. Auto-expand ALL OB groups on first data load (line in fetchPending callback)
+  2. Added error banner with retry button when API fails
+  3. Added console.log debugging for API responses
+  4. Added last-fetched timestamp display
+  5. Added manual Refresh button in header
+  6. Fixed dark mode support on all elements
+  7. Better empty state with "Check Again" button
+  8. Green bulk action bar with selected count
+  9. Improved transaction cards with border highlight on selection
+
+- Added PendingRecoveryBanner to AdminDashboard.tsx:
+  1. Orange alert banner showing "X Pending Recoveries" with total amount
+  2. Clickable — navigates to Approve Recovery page
+  3. Auto-refreshes every 30 seconds
+  4. Hidden when no pending recoveries (returns null)
+  5. Positioned between KPIs and Quick Actions
+
+- Verified: lint clean, dev server compiling, 7 pending recoveries in DB
+
+Stage Summary:
+- Approval system backend was ALWAYS correct — recoveries are "pending", balance NOT deducted
+- Issue was frontend: groups collapsed, no error feedback, no dashboard indicator
+- AdminApproveRecovery.tsx completely rewritten with auto-expand and error handling
+- Dashboard now shows orange alert banner when pending recoveries exist
+- Flow confirmed: OB submits recovery → status "pending" → admin sees on Approve page → Approve → balance deducts / Reject → no change
