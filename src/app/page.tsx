@@ -16,6 +16,7 @@ import AdminMonthlySummary from '@/components/alfalah/AdminMonthlySummary';
 import AdminTransactions from '@/components/alfalah/AdminTransactions';
 import ShopDetailAnalytics from '@/components/alfalah/ShopDetailAnalytics';
 import ActivityTimeline from '@/components/alfalah/ActivityTimeline';
+import AdminApproveRecovery from '@/components/alfalah/AdminApproveRecovery';
 import OrderbookerLayout from '@/components/alfalah/OrderbookerLayout';
 
 function AdminRouter() {
@@ -28,6 +29,8 @@ function AdminRouter() {
       return <AdminCreditPosting />;
     case 'admin-recovery':
       return <AdminRecoveryReport />;
+    case 'admin-approve-recovery':
+      return <AdminApproveRecovery />;
     case 'admin-transactions':
       return <AdminTransactions />;
     case 'admin-shops':

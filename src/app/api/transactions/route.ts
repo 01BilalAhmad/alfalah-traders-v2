@@ -172,11 +172,9 @@ export async function POST(request: NextRequest) {
     if (type === 'credit') {
       newBalance = previousBalance + amount;
     } else {
-      newBalance = previousBalance - amount;
-      if (newBalance < 0) {
-        // Allow recovery to go to 0 but not negative in strict mode
-        // For business flexibility, we allow negative but flag it
-      }
+      // Recovery: if pending approval mode, don't deduct balance yet
+      // Balance will be deducted when admin approves
+      newBalance = previousBalance; // stays same until approved
     }
 
     // Check credit limit warning for credit transactions
@@ -190,6 +188,9 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    // Recovery status: pending (awaiting admin approval)
+    const txnStatus = type === 'recovery' ? 'pending' : 'approved';
+
     // Use a transaction to ensure atomicity
     const transaction = await db.$transaction(async (tx) => {
       // Create transaction record
@@ -197,6 +198,7 @@ export async function POST(request: NextRequest) {
         data: {
           shopId,
           type,
+          status: txnStatus,
           amount,
           previousBalance,
           newBalance: Math.round(newBalance * 100) / 100,
@@ -212,11 +214,14 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Update shop balance
-      await tx.shop.update({
-        where: { id: shopId },
-        data: { balance: Math.round(newBalance * 100) / 100 },
-      });
+      // Update shop balance only for credit transactions
+      // Recovery balance will be updated when admin approves
+      if (type === 'credit') {
+        await tx.shop.update({
+          where: { id: shopId },
+          data: { balance: Math.round(newBalance * 100) / 100 },
+        });
+      }
 
       return txn;
     });
@@ -238,7 +243,7 @@ export async function POST(request: NextRequest) {
             gpsLat,
             gpsLng,
           }),
-          description: `${type === 'credit' ? 'Credit posted' : 'Recovery collected'}: Rs. ${amount} at ${shop.name}`,
+          description: `${type === 'credit' ? 'Credit posted' : 'Recovery submitted (pending approval)'}: Rs. ${amount} at ${shop.name}`,
         },
       });
     } catch { /* non-blocking */ }

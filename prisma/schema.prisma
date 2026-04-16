@@ -54,11 +54,15 @@ model Transaction {
   id            String   @id @default(cuid())
   shopId        String
   type          String   // "credit" or "recovery"
+  status        String   @default("approved") // "pending", "approved", "rejected"
   amount        Float
   previousBalance Float
   newBalance    Float
   description   String?
   createdBy     String   // userId
+  approvedBy    String?  // admin userId who approved
+  approvedAt    DateTime?
+  rejectReason  String?
   gpsLat        Float?
   gpsLng        Float?
   gpsAddress    String?
@@ -69,6 +73,7 @@ model Transaction {
 
   @@index([shopId])
   @@index([type])
+  @@index([status])
   @@index([createdBy])
   @@index([createdAt])
 }
