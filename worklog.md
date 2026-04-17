@@ -4893,3 +4893,27 @@ Stage Summary:
 - APK connects to whatever server URL is configured in Server Settings
 - File: /home/z/my-project/public/Al-Falah-Traders.apk (5.9 MB)
 - Download URL: /Al-Falah-Traders.apk (via dev server or deployment)
+
+---
+Task ID: 9
+Agent: Main Agent
+Task: Fix login error and clean up server settings
+
+Work Log:
+- User reported login showing "Internal server error" on the website
+- Root cause: prisma schema had `provider = "postgresql"` but .env uses SQLite (`file:db/custom.db`)
+- Fixed prisma/schema.prisma: changed provider to `sqlite`
+- Force cleared node_modules/.prisma and regenerated Prisma client
+- Rewrote /api/auth/login/route.ts to use Prisma instead of raw `pg`
+- Rewrote /api/setup/route.ts to use Prisma instead of raw `pg`
+- Verified login works: admin login returns user data successfully
+- Server settings button already removed from LoginView (clean login page)
+- Rebuilt APK with updated code (5.9 MB)
+- Fixed dev server startup script (tee encoding issue, using separate redirect)
+
+Stage Summary:
+- Login now works correctly with SQLite via Prisma
+- Clean login page — no server settings visible anywhere
+- APK updated and ready for download
+- Login credentials: admin: al-falah trader / @AFE@123654
+- Dev server running stably on port 3000
