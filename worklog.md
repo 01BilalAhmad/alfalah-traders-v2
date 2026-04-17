@@ -4,6 +4,24 @@
 
 ---
 
+## Task ID: codespaces-setup
+Agent: Main Agent
+Task: Add GitHub Codespaces configuration for remote development
+
+Work Log:
+- Created `.devcontainer/devcontainer.json` with Node.js 22 + bun + Prisma + VS Code extensions
+- Created `.env.example` as template for environment variables
+- Updated `.gitignore` to allow `.env.example` while keeping `.env` private
+- Committed and pushed to GitHub (commit 2213c2e)
+
+Stage Summary:
+- Developer can now open repo in GitHub Codespaces
+- Auto-installs bun, dependencies, and Prisma client
+- Browser auto-opens on port 3000
+- Developer must set DATABASE_URL in `.env` manually (Neon credentials)
+
+---
+
 ## Task ID: 1
 Agent: Main Agent
 Task: Comprehensive testing of all features on live site + fix deployment issue
