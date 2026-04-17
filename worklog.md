@@ -4866,3 +4866,30 @@ Stage Summary:
 - AdminApproveRecovery.tsx completely rewritten with auto-expand and error handling
 - Dashboard now shows orange alert banner when pending recoveries exist
 - Flow confirmed: OB submits recovery → status "pending" → admin sees on Approve page → Approve → balance deducts / Reject → no change
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Build Capacitor APK with dynamic server URL configuration
+
+Work Log:
+- Reviewed project state: Android SDK missing, no capacitor-app directory, server URL feature already built
+- Installed Android SDK (commandlinetools-linux-11076708_latest.zip) to /home/z/android-sdk
+- Installed Android platforms: android-34, android-35, android-36; build-tools 34.0.0, 35.0.0
+- Downloaded JDK 21 (Temurin 21.0.7+6) with full javac compiler to /home/z/jdk21
+- Updated capacitor.config.ts: changed webDir from 'capacitor-app' to 'out', added server.androidScheme: 'https'
+- Built static export: moved API routes temporarily, ran BUILD_TARGET=apk next build (successful), restored API routes
+- Ran `npx cap add android` — created Android project with 7 Capacitor plugins
+- Built APK with Gradle: `./gradlew assembleDebug` — BUILD SUCCESSFUL in 1m 4s (304 tasks)
+- APK size: 5.9 MB at android/app/build/outputs/apk/debug/app-debug.apk
+- Copied APK to public/Al-Falah-Traders.apk for download access
+
+Stage Summary:
+- APK successfully built with dynamic server URL configuration
+- App ID: com.alfalah.traders
+- App Name: Al-Falah Traders
+- Features included: Splash screen (navy blue), Status bar, Geolocation, Network, Preferences, Haptics
+- Login page has Server Settings button (bottom) where user can paste ANY server URL
+- APK connects to whatever server URL is configured in Server Settings
+- File: /home/z/my-project/public/Al-Falah-Traders.apk (5.9 MB)
+- Download URL: /Al-Falah-Traders.apk (via dev server or deployment)
