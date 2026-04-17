@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pg from 'pg';
+import crypto from 'crypto';
 
 const { Client } = pg;
+
+// Generate a CUID-like ID (compatible with existing data)
+function generateId(): string {
+  const timestamp = Date.now().toString(36);
+  const random = crypto.randomBytes(8).toString('hex');
+  return `shop_${timestamp}_${random}`;
+}
 
 // GET /api/shops?orderbookerId=xxx&routeDay=xxx&search=xxx
 export async function GET(request: NextRequest) {
@@ -89,11 +97,12 @@ export async function POST(request: NextRequest) {
     client = new Client({ connectionString: process.env.DATABASE_URL });
     await client.connect();
 
+    const shopId = generateId();
     const shopRes = await client.query(
-      `INSERT INTO "Shop" (name, "ownerName", area, address, phone, "routeDay", "orderbookerId", "creditLimit")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDay", "orderbookerId", "creditLimit")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [name, ownerName || null, area || null, address || null, phone || null, routeDay, orderbookerId, creditLimit && creditLimit > 0 ? creditLimit : 0]
+      [shopId, name, ownerName || null, area || null, address || null, phone || null, routeDay, orderbookerId, creditLimit && creditLimit > 0 ? creditLimit : 0]
     );
 
     const shop = shopRes.rows[0];
