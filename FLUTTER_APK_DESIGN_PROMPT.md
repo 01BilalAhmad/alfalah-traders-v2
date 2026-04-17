@@ -223,25 +223,638 @@ Each transaction row:
 
 ---
 
-## API Endpoints Used (Backend Already Exists)
-
-The web backend is already live. The Flutter app only needs to call these APIs:
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/auth/login` | Login |
-| GET | `/api/auth/validate` | Check if session is valid |
-| POST | `/api/auth/change-password` | Change password |
-| GET | `/api/shops?orderbookerId={id}&routeDay={day}` | Get today's route shops |
-| GET | `/api/shops?orderbookerId={id}` | Get all assigned shops |
-| POST | `/api/transactions` | Submit recovery |
-| GET | `/api/transactions?shopId={id}&type=recovery&limit=10` | Shop recent transactions |
-| GET | `/api/reports/ledger?shopId={id}` | Full shop ledger |
-| GET | `/api/reports/recovery-summary?date=2025-01-15` | Today's recovery summary |
-| GET | `/api/summary` | Business summary (outstanding, etc.) |
+## API Endpoints — COMPLETE DOCUMENTATION
 
 **Base URL:** `https://alfalah-traders.vercel.app`  
-**Auth:** Token-based (JWT or session cookie from login response)
+**Auth:** After login, use the token from login response in header `Authorization: Bearer {token}`
+**Content-Type:** All POST/PATCH requests use `application/json`
+
+---
+
+### 1. Login
+
+```
+POST /api/auth/login
+```
+
+**Request Body:**
+```json
+{
+  "username": "ali",
+  "password": "mypassword123"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "user": {
+    "id": "clxabc123def",
+    "username": "ali",
+    "name": "Ali Ahmed",
+    "role": "orderbooker",
+    "phone": "03001234567",
+    "status": "active",
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  },
+  "token": "session-clxabc123def-1704067200000"
+}
+```
+
+**Error Responses:**
+- `400` — `{ "error": "Username and password are required" }`
+- `401` — `{ "error": "Invalid credentials" }`
+- `403` — `{ "error": "Account is deactivated" }`
+
+**Flutter Usage:**
+```
+Save user.id → use as orderbookerId in all shop/transaction APIs
+Save user.name → display in profile
+Save token → send in Authorization header for all requests
+```
+
+---
+
+### 2. Validate Session (Health Check)
+
+```
+GET /api/auth/validate
+```
+
+**Response (200):**
+```json
+{
+  "status": "ok",
+  "app": "Al-Falah Traders",
+  "timestamp": "2025-01-15T14:30:00.000Z"
+}
+```
+
+**Flutter Usage:**
+```
+Call this on app start to check if server is reachable.
+If this fails → show "Server not reachable" message.
+```
+
+---
+
+### 3. Change Password
+
+```
+POST /api/auth/change-password
+```
+
+**Request Body:**
+```json
+{
+  "userId": "clxabc123def",
+  "currentPassword": "oldpassword123",
+  "newPassword": "newpassword456"
+}
+```
+
+> Note: You can use `username` instead of `userId` if needed.
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Password changed successfully"
+}
+```
+
+**Error Responses:**
+- `400` — `{ "error": "Current password and new password are required" }`
+- `400` — `{ "error": "New password must be at least 6 characters long" }`
+- `401` — `{ "error": "Current password is incorrect" }`
+- `400` — `{ "error": "New password must be different from the current password" }`
+- `404` — `{ "error": "User not found" }`
+
+---
+
+### 4. Get Shops (Today's Route + All Shops)
+
+```
+GET /api/shops?orderbookerId={userId}&routeDay={day}
+GET /api/shops?orderbookerId={userId}
+GET /api/shops?orderbookerId={userId}&search={keyword}
+```
+
+**Query Parameters (all optional):**
+| Parameter | Example | Description |
+|-----------|---------|-------------|
+| `orderbookerId` | `clxabc123def` | Filter by orderbooker (use login user.id) |
+| `routeDay` | `monday` | Filter by day (lowercase: monday, tuesday, ... saturday) |
+| `search` | `karachi` | Search shop name, area, or owner name |
+| `includeInactive` | `true` | Include inactive shops (default: false) |
+
+**Success Response (200) — Array of shops:**
+```json
+[
+  {
+    "id": "clxshop001",
+    "name": "Al-Madina General Store",
+    "ownerName": "Muhammad Akram",
+    "area": "Gulshan-e-Iqbal",
+    "address": "Block 13, Shop #5",
+    "phone": "02134567890",
+    "routeDay": "monday",
+    "orderbookerId": "clxabc123def",
+    "balance": 25000,
+    "creditLimit": 50000,
+    "status": "active",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-15T10:00:00.000Z",
+    "orderbooker": {
+      "id": "clxabc123def",
+      "name": "Ali Ahmed"
+    }
+  },
+  {
+    "id": "clxshop002",
+    "name": "City Super Market",
+    "ownerName": "Ahmed Khan",
+    "area": "Nazimabad",
+    "address": "Block 4, Main Market",
+    "phone": "02198765432",
+    "routeDay": "monday",
+    "orderbookerId": "clxabc123def",
+    "balance": 75000,
+    "creditLimit": 50000,
+    "status": "active",
+    "createdAt": "2025-01-05T00:00:00.000Z",
+    "updatedAt": "2025-01-14T08:00:00.000Z",
+    "orderbooker": {
+      "id": "clxabc123def",
+      "name": "Ali Ahmed"
+    }
+  }
+]
+```
+
+**Flutter Usage:**
+```
+// Today's route shops:
+GET /api/shops?orderbookerId={userId}&routeDay=monday
+
+// All my shops (for Ledger tab):
+GET /api/shops?orderbookerId={userId}
+
+// Calculate today's day name in Dart:
+// DateTime.now().weekday returns 1=Monday, 7=Sunday
+// Convert to lowercase: ['monday','tuesday',...,'saturday'][weekday-1]
+// Friday (weekday=6) → show "Holiday" / no shops
+```
+
+---
+
+### 5. Submit Recovery (Create Transaction)
+
+```
+POST /api/transactions
+```
+
+**Request Body:**
+```json
+{
+  "shopId": "clxshop001",
+  "type": "recovery",
+  "amount": 5000,
+  "createdBy": "clxabc123def",
+  "description": "Cash received",
+  "gpsLat": 24.8607,
+  "gpsLng": 67.0011,
+  "gpsAddress": "Gulshan-e-Iqbal Block 13"
+}
+```
+
+**Required Fields:** `shopId`, `type`, `amount`, `createdBy`  
+**Optional Fields:** `description` (max 200 chars), `gpsLat`, `gpsLng`, `gpsAddress`
+
+**Validation Rules:**
+- Min amount: Rs. 100
+- Max amount: Rs. 500,000
+- Recovery cannot exceed shop's current balance
+- Description max: 200 characters
+- Type must be `"recovery"` (order bookers don't post credit)
+
+**Success Response (201):**
+```json
+{
+  "id": "clxtxn001",
+  "shopId": "clxshop001",
+  "type": "recovery",
+  "status": "pending",
+  "amount": 5000,
+  "previousBalance": 25000,
+  "newBalance": 25000,
+  "description": "Cash received",
+  "createdBy": "clxabc123def",
+  "approvedBy": null,
+  "approvedAt": null,
+  "gpsLat": 24.8607,
+  "gpsLng": 67.0011,
+  "gpsAddress": "Gulshan-e-Iqbal Block 13",
+  "createdAt": "2025-01-15T14:30:00.000Z",
+  "shop": {
+    "id": "clxshop001",
+    "name": "Al-Madina General Store"
+  },
+  "creator": {
+    "id": "clxabc123def",
+    "name": "Ali Ahmed"
+  }
+}
+```
+
+> **IMPORTANT:** `status` will be `"pending"` — admin needs to approve. Balance does NOT change until approved. Show "Pending Admin Approval" to user.
+
+**Error Responses:**
+- `400` — `{ "error": "Shop, type, amount, and creator are required" }`
+- `400` — `{ "error": "Minimum transaction amount is Rs. 100" }`
+- `400` — `{ "error": "Maximum single transaction amount is Rs. 500,000" }`
+- `404` — `{ "error": "Shop not found" }`
+- `400` — `{ "error": "Recovery amount (Rs. 50,000) exceeds shop balance (Rs. 25,000). Maximum recovery allowed: Rs. 25,000" }`
+
+---
+
+### 6. Get Transactions (Recovery History)
+
+```
+GET /api/transactions?shopId={shopId}&type=recovery&limit=10
+GET /api/transactions?createdBy={userId}&date=2025-01-15
+GET /api/transactions?orderbookerId={userId}&type=recovery&limit=50
+```
+
+**Query Parameters (all optional):**
+| Parameter | Example | Description |
+|-----------|---------|-------------|
+| `shopId` | `clxshop001` | Filter by shop |
+| `orderbookerId` | `clxabc123def` | Filter by orderbooker's shops |
+| `createdBy` | `clxabc123def` | Filter by who created |
+| `type` | `recovery` | `credit` or `recovery` |
+| `date` | `2025-01-15` | Filter by date (YYYY-MM-DD) |
+| `startDate` | `2025-01-01` | From this date onwards |
+| `page` | `1` | Page number (default: 1) |
+| `limit` | `50` | Items per page (default: 50) |
+
+**Success Response (200):**
+```json
+{
+  "transactions": [
+    {
+      "id": "clxtxn001",
+      "shopId": "clxshop001",
+      "type": "recovery",
+      "status": "pending",
+      "amount": 5000,
+      "previousBalance": 25000,
+      "newBalance": 25000,
+      "description": "Cash received",
+      "createdBy": "clxabc123def",
+      "approvedBy": null,
+      "approvedAt": null,
+      "rejectReason": null,
+      "gpsLat": 24.8607,
+      "gpsLng": 67.0011,
+      "gpsAddress": "Gulshan-e-Iqbal Block 13",
+      "createdAt": "2025-01-15T14:30:00.000Z",
+      "shop": {
+        "id": "clxshop001",
+        "name": "Al-Madina General Store",
+        "area": "Gulshan-e-Iqbal"
+      },
+      "creator": {
+        "id": "clxabc123def",
+        "name": "Ali Ahmed",
+        "role": "orderbooker"
+      }
+    }
+  ],
+  "total": 45,
+  "page": 1,
+  "totalPages": 1
+}
+```
+
+**Flutter Usage:**
+```
+// Today's recoveries by me:
+GET /api/transactions?createdBy={userId}&type=recovery&date=2025-01-15
+
+// Recent recoveries for a shop (shop detail screen):
+GET /api/transactions?shopId={shopId}&type=recovery&limit=5
+
+// All my recoveries (history):
+GET /api/transactions?createdBy={userId}&type=recovery&limit=100
+```
+
+---
+
+### 7. Get Shop Ledger (Full Account Statement)
+
+```
+GET /api/reports/ledger?shopId={shopId}
+```
+
+**Query Parameters:**
+| Parameter | Example | Description |
+|-----------|---------|-------------|
+| `shopId` | `clxshop001` | **Required** — Shop ID |
+| `limit` | `50` | Optional — Limit transactions |
+
+**Success Response (200):**
+```json
+{
+  "shop": {
+    "id": "clxshop001",
+    "name": "Al-Madina General Store",
+    "ownerName": "Muhammad Akram",
+    "area": "Gulshan-e-Iqbal",
+    "address": "Block 13, Shop #5",
+    "phone": "02134567890",
+    "routeDay": "monday",
+    "balance": 20000,
+    "orderbooker": {
+      "id": "clxabc123def",
+      "name": "Ali Ahmed",
+      "phone": "03001234567"
+    }
+  },
+  "transactions": [
+    {
+      "id": "clxtxn001",
+      "shopId": "clxshop001",
+      "type": "credit",
+      "status": "approved",
+      "amount": 15000,
+      "previousBalance": 10000,
+      "newBalance": 25000,
+      "description": "Monthly order",
+      "createdBy": "admin_user_id",
+      "createdAt": "2025-01-10T09:00:00.000Z",
+      "creator": {
+        "id": "admin_user_id",
+        "name": "Admin User",
+        "role": "admin"
+      }
+    },
+    {
+      "id": "clxtxn002",
+      "shopId": "clxshop001",
+      "type": "recovery",
+      "status": "approved",
+      "amount": 5000,
+      "previousBalance": 25000,
+      "newBalance": 20000,
+      "description": "Cash received",
+      "createdBy": "clxabc123def",
+      "createdAt": "2025-01-15T14:30:00.000Z",
+      "creator": {
+        "id": "clxabc123def",
+        "name": "Ali Ahmed",
+        "role": "orderbooker"
+      }
+    }
+  ],
+  "summary": {
+    "totalCredit": 150000,
+    "totalRecovery": 130000,
+    "totalTransactions": 45,
+    "currentBalance": 20000
+  }
+}
+```
+
+**Error Responses:**
+- `400` — `{ "error": "Shop ID is required" }`
+- `404` — `{ "error": "Shop not found" }`
+
+**Flutter Usage:**
+```
+// Get full ledger for selected shop:
+GET /api/reports/ledger?shopId={shopId}
+
+// Display:
+// - Shop info (name, owner, area, phone, address)
+// - Summary cards: totalCredit, totalRecovery, currentBalance
+// - Transaction list (newest first — reverse the array)
+// - Color code: type="credit" → amber, type="recovery" → green
+```
+
+---
+
+### 8. Get Recovery Summary (Today's Report)
+
+```
+GET /api/reports/recovery-summary?date=2025-01-15
+```
+
+**Query Parameters:**
+| Parameter | Example | Description |
+|-----------|---------|-------------|
+| `date` | `2025-01-15` | Optional — defaults to today |
+
+**Success Response (200):**
+```json
+{
+  "date": "2025-01-15",
+  "grandTotalRecovery": 35000,
+  "orderbookers": [
+    {
+      "orderbookerId": "clxabc123def",
+      "orderbookerName": "Ali Ahmed",
+      "orderbookerPhone": "03001234567",
+      "totalRecovery": 35000,
+      "totalShops": 8,
+      "visitedShops": 5,
+      "shops": [
+        {
+          "shopId": "clxshop001",
+          "shopName": "Al-Madina General Store",
+          "shopArea": "Gulshan-e-Iqbal",
+          "previousBalance": 25000,
+          "todayCredit": 0,
+          "todayRecovery": 5000,
+          "closingBalance": 20000,
+          "visited": true,
+          "recoveryEntries": [
+            {
+              "id": "clxtxn001",
+              "amount": 5000,
+              "time": "2025-01-15T14:30:00.000Z",
+              "description": "Cash received",
+              "hasGps": true,
+              "gpsLat": 24.8607,
+              "gpsLng": 67.0011
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Flutter Usage:**
+```
+// Today's recovery summary (for dashboard stats):
+GET /api/reports/recovery-summary?date=2025-01-15
+
+// Filter for current orderbooker:
+// Find the entry where orderbookerId == my userId
+// Show: totalRecovery, visitedShops/totalShops
+```
+
+---
+
+### 9. Get Business Summary
+
+```
+GET /api/summary
+```
+
+**No parameters required.**
+
+**Success Response (200):**
+```json
+{
+  "totalUsers": 5,
+  "totalShops": 45,
+  "totalTransactions": 320,
+  "totalCredit": 1500000,
+  "totalRecovery": 1200000,
+  "netBalance": 300000
+}
+```
+
+**Flutter Usage:**
+```
+// Quick stats for profile/dashboard:
+// netBalance = total outstanding balance across all shops
+```
+
+---
+
+### 10. Mobile Sync (Offline Support)
+
+#### Initial Data Sync (GET)
+```
+GET /api/mobile/sync?userId={userId}
+```
+
+**Response (200):**
+```json
+{
+  "user": {
+    "id": "clxabc123def",
+    "username": "ali",
+    "name": "Ali Ahmed",
+    "role": "orderbooker",
+    "phone": "03001234567",
+    "status": "active"
+  },
+  "shops": [
+    {
+      "id": "clxshop001",
+      "name": "Al-Madina General Store",
+      "balance": 25000,
+      "creditLimit": 50000,
+      "orderbooker": { "id": "clxabc123def", "name": "Ali Ahmed" },
+      ...all shop fields
+    }
+  ],
+  "transactions": [
+    ...last 200 transactions by this user
+  ],
+  "syncTime": "2025-01-15T14:30:00.000Z"
+}
+```
+
+**Flutter Usage:**
+```
+// On first login, call this to download all data locally
+// Save shops to local SQLite
+// Save transactions to local SQLite
+// Use syncTime to know when last synced
+```
+
+#### Batch Sync Offline Recoveries (POST)
+```
+POST /api/mobile/sync
+```
+
+**Request Body:**
+```json
+{
+  "transactions": [
+    {
+      "id": "local_txn_001",
+      "shopId": "clxshop001",
+      "type": "recovery",
+      "amount": 5000,
+      "createdBy": "clxabc123def",
+      "previousBalance": 25000,
+      "description": "Cash received",
+      "gpsLat": 24.8607,
+      "gpsLng": 67.0011,
+      "gpsAddress": "Gulshan-e-Iqbal",
+      "createdAt": "2025-01-15T14:30:00.000Z"
+    },
+    {
+      "id": "local_txn_002",
+      "shopId": "clxshop002",
+      "type": "recovery",
+      "amount": 3000,
+      "createdBy": "clxabc123def",
+      "previousBalance": 75000,
+      "description": "Cheque",
+      "createdAt": "2025-01-15T15:00:00.000Z"
+    }
+  ]
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "synced": 2,
+  "failed": 0,
+  "results": [
+    { "success": true, "id": "local_txn_001" },
+    { "success": true, "id": "local_txn_002" }
+  ]
+}
+```
+
+**Flutter Usage:**
+```
+// When back online after being offline:
+// 1. Read queued recoveries from local SQLite
+// 2. Send them in batch using POST /api/mobile/sync
+// 3. Remove successfully synced items from local queue
+// 4. Show user: "2 recoveries synced successfully"
+```
+
+---
+
+### API Quick Reference Card
+
+| # | Method | Endpoint | Used For |
+|---|--------|----------|----------|
+| 1 | POST | `/api/auth/login` | Login |
+| 2 | GET | `/api/auth/validate` | Server health check |
+| 3 | POST | `/api/auth/change-password` | Change password |
+| 4 | GET | `/api/shops?orderbookerId={id}&routeDay={day}` | Today's route shops |
+| 5 | GET | `/api/shops?orderbookerId={id}` | All my shops |
+| 6 | POST | `/api/transactions` | Submit recovery |
+| 7 | GET | `/api/transactions?createdBy={id}&type=recovery&date={date}` | My today's recoveries |
+| 8 | GET | `/api/transactions?shopId={id}&type=recovery&limit=5` | Shop recent transactions |
+| 9 | GET | `/api/reports/ledger?shopId={id}` | Full shop ledger |
+| 10 | GET | `/api/reports/recovery-summary?date={date}` | Daily recovery report |
+| 11 | GET | `/api/summary` | Business summary |
+| 12 | GET | `/api/mobile/sync?userId={id}` | Initial data download |
+| 13 | POST | `/api/mobile/sync` | Batch sync offline recoveries |
 
 ---
 
