@@ -1,177 +1,147 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import bcrypt from 'bcryptjs';
+import pg from 'pg';
 
-// CREATE TABLE statements for PostgreSQL
-const CREATE_TABLES_SQL = `
-CREATE TABLE IF NOT EXISTS "User" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "username" TEXT NOT NULL,
-    "password" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "role" TEXT NOT NULL DEFAULT 'orderbooker',
-    "phone" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'active',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-CREATE UNIQUE INDEX IF NOT EXISTS "User_username_key" ON "User"("username");
-CREATE INDEX IF NOT EXISTS "User_username_idx" ON "User"("username");
-CREATE INDEX IF NOT EXISTS "User_role_idx" ON "User"("role");
+const { Client } = pg;
 
-CREATE TABLE IF NOT EXISTS "Shop" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "name" TEXT NOT NULL,
-    "ownerName" TEXT,
-    "area" TEXT,
-    "address" TEXT,
-    "phone" TEXT,
-    "routeDay" TEXT NOT NULL,
-    "orderbookerId" TEXT NOT NULL,
-    "balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "creditLimit" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "status" TEXT NOT NULL DEFAULT 'active',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Shop_orderbookerId_fkey" FOREIGN KEY ("orderbookerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE
-);
-CREATE INDEX IF NOT EXISTS "Shop_orderbookerId_idx" ON "Shop"("orderbookerId");
-CREATE INDEX IF NOT EXISTS "Shop_routeDay_idx" ON "Shop"("routeDay");
-CREATE INDEX IF NOT EXISTS "Shop_name_idx" ON "Shop"("name");
-CREATE INDEX IF NOT EXISTS "Shop_area_idx" ON "Shop"("area");
-
-CREATE TABLE IF NOT EXISTS "Transaction" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "shopId" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'approved',
-    "amount" DOUBLE PRECISION NOT NULL,
-    "previousBalance" DOUBLE PRECISION NOT NULL,
-    "newBalance" DOUBLE PRECISION NOT NULL,
-    "description" TEXT,
-    "createdBy" TEXT NOT NULL,
-    "approvedBy" TEXT,
-    "approvedAt" TIMESTAMP(3),
-    "rejectReason" TEXT,
-    "gpsLat" DOUBLE PRECISION,
-    "gpsLng" DOUBLE PRECISION,
-    "gpsAddress" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Transaction_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "Transaction_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE
-);
-CREATE INDEX IF NOT EXISTS "Transaction_shopId_idx" ON "Transaction"("shopId");
-CREATE INDEX IF NOT EXISTS "Transaction_type_idx" ON "Transaction"("type");
-CREATE INDEX IF NOT EXISTS "Transaction_status_idx" ON "Transaction"("status");
-CREATE INDEX IF NOT EXISTS "Transaction_createdBy_idx" ON "Transaction"("createdBy");
-CREATE INDEX IF NOT EXISTS "Transaction_createdAt_idx" ON "Transaction"("createdAt");
-
-CREATE TABLE IF NOT EXISTS "AuditLog" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "action" TEXT NOT NULL,
-    "entityType" TEXT NOT NULL,
-    "entityId" TEXT,
-    "performedBy" TEXT,
-    "oldValue" TEXT,
-    "newValue" TEXT,
-    "description" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "AuditLog_performedBy_fkey" FOREIGN KEY ("performedBy") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE
-);
-CREATE INDEX IF NOT EXISTS "AuditLog_action_idx" ON "AuditLog"("action");
-CREATE INDEX IF NOT EXISTS "AuditLog_entityType_idx" ON "AuditLog"("entityType");
-CREATE INDEX IF NOT EXISTS "AuditLog_performedBy_idx" ON "AuditLog"("performedBy");
-CREATE INDEX IF NOT EXISTS "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");
-`;
-
-// POST /api/setup — Create tables + users
+// POST /api/setup — Create tables using raw pg (no Prisma)
 export async function POST() {
+  let client;
   try {
-    // Step 1: Create tables
-    await db.$executeRawUnsafe(CREATE_TABLES_SQL);
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
 
-    // Step 2: Check if users already exist
-    const userCount = await db.user.count();
+    // Create User table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "username" TEXT NOT NULL UNIQUE,
+        "password" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "role" TEXT NOT NULL DEFAULT 'orderbooker',
+        "phone" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create Shop table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "Shop" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "ownerName" TEXT,
+        "area" TEXT,
+        "address" TEXT,
+        "phone" TEXT,
+        "routeDay" TEXT NOT NULL,
+        "orderbookerId" TEXT NOT NULL,
+        "balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "creditLimit" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Shop_orderbookerId_fkey" FOREIGN KEY ("orderbookerId") REFERENCES "User"("id")
+      );
+    `);
+
+    // Create Transaction table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "Transaction" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "shopId" TEXT NOT NULL,
+        "type" TEXT NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'approved',
+        "amount" DOUBLE PRECISION NOT NULL,
+        "previousBalance" DOUBLE PRECISION NOT NULL,
+        "newBalance" DOUBLE PRECISION NOT NULL,
+        "description" TEXT,
+        "createdBy" TEXT NOT NULL,
+        "approvedBy" TEXT,
+        "approvedAt" TIMESTAMP(3),
+        "rejectReason" TEXT,
+        "gpsLat" DOUBLE PRECISION,
+        "gpsLng" DOUBLE PRECISION,
+        "gpsAddress" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Transaction_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id"),
+        CONSTRAINT "Transaction_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "User"("id")
+      );
+    `);
+
+    // Create AuditLog table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "AuditLog" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "action" TEXT NOT NULL,
+        "entityType" TEXT NOT NULL,
+        "entityId" TEXT,
+        "performedBy" TEXT,
+        "oldValue" TEXT,
+        "newValue" TEXT,
+        "description" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "AuditLog_performedBy_fkey" FOREIGN KEY ("performedBy") REFERENCES "User"("id")
+      );
+    `);
+
+    // Check if users exist
+    const userRes = await client.query('SELECT COUNT(*) as count FROM "User"');
+    const userCount = parseInt(userRes.rows[0].count);
+
     if (userCount > 0) {
-      return NextResponse.json({ success: true, message: 'Tables and users already exist', userCount });
+      return NextResponse.json({ success: true, message: 'Tables exist, users already seeded', userCount });
     }
 
-    // Step 3: Create users
+    // Hash passwords (simple sync-compatible way)
+    const bcrypt = await import('bcryptjs');
     const adminPass = await bcrypt.hash('@AFE@123654', 10);
     const obPass = await bcrypt.hash('ob123', 10);
 
-    await db.user.create({
-      data: {
-        username: 'al-falah trader',
-        password: adminPass,
-        name: 'AL-FALAH TRADER',
-        role: 'admin',
-        phone: '',
-        status: 'active',
-      },
-    });
+    // Insert users
+    await client.query(
+      'INSERT INTO "User" (id, username, password, name, role, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      ['admin-001', 'al-falah trader', adminPass, 'AL-FALAH TRADER', 'admin', '', 'active']
+    );
+    await client.query(
+      'INSERT INTO "User" (id, username, password, name, role, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      ['ob-ahmed', 'ahmed', obPass, 'Ahmed Khan', 'orderbooker', '', 'active']
+    );
+    await client.query(
+      'INSERT INTO "User" (id, username, password, name, role, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      ['ob-bilal', 'bilal', obPass, 'Bilal Ali', 'orderbooker', '', 'active']
+    );
+    await client.query(
+      'INSERT INTO "User" (id, username, password, name, role, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      ['ob-danish', 'ob01', obPass, 'Danish Ramzan', 'orderbooker', '', 'active']
+    );
+    await client.query(
+      'INSERT INTO "User" (id, username, password, name, role, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      ['ob-kashif', 'ob02', obPass, 'Kashif Khan', 'orderbooker', '', 'active']
+    );
 
-    await db.user.create({
-      data: {
-        username: 'ahmed',
-        password: obPass,
-        name: 'Ahmed Khan',
-        role: 'orderbooker',
-        phone: '',
-        status: 'active',
-      },
-    });
+    await client.end();
 
-    await db.user.create({
-      data: {
-        username: 'bilal',
-        password: obPass,
-        name: 'Bilal Ali',
-        role: 'orderbooker',
-        phone: '',
-        status: 'active',
-      },
-    });
-
-    await db.user.create({
-      data: {
-        username: 'ob01',
-        password: obPass,
-        name: 'Danish Ramzan',
-        role: 'orderbooker',
-        phone: '',
-        status: 'active',
-      },
-    });
-
-    await db.user.create({
-      data: {
-        username: 'ob02',
-        password: obPass,
-        name: 'Kashif Khan',
-        role: 'orderbooker',
-        phone: '',
-        status: 'active',
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'All tables created and 5 users seeded',
-    });
+    return NextResponse.json({ success: true, message: 'All tables created + 5 users seeded!' });
   } catch (error: unknown) {
+    if (client) await client.end().catch(() => {});
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Setup error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
-// GET /api/setup — Check status
 export async function GET() {
+  let client;
   try {
-    const userCount = await db.user.count();
-    return NextResponse.json({ needsSetup: userCount === 0, userCount });
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+    const res = await client.query('SELECT COUNT(*) as count FROM "User"');
+    await client.end();
+    const count = parseInt(res.rows[0].count);
+    return NextResponse.json({ needsSetup: count === 0, userCount: count });
   } catch (error: unknown) {
+    if (client) await client.end().catch(() => {});
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: msg, needsSetup: true }, { status: 500 });
   }
