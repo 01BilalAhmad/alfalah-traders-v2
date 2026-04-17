@@ -1,15 +1,10 @@
 import { NextResponse } from 'next/server';
-import pg from 'pg';
+import { db } from '@/lib/db';
+import bcrypt from 'bcryptjs';
 
-const { Client } = pg;
-
-// POST /api/auth/login — Raw pg login (no Prisma)
+// POST /api/auth/login — Uses Prisma (works with SQLite & PostgreSQL)
 export async function POST(request: Request) {
-  let client;
   try {
-    client = new Client({ connectionString: process.env.DATABASE_URL });
-    await client.connect();
-
     const { username, password } = await request.json();
 
     if (!username || !password) {
@@ -18,34 +13,27 @@ export async function POST(request: Request) {
 
     const normalizedUsername = username.trim().toLowerCase();
 
-    const res = await client.query(
-      'SELECT id, username, name, role, phone, status, password, "createdAt" FROM "User" WHERE LOWER(username) = $1',
-      [normalizedUsername]
-    );
+    const user = await db.user.findUnique({
+      where: { username: normalizedUsername },
+    });
 
-    if (res.rows.length === 0) {
+    if (!user) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
-
-    const user = res.rows[0];
 
     if (user.status === 'inactive') {
       return NextResponse.json({ error: 'Account is deactivated' }, { status: 403 });
     }
 
     // Verify password with bcrypt
-    const bcrypt = await import('bcryptjs');
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    await client.end();
-
     const { password: _, ...safeUser } = user;
     return NextResponse.json({ user: safeUser, token: `session-${user.id}-${Date.now()}` });
   } catch (error: unknown) {
-    if (client) await client.end().catch(() => {});
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Login error:', msg);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
