@@ -4917,3 +4917,55 @@ Stage Summary:
 - APK updated and ready for download
 - Login credentials: admin: al-falah trader / @AFE@123654
 - Dev server running stably on port 3000
+---
+Task ID: 10
+Agent: API Conversion Agent
+Task: Convert all Prisma-based API routes to raw pg for Vercel compatibility
+
+Work Log:
+- Read all 19 files to convert (11 report routes + 8 non-report API routes)
+- Read reference file (recovery-summary) for the conversion pattern
+- Read Prisma schema to understand table/column names
+- Converted all files from `import { db } from @/lib/db` (Prisma) to raw `pg` client pattern
+- Used `new Client({ connectionString: process.env.DATABASE_URL })` with proper connect/end lifecycle
+- Replaced Prisma `findMany`, `findUnique`, `findFirst`, `count`, `aggregate`, `create`, `update`, `delete`, `$transaction` with raw SQL queries
+- Used SQL JOINs for Prisma `include:` relations
+- Quoted camelCase column names and PascalCase table names in SQL queries
+- Used `client.query(BEGIN/COMMIT/ROLLBACK)` for atomic operations where Prisma `$transaction` was used
+- Used `any` type for SQL result rows where needed
+- Verified no lint errors in any of the 19 converted files
+
+Report routes converted (11):
+1. src/app/api/reports/reconciliation/route.ts
+2. src/app/api/reports/ledger/route.ts
+3. src/app/api/reports/daily-trends/route.ts
+4. src/app/api/reports/activity-timeline/route.ts
+5. src/app/api/reports/month-summary/route.ts
+6. src/app/api/reports/monthly-summary/route.ts
+7. src/app/api/reports/ob-performance/route.ts
+8. src/app/api/reports/shop-detail/route.ts
+9. src/app/api/reports/ob-recovery-sparkline/route.ts
+10. src/app/api/reports/shop-balance-trend/route.ts
+11. src/app/api/reports/ob-weekly-performance/route.ts
+
+Non-report routes converted (8):
+12. src/app/api/shops/route.ts (GET, POST, PATCH)
+13. src/app/api/orderbookers/route.ts (GET, POST, PATCH)
+14. src/app/api/transactions/route.ts (GET, POST, PATCH, DELETE)
+15. src/app/api/audit/route.ts (GET)
+16. src/app/api/recoveries/route.ts (GET, POST)
+17. src/app/api/shops/bulk-status/route.ts (PATCH)
+18. src/app/api/shops/bulk-assign/route.ts (PATCH)
+19. src/app/api/summary/route.ts (GET)
+
+NOT converted (already using raw pg or not in scope):
+- src/app/api/reports/recovery-summary/route.ts (already converted)
+- src/app/api/auth/login/route.ts (already using raw pg)
+- src/app/api/auth/setup/route.ts (already using raw pg)
+- 7 additional files still using Prisma (check-username, restore, backup, admin/backup, change-password, reset-password, mobile/sync) — not listed in task scope
+
+Stage Summary:
+- 19 API routes converted from Prisma to raw pg
+- All converted routes now compatible with Vercel + Neon PostgreSQL
+- `bun run lint` shows zero errors in all 19 converted files
+- Remaining Prisma usage in 7 non-scoped files (auth utilities, backup/restore, mobile sync)

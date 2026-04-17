@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import pg from 'pg';
+
+const { Client } = pg;
 
 // GET /api/reports/monthly-summary?month=2026-04
 export async function GET(request: NextRequest) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const monthParam = searchParams.get('month');
@@ -29,36 +32,37 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
     // Fetch all transactions in the month with shop and creator info
-    const monthTransactions = await db.transaction.findMany({
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-      },
-      include: {
-        shop: {
-          select: { id: true, name: true, area: true },
-        },
-        creator: {
-          select: { id: true, name: true },
-        },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+    const monthTxnRes = await client.query(
+      `SELECT t.id, t.type, t.amount, t."shopId", t."createdBy", t."createdAt",
+              s.id AS "shop_id", s.name AS "shop_name", s.area AS "shop_area",
+              c.id AS "creator_id", c.name AS "creator_name"
+       FROM "Transaction" t
+       LEFT JOIN "Shop" s ON t."shopId" = s.id
+       LEFT JOIN "User" c ON t."createdBy" = c.id
+       WHERE t."createdAt" >= $1 AND t."createdAt" <= $2
+       ORDER BY t."createdAt" ASC`,
+      [startDate.toISOString(), endDate.toISOString()]
+    );
+    const monthTransactions: any[] = monthTxnRes.rows;
 
     // Calculate totals
-    const creditTxns = monthTransactions.filter((t) => t.type === 'credit');
-    const recoveryTxns = monthTransactions.filter((t) => t.type === 'recovery');
+    const creditTxns = monthTransactions.filter((t: any) => t.type === 'credit');
+    const recoveryTxns = monthTransactions.filter((t: any) => t.type === 'recovery');
 
-    const totalCredit = creditTxns.reduce((sum, t) => sum + t.amount, 0);
-    const totalRecovery = recoveryTxns.reduce((sum, t) => sum + t.amount, 0);
+    const totalCredit = creditTxns.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
+    const totalRecovery = recoveryTxns.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
     const netChange = totalCredit - totalRecovery;
 
     // Get unique active shop count (shops that had at least one transaction)
-    const activeShopIds = new Set(monthTransactions.map((t) => t.shopId));
+    const activeShopIds = new Set(monthTransactions.map((t: any) => t.shopId));
     const shopCount = activeShopIds.size;
 
     // Get unique active orderbooker count
-    const activeOBIds = new Set(monthTransactions.map((t) => t.createdBy));
+    const activeOBIds = new Set(monthTransactions.map((t: any) => t.createdBy));
     const activeOrderbookers = activeOBIds.size;
 
     // Daily breakdown
@@ -68,13 +72,13 @@ export async function GET(request: NextRequest) {
       const key = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       dailyMap[key] = { credit: 0, recovery: 0 };
     }
-    monthTransactions.forEach((t) => {
-      const dayKey = t.createdAt.toISOString().split('T')[0];
+    monthTransactions.forEach((t: any) => {
+      const dayKey = new Date(t.createdAt).toISOString().split('T')[0];
       if (dailyMap[dayKey]) {
         if (t.type === 'credit') {
-          dailyMap[dayKey].credit += t.amount;
+          dailyMap[dayKey].credit += Number(t.amount);
         } else {
-          dailyMap[dayKey].recovery += t.amount;
+          dailyMap[dayKey].recovery += Number(t.amount);
         }
       }
     });
@@ -90,17 +94,17 @@ export async function GET(request: NextRequest) {
 
     // Top recovery shops (by total recovery amount)
     const shopRecoveryMap: Record<string, { shopName: string; area: string; recovery: number; orderbookerName: string }> = {};
-    recoveryTxns.forEach((t) => {
+    recoveryTxns.forEach((t: any) => {
       const key = t.shopId;
       if (!shopRecoveryMap[key]) {
         shopRecoveryMap[key] = {
-          shopName: t.shop.name,
-          area: t.shop.area || '',
+          shopName: t.shop_name,
+          area: t.shop_area || '',
           recovery: 0,
-          orderbookerName: t.creator.name,
+          orderbookerName: t.creator_name,
         };
       }
-      shopRecoveryMap[key].recovery += t.amount;
+      shopRecoveryMap[key].recovery += Number(t.amount);
     });
     const topRecoveryShops = Object.values(shopRecoveryMap)
       .sort((a, b) => b.recovery - a.recovery)
@@ -109,17 +113,17 @@ export async function GET(request: NextRequest) {
 
     // Top credit shops (by total credit amount)
     const shopCreditMap: Record<string, { shopName: string; area: string; credit: number; orderbookerName: string }> = {};
-    creditTxns.forEach((t) => {
+    creditTxns.forEach((t: any) => {
       const key = t.shopId;
       if (!shopCreditMap[key]) {
         shopCreditMap[key] = {
-          shopName: t.shop.name,
-          area: t.shop.area || '',
+          shopName: t.shop_name,
+          area: t.shop_area || '',
           credit: 0,
-          orderbookerName: t.creator.name,
+          orderbookerName: t.creator_name,
         };
       }
-      shopCreditMap[key].credit += t.amount;
+      shopCreditMap[key].credit += Number(t.amount);
     });
     const topCreditShops = Object.values(shopCreditMap)
       .sort((a, b) => b.credit - a.credit)
@@ -128,16 +132,16 @@ export async function GET(request: NextRequest) {
 
     // Orderbooker breakdown
     const obMap: Record<string, { name: string; credit: number; recovery: number; shopIds: Set<string> }> = {};
-    monthTransactions.forEach((t) => {
+    monthTransactions.forEach((t: any) => {
       const key = t.createdBy;
       if (!obMap[key]) {
-        obMap[key] = { name: t.creator.name, credit: 0, recovery: 0, shopIds: new Set() };
+        obMap[key] = { name: t.creator_name, credit: 0, recovery: 0, shopIds: new Set() };
       }
       obMap[key].shopIds.add(t.shopId);
       if (t.type === 'credit') {
-        obMap[key].credit += t.amount;
+        obMap[key].credit += Number(t.amount);
       } else {
-        obMap[key].recovery += t.amount;
+        obMap[key].recovery += Number(t.amount);
       }
     });
     const orderbookerBreakdown = Object.values(obMap)
@@ -149,6 +153,7 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.credit - a.credit);
 
+    await client.end();
     return NextResponse.json({
       month: `${year}-${String(month).padStart(2, '0')}`,
       monthLabel: new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
@@ -163,6 +168,7 @@ export async function GET(request: NextRequest) {
       orderbookerBreakdown,
     });
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Error generating monthly summary:', error);
     return NextResponse.json({ error: 'Failed to generate monthly summary' }, { status: 500 });
   }

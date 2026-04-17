@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import pg from 'pg';
+
+const { Client } = pg;
 
 // GET /api/reports/shop-detail?shopId=xxx
 export async function GET(request: NextRequest) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const shopId = searchParams.get('shopId');
@@ -11,43 +14,49 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Shop ID is required' }, { status: 400 });
     }
 
-    const shop = await db.shop.findUnique({
-      where: { id: shopId },
-      include: {
-        orderbooker: {
-          select: { id: true, name: true },
-        },
-      },
-    });
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
 
-    if (!shop) {
+    // Fetch shop with orderbooker
+    const shopRes = await client.query(
+      `SELECT s.*, u.id AS "ob_id", u.name AS "ob_name"
+       FROM "Shop" s
+       LEFT JOIN "User" u ON s."orderbookerId" = u.id
+       WHERE s.id = $1`,
+      [shopId]
+    );
+
+    if (shopRes.rows.length === 0) {
+      await client.end();
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
 
-    // Fetch all transactions for this shop
-    const transactions = await db.transaction.findMany({
-      where: { shopId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        creator: {
-          select: { id: true, name: true, role: true },
-        },
-      },
-    });
+    const shop = shopRes.rows[0];
+
+    // Fetch all transactions for this shop with creator info
+    const txnRes = await client.query(
+      `SELECT t.*, u.id AS "creator_id", u.name AS "creator_name", u.role AS "creator_role"
+       FROM "Transaction" t
+       LEFT JOIN "User" u ON t."createdBy" = u.id
+       WHERE t."shopId" = $1
+       ORDER BY t."createdAt" DESC`,
+      [shopId]
+    );
+    const transactions: any[] = txnRes.rows;
 
     // Compute stats
-    const creditTxns = transactions.filter((t) => t.type === 'credit');
-    const recoveryTxns = transactions.filter((t) => t.type === 'recovery');
+    const creditTxns = transactions.filter((t: any) => t.type === 'credit');
+    const recoveryTxns = transactions.filter((t: any) => t.type === 'recovery');
 
-    const totalCredit = creditTxns.reduce((s, t) => s + t.amount, 0);
-    const totalRecovery = recoveryTxns.reduce((s, t) => s + t.amount, 0);
-    const netBalance = shop.balance;
+    const totalCredit = creditTxns.reduce((s: number, t: any) => s + Number(t.amount), 0);
+    const totalRecovery = recoveryTxns.reduce((s: number, t: any) => s + Number(t.amount), 0);
+    const netBalance = Number(shop.balance);
 
     const avgCreditPerTransaction = creditTxns.length > 0 ? totalCredit / creditTxns.length : 0;
     const avgRecoveryPerTransaction = recoveryTxns.length > 0 ? totalRecovery / recoveryTxns.length : 0;
 
     const lastTransaction = transactions.length > 0 ? transactions[0] : null;
-    const lastTransactionDate = lastTransaction ? lastTransaction.createdAt.toISOString().split('T')[0] : null;
+    const lastTransactionDate = lastTransaction ? new Date(lastTransaction.createdAt).toISOString().split('T')[0] : null;
 
     const now = new Date();
     let daysSinceLastTransaction = 999;
@@ -56,7 +65,7 @@ export async function GET(request: NextRequest) {
       daysSinceLastTransaction = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
     }
 
-    const creditLimitUsage = shop.creditLimit > 0 ? shop.balance / shop.creditLimit : 0;
+    const creditLimitUsage = Number(shop.creditLimit) > 0 ? Number(shop.balance) / Number(shop.creditLimit) : 0;
     const recoveryRate = totalCredit > 0 ? (totalRecovery / totalCredit) * 100 : 0;
 
     // Monthly trend — last 6 months
@@ -65,14 +74,14 @@ export async function GET(request: NextRequest) {
     sixMonthsAgo.setDate(1);
     sixMonthsAgo.setHours(0, 0, 0, 0);
 
-    const recentTransactions = transactions.filter((t) => t.createdAt >= sixMonthsAgo);
+    const recentTransactions = transactions.filter((t: any) => new Date(t.createdAt) >= sixMonthsAgo);
 
     const monthlyMap: Record<string, { credit: number; recovery: number }> = {};
-    recentTransactions.forEach((t) => {
-      const month = t.createdAt.toISOString().slice(0, 7); // "2026-01"
+    recentTransactions.forEach((t: any) => {
+      const month = new Date(t.createdAt).toISOString().slice(0, 7); // "2026-01"
       if (!monthlyMap[month]) monthlyMap[month] = { credit: 0, recovery: 0 };
-      if (t.type === 'credit') monthlyMap[month].credit += t.amount;
-      else monthlyMap[month].recovery += t.amount;
+      if (t.type === 'credit') monthlyMap[month].credit += Number(t.amount);
+      else monthlyMap[month].recovery += Number(t.amount);
     });
 
     // Fill in missing months for last 6 months
@@ -91,25 +100,26 @@ export async function GET(request: NextRequest) {
 
     // Top credit days — find which day of week has most credit transactions
     const dayCreditMap: Record<string, number> = {};
-    creditTxns.forEach((t) => {
-      const day = t.createdAt.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-      dayCreditMap[day] = (dayCreditMap[day] || 0) + t.amount;
+    creditTxns.forEach((t: any) => {
+      const day = new Date(t.createdAt).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      dayCreditMap[day] = (dayCreditMap[day] || 0) + Number(t.amount);
     });
     const sortedDays = Object.entries(dayCreditMap).sort((a, b) => b[1] - a[1]);
     const topCreditDays = sortedDays.slice(0, 2).map((d) => d[0]);
 
     // Recent transactions (last 20)
-    const recentTwenty = transactions.slice(0, 20).map((t) => ({
+    const recentTwenty = transactions.slice(0, 20).map((t: any) => ({
       id: t.id,
       type: t.type,
-      amount: Math.round(t.amount * 100) / 100,
-      previousBalance: Math.round(t.previousBalance * 100) / 100,
-      newBalance: Math.round(t.newBalance * 100) / 100,
+      amount: Math.round(Number(t.amount) * 100) / 100,
+      previousBalance: Math.round(Number(t.previousBalance) * 100) / 100,
+      newBalance: Math.round(Number(t.newBalance) * 100) / 100,
       description: t.description,
-      createdBy: t.creator.name,
-      createdAt: t.createdAt.toISOString(),
+      createdBy: t.creator_name,
+      createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : t.createdAt,
     }));
 
+    await client.end();
     return NextResponse.json({
       shop: {
         id: shop.id,
@@ -119,11 +129,11 @@ export async function GET(request: NextRequest) {
         address: shop.address,
         phone: shop.phone,
         routeDay: shop.routeDay,
-        balance: shop.balance,
-        creditLimit: shop.creditLimit,
+        balance: Number(shop.balance),
+        creditLimit: Number(shop.creditLimit),
         status: shop.status,
-        orderbookerName: shop.orderbooker.name,
-        createdAt: shop.createdAt.toISOString(),
+        orderbookerName: shop.ob_name,
+        createdAt: shop.createdAt instanceof Date ? shop.createdAt.toISOString() : shop.createdAt,
       },
       stats: {
         totalCredit: Math.round(totalCredit),
@@ -142,6 +152,7 @@ export async function GET(request: NextRequest) {
       recoveryRate: Math.round(recoveryRate * 10) / 10,
     });
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Error fetching shop detail analytics:', error);
     return NextResponse.json({ error: 'Failed to fetch shop detail analytics' }, { status: 500 });
   }

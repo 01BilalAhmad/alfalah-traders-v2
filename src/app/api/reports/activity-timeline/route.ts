@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import pg from 'pg';
+
+const { Client } = pg;
 
 function getTimeAgo(date: Date): string {
   const now = new Date();
@@ -19,6 +21,7 @@ function getTimeAgo(date: Date): string {
 
 // GET /api/reports/activity-timeline?limit=50&offset=0&type=all
 export async function GET(request: NextRequest) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
@@ -42,43 +45,51 @@ export async function GET(request: NextRequest) {
     let recoveryCount = 0;
     let editCount = 0;
 
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
     // Fetch transactions (credit + recovery)
     if (type === 'all' || type === 'credit' || type === 'recovery') {
-      const transactionWhere: Record<string, unknown> = {};
-      if (type === 'credit') transactionWhere.type = 'credit';
-      if (type === 'recovery') transactionWhere.type = 'recovery';
+      let txnQuery = `SELECT t.id, t.type, t.amount, t.description, t."createdAt",
+                             s.name AS "shop_name", s.area AS "shop_area",
+                             u.name AS "creator_name"
+                      FROM "Transaction" t
+                      LEFT JOIN "Shop" s ON t."shopId" = s.id
+                      LEFT JOIN "User" u ON t."createdBy" = u.id`;
+      const txnParams: any[] = [];
 
-      const transactions = await db.transaction.findMany({
-        where: transactionWhere,
-        orderBy: { createdAt: 'desc' },
-        take: type === 'all' ? limit + offset : Math.ceil((limit + offset) * 0.6),
-        include: {
-          shop: {
-            select: { id: true, name: true, area: true },
-          },
-          creator: {
-            select: { id: true, name: true, role: true },
-          },
-        },
-      });
+      if (type === 'credit') {
+        txnQuery += ` WHERE t.type = $1`;
+        txnParams.push('credit');
+      } else if (type === 'recovery') {
+        txnQuery += ` WHERE t.type = $1`;
+        txnParams.push('recovery');
+      }
+
+      const fetchLimit = type === 'all' ? limit + offset : Math.ceil((limit + offset) * 0.6);
+      txnQuery += ` ORDER BY t."createdAt" DESC LIMIT $${txnParams.length + 1}`;
+      txnParams.push(fetchLimit);
+
+      const txnRes = await client.query(txnQuery, txnParams);
+      const transactions: any[] = txnRes.rows;
 
       for (const txn of transactions) {
         const txType = txn.type as 'credit' | 'recovery';
         const verb = txType === 'credit' ? 'Posted' : 'Recovered';
         const description = txn.description
           ? txn.description
-          : `${verb} Rs. ${txn.amount.toLocaleString('en-PK')} ${txType === 'credit' ? 'credit to' : 'from'} ${txn.shop.name}`;
+          : `${verb} Rs. ${Number(txn.amount).toLocaleString('en-PK')} ${txType === 'credit' ? 'credit to' : 'from'} ${txn.shop_name || 'Unknown'}`;
 
         activities.push({
           id: txn.id,
           type: txType,
           description,
-          shopName: txn.shop.name,
-          shopArea: txn.shop.area,
-          performedBy: txn.creator.name,
-          amount: txn.amount,
-          createdAt: txn.createdAt.toISOString(),
-          timeAgo: getTimeAgo(txn.createdAt),
+          shopName: txn.shop_name,
+          shopArea: txn.shop_area,
+          performedBy: txn.creator_name || 'Unknown',
+          amount: Number(txn.amount),
+          createdAt: txn.createdAt instanceof Date ? txn.createdAt.toISOString() : txn.createdAt,
+          timeAgo: getTimeAgo(new Date(txn.createdAt)),
         });
 
         if (txType === 'credit') creditCount++;
@@ -88,18 +99,18 @@ export async function GET(request: NextRequest) {
 
     // Fetch audit log edits
     if (type === 'all' || type === 'edit') {
-      const editLogs = await db.auditLog.findMany({
-        where: {
-          action: 'edit',
-        },
-        orderBy: { createdAt: 'desc' },
-        take: type === 'all' ? limit + offset : Math.ceil((limit + offset) * 0.6),
-        include: {
-          performer: {
-            select: { id: true, name: true, role: true },
-          },
-        },
-      });
+      const editLimit = type === 'all' ? limit + offset : Math.ceil((limit + offset) * 0.6);
+      const editRes = await client.query(
+        `SELECT a.id, a.action, a."entityType", a."entityId", a.description, a."createdAt",
+                u.id AS "performer_id", u.name AS "performer_name", u.role AS "performer_role"
+         FROM "AuditLog" a
+         LEFT JOIN "User" u ON a."performedBy" = u.id
+         WHERE a.action = 'edit'
+         ORDER BY a."createdAt" DESC
+         LIMIT $1`,
+        [editLimit]
+      );
+      const editLogs: any[] = editRes.rows;
 
       for (const log of editLogs) {
         let shopName: string | null = null;
@@ -108,13 +119,13 @@ export async function GET(request: NextRequest) {
         // Try to extract shop name from description or entity
         if (log.entityType === 'shop' && log.entityId) {
           try {
-            const shop = await db.shop.findUnique({
-              where: { id: log.entityId },
-              select: { name: true, area: true },
-            });
-            if (shop) {
-              shopName = shop.name;
-              shopArea = shop.area;
+            const shopRes = await client.query(
+              'SELECT name, area FROM "Shop" WHERE id = $1',
+              [log.entityId]
+            );
+            if (shopRes.rows.length > 0) {
+              shopName = shopRes.rows[0].name;
+              shopArea = shopRes.rows[0].area;
             }
           } catch {
             // Skip if shop not found
@@ -127,10 +138,10 @@ export async function GET(request: NextRequest) {
           description: log.description || `Edited ${log.entityType || 'record'}`,
           shopName,
           shopArea,
-          performedBy: log.performer?.name || 'System',
+          performedBy: log.performer_name || 'System',
           amount: null,
-          createdAt: log.createdAt.toISOString(),
-          timeAgo: getTimeAgo(log.createdAt),
+          createdAt: log.createdAt instanceof Date ? log.createdAt.toISOString() : log.createdAt,
+          timeAgo: getTimeAgo(new Date(log.createdAt)),
         });
 
         editCount++;
@@ -139,14 +150,14 @@ export async function GET(request: NextRequest) {
 
     // If fetching 'all', also get counts for types we might not have fully loaded
     if (type === 'all') {
-      const [totalCredits, totalRecoveries, totalEdits] = await Promise.all([
-        db.transaction.count({ where: { type: 'credit' } }),
-        db.transaction.count({ where: { type: 'recovery' } }),
-        db.auditLog.count({ where: { action: 'edit' } }),
+      const [creditCountRes, recoveryCountRes, editCountRes] = await Promise.all([
+        client.query('SELECT COUNT(*) FROM "Transaction" WHERE type = \'credit\''),
+        client.query('SELECT COUNT(*) FROM "Transaction" WHERE type = \'recovery\''),
+        client.query('SELECT COUNT(*) FROM "AuditLog" WHERE action = \'edit\''),
       ]);
-      creditCount = totalCredits;
-      recoveryCount = totalRecoveries;
-      editCount = totalEdits;
+      creditCount = parseInt(creditCountRes.rows[0].count, 10);
+      recoveryCount = parseInt(recoveryCountRes.rows[0].count, 10);
+      editCount = parseInt(editCountRes.rows[0].count, 10);
     }
 
     // Merge and sort by createdAt descending
@@ -156,6 +167,7 @@ export async function GET(request: NextRequest) {
     const totalCount = activities.length;
     const paginatedActivities = activities.slice(offset, offset + limit);
 
+    await client.end();
     return NextResponse.json({
       activities: paginatedActivities,
       counts: {
@@ -168,6 +180,7 @@ export async function GET(request: NextRequest) {
       hasMore: offset + limit < totalCount,
     });
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Error fetching activity timeline:', error);
     return NextResponse.json({ error: 'Failed to fetch activity timeline' }, { status: 500 });
   }

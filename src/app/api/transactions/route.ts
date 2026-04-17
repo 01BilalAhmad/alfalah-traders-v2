@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import pg from 'pg';
+
+const { Client } = pg;
 
 // Business rule constants
 const MIN_AMOUNT = 100;
 const MAX_AMOUNT = 500000;
 const DAILY_CREDIT_CAP = 500000;
 
-
 // Helper: Convert a date string (YYYY-MM-DD) to Pakistan timezone boundaries
 function getPakistanDayRange(dateStr: string): { start: Date; end: Date } {
   const [year, month, day] = dateStr.split('-').map(Number);
-  // Pakistan is UTC+5, so midnight PKT = 19:00 UTC previous day
-  const start = new Date(Date.UTC(year, month - 1, day, -5, 0, 0, 0)); // 00:00 PKT = 19:00 UTC prev
-  const end = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999)); // 23:59:59 PKT = 18:59:59 UTC
+  const start = new Date(Date.UTC(year, month - 1, day, -5, 0, 0, 0));
+  const end = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
   return { start, end };
 }
 
 // GET /api/transactions?shopId=xxx&orderbookerId=xxx&date=xxx&startDate=xxx&type=xxx
 export async function GET(request: NextRequest) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const shopId = searchParams.get('shopId');
@@ -27,43 +28,96 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
-
     const createdBy = searchParams.get('createdBy');
-    const where: Record<string, unknown> = {};
-    if (shopId) where.shopId = shopId;
-    if (type) where.type = type;
-    if (createdBy) where.createdBy = createdBy;
+
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
+    const conditions: string[] = [];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (shopId) {
+      conditions.push(`t."shopId" = $${paramIndex++}`);
+      params.push(shopId);
+    }
+    if (type) {
+      conditions.push(`t.type = $${paramIndex++}`);
+      params.push(type);
+    }
+    if (createdBy) {
+      conditions.push(`t."createdBy" = $${paramIndex++}`);
+      params.push(createdBy);
+    }
     if (orderbookerId) {
-      where.shop = { orderbookerId };
+      conditions.push(`s."orderbookerId" = $${paramIndex++}`);
+      params.push(orderbookerId);
     }
     if (date) {
-      // Use Pakistan timezone for date filtering
       const { start, end } = getPakistanDayRange(date);
-      where.createdAt = { gte: start, lte: end };
+      conditions.push(`t."createdAt" >= $${paramIndex++}`);
+      params.push(start.toISOString());
+      conditions.push(`t."createdAt" <= $${paramIndex++}`);
+      params.push(end.toISOString());
     } else if (startDate) {
-      // Use Pakistan timezone for start date
       const { start } = getPakistanDayRange(startDate);
-      where.createdAt = { gte: start };
+      conditions.push(`t."createdAt" >= $${paramIndex++}`);
+      params.push(start.toISOString());
     }
 
-    const [transactions, total] = await Promise.all([
-      db.transaction.findMany({
-        where,
-        include: {
-          shop: {
-            select: { id: true, name: true, area: true },
-          },
-          creator: {
-            select: { id: true, name: true, role: true },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      db.transaction.count({ where }),
-    ]);
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
+    // Count total
+    const countRes = await client.query(
+      `SELECT COUNT(*) FROM "Transaction" t LEFT JOIN "Shop" s ON t."shopId" = s.id ${whereClause}`,
+      params
+    );
+    const total = parseInt(countRes.rows[0].count, 10);
+
+    // Fetch paginated transactions
+    const offset = (page - 1) * limit;
+    const txnRes = await client.query(
+      `SELECT t.*, s.id AS "shop_id", s.name AS "shop_name", s.area AS "shop_area",
+              c.id AS "creator_id", c.name AS "creator_name", c.role AS "creator_role"
+       FROM "Transaction" t
+       LEFT JOIN "Shop" s ON t."shopId" = s.id
+       LEFT JOIN "User" c ON t."createdBy" = c.id
+       ${whereClause}
+       ORDER BY t."createdAt" DESC
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...params, limit, offset]
+    );
+
+    const transactions = txnRes.rows.map((t: any) => ({
+      id: t.id,
+      shopId: t.shopId,
+      type: t.type,
+      status: t.status,
+      amount: Number(t.amount),
+      previousBalance: Number(t.previousBalance),
+      newBalance: Number(t.newBalance),
+      description: t.description,
+      createdBy: t.createdBy,
+      approvedBy: t.approvedBy,
+      approvedAt: t.approvedAt,
+      rejectReason: t.rejectReason,
+      gpsLat: t.gpsLat,
+      gpsLng: t.gpsLng,
+      gpsAddress: t.gpsAddress,
+      createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : t.createdAt,
+      shop: {
+        id: t.shop_id,
+        name: t.shop_name,
+        area: t.shop_area,
+      },
+      creator: {
+        id: t.creator_id,
+        name: t.creator_name,
+        role: t.creator_role,
+      },
+    }));
+
+    await client.end();
     return NextResponse.json({
       transactions,
       total,
@@ -71,6 +125,7 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Error fetching transactions:', error);
     return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
   }
@@ -78,6 +133,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/transactions - Create a transaction (credit or recovery)
 export async function POST(request: NextRequest) {
+  let client;
   try {
     const { shopId, type, amount, description, createdBy, gpsLat, gpsLng, gpsAddress } = await request.json();
 
@@ -108,20 +164,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Description must be 200 characters or less' }, { status: 400 });
     }
 
-    const shop = await db.shop.findUnique({ where: { id: shopId } });
-    if (!shop) {
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
+    // Start a transaction for atomicity
+    await client.query('BEGIN');
+
+    const shopRes = await client.query('SELECT * FROM "Shop" WHERE id = $1', [shopId]);
+    if (shopRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      await client.end();
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
+    const shop = shopRes.rows[0];
 
     // Validation 4: For credit type, check if shop is active
     if (type === 'credit' && shop.status !== 'active') {
+      await client.query('ROLLBACK');
+      await client.end();
       return NextResponse.json({ error: `Cannot post credit to inactive shop "${shop.name}". Activate the shop first.` }, { status: 400 });
     }
 
     // Validation 5: For recovery type, cannot recover more than shop balance
-    if (type === 'recovery' && amount > shop.balance) {
+    if (type === 'recovery' && amount > Number(shop.balance)) {
+      await client.query('ROLLBACK');
+      await client.end();
       return NextResponse.json({
-        error: `Recovery amount (Rs. ${amount.toLocaleString()}) exceeds shop balance (Rs. ${shop.balance.toLocaleString()}). Maximum recovery allowed: Rs. ${shop.balance.toLocaleString()}`,
+        error: `Recovery amount (Rs. ${amount.toLocaleString()}) exceeds shop balance (Rs. ${Number(shop.balance).toLocaleString()}). Maximum recovery allowed: Rs. ${Number(shop.balance).toLocaleString()}`,
       }, { status: 400 });
     }
 
@@ -134,17 +203,15 @@ export async function POST(request: NextRequest) {
       const dayStart = new Date(Date.UTC(year, month - 1, day, -5, 0, 0, 0));
       const dayEnd = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
 
-      const todayCredits = await db.transaction.aggregate({
-        _sum: { amount: true },
-        where: {
-          shopId,
-          type: 'credit',
-          createdAt: { gte: dayStart, lte: dayEnd },
-        },
-      });
+      const creditSumRes = await client.query(
+        `SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE "shopId" = $1 AND type = 'credit' AND "createdAt" >= $2 AND "createdAt" <= $3`,
+        [shopId, dayStart.toISOString(), dayEnd.toISOString()]
+      );
+      const todayCreditTotal = Number(creditSumRes.rows[0].total);
 
-      const todayCreditTotal = todayCredits._sum.amount || 0;
       if (todayCreditTotal + amount > DAILY_CREDIT_CAP) {
+        await client.query('ROLLBACK');
+        await client.end();
         return NextResponse.json({
           error: `Daily credit cap exceeded for this shop. Today's total: Rs. ${todayCreditTotal.toLocaleString()}, this entry: Rs. ${amount.toLocaleString()}, combined: Rs. ${(todayCreditTotal + amount).toLocaleString()} (limit: Rs. ${DAILY_CREDIT_CAP.toLocaleString()})`,
         }, { status: 400 });
@@ -153,88 +220,73 @@ export async function POST(request: NextRequest) {
       // Validation 7: Check if shop's orderbooker is active (warning only)
       if (shop.orderbookerId) {
         try {
-          const orderbooker = await db.user.findUnique({
-            where: { id: shop.orderbookerId },
-            select: { id: true, name: true, status: true },
-          });
-          if (orderbooker && orderbooker.status === 'inactive') {
-            warnings.push(`The assigned orderbooker (${orderbooker.name}) is currently inactive. Credit has been posted with a warning.`);
+          const obRes = await client.query(
+            `SELECT id, name, status FROM "User" WHERE id = $1`,
+            [shop.orderbookerId]
+          );
+          if (obRes.rows.length > 0 && obRes.rows[0].status === 'inactive') {
+            warnings.push(`The assigned orderbooker (${obRes.rows[0].name}) is currently inactive. Credit has been posted with a warning.`);
           }
         } catch {
-          // Non-blocking — don't fail the transaction
+          // Non-blocking
         }
       }
     }
 
-    const previousBalance = shop.balance;
+    const previousBalance = Number(shop.balance);
     let newBalance: number;
 
     if (type === 'credit') {
       newBalance = previousBalance + amount;
     } else {
       // Recovery: if pending approval mode, don't deduct balance yet
-      // Balance will be deducted when admin approves
-      newBalance = previousBalance; // stays same until approved
+      newBalance = previousBalance;
     }
 
     // Check credit limit warning for credit transactions
     let creditLimitWarning: { limit: number; currentBalance: number; exceeded: boolean } | null = null;
-    if (type === 'credit' && shop.creditLimit && shop.creditLimit > 0) {
+    if (type === 'credit' && shop.creditLimit && Number(shop.creditLimit) > 0) {
       const projectedBalance = previousBalance + amount;
       creditLimitWarning = {
-        limit: shop.creditLimit,
+        limit: Number(shop.creditLimit),
         currentBalance: Math.round(projectedBalance * 100) / 100,
-        exceeded: projectedBalance > shop.creditLimit,
+        exceeded: projectedBalance > Number(shop.creditLimit),
       };
     }
 
     // Recovery status: pending (awaiting admin approval)
     const txnStatus = type === 'recovery' ? 'pending' : 'approved';
 
-    // Use a transaction to ensure atomicity
-    const transaction = await db.$transaction(async (tx) => {
-      // Create transaction record
-      const txn = await tx.transaction.create({
-        data: {
-          shopId,
-          type,
-          status: txnStatus,
-          amount,
-          previousBalance,
-          newBalance: Math.round(newBalance * 100) / 100,
-          description,
-          createdBy,
-          gpsLat: gpsLat || null,
-          gpsLng: gpsLng || null,
-          gpsAddress: gpsAddress || null,
-        },
-        include: {
-          shop: { select: { id: true, name: true } },
-          creator: { select: { id: true, name: true } },
-        },
-      });
+    // Create transaction record
+    const txnRes = await client.query(
+      `INSERT INTO "Transaction" ("shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "gpsLat", "gpsLng", "gpsAddress")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING *`,
+      [shopId, type, txnStatus, amount, previousBalance, Math.round(newBalance * 100) / 100, description || null, createdBy, gpsLat || null, gpsLng || null, gpsAddress || null]
+    );
 
-      // Update shop balance only for credit transactions
-      // Recovery balance will be updated when admin approves
-      if (type === 'credit') {
-        await tx.shop.update({
-          where: { id: shopId },
-          data: { balance: Math.round(newBalance * 100) / 100 },
-        });
-      }
+    const transaction = txnRes.rows[0];
 
-      return txn;
-    });
+    // Update shop balance only for credit transactions
+    if (type === 'credit') {
+      await client.query(
+        `UPDATE "Shop" SET balance = $1 WHERE id = $2`,
+        [Math.round(newBalance * 100) / 100, shopId]
+      );
+    }
+
+    await client.query('COMMIT');
 
     // Create audit log (best-effort)
     try {
-      await db.auditLog.create({
-        data: {
-          action: type === 'credit' ? 'credit_post' : 'recovery_entry',
-          entityType: 'transaction',
-          entityId: transaction.id,
-          performedBy: createdBy,
-          newValue: JSON.stringify({
+      await client.query(
+        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "performedBy", "newValue", description)
+         VALUES ($1, 'transaction', $2, $3, $4, $5)`,
+        [
+          type === 'credit' ? 'credit_post' : 'recovery_entry',
+          transaction.id,
+          createdBy,
+          JSON.stringify({
             shopName: shop.name,
             type,
             amount,
@@ -243,21 +295,40 @@ export async function POST(request: NextRequest) {
             gpsLat,
             gpsLng,
           }),
-          description: `${type === 'credit' ? 'Credit posted' : 'Recovery submitted (pending approval)'}: Rs. ${amount} at ${shop.name}`,
-        },
-      });
+          `${type === 'credit' ? 'Credit posted' : 'Recovery submitted (pending approval)'}: Rs. ${amount} at ${shop.name}`,
+        ]
+      );
     } catch { /* non-blocking */ }
 
-    return NextResponse.json({ ...transaction, creditLimitWarning, warnings: warnings.length > 0 ? warnings : undefined }, { status: 201 });
+    // Fetch shop and creator info for response
+    const shopInfoRes = await client.query('SELECT id, name FROM "Shop" WHERE id = $1', [shopId]);
+    const creatorInfoRes = await client.query('SELECT id, name FROM "User" WHERE id = $1', [createdBy]);
+
+    await client.end();
+
+    return NextResponse.json({
+      ...transaction,
+      amount: Number(transaction.amount),
+      previousBalance: Number(transaction.previousBalance),
+      newBalance: Number(transaction.newBalance),
+      shop: { id: shopInfoRes.rows[0]?.id, name: shopInfoRes.rows[0]?.name },
+      creator: { id: creatorInfoRes.rows[0]?.id, name: creatorInfoRes.rows[0]?.name },
+      creditLimitWarning,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    }, { status: 201 });
   } catch (error) {
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch {}
+      await client.end().catch(() => {});
+    }
     console.error('Error creating transaction:', error);
     return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500 });
   }
 }
 
-// PATCH /api/transactions - Edit a transaction (amount, description)
-// Reverses the old transaction's effect, applies the new one, updates shop balance
+// PATCH /api/transactions - Edit a transaction
 export async function PATCH(request: NextRequest) {
+  let client;
   try {
     const { id, amount, description, updatedBy } = await request.json();
 
@@ -269,26 +340,38 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Amount must be greater than 0' }, { status: 400 });
     }
 
-    const existingTxn = await db.transaction.findUnique({
-      where: { id },
-      include: { shop: { select: { id: true, name: true, balance: true } } },
-    });
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
 
-    if (!existingTxn) {
+    await client.query('BEGIN');
+
+    // Fetch existing transaction with shop
+    const existingRes = await client.query(
+      `SELECT t.*, s.id AS "shop_db_id", s.name AS "shop_name", s.balance AS "shop_balance"
+       FROM "Transaction" t
+       LEFT JOIN "Shop" s ON t."shopId" = s.id
+       WHERE t.id = $1`,
+      [id]
+    );
+
+    if (existingRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      await client.end();
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
     }
 
-    const shop = existingTxn.shop;
-    const oldAmount = existingTxn.amount;
+    const existingTxn = existingRes.rows[0];
+    const oldAmount = Number(existingTxn.amount);
     const oldType = existingTxn.type;
     const newAmount = amount;
+    const shopBalance = Number(existingTxn.shop_balance);
 
     // Step 1: Reverse old transaction's effect on shop balance
     let balanceAfterReverse: number;
     if (oldType === 'credit') {
-      balanceAfterReverse = shop.balance - oldAmount; // undo credit
+      balanceAfterReverse = shopBalance - oldAmount;
     } else {
-      balanceAfterReverse = shop.balance + oldAmount; // undo recovery
+      balanceAfterReverse = shopBalance + oldAmount;
     }
 
     // Step 2: Apply new amount
@@ -301,56 +384,65 @@ export async function PATCH(request: NextRequest) {
 
     newShopBalance = Math.round(newShopBalance * 100) / 100;
 
-    // Step 3: Update in transaction
-    const updatedTxn = await db.$transaction(async (tx) => {
-      const txn = await tx.transaction.update({
-        where: { id },
-        data: {
-          amount: newAmount,
-          description: description !== undefined ? description : existingTxn.description,
-          newBalance: newShopBalance,
-        },
-        include: {
-          shop: { select: { id: true, name: true } },
-          creator: { select: { id: true, name: true } },
-        },
-      });
+    // Update transaction
+    const newDesc = description !== undefined ? description : existingTxn.description;
+    const updatedTxnRes = await client.query(
+      `UPDATE "Transaction" SET amount = $1, description = $2, "newBalance" = $3 WHERE id = $4 RETURNING *`,
+      [newAmount, newDesc, newShopBalance, id]
+    );
+    const updatedTxn = updatedTxnRes.rows[0];
 
-      await tx.shop.update({
-        where: { id: shop.id },
-        data: { balance: newShopBalance },
-      });
+    // Update shop balance
+    await client.query(
+      `UPDATE "Shop" SET balance = $1 WHERE id = $2`,
+      [newShopBalance, existingTxn.shopId]
+    );
 
-      return txn;
-    });
+    await client.query('COMMIT');
 
     // Audit log
     try {
-      await db.auditLog.create({
-        data: {
-          action: 'edit',
-          entityType: 'transaction',
-          entityId: id,
-          performedBy: updatedBy,
-          oldValue: JSON.stringify({
-            shopName: shop.name,
+      await client.query(
+        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "performedBy", "oldValue", "newValue", description)
+         VALUES ('edit', 'transaction', $1, $2, $3, $4, $5)`,
+        [
+          id,
+          updatedBy,
+          JSON.stringify({
+            shopName: existingTxn.shop_name,
             type: oldType,
             amount: oldAmount,
             description: existingTxn.description,
           }),
-          newValue: JSON.stringify({
-            shopName: shop.name,
+          JSON.stringify({
+            shopName: existingTxn.shop_name,
             type: oldType,
             amount: newAmount,
-            description: description !== undefined ? description : existingTxn.description,
+            description: newDesc,
           }),
-          description: `Transaction edited: ${oldType} Rs. ${oldAmount} → Rs. ${newAmount} at ${shop.name}`,
-        },
-      });
+          `Transaction edited: ${oldType} Rs. ${oldAmount} → Rs. ${newAmount} at ${existingTxn.shop_name}`,
+        ]
+      );
     } catch { /* non-blocking */ }
 
-    return NextResponse.json(updatedTxn);
+    // Fetch shop and creator for response
+    const shopInfoRes = await client.query('SELECT id, name FROM "Shop" WHERE id = $1', [existingTxn.shopId]);
+    const creatorInfoRes = await client.query('SELECT id, name FROM "User" WHERE id = $1', [existingTxn.createdBy]);
+
+    await client.end();
+    return NextResponse.json({
+      ...updatedTxn,
+      amount: Number(updatedTxn.amount),
+      previousBalance: Number(updatedTxn.previousBalance),
+      newBalance: Number(updatedTxn.newBalance),
+      shop: { id: shopInfoRes.rows[0]?.id, name: shopInfoRes.rows[0]?.name },
+      creator: { id: creatorInfoRes.rows[0]?.id, name: creatorInfoRes.rows[0]?.name },
+    });
   } catch (error) {
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch {}
+      await client.end().catch(() => {});
+    }
     console.error('Error updating transaction:', error);
     return NextResponse.json({ error: 'Failed to update transaction' }, { status: 500 });
   }
@@ -358,6 +450,7 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE /api/transactions - Delete a transaction and reverse its effect on shop balance
 export async function DELETE(request: NextRequest) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -367,60 +460,78 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Transaction ID and deleter are required' }, { status: 400 });
     }
 
-    const existingTxn = await db.transaction.findUnique({
-      where: { id },
-      include: { shop: { select: { id: true, name: true, balance: true } } },
-    });
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
 
-    if (!existingTxn) {
+    await client.query('BEGIN');
+
+    const existingRes = await client.query(
+      `SELECT t.*, s.id AS "shop_db_id", s.name AS "shop_name", s.balance AS "shop_balance"
+       FROM "Transaction" t
+       LEFT JOIN "Shop" s ON t."shopId" = s.id
+       WHERE t.id = $1`,
+      [id]
+    );
+
+    if (existingRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      await client.end();
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
     }
 
-    const shop = existingTxn.shop;
+    const existingTxn = existingRes.rows[0];
+    const shopBalance = Number(existingTxn.shop_balance);
 
     // Reverse the effect on shop balance
     let newShopBalance: number;
     if (existingTxn.type === 'credit') {
-      newShopBalance = shop.balance - existingTxn.amount;
+      newShopBalance = shopBalance - Number(existingTxn.amount);
     } else {
-      newShopBalance = shop.balance + existingTxn.amount;
+      newShopBalance = shopBalance + Number(existingTxn.amount);
     }
 
     newShopBalance = Math.round(newShopBalance * 100) / 100;
 
-    // Delete in transaction
-    await db.$transaction(async (tx) => {
-      await tx.transaction.delete({ where: { id } });
-      await tx.shop.update({
-        where: { id: shop.id },
-        data: { balance: newShopBalance },
-      });
-    });
+    // Delete transaction
+    await client.query('DELETE FROM "Transaction" WHERE id = $1', [id]);
+
+    // Update shop balance
+    await client.query(
+      `UPDATE "Shop" SET balance = $1 WHERE id = $2`,
+      [newShopBalance, existingTxn.shopId]
+    );
+
+    await client.query('COMMIT');
 
     // Audit log
     try {
-      await db.auditLog.create({
-        data: {
-          action: 'delete',
-          entityType: 'transaction',
-          entityId: id,
-          performedBy: deletedBy,
-          oldValue: JSON.stringify({
-            shopName: shop.name,
+      await client.query(
+        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "performedBy", "oldValue", "newValue", description)
+         VALUES ('delete', 'transaction', $1, $2, $3, $4, $5)`,
+        [
+          id,
+          deletedBy,
+          JSON.stringify({
+            shopName: existingTxn.shop_name,
             type: existingTxn.type,
-            amount: existingTxn.amount,
-            previousBalance: existingTxn.previousBalance,
-            newBalance: existingTxn.newBalance,
+            amount: Number(existingTxn.amount),
+            previousBalance: Number(existingTxn.previousBalance),
+            newBalance: Number(existingTxn.newBalance),
             description: existingTxn.description,
           }),
-          newValue: JSON.stringify({ shopName: shop.name, newBalance: newShopBalance }),
-          description: `Transaction deleted: ${existingTxn.type} Rs. ${existingTxn.amount} at ${shop.name}`,
-        },
-      });
+          JSON.stringify({ shopName: existingTxn.shop_name, newBalance: newShopBalance }),
+          `Transaction deleted: ${existingTxn.type} Rs. ${Number(existingTxn.amount)} at ${existingTxn.shop_name}`,
+        ]
+      );
     } catch { /* non-blocking */ }
 
+    await client.end();
     return NextResponse.json({ success: true, deletedId: id, newShopBalance });
   } catch (error) {
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch {}
+      await client.end().catch(() => {});
+    }
     console.error('Error deleting transaction:', error);
     return NextResponse.json({ error: 'Failed to delete transaction' }, { status: 500 });
   }

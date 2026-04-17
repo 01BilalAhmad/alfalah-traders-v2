@@ -1,49 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import pg from 'pg';
+
+const { Client } = pg;
 
 // GET /api/orderbookers - List all orderbookers with their shop counts and balances
 export async function GET() {
+  let client;
   try {
-    const orderbookers = await db.user.findMany({
-      where: { role: 'orderbooker' },
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        phone: true,
-        status: true,
-        createdAt: true,
-        _count: {
-          select: { orderbookerShops: { where: { status: 'active' } } },
-        },
-      },
-      orderBy: { name: 'asc' },
-    });
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
+    // Get all orderbookers with active shop counts
+    const obRes = await client.query(
+      `SELECT u.id, u.username, u.name, u.phone, u.status, u."createdAt",
+              COUNT(s.id) AS "activeShopCount"
+       FROM "User" u
+       LEFT JOIN "Shop" s ON u.id = s."orderbookerId" AND s.status = 'active'
+       WHERE u.role = 'orderbooker'
+       GROUP BY u.id
+       ORDER BY u.name ASC`
+    );
+    const orderbookers: any[] = obRes.rows;
 
     // Get total outstanding for each orderbooker
     const orderbookersWithBalance = await Promise.all(
-      orderbookers.map(async (ob) => {
-        const shops = await db.shop.findMany({
-          where: { orderbookerId: ob.id, status: 'active' },
-          select: { balance: true },
-        });
-        const totalOutstanding = shops.reduce((sum, s) => sum + s.balance, 0);
-        const activeShopCount = ob._count.orderbookerShops;
+      orderbookers.map(async (ob: any) => {
+        const balanceRes = await client!.query(
+          `SELECT COALESCE(SUM(balance), 0) AS total FROM "Shop" WHERE "orderbookerId" = $1 AND status = 'active'`,
+          [ob.id]
+        );
+        const totalOutstanding = Number(balanceRes.rows[0].total);
+        const activeShopCount = parseInt(ob.activeShopCount, 10);
         return {
           id: ob.id,
           username: ob.username,
           name: ob.name,
           phone: ob.phone,
           status: ob.status,
-          createdAt: ob.createdAt,
+          createdAt: ob.createdAt instanceof Date ? ob.createdAt.toISOString() : ob.createdAt,
           totalShops: activeShopCount,
           totalOutstanding: Math.round(totalOutstanding * 100) / 100,
         };
       })
     );
 
+    await client.end();
     return NextResponse.json(orderbookersWithBalance);
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Error fetching orderbookers:', error);
     return NextResponse.json({ error: 'Failed to fetch orderbookers' }, { status: 500 });
   }
@@ -51,6 +55,7 @@ export async function GET() {
 
 // POST /api/orderbookers - Create a new orderbooker
 export async function POST(request: NextRequest) {
+  let client;
   try {
     const { username, password, name, phone } = await request.json();
 
@@ -61,45 +66,45 @@ export async function POST(request: NextRequest) {
     // Normalize username to lowercase
     const normalizedUsername = username.trim().toLowerCase();
 
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
     // Check if username already exists (case-insensitive)
-    const existingUser = await db.user.findFirst({
-      where: { username: normalizedUsername },
-      select: { id: true, name: true },
-    });
-    if (existingUser) {
-      return NextResponse.json({ error: `Username already exists (used by ${existingUser.name})` }, { status: 409 });
+    const existingRes = await client.query(
+      `SELECT id, name FROM "User" WHERE LOWER(username) = LOWER($1)`,
+      [normalizedUsername]
+    );
+    if (existingRes.rows.length > 0) {
+      await client.end();
+      return NextResponse.json({ error: `Username already exists (used by ${existingRes.rows[0].name})` }, { status: 409 });
     }
 
     const bcrypt = await import('bcryptjs');
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const orderbooker = await db.user.create({
-      data: {
-        username: normalizedUsername,
-        password: hashedPassword,
-        name,
-        phone,
-        role: 'orderbooker',
-      },
-    });
+    const obRes = await client.query(
+      `INSERT INTO "User" (username, password, name, phone, role)
+       VALUES ($1, $2, $3, $4, 'orderbooker')
+       RETURNING id, username, name, phone, role, status, "createdAt", "updatedAt"`,
+      [normalizedUsername, hashedPassword, name, phone || null]
+    );
+
+    const orderbooker = obRes.rows[0];
 
     // Audit log (best-effort)
     try {
-      await db.auditLog.create({
-        data: {
-          action: 'create',
-          entityType: 'user',
-          entityId: orderbooker.id,
-          newValue: JSON.stringify({ username: normalizedUsername, name, phone, role: 'orderbooker' }),
-          description: `Created orderbooker: ${name}`,
-        },
-      });
+      await client.query(
+        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "newValue", description)
+         VALUES ('create', 'user', $1, $2, $3)`,
+        [orderbooker.id, JSON.stringify({ username: normalizedUsername, name, phone, role: 'orderbooker' }), `Created orderbooker: ${name}`]
+      );
     } catch { /* non-blocking */ }
 
-    const { password: _, ...safeOrderbooker } = orderbooker;
-    return NextResponse.json(safeOrderbooker, { status: 201 });
+    await client.end();
+    return NextResponse.json(orderbooker, { status: 201 });
   } catch (error: unknown) {
-    if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'P2002') {
+    if (client) await client.end().catch(() => {});
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === '23505') {
       return NextResponse.json({ error: 'Username already exists' }, { status: 409 });
     }
     console.error('Error creating orderbooker:', error);
@@ -109,45 +114,60 @@ export async function POST(request: NextRequest) {
 
 // PATCH /api/orderbookers - Update orderbooker (soft delete = status change)
 export async function PATCH(request: NextRequest) {
+  let client;
   try {
     const { id, name, phone, status, password } = await request.json();
 
-    const existing = await db.user.findUnique({ where: { id } });
-    if (!existing) {
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
+    const existingRes = await client.query('SELECT * FROM "User" WHERE id = $1', [id]);
+    if (existingRes.rows.length === 0) {
+      await client.end();
       return NextResponse.json({ error: 'Orderbooker not found' }, { status: 404 });
     }
+    const existing = existingRes.rows[0];
 
-    const updateData: Record<string, string> = {};
-    if (name) updateData.name = name;
-    if (phone !== undefined) updateData.phone = phone;
-    if (status) updateData.status = status;
+    const setClauses: string[] = [];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (name) { setClauses.push(`name = $${paramIndex++}`); params.push(name); }
+    if (phone !== undefined) { setClauses.push(`phone = $${paramIndex++}`); params.push(phone); }
+    if (status) { setClauses.push(`status = $${paramIndex++}`); params.push(status); }
     if (password) {
       const bcrypt = await import('bcryptjs');
-      updateData.password = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(password, 10);
+      setClauses.push(`password = $${paramIndex++}`);
+      params.push(hashedPassword);
     }
 
-    const updated = await db.user.update({
-      where: { id },
-      data: updateData,
-    });
+    if (setClauses.length === 0) {
+      await client.end();
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
+
+    params.push(id);
+    const updatedRes = await client.query(
+      `UPDATE "User" SET ${setClauses.join(', ')} WHERE id = $${paramIndex}
+       RETURNING id, username, name, phone, role, status, "createdAt", "updatedAt"`,
+      params
+    );
+    const updated = updatedRes.rows[0];
 
     // Audit log (best-effort)
     try {
-      await db.auditLog.create({
-        data: {
-          action: 'edit',
-          entityType: 'user',
-          entityId: id,
-          oldValue: JSON.stringify({ name: existing.name, phone: existing.phone, status: existing.status }),
-          newValue: JSON.stringify(updateData),
-          description: `Updated orderbooker: ${existing.name}`,
-        },
-      });
+      await client.query(
+        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "oldValue", "newValue", description)
+         VALUES ('edit', 'user', $1, $2, $3, $4)`,
+        [id, JSON.stringify({ name: existing.name, phone: existing.phone, status: existing.status }), JSON.stringify({ name, phone, status }), `Updated orderbooker: ${existing.name}`]
+      );
     } catch { /* non-blocking */ }
 
-    const { password: _, ...safeUser } = updated;
-    return NextResponse.json(safeUser);
+    await client.end();
+    return NextResponse.json(updated);
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Error updating orderbooker:', error);
     return NextResponse.json({ error: 'Failed to update orderbooker' }, { status: 500 });
   }

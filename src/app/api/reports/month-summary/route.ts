@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import pg from 'pg';
+
+const { Client } = pg;
 
 // GET /api/reports/month-summary?month=2025-01
 export async function GET(request: NextRequest) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const monthParam = searchParams.get('month');
@@ -29,27 +32,24 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
     const endDate = new Date(year, month, 0, 23, 59, 59, 999); // Last day of month
 
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
     // Fetch all transactions in the month
-    const monthTransactions = await db.transaction.findMany({
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-      },
-      select: {
-        type: true,
-        amount: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const monthTxnRes = await client.query(
+      `SELECT type, amount, "createdAt" FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2 ORDER BY "createdAt" DESC`,
+      [startDate.toISOString(), endDate.toISOString()]
+    );
+    const monthTransactions: any[] = monthTxnRes.rows;
 
     // Calculate totals
     const totalCredit = monthTransactions
-      .filter((t) => t.type === 'credit')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter((t: any) => t.type === 'credit')
+      .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
     const totalRecovery = monthTransactions
-      .filter((t) => t.type === 'recovery')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter((t: any) => t.type === 'recovery')
+      .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
     const netPosition = totalRecovery - totalCredit;
     const transactionCount = monthTransactions.length;
@@ -57,10 +57,10 @@ export async function GET(request: NextRequest) {
     // Find top recovery day
     const recoveryByDay: Record<string, number> = {};
     monthTransactions
-      .filter((t) => t.type === 'recovery')
-      .forEach((t) => {
-        const dayKey = t.createdAt.toISOString().split('T')[0];
-        recoveryByDay[dayKey] = (recoveryByDay[dayKey] || 0) + t.amount;
+      .filter((t: any) => t.type === 'recovery')
+      .forEach((t: any) => {
+        const dayKey = new Date(t.createdAt).toISOString().split('T')[0];
+        recoveryByDay[dayKey] = (recoveryByDay[dayKey] || 0) + Number(t.amount);
       });
 
     let topRecoveryDay: { date: string; amount: number } | null = null;
@@ -73,10 +73,10 @@ export async function GET(request: NextRequest) {
     // Find top credit day
     const creditByDay: Record<string, number> = {};
     monthTransactions
-      .filter((t) => t.type === 'credit')
-      .forEach((t) => {
-        const dayKey = t.createdAt.toISOString().split('T')[0];
-        creditByDay[dayKey] = (creditByDay[dayKey] || 0) + t.amount;
+      .filter((t: any) => t.type === 'credit')
+      .forEach((t: any) => {
+        const dayKey = new Date(t.createdAt).toISOString().split('T')[0];
+        creditByDay[dayKey] = (creditByDay[dayKey] || 0) + Number(t.amount);
       });
 
     let topCreditDay: { date: string; amount: number } | null = null;
@@ -93,20 +93,19 @@ export async function GET(request: NextRequest) {
     const prevStartDate = new Date(prevYear, prevMonth - 1, 1, 0, 0, 0, 0);
     const prevEndDate = new Date(prevYear, prevMonth, 0, 23, 59, 59, 999);
 
-    const prevTransactions = await db.transaction.findMany({
-      where: {
-        createdAt: { gte: prevStartDate, lte: prevEndDate },
-      },
-      select: { type: true, amount: true },
-    });
+    const prevTxnRes = await client.query(
+      `SELECT type, amount FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2`,
+      [prevStartDate.toISOString(), prevEndDate.toISOString()]
+    );
+    const prevTransactions: any[] = prevTxnRes.rows;
 
     const prevTotalCredit = prevTransactions
-      .filter((t) => t.type === 'credit')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter((t: any) => t.type === 'credit')
+      .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
     const prevTotalRecovery = prevTransactions
-      .filter((t) => t.type === 'recovery')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter((t: any) => t.type === 'recovery')
+      .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
     const prevNetPosition = prevTotalRecovery - prevTotalCredit;
 
@@ -116,6 +115,7 @@ export async function GET(request: NextRequest) {
       return Math.round(((current - previous) / previous) * 1000) / 10;
     }
 
+    await client.end();
     return NextResponse.json({
       month: `${year}-${String(month).padStart(2, '0')}`,
       monthLabel: new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
@@ -123,8 +123,8 @@ export async function GET(request: NextRequest) {
       totalRecovery: Math.round(totalRecovery * 100) / 100,
       netPosition: Math.round(netPosition * 100) / 100,
       transactionCount,
-      creditCount: monthTransactions.filter((t) => t.type === 'credit').length,
-      recoveryCount: monthTransactions.filter((t) => t.type === 'recovery').length,
+      creditCount: monthTransactions.filter((t: any) => t.type === 'credit').length,
+      recoveryCount: monthTransactions.filter((t: any) => t.type === 'recovery').length,
       topRecoveryDay: topRecoveryDay ? {
         date: topRecoveryDay.date,
         amount: Math.round(topRecoveryDay.amount * 100) / 100,
@@ -144,6 +144,7 @@ export async function GET(request: NextRequest) {
       netChangePct: pctChange(netPosition, prevNetPosition),
     });
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Error generating month summary:', error);
     return NextResponse.json({ error: 'Failed to generate month summary' }, { status: 500 });
   }

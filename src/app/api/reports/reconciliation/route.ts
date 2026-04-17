@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import pg from 'pg';
+
+const { Client } = pg;
 
 // Helper: Convert a date string (YYYY-MM-DD) to Pakistan timezone boundaries
 function getPakistanDayRange(dateStr: string): { start: Date; end: Date } {
@@ -11,6 +13,7 @@ function getPakistanDayRange(dateStr: string): { start: Date; end: Date } {
 
 // GET /api/reports/reconciliation?date=xxx
 export async function GET(request: NextRequest) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get('date');
@@ -37,56 +40,66 @@ export async function GET(request: NextRequest) {
       displayDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     }
 
-    // Get all transactions for the day
-    const dayTransactions = await db.transaction.findMany({
-      where: {
-        createdAt: { gte: startDate, lte: endDate },
-      },
-      include: {
-        shop: {
-          select: { id: true, name: true, area: true, orderbookerId: true },
-        },
-        creator: {
-          select: { id: true, name: true, role: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
+    // Get all transactions for the day with shop and creator info
+    const dayTxnRes = await client.query(
+      `SELECT t.id, t.type, t.amount, t."shopId", t."createdAt", t.description,
+              s.id AS "shop_id", s.name AS "shop_name", s.area AS "shop_area", s."orderbookerId" AS "shop_orderbookerId",
+              c.id AS "creator_id", c.name AS "creator_name", c.role AS "creator_role"
+       FROM "Transaction" t
+       LEFT JOIN "Shop" s ON t."shopId" = s.id
+       LEFT JOIN "User" c ON t."createdBy" = c.id
+       WHERE t."createdAt" >= $1 AND t."createdAt" <= $2
+       ORDER BY t."createdAt" DESC`,
+      [startDate.toISOString(), endDate.toISOString()]
+    );
+
+    const dayTransactions: any[] = dayTxnRes.rows;
 
     // Calculate totals
     const totalCredit = dayTransactions
-      .filter((t) => t.type === 'credit')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter((t: any) => t.type === 'credit')
+      .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
     const totalRecovery = dayTransactions
-      .filter((t) => t.type === 'recovery')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter((t: any) => t.type === 'recovery')
+      .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
     // Group by orderbooker
-    const orderbookerIds = [...new Set(dayTransactions.map((t) => t.shop.orderbookerId))];
+    const orderbookerIds = [...new Set(dayTransactions.map((t: any) => t.shop_orderbookerId).filter(Boolean))];
     const orderbookerStats = await Promise.all(
-      orderbookerIds.map(async (obId) => {
-        const ob = await db.user.findUnique({ where: { id: obId } });
-        const obTransactions = dayTransactions.filter((t) => t.shop.orderbookerId === obId);
-        const obCredit = obTransactions.filter((t) => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
-        const obRecovery = obTransactions.filter((t) => t.type === 'recovery').reduce((s, t) => s + t.amount, 0);
+      orderbookerIds.map(async (obId: string) => {
+        const obRes = await client!.query(
+          'SELECT id, name FROM "User" WHERE id = $1',
+          [obId]
+        );
+        const ob = obRes.rows[0];
+        const obTransactions = dayTransactions.filter((t: any) => t.shop_orderbookerId === obId);
+        const obCredit = obTransactions.filter((t: any) => t.type === 'credit').reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const obRecovery = obTransactions.filter((t: any) => t.type === 'recovery').reduce((s: number, t: any) => s + Number(t.amount), 0);
 
         // Get shop-level details
         const shopDetails = await Promise.all(
-          [...new Set(obTransactions.map((t) => t.shopId))].map(async (shopId) => {
-            const shop = await db.shop.findUnique({ where: { id: shopId } });
-            const shopTxns = obTransactions.filter((t) => t.shopId === shopId);
-            const credit = shopTxns.filter((t) => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
-            const recovery = shopTxns.filter((t) => t.type === 'recovery').reduce((s, t) => s + t.amount, 0);
+          [...new Set(obTransactions.map((t: any) => t.shopId))].map(async (shopId: string) => {
+            const shopRes = await client!.query(
+              'SELECT id, name, area, balance FROM "Shop" WHERE id = $1',
+              [shopId]
+            );
+            const shop = shopRes.rows[0];
+            const shopTxns = obTransactions.filter((t: any) => t.shopId === shopId);
+            const credit = shopTxns.filter((t: any) => t.type === 'credit').reduce((s: number, t: any) => s + Number(t.amount), 0);
+            const recovery = shopTxns.filter((t: any) => t.type === 'recovery').reduce((s: number, t: any) => s + Number(t.amount), 0);
             const prevBalance = shopTxns[0]?.previousBalance || shop?.balance || 0;
             return {
               shopId,
               shopName: shop?.name || 'Unknown',
               shopArea: shop?.area || '',
-              previousBalance: Math.round(prevBalance * 100) / 100,
+              previousBalance: Math.round(Number(prevBalance) * 100) / 100,
               credit: Math.round(credit * 100) / 100,
               recovery: Math.round(recovery * 100) / 100,
-              closingBalance: Math.round((prevBalance + credit - recovery) * 100) / 100,
+              closingBalance: Math.round((Number(prevBalance) + credit - recovery) * 100) / 100,
             };
           })
         );
@@ -101,6 +114,7 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    await client.end();
     return NextResponse.json({
       date: displayDate,
       totalCredit: Math.round(totalCredit * 100) / 100,
@@ -110,6 +124,7 @@ export async function GET(request: NextRequest) {
       orderbookers: orderbookerStats,
     });
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Error generating reconciliation report:', error);
     return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 });
   }

@@ -1,36 +1,38 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import pg from 'pg';
+
+const { Client } = pg;
 
 export async function GET() {
+  let client;
   try {
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
     const [
-      totalUsers,
-      totalShops,
-      totalTransactions,
-      creditAgg,
-      recoveryAgg,
-      netBalanceAgg,
+      totalUsersRes,
+      totalShopsRes,
+      totalTransactionsRes,
+      creditAggRes,
+      recoveryAggRes,
+      netBalanceAggRes,
     ] = await Promise.all([
-      db.user.count(),
-      db.shop.count(),
-      db.transaction.count(),
-      db.transaction.aggregate({
-        _sum: { amount: true },
-        where: { type: 'credit' },
-      }),
-      db.transaction.aggregate({
-        _sum: { amount: true },
-        where: { type: 'recovery' },
-      }),
-      db.shop.aggregate({
-        _sum: { balance: true },
-      }),
+      client.query('SELECT COUNT(*) FROM "User"'),
+      client.query('SELECT COUNT(*) FROM "Shop"'),
+      client.query('SELECT COUNT(*) FROM "Transaction"'),
+      client.query('SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type = \'credit\''),
+      client.query('SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type = \'recovery\''),
+      client.query('SELECT COALESCE(SUM(balance), 0) AS total FROM "Shop"'),
     ]);
 
-    const totalCredit = creditAgg._sum.amount ?? 0;
-    const totalRecovery = recoveryAgg._sum.amount ?? 0;
-    const netBalance = netBalanceAgg._sum.balance ?? 0;
+    const totalUsers = parseInt(totalUsersRes.rows[0].count, 10);
+    const totalShops = parseInt(totalShopsRes.rows[0].count, 10);
+    const totalTransactions = parseInt(totalTransactionsRes.rows[0].count, 10);
+    const totalCredit = Number(creditAggRes.rows[0].total);
+    const totalRecovery = Number(recoveryAggRes.rows[0].total);
+    const netBalance = Number(netBalanceAggRes.rows[0].total);
 
+    await client.end();
     return NextResponse.json({
       totalUsers,
       totalShops,
@@ -40,6 +42,7 @@ export async function GET() {
       netBalance,
     });
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Summary API error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch summary' },

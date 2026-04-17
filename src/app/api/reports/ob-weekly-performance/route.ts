@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import pg from 'pg';
 import { getLocalDateString } from '@/lib/utils';
+
+const { Client } = pg;
 
 // GET /api/reports/ob-weekly-performance?orderbookerId=xxx&weeks=4
 export async function GET(request: NextRequest) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const orderbookerId = searchParams.get('orderbookerId');
@@ -16,22 +19,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch orderbooker info
-    const orderbooker = await db.user.findUnique({
-      where: { id: orderbookerId },
-      select: { id: true, name: true },
-    });
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
 
-    if (!orderbooker) {
+    // Fetch orderbooker info
+    const obRes = await client.query(
+      `SELECT id, name FROM "User" WHERE id = $1`,
+      [orderbookerId]
+    );
+
+    if (obRes.rows.length === 0) {
+      await client.end();
       return NextResponse.json(
         { error: 'Orderbooker not found' },
         { status: 404 }
       );
     }
 
+    const orderbooker = obRes.rows[0];
+
     // Calculate week boundaries (Saturday to Friday)
-    // A working week: Saturday through Thursday (Friday is off)
-    // For grouping: Sat-Fri
     const today = new Date();
 
     function getWeekBounds(refDate: Date): { start: Date; end: Date } {
@@ -54,7 +61,7 @@ export async function GET(request: NextRequest) {
     const currentWeek = getWeekBounds(today);
 
     // Generate all week ranges going backwards
-    const weekRanges = [];
+    const weekRanges: { start: Date; end: Date }[] = [];
     for (let i = weeks - 1; i >= 0; i--) {
       const weekStart = new Date(currentWeek.start);
       weekStart.setDate(weekStart.getDate() - i * 7);
@@ -68,19 +75,13 @@ export async function GET(request: NextRequest) {
     const overallStart = weekRanges[0].start;
     const overallEnd = weekRanges[weekRanges.length - 1].end;
 
-    const transactions = await db.transaction.findMany({
-      where: {
-        type: 'recovery',
-        createdBy: orderbookerId,
-        createdAt: { gte: overallStart, lte: overallEnd },
-      },
-      select: {
-        amount: true,
-        createdAt: true,
-        shopId: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+    const txnRes = await client.query(
+      `SELECT amount, "createdAt", "shopId" FROM "Transaction"
+       WHERE type = 'recovery' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3
+       ORDER BY "createdAt" ASC`,
+      [orderbookerId, overallStart.toISOString(), overallEnd.toISOString()]
+    );
+    const transactions: any[] = txnRes.rows;
 
     // Group transactions by week and by day
     const monthNames = [
@@ -99,19 +100,19 @@ export async function GET(request: NextRequest) {
 
     const weeklyData = weekRanges.map((week, index) => {
       const weekTxns = transactions.filter(
-        (t) => t.createdAt >= week.start && t.createdAt <= week.end
+        (t: any) => new Date(t.createdAt) >= week.start && new Date(t.createdAt) <= week.end
       );
 
-      const total = weekTxns.reduce((s, t) => s + t.amount, 0);
+      const total = weekTxns.reduce((s: number, t: any) => s + Number(t.amount), 0);
 
       // Count unique working days with at least one recovery
-      const daySet = new Set(weekTxns.map((t) => toLocalDateStr(t.createdAt)));
+      const daySet = new Set(weekTxns.map((t: any) => toLocalDateStr(new Date(t.createdAt))));
       const days = daySet.size;
 
       const avg = days > 0 ? Math.round(total / days) : 0;
 
       // Count unique shops visited
-      const shopSet = new Set(weekTxns.map((t) => t.shopId));
+      const shopSet = new Set(weekTxns.map((t: any) => t.shopId));
       const shopsVisited = shopSet.size;
 
       // Week label: "Week N (Mar 15-21)"
@@ -129,18 +130,18 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate overall stats
-    const totalRecovered = transactions.reduce((s, t) => s + t.amount, 0);
+    const totalRecovered = transactions.reduce((s: number, t: any) => s + Number(t.amount), 0);
 
     // Count total working days across all weeks
-    const allDaysSet = new Set(transactions.map((t) => toLocalDateStr(t.createdAt)));
+    const allDaysSet = new Set(transactions.map((t: any) => toLocalDateStr(new Date(t.createdAt))));
     const totalDays = allDaysSet.size;
     const avgDaily = totalDays > 0 ? Math.round(totalRecovered / totalDays) : 0;
 
     // Find best day
     const dayTotals: Record<string, number> = {};
-    transactions.forEach((t) => {
-      const dateStr = toLocalDateStr(t.createdAt);
-      dayTotals[dateStr] = (dayTotals[dateStr] || 0) + t.amount;
+    transactions.forEach((t: any) => {
+      const dateStr = toLocalDateStr(new Date(t.createdAt));
+      dayTotals[dateStr] = (dayTotals[dateStr] || 0) + Number(t.amount);
     });
 
     let bestDayDate = '';
@@ -152,6 +153,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    await client.end();
     return NextResponse.json({
       orderbookerName: orderbooker.name,
       totalRecovered: Math.round(totalRecovered),
@@ -163,6 +165,7 @@ export async function GET(request: NextRequest) {
       weeklyData,
     });
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Error generating weekly performance:', error);
     return NextResponse.json(
       { error: 'Failed to generate weekly performance report' },

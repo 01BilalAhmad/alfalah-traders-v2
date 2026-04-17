@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import pg from 'pg';
 import { getLocalDateString, getLocalStartOfDay, getLocalEndOfDay } from '@/lib/utils';
+
+const { Client } = pg;
 
 // GET /api/reports/ob-recovery-sparkline?days=7
 // Returns per-orderbooker recovery trend data for the last N days
 export async function GET(request: NextRequest) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const days = Math.min(Math.max(parseInt(searchParams.get('days') || '7', 10), 1), 30);
 
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
     // Query all active orderbookers
-    const orderbookers = await db.user.findMany({
-      where: { role: 'orderbooker', status: 'active' },
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    });
+    const obRes = await client.query(
+      `SELECT id, name FROM "User" WHERE role = 'orderbooker' AND status = 'active' ORDER BY name ASC`
+    );
+    const orderbookers: any[] = obRes.rows;
 
     // Generate date strings for the last N days
     const dateStrings: string[] = [];
@@ -27,13 +32,13 @@ export async function GET(request: NextRequest) {
 
     // For each orderbooker, fetch daily recovery totals
     const results = await Promise.all(
-      orderbookers.map(async (ob) => {
+      orderbookers.map(async (ob: any) => {
         // Get shop IDs for this orderbooker (active only)
-        const shops = await db.shop.findMany({
-          where: { orderbookerId: ob.id, status: 'active' },
-          select: { id: true },
-        });
-        const shopIds = shops.map((s) => s.id);
+        const shopRes = await client!.query(
+          `SELECT id FROM "Shop" WHERE "orderbookerId" = $1 AND status = 'active'`,
+          [ob.id]
+        );
+        const shopIds = shopRes.rows.map((s: any) => s.id);
 
         if (shopIds.length === 0) {
           return {
@@ -52,21 +57,20 @@ export async function GET(request: NextRequest) {
             const startOfDay = getLocalStartOfDay(dateStr);
             const endOfDay = getLocalEndOfDay(dateStr);
 
-            const result = await db.transaction.aggregate({
-              where: {
-                shopId: { in: shopIds },
-                type: 'recovery',
-                createdAt: { gte: startOfDay, lte: endOfDay },
-              },
-              _sum: { amount: true },
-            });
+            // Build placeholder string for IN clause
+            const placeholders = shopIds.map((_, idx: number) => `$${idx + 3}`).join(', ');
+            const sumRes = await client!.query(
+              `SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction"
+               WHERE "shopId" IN (${placeholders}) AND type = 'recovery' AND "createdAt" >= $1 AND "createdAt" <= $2`,
+              [startOfDay.toISOString(), endOfDay.toISOString(), ...shopIds]
+            );
 
-            return Math.round((result._sum.amount || 0));
+            return Math.round(Number(sumRes.rows[0].total));
           })
         );
 
-        const total = dailyData.reduce((s, v) => s + v, 0);
-        const nonZeroDays = dailyData.filter((v) => v > 0).length;
+        const total = dailyData.reduce((s: number, v: number) => s + v, 0);
+        const nonZeroDays = dailyData.filter((v: number) => v > 0).length;
         const avg = nonZeroDays > 0 ? Math.round(total / nonZeroDays) : 0;
 
         // Determine trend: compare last 3 days avg vs first 3 days avg
@@ -74,8 +78,8 @@ export async function GET(request: NextRequest) {
         if (dailyData.length >= 4) {
           const firstHalf = dailyData.slice(0, Math.floor(dailyData.length / 2));
           const secondHalf = dailyData.slice(Math.floor(dailyData.length / 2));
-          const firstAvg = firstHalf.reduce((s, v) => s + v, 0) / firstHalf.length;
-          const secondAvg = secondHalf.reduce((s, v) => s + v, 0) / secondHalf.length;
+          const firstAvg = firstHalf.reduce((s: number, v: number) => s + v, 0) / firstHalf.length;
+          const secondAvg = secondHalf.reduce((s: number, v: number) => s + v, 0) / secondHalf.length;
           const diff = secondAvg - firstAvg;
           // Use 5% threshold relative to max value to avoid noise
           const threshold = Math.max(Math.max(...dailyData) * 0.05, 100);
@@ -100,8 +104,10 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    await client.end();
     return NextResponse.json(results);
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Error generating OB recovery sparkline data:', error);
     return NextResponse.json({ error: 'Failed to generate sparkline data' }, { status: 500 });
   }

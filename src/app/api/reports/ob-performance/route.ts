@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import pg from 'pg';
+
+const { Client } = pg;
 
 // GET /api/reports/ob-performance?period=week|month|quarter
 export async function GET(request: NextRequest) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'month';
@@ -37,53 +40,48 @@ export async function GET(request: NextRequest) {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
     // Get all orderbookers (including inactive for comparison)
-    const orderbookers = await db.user.findMany({
-      where: { role: 'orderbooker' },
-      select: { id: true, name: true, phone: true, status: true },
-      orderBy: { name: 'asc' },
-    });
+    const obRes = await client.query(
+      `SELECT id, name, phone, status FROM "User" WHERE role = 'orderbooker' ORDER BY name ASC`
+    );
+    const orderbookers: any[] = obRes.rows;
 
     // For each orderbooker, compute aggregated stats
     const performanceData = await Promise.all(
-      orderbookers.map(async (ob) => {
+      orderbookers.map(async (ob: any) => {
         // Get shops assigned to this orderbooker
-        const shops = await db.shop.findMany({
-          where: { orderbookerId: ob.id },
-          select: { id: true, balance: true, status: true },
-        });
+        const shopRes = await client!.query(
+          `SELECT id, balance, status FROM "Shop" WHERE "orderbookerId" = $1`,
+          [ob.id]
+        );
+        const shops: any[] = shopRes.rows;
 
         const totalShops = shops.length;
-        const totalOutstanding = shops.reduce((sum, shop) => sum + shop.balance, 0);
+        const totalOutstanding = shops.reduce((sum: number, shop: any) => sum + Number(shop.balance), 0);
 
         // Today's recovery
-        const todayRecoveryTxns = await db.transaction.findMany({
-          where: {
-            type: 'recovery',
-            createdBy: ob.id,
-            createdAt: { gte: todayStart, lte: todayEnd },
-          },
-          select: { amount: true },
-        });
-        const todayRecovery = todayRecoveryTxns.reduce((sum, t) => sum + t.amount, 0);
+        const todayRecoveryRes = await client!.query(
+          `SELECT amount FROM "Transaction" WHERE type = 'recovery' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3`,
+          [ob.id, todayStart.toISOString(), todayEnd.toISOString()]
+        );
+        const todayRecovery = todayRecoveryRes.rows.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
         // Period recovery
-        const periodRecoveryTxns = await db.transaction.findMany({
-          where: {
-            type: 'recovery',
-            createdBy: ob.id,
-            createdAt: { gte: startDate, lte: endDate },
-          },
-          select: { amount: true },
-        });
-        const periodRecovery = periodRecoveryTxns.reduce((sum, t) => sum + t.amount, 0);
+        const periodRecoveryRes = await client!.query(
+          `SELECT amount FROM "Transaction" WHERE type = 'recovery' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3`,
+          [ob.id, startDate.toISOString(), endDate.toISOString()]
+        );
+        const periodRecovery = periodRecoveryRes.rows.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
         // Last active date (last transaction by this orderbooker)
-        const lastTxn = await db.transaction.findFirst({
-          where: { createdBy: ob.id },
-          orderBy: { createdAt: 'desc' },
-          select: { createdAt: true },
-        });
+        const lastTxnRes = await client!.query(
+          `SELECT "createdAt" FROM "Transaction" WHERE "createdBy" = $1 ORDER BY "createdAt" DESC LIMIT 1`,
+          [ob.id]
+        );
+        const lastTxn = lastTxnRes.rows[0] || null;
 
         // Compute working days in period
         let workingDays: number;
@@ -113,7 +111,7 @@ export async function GET(request: NextRequest) {
           totalOutstanding: Math.round(totalOutstanding * 100) / 100,
           todayRecovery: Math.round(todayRecovery * 100) / 100,
           periodRecovery: Math.round(periodRecovery * 100) / 100,
-          lastActive: lastTxn ? lastTxn.createdAt.toISOString() : null,
+          lastActive: lastTxn ? (lastTxn.createdAt instanceof Date ? lastTxn.createdAt.toISOString() : lastTxn.createdAt) : null,
           avgRecoveryPerShop: Math.round(avgRecoveryPerShop * 100) / 100,
           recoveryRate: Math.round(recoveryRate * 10) / 10,
         };
@@ -123,8 +121,10 @@ export async function GET(request: NextRequest) {
     // Sort by periodRecovery descending
     performanceData.sort((a, b) => b.periodRecovery - a.periodRecovery);
 
+    await client.end();
     return NextResponse.json(performanceData);
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Error generating OB performance analytics:', error);
     return NextResponse.json({ error: 'Failed to generate OB performance analytics' }, { status: 500 });
   }
