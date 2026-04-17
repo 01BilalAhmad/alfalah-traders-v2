@@ -4989,3 +4989,26 @@ Stage Summary:
 - Recovery report issue was already fixed in remote commit (raw pg conversion + date boundary fix)
 - All fixes pushed to GitHub, Vercel should auto-redeploy
 
+---
+Task ID: flutter-prompt
+Agent: Main Agent
+Task: Create comprehensive Flutter APK design prompt document based on Al-Falah Traders system
+
+Work Log:
+- Read entire project structure: 30+ alfalah components, 30+ API routes, complete Prisma schema
+- Read all key component files in detail: LoginView, AdminLayout, AdminDashboard, AdminShops, AdminCreditPosting, AdminRecoveryReport, AdminApproveRecovery, AdminTransactions, OrderbookerLayout
+- Read store.ts (Zustand state management), utils.ts (business rules, working days, transaction validation), api.ts
+- Analyzed complete database schema: User, Shop, Transaction, AuditLog
+- Documented all API endpoints (30+ REST endpoints)
+- Created comprehensive Flutter APK design prompt at /home/z/my-project/FLUTTER_APK_DESIGN_PROMPT.md
+
+Stage Summary:
+- Comprehensive 600+ line Flutter design prompt document created
+- Covers all 13 Admin screens + 4 Orderbooker screens with detailed descriptions
+- Complete database schema documentation with all fields and types
+- Full API endpoint reference table (30+ endpoints)
+- Design system specification (colors, typography, components, animations)
+- 12 special features documented (GPS, offline support, credit limits, approval flow, etc.)
+- Flutter architecture recommendations (state management, packages, navigation)
+- Build & deployment guidelines included
+
