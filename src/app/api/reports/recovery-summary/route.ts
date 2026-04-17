@@ -18,17 +18,18 @@ export async function GET(request: NextRequest) {
     let displayDate: string;
 
     if (dateStr) {
-      const [year, month, day] = dateStr.split('-').map(Number);
-      startDate = new Date(Date.UTC(year, month - 1, day, 0 - pkOffset, 0, 0, 0));
-      endDate = new Date(Date.UTC(year, month - 1, day, 23 - pkOffset, 59, 59, 999));
       displayDate = dateStr;
+      // Use the full UTC day for filtering (Neon stores timestamps in UTC)
+      const [year, month, day] = dateStr.split('-').map(Number);
+      startDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+      endDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
     } else {
-      const pkNow = new Date(today.getTime() + pkOffset * 60 * 1000);
-      const year = pkNow.getUTCFullYear();
-      const month = pkNow.getUTCMonth();
-      const day = pkNow.getUTCDate();
-      startDate = new Date(Date.UTC(year, month, day, 0 - pkOffset, 0, 0, 0));
-      endDate = new Date(Date.UTC(year, month, day, 23 - pkOffset, 59, 59, 999));
+      // Use current date in UTC for filtering
+      const year = today.getUTCFullYear();
+      const month = today.getUTCMonth();
+      const day = today.getUTCDate();
+      startDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+      endDate = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
       displayDate = `${String(year)}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
 
