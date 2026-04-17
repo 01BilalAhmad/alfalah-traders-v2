@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
+import { getPgClient } from '@/lib/pg';
 import crypto from 'crypto';
-
-const { Client } = pg;
 
 // Business rule constants
 const MIN_AMOUNT = 100;
@@ -31,7 +29,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const createdBy = searchParams.get('createdBy');
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     const conditions: string[] = [];
@@ -165,7 +163,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Description must be 200 characters or less' }, { status: 400 });
     }
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Start a transaction for atomicity
@@ -344,7 +342,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Amount must be greater than 0' }, { status: 400 });
     }
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     await client.query('BEGIN');
@@ -466,7 +464,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Transaction ID and deleter are required' }, { status: 400 });
     }
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     await client.query('BEGIN');

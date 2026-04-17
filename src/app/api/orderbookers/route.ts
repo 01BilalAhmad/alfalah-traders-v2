@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
 import crypto from 'crypto';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // GET /api/orderbookers - List all orderbookers with their shop counts and balances
 export async function GET() {
   let client;
   try {
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Get all orderbookers with active shop counts
@@ -67,7 +65,7 @@ export async function POST(request: NextRequest) {
     // Normalize username to lowercase
     const normalizedUsername = username.trim().toLowerCase();
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Check if username already exists (case-insensitive)
@@ -122,7 +120,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const { id, name, phone, status, password } = await request.json();
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     const existingRes = await client.query('SELECT * FROM "User" WHERE id = $1', [id]);

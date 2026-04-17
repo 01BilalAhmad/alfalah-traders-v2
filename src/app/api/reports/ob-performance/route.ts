@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // GET /api/reports/ob-performance?period=week|month|quarter
 export async function GET(request: NextRequest) {
@@ -40,7 +38,7 @@ export async function GET(request: NextRequest) {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Get all orderbookers (including inactive for comparison)

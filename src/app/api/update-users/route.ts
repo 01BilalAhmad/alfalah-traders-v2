@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import pg from 'pg';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // GET /api/update-users — Update user names (browser-friendly)
 export async function GET() {
@@ -12,7 +10,7 @@ export async function GET() {
 export async function POST() {
   let client;
   try {
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Update ahmed → ob03 / M.Ali

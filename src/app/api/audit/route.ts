@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // GET /api/audit?action=xxx&entityType=xxx&page=1&limit=50
 export async function GET(request: NextRequest) {
@@ -14,7 +12,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100');
     const search = searchParams.get('search');
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     const conditions: string[] = [];

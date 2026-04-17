@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
 import { getLocalDateString, getLocalStartOfDay, getLocalEndOfDay } from '@/lib/utils';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // GET /api/reports/shop-balance-trend?shopId=xxx&days=30
 export async function GET(request: NextRequest) {
@@ -20,7 +18,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Days must be between 1 and 365' }, { status: 400 });
     }
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Fetch shop info

@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // Helper: Convert a date string (YYYY-MM-DD) to UTC day boundaries
 function getDayRange(dateStr: string): { start: Date; end: Date } {
@@ -38,7 +36,7 @@ export async function GET(request: NextRequest) {
       displayDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     }
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Get all transactions for the day with shop and creator info

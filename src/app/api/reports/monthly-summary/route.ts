@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // GET /api/reports/monthly-summary?month=2026-04
 export async function GET(request: NextRequest) {
@@ -32,7 +30,7 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Fetch all transactions in the month with shop and creator info

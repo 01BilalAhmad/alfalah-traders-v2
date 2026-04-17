@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
 import { getLocalDateString, getLocalStartOfDay, getLocalEndOfDay } from '@/lib/utils';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // GET /api/reports/ob-recovery-sparkline?days=7
 // Returns per-orderbooker recovery trend data for the last N days
@@ -12,7 +10,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const days = Math.min(Math.max(parseInt(searchParams.get('days') || '7', 10), 1), 30);
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Query all active orderbookers

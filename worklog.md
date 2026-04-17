@@ -95,3 +95,41 @@ Task: Fix transaction and shop creation failures - investigate and resolve root 
 **Files Modified**: shops, transactions, orderbookers, recoveries, bulk-status, bulk-assign, setup routes.
 
 **IMPORTANT**: auth/login/route.ts, Prisma schema, and frontend components were NOT modified.
+
+---
+Task ID: 3b
+Agent: SSL Fix Agent
+Task: Fix pg SSL connection in transactions and recoveries routes
+
+Work Log:
+- Updated transactions/route.ts to use getPgClient()
+- Updated recoveries/route.ts to use getPgClient()
+
+Stage Summary:
+- All Client instantiations in transactions and recoveries now use getPgClient() with ssl: true
+
+---
+Task ID: 3a
+Agent: SSL Fix Agent
+Task: Fix pg SSL connection in auth, shops, bulk-status, bulk-assign routes
+
+Work Log:
+- Updated auth/login/route.ts to use getPgClient()
+- Updated shops/route.ts to use getPgClient()
+- Updated shops/bulk-status/route.ts to use getPgClient()
+- Updated shops/bulk-assign/route.ts to use getPgClient()
+
+Stage Summary:
+- All 4 route files now use shared getPgClient() with ssl: true for Neon compatibility
+
+---
+Task ID: 3c
+Agent: SSL Fix Agent
+Task: Fix pg SSL connection in orderbookers, audit, summary, setup, update-users, and all report routes
+
+Work Log:
+- Updated all listed route files to use getPgClient()
+- Skipped run-update/route.ts (already has SSL)
+
+Stage Summary:
+- All remaining Client instantiations now use getPgClient() with ssl: true

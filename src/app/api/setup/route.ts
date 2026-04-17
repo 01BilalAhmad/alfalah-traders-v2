@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
-import pg from 'pg';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // POST /api/setup — Create tables using raw pg (no Prisma)
 export async function POST() {
   let client;
   try {
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Create User table
@@ -135,7 +133,7 @@ export async function POST() {
 export async function GET() {
   let client;
   try {
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
     const res = await client.query('SELECT COUNT(*) as count FROM "User"');
     await client.end();

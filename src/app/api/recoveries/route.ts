@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
+import { getPgClient } from '@/lib/pg';
 import crypto from 'crypto';
-
-const { Client } = pg;
 
 // GET /api/recoveries?status=pending&orderbookerId=xxx
 export async function GET(request: NextRequest) {
@@ -12,7 +10,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || 'pending';
     const orderbookerId = searchParams.get('orderbookerId');
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     const conditions: string[] = [`t.type = 'recovery'`, `t.status = $1`];
@@ -119,7 +117,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Action must be "approve" or "reject"' }, { status: 400 });
     }
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     await client.query('BEGIN');

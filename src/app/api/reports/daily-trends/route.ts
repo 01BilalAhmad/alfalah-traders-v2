@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import pg from 'pg';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // GET /api/reports/daily-trends
 // Returns last 7 days: [{ date, credit, recovery, net }]
@@ -11,7 +9,7 @@ export async function GET() {
     const today = new Date();
     const days: { date: string; label: string; credit: number; recovery: number; net: number }[] = [];
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     for (let i = 6; i >= 0; i--) {

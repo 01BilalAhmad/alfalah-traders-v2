@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pg from 'pg';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // GET /api/reports/recovery-summary?date=xxx
 export async function GET(request: NextRequest) {
@@ -33,7 +32,7 @@ export async function GET(request: NextRequest) {
       displayDate = `${String(year)}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     const result = await generateReport(client, startDate, endDate, displayDate);

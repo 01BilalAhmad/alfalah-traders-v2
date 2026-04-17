@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
+import { getPgClient } from '@/lib/pg';
 import crypto from 'crypto';
-
-const { Client } = pg;
 
 // Generate a CUID-like ID (compatible with existing data)
 function generateId(): string {
@@ -21,7 +19,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const includeInactive = searchParams.get('includeInactive') === 'true';
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     const conditions: string[] = [];
@@ -94,7 +92,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name, route day, and orderbooker are required' }, { status: 400 });
     }
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     const shopId = generateId();
@@ -133,7 +131,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const { id, name, ownerName, area, address, phone, routeDay, orderbookerId, status, creditLimit } = await request.json();
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Fetch existing

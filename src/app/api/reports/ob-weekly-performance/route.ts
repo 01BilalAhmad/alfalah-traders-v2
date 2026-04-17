@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
 import { getLocalDateString } from '@/lib/utils';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // GET /api/reports/ob-weekly-performance?orderbookerId=xxx&weeks=4
 export async function GET(request: NextRequest) {
@@ -19,7 +17,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Fetch orderbooker info

@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 // GET /api/reports/shop-detail?shopId=xxx
 export async function GET(request: NextRequest) {
@@ -14,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Shop ID is required' }, { status: 400 });
     }
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Fetch shop with orderbooker

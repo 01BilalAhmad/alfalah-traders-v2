@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
+import { getPgClient } from '@/lib/pg';
 import crypto from 'crypto';
-
-const { Client } = pg;
 
 // PATCH /api/shops/bulk-status
 export async function PATCH(request: NextRequest) {
@@ -18,7 +16,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'status must be "active" or "inactive"' }, { status: 400 });
     }
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Update all shops

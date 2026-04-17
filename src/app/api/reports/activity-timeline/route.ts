@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
-
-const { Client } = pg;
+import { getPgClient } from '@/lib/pg';
 
 function getTimeAgo(date: Date): string {
   const now = new Date();
@@ -45,7 +43,7 @@ export async function GET(request: NextRequest) {
     let recoveryCount = 0;
     let editCount = 0;
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
+    client = getPgClient();
     await client.connect();
 
     // Fetch transactions (credit + recovery)
