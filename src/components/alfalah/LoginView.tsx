@@ -47,8 +47,7 @@ export default function LoginView() {
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          console.log('Auto-setup: Admin user created');
-          toast({ title: 'Setup Complete', description: 'Admin account created. Use admin / Admin@123' });
+          console.log('Auto-setup: Tables & users created');
         }
       })
       .catch(() => {});
