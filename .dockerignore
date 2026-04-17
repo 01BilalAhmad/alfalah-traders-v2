@@ -1,0 +1,16 @@
+Dockerfile
+.dockerignore
+fly.toml
+node_modules
+.next
+.git
+*.md
+.env*
+!.env.example
+db/*.db
+db/*.db-journal
+upload/
+public/uploads/
+android/
+*.log
+.turbo

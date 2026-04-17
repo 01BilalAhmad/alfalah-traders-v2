@@ -1,0 +1,30 @@
+# fly.toml app configuration file for Al-Falah Traders
+app = 'alfalah-traders'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  PORT = '3000'
+  NODE_ENV = 'production'
+  DATABASE_URL = 'file:/data/db/custom.db'
+
+[[mounts]]
+  source = 'alfalah_data'
+  destination = '/data/db'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+[deploy]
+  strategy = "rolling"
