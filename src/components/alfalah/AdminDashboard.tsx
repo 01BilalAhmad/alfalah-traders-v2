@@ -34,6 +34,9 @@ import {
 } from 'recharts';
 import { apiFetch } from '@/lib/api';
 import {
+  Home,
+  Store,
+  Users,
   TrendingUp,
   Wallet,
   CreditCard,
