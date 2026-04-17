@@ -4969,3 +4969,23 @@ Stage Summary:
 - All converted routes now compatible with Vercel + Neon PostgreSQL
 - `bun run lint` shows zero errors in all 19 converted files
 - Remaining Prisma usage in 7 non-scoped files (auth utilities, backup/restore, mobile sync)
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix dashboard client-side error and recovery report on Vercel
+
+Work Log:
+- Investigated the "Application error: a client-side exception has occurred" on Vercel dashboard
+- Pulled latest changes from GitHub remote (commits 6d58fd6 and 94505f8)
+- Discovered remote already had fixes: all API routes converted from Prisma to raw pg, date boundaries corrected
+- Found root cause of dashboard crash: AdminDashboard.tsx was missing `Home`, `Store`, and `Users` imports from lucide-react
+- Added missing imports to AdminDashboard.tsx
+- Verified AdminRecoveryReport.tsx has correct imports
+- Verified prisma/schema.prisma is correctly set to `postgresql`
+- Pushed fix to GitHub for Vercel auto-redeployment
+
+Stage Summary:
+- Dashboard crash was caused by ReferenceError for undefined `Home`, `Store`, `Users` icons
+- Recovery report issue was already fixed in remote commit (raw pg conversion + date boundary fix)
+- All fixes pushed to GitHub, Vercel should auto-redeploy
+
