@@ -35,13 +35,23 @@ export default function LoginView() {
 
   const { setUser } = useAppStore();
 
-  // Load saved username on mount
+  // Auto-setup: Create admin user if database is empty
   useEffect(() => {
     const saved = localStorage.getItem('alfalah-remembered-username');
     if (saved) {
       setUsername(saved);
       setRememberMe(true);
     }
+    // Auto-seed database if empty
+    fetch('/api/setup', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          console.log('Auto-setup: Admin user created');
+          toast({ title: 'Setup Complete', description: 'Admin account created. Use admin / Admin@123' });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Calculate password strength
