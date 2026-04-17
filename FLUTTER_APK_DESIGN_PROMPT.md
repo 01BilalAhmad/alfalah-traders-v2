@@ -226,8 +226,13 @@ Each transaction row:
 ## API Endpoints — COMPLETE DOCUMENTATION
 
 **Base URL:** `https://alfalah-traders.vercel.app`  
-**Auth:** After login, use the token from login response in header `Authorization: Bearer {token}`
+**Auth:** No API key required! No Bearer token needed! APIs are open — just call them directly.
 **Content-Type:** All POST/PATCH requests use `application/json`
+
+> ⚠️ **IMPORTANT FOR DEVELOPER:** 
+> Kisi bhi API key, Bearer token, ya authentication header ki zaroorat NAHI hai.
+> Server pe koi auth middleware nai hai. Directly API call karo — response mil jayega.
+> Sirf login API ko username/password body mein bhejo, baaki sab APIs bina kisi key ke chal jayengi.
 
 ---
 
@@ -270,7 +275,7 @@ POST /api/auth/login
 ```
 Save user.id → use as orderbookerId in all shop/transaction APIs
 Save user.name → display in profile
-Save token → send in Authorization header for all requests
+Token ko save karna optional hai — server koi token validate nai karta
 ```
 
 ---
@@ -964,11 +969,13 @@ approvedBy, gpsLat, gpsLng, gpsAddress, createdAt
 ## Important Notes for Developer
 
 1. The **backend API is already built and live** at `https://alfalah-traders.vercel.app` — you only need to build the Flutter frontend
-2. **Login response** returns user data with `id`, `name`, `role`, `token` — use this for API calls
-3. **Shops are filtered by `orderbookerId`** — after login, use the user's ID to fetch their shops
-4. **Route day filtering** — filter shops by today's day name (lowercase: "monday", "tuesday", etc.)
-5. **Recovery goes to pending** — after submission, tell user it's pending admin approval
-6. **Balance shown on shops is the CURRENT balance** (including pending recoveries)
-7. Keep the UI **simple and fast** — order bookers use this in the field on mobile data
-8. **GPS is optional** but add it — it helps admin verify recoveries
-9. The app should feel like a **native Android app** — smooth, fast, no web views
+2. **NO API key, NO Bearer token, NO authentication header** required — all APIs are open, just call them directly
+3. **Login response** returns user data with `id`, `name`, `role`, `token` — use `user.id` as `orderbookerId` in all shop/transaction APIs
+4. **Shops are filtered by `orderbookerId`** — after login, use the user's ID to fetch their shops
+5. **Route day filtering** — filter shops by today's day name (lowercase: "monday", "tuesday", etc.)
+6. **Recovery goes to pending** — after submission, tell user it's pending admin approval
+7. **Balance shown on shops is the CURRENT balance** (including pending recoveries)
+8. Keep the UI **simple and fast** — order bookers use this in the field on mobile data
+9. **GPS is optional** but add it — it helps admin verify recoveries
+10. The app should feel like a **native Android app** — smooth, fast, no web views
+11. **For offline:** Use local SQLite to cache shops and queue recoveries. When online again, sync via `POST /api/mobile/sync`
