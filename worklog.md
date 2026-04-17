@@ -4,6 +4,37 @@
 
 ---
 
+## Task ID: flutter-apk-build
+Agent: Main Agent
+Task: Build proper native Flutter APK for Al-Falah Orderbooker App
+
+Work Log:
+- Installed Flutter SDK 3.24.5 at /home/z/flutter
+- Installed Android SDK command-line tools + platforms;android-34 + build-tools;34.0.0
+- Installed JDK 17 (needed for AGP 8.1 compatibility)
+- Fixed Flutter project code errors:
+  - CardThemeData → CardTheme
+  - Added missing provider import in app.dart
+  - _loadSession → loadSession (made public)
+  - Fixed PDF generation (built-in fonts, correct Table API)
+  - Fixed widget.shop reference in AddRecoveryScreen
+- Created adaptive launcher icon (vector drawable)
+- Added missing settings.gradle
+- Upgraded Gradle 8.0 → 8.5 for Java 21 compatibility
+- Successfully built release APK (22.9MB)
+- Pushed to GitHub repo: 01BilalAhmad/alfalah-orderbooker-app
+- Also uploaded to web project: public/Al-Falah-Orderbooker.apk
+- Updated download API route to serve Flutter APK
+
+Stage Summary:
+- Flutter APK v1.0.0 built and pushed to GitHub
+- Download link: https://alfalah-traders.vercel.app/Al-Falah-Orderbooker.apk
+- API download: https://alfalah-traders.vercel.app/api/download?v=flutter
+- Features: Login, Shops, Recovery, Ledger, PDF Export, Profile
+- NOT Capacitor — pure Flutter native app
+
+---
+
 ## Task ID: codespaces-setup
 Agent: Main Agent
 Task: Add GitHub Codespaces configuration for remote development
