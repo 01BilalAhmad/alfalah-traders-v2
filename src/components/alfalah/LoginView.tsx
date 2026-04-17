@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Building2, Eye, EyeOff, LogIn, Loader2, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck, Download, Smartphone, Server, Wifi, Monitor, ChevronRight } from 'lucide-react';
 import { apiFetch, getServerUrl, getServerLabel } from '@/lib/api';
+import { Capacitor } from '@capacitor/core';
 import ServerSettings from './ServerSettings';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
@@ -535,22 +536,24 @@ export default function LoginView() {
         <p className="mt-6 text-center text-xs text-blue-200/60">
           &copy; {new Date().getFullYear()} Al-Falah Traders. All rights reserved.
         </p>
-        {/* Server Connection Indicator & Settings */}
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => setServerSettingsOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/15 text-[11px] text-blue-200 hover:bg-white/15 hover:text-white transition-all duration-200 group"
-          >
-            {getServerUrl() ? (
-              <Wifi className="h-3.5 w-3.5 text-emerald-400" />
-            ) : (
-              <Monitor className="h-3.5 w-3.5 text-blue-300" />
-            )}
-            <span className="font-medium">{serverLabel}</span>
-            <ChevronRight className="h-3 w-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
-          </button>
-        </div>
+        {/* Server Connection Indicator & Settings — APK ONLY */}
+        {Capacitor.isNativePlatform() && (
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setServerSettingsOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/15 text-[11px] text-blue-200 hover:bg-white/15 hover:text-white transition-all duration-200 group"
+            >
+              {getServerUrl() ? (
+                <Wifi className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <Monitor className="h-3.5 w-3.5 text-blue-300" />
+              )}
+              <span className="font-medium">{serverLabel}</span>
+              <ChevronRight className="h-3 w-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        )}
 
         <p className="mt-1.5 text-center text-[10px] text-blue-300/40">
           Powered by Al-Falah Systems
