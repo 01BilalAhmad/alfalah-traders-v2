@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 
-// GET /api/auth/validate — Check if server is alive (for mobile app session validation)
+// GET /api/ping — Server health check for mobile app
 export async function GET() {
   return NextResponse.json({ 
-    valid: true, 
-    message: 'Server is running',
+    status: 'ok', 
+    message: 'Al-Falah Traders API is running',
     time: new Date().toISOString()
   });
 }

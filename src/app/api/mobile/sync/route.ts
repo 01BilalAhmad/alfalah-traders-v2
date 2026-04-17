@@ -1,127 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getPgClient } from '@/lib/pg';
+import crypto from 'crypto';
 
-// POST /api/mobile/sync — Accept batch of transactions from mobile app
-export async function POST(request: NextRequest) {
-  try {
-    const { transactions } = await request.json();
-
-    if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
-      return NextResponse.json({ error: 'No transactions provided' }, { status: 400 });
-    }
-
-    const results: { success: boolean; id: string; error?: string }[] = [];
-
-    for (const txn of transactions) {
-      try {
-        // Validate required fields
-        if (!txn.shopId || !txn.type || !txn.amount || !txn.createdBy) {
-          results.push({ success: false, id: txn.id || 'unknown', error: 'Missing required fields' });
-          continue;
-        }
-
-        if (txn.type !== 'recovery') {
-          results.push({ success: false, id: txn.id, error: 'Mobile app only supports recovery transactions' });
-          continue;
-        }
-
-        if (txn.amount <= 0) {
-          results.push({ success: false, id: txn.id, error: 'Amount must be greater than 0' });
-          continue;
-        }
-
-        // Check for duplicate (same id already exists)
-        const existing = await db.transaction.findUnique({ where: { id: txn.id } });
-        if (existing) {
-          results.push({ success: true, id: txn.id });
-          continue; // Already synced, skip
-        }
-
-        // Get shop and validate
-        const shop = await db.shop.findUnique({ where: { id: txn.shopId } });
-        if (!shop) {
-          results.push({ success: false, id: txn.id, error: 'Shop not found' });
-          continue;
-        }
-
-        // For recovery, verify amount doesn't exceed balance
-        // Use the balance from the transaction's previousBalance for consistency
-        const previousBalance = txn.previousBalance ?? shop.balance;
-        let newBalance = Math.round((previousBalance - txn.amount) * 100) / 100;
-
-        // Use transaction for atomicity
-        await db.$transaction(async (tx) => {
-          // Create transaction record
-          await tx.transaction.create({
-            data: {
-              id: txn.id,
-              shopId: txn.shopId,
-              type: txn.type,
-              amount: txn.amount,
-              previousBalance,
-              newBalance,
-              description: txn.description || null,
-              createdBy: txn.createdBy,
-              gpsLat: txn.gpsLat || null,
-              gpsLng: txn.gpsLng || null,
-              gpsAddress: txn.gpsAddress || null,
-              createdAt: new Date(txn.createdAt),
-            },
-          });
-
-          // Update shop balance
-          await tx.shop.update({
-            where: { id: txn.shopId },
-            data: { balance: newBalance },
-          });
-        });
-
-        // Create audit log (best-effort)
-        try {
-          await db.auditLog.create({
-            data: {
-              action: 'recovery_entry',
-              entityType: 'transaction',
-              entityId: txn.id,
-              performedBy: txn.createdBy,
-              newValue: JSON.stringify({
-                shopName: shop.name,
-                type: txn.type,
-                amount: txn.amount,
-                previousBalance,
-                newBalance,
-                gpsLat: txn.gpsLat,
-                gpsLng: txn.gpsLng,
-                source: 'mobile_app',
-              }),
-              description: `Recovery collected (mobile): Rs. ${txn.amount} at ${shop.name}`,
-            },
-          });
-        } catch { /* non-blocking */ }
-
-        results.push({ success: true, id: txn.id });
-      } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : 'Unknown error';
-        results.push({ success: false, id: txn.id || 'unknown', error: msg });
-      }
-    }
-
-    const successCount = results.filter(r => r.success).length;
-    const failCount = results.filter(r => !r.success).length;
-
-    return NextResponse.json({
-      synced: successCount,
-      failed: failCount,
-      results,
-    });
-  } catch (error) {
-    console.error('Mobile sync error:', error);
-    return NextResponse.json({ error: 'Sync failed' }, { status: 500 });
-  }
-}
-
-// GET /api/mobile/sync?userId=xxx — Return all shops + recent transactions for initial sync
+// GET /api/mobile/sync?userId=xxx — Initial sync: download shops + user info
 export async function GET(request: NextRequest) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -130,53 +13,189 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
-    // Fetch shops assigned to this orderbooker
-    const shops = await db.shop.findMany({
-      where: { orderbookerId: userId },
-      include: {
-        orderbooker: {
-          select: { id: true, name: true },
-        },
-      },
-      orderBy: { name: 'asc' },
-    });
-
-    // Fetch recent transactions (last 100)
-    const transactions = await db.transaction.findMany({
-      where: { createdBy: userId },
-      include: {
-        shop: { select: { id: true, name: true, area: true } },
-        creator: { select: { id: true, name: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    });
+    client = getPgClient();
+    await client.connect();
 
     // Fetch user info
-    const user = await db.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        role: true,
-        phone: true,
-        status: true,
-      },
-    });
-
-    if (!user) {
+    const userRes = await client.query(
+      'SELECT id, username, name, role, phone, status FROM "User" WHERE id = $1',
+      [userId]
+    );
+    if (userRes.rows.length === 0) {
+      await client.end();
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    const user = userRes.rows[0];
+
+    // Fetch shops assigned to this orderbooker (or all if admin)
+    let shopQuery: string;
+    let shopParams: any[];
+
+    if (user.role === 'admin') {
+      shopQuery = `SELECT s.*, u.name AS "ob_name"
+                   FROM "Shop" s
+                   LEFT JOIN "User" u ON s."orderbookerId" = u.id
+                   WHERE s.status = 'active'
+                   ORDER BY s.name ASC`;
+      shopParams = [];
+    } else {
+      shopQuery = `SELECT s.*, u.name AS "ob_name"
+                   FROM "Shop" s
+                   LEFT JOIN "User" u ON s."orderbookerId" = u.id
+                   WHERE s."orderbookerId" = $1 AND s.status = 'active'
+                   ORDER BY s.name ASC`;
+      shopParams = [userId];
+    }
+
+    const shopRes = await client.query(shopQuery, shopParams);
+
+    // Fetch today's transactions for this user
+    const todayTxnRes = await client.query(
+      `SELECT t.*, s.name AS "shop_name"
+       FROM "Transaction" t
+       LEFT JOIN "Shop" s ON t."shopId" = s.id
+       WHERE t."createdBy" = $1 AND t."createdAt" >= CURRENT_DATE
+       ORDER BY t."createdAt" DESC`,
+      [userId]
+    );
+
+    // Fetch today's recovery total
+    const recoveryTotalRes = await client.query(
+      `SELECT COALESCE(SUM(amount), 0) AS "todayTotalRecovery"
+       FROM "Transaction"
+       WHERE "createdBy" = $1 AND type = 'recovery' AND status = 'approved' AND "createdAt" >= CURRENT_DATE`,
+      [userId]
+    );
+
+    await client.end();
 
     return NextResponse.json({
-      user,
-      shops,
-      transactions,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        role: user.role,
+        phone: user.phone,
+        status: user.status,
+      },
+      shops: shopRes.rows.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        ownerName: s.ownerName,
+        area: s.area,
+        address: s.address,
+        phone: s.phone,
+        routeDay: s.routeDay,
+        orderbookerId: s.orderbookerId,
+        balance: Number(s.balance),
+        creditLimit: Number(s.creditLimit),
+        status: s.status,
+        orderbookerName: s.ob_name,
+      })),
+      todayTransactions: todayTxnRes.rows.map((t: any) => ({
+        id: t.id,
+        shopId: t.shopId,
+        shopName: t.shop_name,
+        type: t.type,
+        amount: Number(t.amount),
+        status: t.status,
+        description: t.description,
+        createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : t.createdAt,
+      })),
+      todayTotalRecovery: Number(recoveryTotalRes.rows[0].todayTotalRecovery),
       syncTime: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Mobile data fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
+    if (client) await client.end().catch(() => {});
+    console.error('Mobile sync error:', error);
+    return NextResponse.json({ error: 'Sync failed' }, { status: 500 });
+  }
+}
+
+// POST /api/mobile/sync — Bulk sync: push unsynced transactions to server
+export async function POST(request: NextRequest) {
+  let client;
+  try {
+    const { transactions } = await request.json();
+
+    if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
+      return NextResponse.json({ error: 'No transactions to sync' }, { status: 400 });
+    }
+
+    client = getPgClient();
+    await client.connect();
+
+    const results: any[] = [];
+    const errors: any[] = [];
+
+    for (const txn of transactions) {
+      try {
+        // Map mobile app fields to server fields
+        const shopId = txn.shopId;
+        const createdBy = txn.bookerId || txn.createdBy || 'unknown';
+        const amount = Number(txn.amount);
+        const type = txn.type || 'recovery';
+        const description = txn.note || txn.description || '';
+
+        // Get current shop balance
+        const shopRes = await client.query('SELECT balance FROM "Shop" WHERE id = $1', [shopId]);
+        if (shopRes.rows.length === 0) {
+          errors.push({ shopId, error: 'Shop not found' });
+          continue;
+        }
+
+        const currentBalance = Number(shopRes.rows[0].balance);
+        const previousBalance = currentBalance;
+        let newBalance = currentBalance;
+
+        if (type === 'credit') {
+          newBalance = currentBalance + amount;
+        } else if (type === 'recovery') {
+          if (amount > currentBalance) {
+            errors.push({ shopId, amount, error: `Recovery Rs.${amount} exceeds balance Rs.${currentBalance}` });
+            continue;
+          }
+          // Recovery is always pending initially
+          newBalance = currentBalance; // Balance doesn't change until approved
+        }
+
+        const txnId = `txn_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
+        await client.query(
+          `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "createdAt")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
+          [txnId, shopId, type, type === 'credit' ? 'approved' : 'pending', amount, previousBalance, newBalance, description, createdBy]
+        );
+
+        // Update shop balance only for credits
+        if (type === 'credit') {
+          await client.query('UPDATE "Shop" SET balance = $1 WHERE id = $2', [newBalance, shopId]);
+        }
+
+        results.push({
+          localId: txn.id,
+          serverId: txnId,
+          shopId,
+          type,
+          amount,
+          status: type === 'credit' ? 'approved' : 'pending',
+          success: true,
+        });
+      } catch (txnError: any) {
+        errors.push({ shopId: txn.shopId, error: txnError.message });
+      }
+    }
+
+    await client.end();
+
+    return NextResponse.json({
+      synced: results.length,
+      failed: errors.length,
+      results,
+      errors,
+    });
+  } catch (error) {
+    if (client) await client.end().catch(() => {});
+    console.error('Bulk sync error:', error);
+    return NextResponse.json({ error: 'Bulk sync failed' }, { status: 500 });
   }
 }
