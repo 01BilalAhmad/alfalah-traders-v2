@@ -14,27 +14,25 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Check auth & org
-        run: |
-          echo "=== Checking Fly.io Authentication ==="
-          flyctl auth whoami
-          echo "=== Listing organizations ==="
-          flyctl orgs list
+      - name: Check auth
+        run: flyctl auth whoami
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: List existing apps
+        run: flyctl apps list
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Create app
-        run: flyctl apps create alfalah-traders --region sin --org personal --yes || true
+        run: |
+          flyctl apps create alfalah-traders --region sin --yes
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Create volume
-        run: flyctl volumes create alfalah_data --region sin --size 1GB --app alfalah-traders --yes || true
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-      - name: Set secrets
-        run: flyctl secrets set DATABASE_URL="file:/data/db/custom.db" NODE_ENV="production" --app alfalah-traders --yes || true
+        run: |
+          flyctl volumes create alfalah_data --region sin --size 1GB --app alfalah-traders --yes || echo "Volume may already exist"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
