@@ -3,6 +3,11 @@ import pg from 'pg';
 
 const { Client } = pg;
 
+// GET /api/update-users — Update user names (browser-friendly)
+export async function GET() {
+  return POST();
+}
+
 // POST /api/update-users — Update user names and usernames
 export async function POST() {
   let client;
