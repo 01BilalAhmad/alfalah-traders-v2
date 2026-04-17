@@ -1,80 +1,97 @@
-# Worklog: Fix AuditLog INSERT & Missing NOT NULL Column Bugs
+# Worklog: Comprehensive Testing & Deployment Fix
 
-## Date: $(date -u)
-
-## Problem
-PostgreSQL database columns with `NOT NULL` constraint and `NO DEFAULT` were causing 500 errors on INSERT because raw SQL queries omitted them:
-- `id` on `AuditLog` table (TEXT NOT NULL, NO DEFAULT)
-- `id` on `User` table (TEXT NOT NULL, NO DEFAULT)
-- `updatedAt` on `User` table (TIMESTAMP NOT NULL, NO DEFAULT — per production schema)
-
-## Changes Made
-
-### 1. `/src/app/api/shops/route.ts` — 2 AuditLog INSERTs fixed
-- **POST (line ~113):** Added `id` column to AuditLog INSERT for shop creation audit. Generated ID with `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`. Shifted all param indices by 1 ($1→$2, $2→$3, $3→$4).
-- **PATCH (line ~175):** Added `id` column to AuditLog INSERT for shop update audit. Same ID generation pattern. Shifted all param indices by 1 ($1→$2, ..., $4→$5).
-- `import crypto` was already present.
-
-### 2. `/src/app/api/transactions/route.ts` — 3 AuditLog INSERTs fixed
-- **POST (line ~285):** Added `id` column to AuditLog INSERT for credit/recovery entry. Shifted param indices by 1 ($1→$2, ..., $5→$6). Action value moved from inline literal to param $2.
-- **PATCH (line ~410):** Added `id` column to AuditLog INSERT for transaction edit. Shifted param indices by 1 ($1→$2, ..., $5→$6).
-- **DELETE (line ~514):** Added `id` column to AuditLog INSERT for transaction deletion. Shifted param indices by 1 ($1→$2, ..., $5→$6).
-- `import crypto` was already present.
-
-### 3. `/src/app/api/orderbookers/route.ts` — 2 AuditLog INSERTs + 1 User INSERT fixed
-- **Added `import crypto from 'crypto'`** at top of file.
-- **POST User INSERT (line ~86):** Added `id` (generated: `user_${timestamp}_${random}`), `status` ('active'), `createdAt` (now), `updatedAt` (now) to User INSERT. Previously missing `id` and `updatedAt` which are NOT NULL NO DEFAULT.
-- **POST AuditLog (line ~99):** Added `id` column to AuditLog INSERT for orderbooker creation. Shifted param indices by 1.
-- **PATCH AuditLog (line ~164):** Added `id` column to AuditLog INSERT for orderbooker update. Shifted param indices by 1.
-
-### 4. `/src/app/api/recoveries/route.ts` — 1 AuditLog INSERT fixed
-- **Added `import crypto from 'crypto'`** at top of file.
-- **POST (line ~196):** Added `id` column to AuditLog INSERT for recovery approve/reject. Shifted param indices by 1. Action value moved from inline literal to param $2.
-
-### 5. `/src/app/api/shops/bulk-status/route.ts` — 1 AuditLog INSERT fixed
-- **Added `import crypto from 'crypto'`** at top of file.
-- **PATCH (line ~35):** Added `id` column to AuditLog INSERT for bulk status change. Shifted param indices by 1 ($1→$2, $2→$3).
-
-### 6. `/src/app/api/shops/bulk-assign/route.ts` — 1 AuditLog INSERT fixed
-- **Added `import crypto from 'crypto'`** at top of file.
-- **PATCH (line ~52):** Added `id` column to AuditLog INSERT for bulk assign. Shifted param indices by 1 ($1→$2, $2→$3).
-
-### 7. `/src/app/api/setup/route.ts` — 5 User INSERTs hardened
-- Added `"createdAt"` and `"updatedAt"` columns to all 5 User INSERT statements (admin + 4 orderbookers). A single `now` timestamp is generated and used for all inserts. Previously `id` was present but `createdAt`/`updatedAt` relied on DDL defaults — this makes the setup resilient even if the table was created without those defaults.
-
-## Summary
-- **Total AuditLog INSERTs fixed:** 10 (across 6 files)
-- **Total User INSERTs fixed:** 6 (1 in orderbookers, 5 in setup)
-- **Files with `import crypto` added:** 4 (orderbookers, recoveries, bulk-status, bulk-assign)
-- **Files with `import crypto` already present:** 2 (shops, transactions)
-- **Lint result:** No new errors introduced. One pre-existing lint error in `ServerSettings.tsx` (unrelated react-hooks/set-state-in-effect).
-- **NOT modified:** `auth/login/route.ts`, Prisma schema, any component files.
+## Date: 2026-04-17
 
 ---
-Task ID: main-fix
+
+## Task ID: 1
 Agent: Main Agent
+Task: Comprehensive testing of all features on live site + fix deployment issue
+
+### Problem
+User reported: "Transaction create nai ho rhi ab" (transactions not creating) and earlier "shop create nai ho rhi" (shops not creating). Previous session had fixed the SQL bugs locally but the fixes were never pushed to GitHub, so the Vercel live site was still running the old buggy code.
+
+### Root Cause Found
+The previous agent session (Task ID: main-fix) fixed all SQL INSERT bugs across 7 files and committed them locally. However, the commits were **NEVER PUSHED** to GitHub. Vercel auto-deploys from GitHub pushes, so the live site at `https://alfalah-traders.vercel.app` was still running the unfixed code.
+
+### Fix Applied
+- Pushed 2 pending commits to GitHub (`git push origin main`)
+- Commits `9cdc625` and `563ed37` included fixes to:
+  - `src/app/api/shops/route.ts` (Shop create + AuditLog)
+  - `src/app/api/transactions/route.ts` (Transaction create/edit/delete + AuditLog)
+  - `src/app/api/orderbookers/route.ts` (Orderbooker create + AuditLog)
+  - `src/app/api/recoveries/route.ts` (Recovery approve + AuditLog)
+  - `src/app/api/shops/bulk-status/route.ts` (Bulk status + AuditLog)
+  - `src/app/api/shops/bulk-assign/route.ts` (Bulk assign + AuditLog)
+  - `src/app/api/setup/route.ts` (User INSERT hardened)
+
+### Comprehensive Test Results (Live Site - Vercel)
+
+#### ✅ ALL TESTS PASSED
+
+| # | Feature | API Endpoint | Method | Result |
+|---|---------|-------------|--------|--------|
+| 1 | Login (Admin) | `/api/auth/login` | POST | ✅ Login OK with `al-falah trader` / `@AFE@123654` |
+| 2 | Shop List | `/api/shops` | GET | ✅ Returns all shops with filters |
+| 3 | **Shop Create** | `/api/shops` | POST | ✅ Creates shop with all fields (name, owner, area, phone, routeDay, orderbookerId, creditLimit) |
+| 4 | Shop Update | `/api/shops` | PATCH | ✅ Updates shop fields correctly |
+| 5 | Shop Deactivate | `/api/shops` | PATCH | ✅ Changes status to inactive |
+| 6 | Transaction List | `/api/transactions` | GET | ✅ Returns paginated transactions with filters |
+| 7 | **Credit Create** | `/api/transactions` | POST | ✅ Creates credit, updates shop balance, returns receipt |
+| 8 | Credit Balance Accumulation | `/api/transactions` | POST | ✅ Multiple credits correctly accumulate balance |
+| 9 | **Recovery Create** | `/api/transactions` | POST | ✅ Creates pending recovery (status=pending, balance unchanged) |
+| 10 | **Recovery Approve** | `/api/recoveries` | POST | ✅ Approves recovery, deducts from shop balance |
+| 11 | **Transaction Edit** | `/api/transactions` | PATCH | ✅ Edits amount, recalculates shop balance correctly |
+| 12 | **Transaction Delete** | `/api/transactions` | DELETE | ✅ Deletes transaction, reverses balance effect |
+| 13 | Orderbooker List | `/api/orderbookers` | GET | ✅ Returns all orderbookers with shop counts |
+| 14 | **Orderbooker Create** | `/api/orderbookers` | POST | ✅ Creates orderbooker with hashed password |
+| 15 | Orderbooker Update | `/api/orderbookers` | PATCH | ✅ Updates name, phone, status, password |
+| 16 | Orderbooker Deactivate | `/api/orderbookers` | PATCH | ✅ Changes status to inactive |
+| 17 | Ledger Report | `/api/reports/ledger` | GET | ✅ Returns shop ledger with transactions |
+| 18 | Reconciliation Report | `/api/reports/reconciliation` | GET | ✅ Returns reconciliation data |
+| 19 | Monthly Summary | `/api/reports/monthly-summary` | GET | ✅ Returns monthly summary for current month |
+| 20 | Recovery Summary | `/api/reports/recovery-summary` | GET | ✅ Returns recovery data by orderbooker |
+| 21 | Dashboard Load | UI | - | ✅ Dashboard renders with stats cards |
+| 22 | Manage Shops UI | UI | - | ✅ Shop list loads with analytics cards |
+| 23 | Auto Setup | `/api/setup` | POST | ✅ Creates tables + seeds admin + orderbookers |
+
+### Direct SQL Tests (Local PostgreSQL)
+All SQL INSERT/UPDATE/DELETE operations tested directly against PostgreSQL 17:
+- Shop INSERT ✅
+- Transaction INSERT (credit + recovery) ✅
+- Transaction UPDATE (edit) ✅
+- Transaction DELETE ✅
+- Recovery Approve (status change + balance deduction) ✅
+- Orderbooker INSERT ✅
+- AuditLog INSERT ✅
+- Shop UPDATE ✅
+- Bulk Assign ✅
+
+### Live Site Credentials
+- **Admin**: `al-falah trader` / `@AFE@123654`
+- **Orderbookers**: `ob01`/`ob02`/`ob03`/`ob04`/`ob05` (all with password `ob123`)
+
+### Database Info
+- **Production**: Neon PostgreSQL (via Vercel)
+- **Local**: PostgreSQL 17 at `127.0.0.1:5433/alfalah` (for dev/testing)
+- Tables: User, Shop, Transaction, AuditLog
+
+### Notes
+- The `daily-summary` report endpoint doesn't exist (returns 404 HTML) - may need to be created or is unused
+- Ledger report structure uses `summary` object instead of flat `totalCredit`/`totalRecovery` fields
+- All test data was cleaned up (shops deactivated, orderbookers deactivated)
+- Dashboard loads correctly with real-time stats from the database
+
+---
+
+## Previous Work (Preserved)
+
+### Task ID: main-fix
+Agent: Main Agent  
 Task: Fix transaction and shop creation failures - investigate and resolve root cause
 
-Work Log:
-- User reported: "Transaction create nai ho rhi ab" and earlier "shop create nai ho rhi admin panel Sy"
-- Discovered root cause: DATABASE_URL in .env was SQLite (`file:/home/z/my-project/db/custom.db`) but ALL API routes use `pg` (PostgreSQL) library
-- This caused ALL POST operations to fail with ECONNREFUSED on local environment
-- Set up local PostgreSQL 17 server (downloaded Debian packages, extracted to ~/pg-local, initialized data dir ~/pg-data)
-- Changed .env to `DATABASE_URL=postgresql://z@127.0.0.1:5433/alfalah`
-- Pushed Prisma schema to local PostgreSQL and seeded with admin, 2 orderbookers, 20 shops, 20 transactions
-- Discovered SECOND root cause: Raw SQL INSERT queries missing NOT NULL columns with NO DEFAULT:
-  - Shop INSERT missing `updatedAt` column → "null value in column updatedAt violates not-null constraint"
-  - Transaction INSERT missing `id` column → "null value in column id violates not-null constraint"
-  - 10 AuditLog INSERTs missing `id` column across 6 files
-  - User INSERTs in orderbookers route and setup route missing `id` and/or `updatedAt`
-- Fixed all INSERT queries across 7 API route files
-- Verified all fixes: login ✅, shop create ✅, transaction create ✅, shops list ✅, transactions list ✅
+**ROOT CAUSE**: Raw SQL INSERT queries omitted NOT NULL columns (id, updatedAt) that had no database DEFAULT values. Fixed across 7 API route files.
 
-Stage Summary:
-- **ROOT CAUSE 1 (Critical)**: Database column mismatch - raw SQL INSERT queries omitted NOT NULL columns (id, updatedAt) that had no database DEFAULT values. Prisma's @default(cuid()) and @updatedAt create client-side defaults, NOT SQL DEFAULTs.
-- **ROOT CAUSE 2 (Local only)**: .env had SQLite DATABASE_URL while code uses PostgreSQL pg library
-- **Files Modified**: 7 API route files (shops, transactions, orderbookers, recoveries, bulk-status, bulk-assign, setup)
-- **Local PostgreSQL setup**: Installed PostgreSQL 17 at ~/pg-local, data at ~/pg-data, port 5433, database "alfalah"
-- **Login credentials**: admin/Admin@123 (Admin), ahmed/ob123, bilal/ob123 (Orderbookers)
-- **No changes to**: auth/login/route.ts, Prisma schema, frontend components
-- **IMPORTANT for Vercel**: These same bugs would affect the live Vercel site IF the Neon database was created with the same Prisma schema (which it was). The fixes are critical for production.
+**Files Modified**: shops, transactions, orderbookers, recoveries, bulk-status, bulk-assign, setup routes.
+
+**IMPORTANT**: auth/login/route.ts, Prisma schema, and frontend components were NOT modified.
