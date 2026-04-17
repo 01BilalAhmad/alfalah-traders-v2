@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import bcrypt from 'bcryptjs';
+import pg from 'pg';
 
-// POST /api/auth/login — Uses Prisma (works with SQLite & PostgreSQL)
+const { Client } = pg;
+
+// POST /api/auth/login — Raw pg login (no Prisma)
 export async function POST(request: Request) {
+  let client;
   try {
-    const body = await request.json();
-    const { username, password } = body;
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
 
-    console.log('Login attempt for:', username);
+    const { username, password } = await request.json();
 
     if (!username || !password) {
       return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
@@ -16,30 +18,36 @@ export async function POST(request: Request) {
 
     const normalizedUsername = username.trim().toLowerCase();
 
-    const user = await db.user.findUnique({
-      where: { username: normalizedUsername },
-    });
+    const res = await client.query(
+      'SELECT id, username, name, role, phone, status, password, "createdAt" FROM "User" WHERE LOWER(username) = $1',
+      [normalizedUsername]
+    );
 
-    console.log('User found:', user ? user.name : 'NO');
-
-    if (!user) {
+    if (res.rows.length === 0) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
+
+    const user = res.rows[0];
 
     if (user.status === 'inactive') {
       return NextResponse.json({ error: 'Account is deactivated' }, { status: 403 });
     }
 
+    // Verify password with bcrypt
+    const bcrypt = await import('bcryptjs');
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    await client.end();
+
     const { password: _, ...safeUser } = user;
     return NextResponse.json({ user: safeUser, token: `session-${user.id}-${Date.now()}` });
   } catch (error: unknown) {
-    const err = error as Error;
-    console.error('Login FULL error:', err.message, err.stack);
-    return NextResponse.json({ error: 'Internal server error', detail: err.message }, { status: 500 });
+    if (client) await client.end().catch(() => {});
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Login error:', msg);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
