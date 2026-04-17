@@ -3,7 +3,7 @@ name: Deploy to Fly.io
 on:
   push:
     branches: [main]
-  workflow_dispatch: # Manual trigger from GitHub website
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -14,6 +14,23 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - run: flyctl deploy --remote-only
+      - name: Create app if not exists
+        run: flyctl apps create alfalah-traders --region sin --no-input 2>/dev/null || echo "App already exists"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Create volume for database
+        run: flyctl volumes create alfalah_data --region sin --size 1GB --no-input 2>/dev/null || echo "Volume already exists"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Set secrets
+        run: |
+          flyctl secrets set DATABASE_URL="file:/data/db/custom.db" NODE_ENV="production" --app alfalah-traders --no-input 2>/dev/null || echo "Secrets already set"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Deploy
+        run: flyctl deploy --remote-only --app alfalah-traders
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
