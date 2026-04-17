@@ -67,6 +67,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { WORKING_DAYS, getTodayRouteDay, validateTransaction, TRANSACTION_RULES, getCreditLimitStatus } from '@/lib/utils';
+import { apiFetch } from '@/lib/api';
 
 const ROUTE_DAYS = [...WORKING_DAYS];
 
@@ -237,7 +238,7 @@ export default function AdminCreditPosting() {
 
   const fetchOrderbookers = useCallback(async () => {
     try {
-      const res = await fetch('/api/orderbookers');
+      const res = await apiFetch('/api/orderbookers');
       if (res.ok) {
         const data = await res.json();
         setOrderbookers(data);
@@ -260,7 +261,7 @@ export default function AdminCreditPosting() {
       if (debouncedSearch.trim()) {
         params.set('search', debouncedSearch.trim());
       }
-      const res = await fetch(`/api/shops?${params.toString()}`);
+      const res = await apiFetch(`/api/shops?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setShops(data);
@@ -281,7 +282,7 @@ export default function AdminCreditPosting() {
       params.set('date', todayDate);
       params.set('limit', '100');
       params.set('type', 'credit');
-      const res = await fetch(`/api/transactions?${params.toString()}`);
+      const res = await apiFetch(`/api/transactions?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         const txns = data.transactions || [];
@@ -341,7 +342,7 @@ export default function AdminCreditPosting() {
       if (selectedOrderbooker && selectedOrderbooker !== 'all') {
         params.set('orderbookerId', selectedOrderbooker);
       }
-      const res = await fetch(`/api/shops?${params.toString()}`);
+      const res = await apiFetch(`/api/shops?${params.toString()}`);
       if (res.ok) {
         const data: Shop[] = await res.json();
         const counts: Record<string, number> = {};
@@ -400,7 +401,7 @@ export default function AdminCreditPosting() {
       params.set('date', todayDate);
       params.set('type', 'credit');
       params.set('limit', '100');
-      const res = await fetch(`/api/transactions?${params.toString()}`);
+      const res = await apiFetch(`/api/transactions?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         const txns = data.transactions || [];
@@ -465,7 +466,7 @@ export default function AdminCreditPosting() {
 
     setPostingCredit(true);
     try {
-      const res = await fetch('/api/transactions', {
+      const res = await apiFetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -633,7 +634,7 @@ export default function AdminCreditPosting() {
       params.set('date', todayDate);
       params.set('type', 'credit');
       params.set('limit', '100');
-      const res = await fetch(`/api/transactions?${params.toString()}`);
+      const res = await apiFetch(`/api/transactions?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         const txns = data.transactions || [];
@@ -678,7 +679,7 @@ export default function AdminCreditPosting() {
     }
 
     setEditLoading(true);
-    fetch('/api/transactions', {
+    apiFetch('/api/transactions', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -724,14 +725,14 @@ export default function AdminCreditPosting() {
       params.set('date', todayDate);
       params.set('type', 'credit');
       params.set('limit', '100');
-      const res = await fetch(`/api/transactions?${params.toString()}`);
+      const res = await apiFetch(`/api/transactions?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         const txns = data.transactions || [];
 
         // Delete each transaction for this shop today
         const deletePromises = txns.map((t: { id: string }) =>
-          fetch(`/api/transactions?id=${t.id}&deletedBy=${user!.id}`, { method: 'DELETE' })
+          apiFetch(`/api/transactions?id=${t.id}&deletedBy=${user!.id}`, { method: 'DELETE' })
         );
         await Promise.all(deletePromises);
 

@@ -77,6 +77,7 @@ import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
 import { exportToCSV } from '@/lib/csv-export';
 import { WORKING_DAYS, getTodayRouteDay } from '@/lib/utils';
+import { apiFetch } from '@/lib/api';
 
 const ROUTE_DAYS = [...WORKING_DAYS];
 
@@ -163,7 +164,7 @@ export default function AdminShops() {
 
   const fetchOrderbookers = useCallback(async () => {
     try {
-      const res = await fetch('/api/orderbookers');
+      const res = await apiFetch('/api/orderbookers');
       if (res.ok) {
         const data = await res.json();
         setOrderbookers(data);
@@ -178,7 +179,7 @@ export default function AdminShops() {
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       if (selectedDay) params.set('routeDay', selectedDay);
       if (showInactive) params.set('includeInactive', 'true');
-      const res = await fetch(`/api/shops?${params.toString()}`);
+      const res = await apiFetch(`/api/shops?${params.toString()}`);
       if (res.ok) setShops(await res.json());
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -186,7 +187,7 @@ export default function AdminShops() {
 
   const fetchAllShopsForCounts = useCallback(async () => {
     try {
-      const res = await fetch('/api/shops');
+      const res = await apiFetch('/api/shops');
       if (res.ok) {
         const data: Shop[] = await res.json();
         setAllShops(data);
@@ -276,7 +277,7 @@ export default function AdminShops() {
   const handleDeactivate = async () => {
     if (!confirmDeactivate || confirmDeactivate.status === 'inactive') return;
     try {
-      const res = await fetch('/api/shops', {
+      const res = await apiFetch('/api/shops', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: confirmDeactivate.id, status: 'inactive' }),
@@ -296,7 +297,7 @@ export default function AdminShops() {
     setLedgerOpen(true);
     setLedgerLoading(true);
     try {
-      const res = await fetch(`/api/reports/ledger?shopId=${shop.id}`);
+      const res = await apiFetch(`/api/reports/ledger?shopId=${shop.id}`);
       if (res.ok) {
         setLedgerData(await res.json());
       }
@@ -310,7 +311,7 @@ export default function AdminShops() {
     setDetailOpen(true);
     setDetailLoading(true);
     try {
-      const res = await fetch(`/api/reports/ledger?shopId=${shop.id}`);
+      const res = await apiFetch(`/api/reports/ledger?shopId=${shop.id}`);
       if (res.ok) {
         setDetailLedgerData(await res.json());
       }
@@ -390,7 +391,7 @@ export default function AdminShops() {
           setBulkLoading(false);
           return;
         }
-        const res = await fetch('/api/shops/bulk-assign', {
+        const res = await apiFetch('/api/shops/bulk-assign', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ shopIds: ids, orderbookerId: bulkOrderbookerId }),
@@ -408,7 +409,7 @@ export default function AdminShops() {
           toast({ title: 'Bulk Assign Failed', description: data.error || 'Unknown error. Please try again.', variant: 'destructive' });
         }
       } else if (bulkAction === 'deactivate') {
-        const res = await fetch('/api/shops/bulk-status', {
+        const res = await apiFetch('/api/shops/bulk-status', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ shopIds: ids, status: 'inactive' }),
@@ -424,7 +425,7 @@ export default function AdminShops() {
           toast({ title: 'Error', description: data.error, variant: 'destructive' });
         }
       } else if (bulkAction === 'reactivate') {
-        const res = await fetch('/api/shops/bulk-status', {
+        const res = await apiFetch('/api/shops/bulk-status', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ shopIds: ids, status: 'active' }),

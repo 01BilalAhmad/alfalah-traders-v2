@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
+import { apiFetch } from '@/lib/api';
 import {
   Dialog,
   DialogContent,
@@ -226,7 +227,7 @@ export default function ChangePasswordDialog({ open, onOpenChange }: ChangePassw
 
     setChanging(true);
     try {
-      const res = await fetch('/api/auth/change-password', {
+      const res = await apiFetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

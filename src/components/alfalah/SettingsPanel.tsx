@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { useTheme } from 'next-themes';
 import { useHydrated } from '@/lib/use-hydrated';
 import { toast } from '@/hooks/use-toast';
+import { apiFetch } from '@/lib/api';
 import { exportToCSV } from '@/lib/csv-export';
 import {
   Sheet,
@@ -130,8 +131,8 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
     async function fetchStats() {
       try {
         const [shopRes, obRes] = await Promise.all([
-          fetch('/api/shops?includeInactive=true'),
-          fetch('/api/orderbookers'),
+          apiFetch('/api/shops?includeInactive=true'),
+          apiFetch('/api/orderbookers'),
         ]);
         const shops = shopRes.ok ? await shopRes.json() : [];
         const obs = obRes.ok ? await obRes.json() : [];
@@ -151,8 +152,8 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
     setExporting(true);
     try {
       const [shopRes, obRes] = await Promise.all([
-        fetch('/api/shops?includeInactive=true'),
-        fetch('/api/orderbookers'),
+        apiFetch('/api/shops?includeInactive=true'),
+        apiFetch('/api/orderbookers'),
       ]);
 
       if (shopRes.ok) {
@@ -212,7 +213,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
   const handleBackup = useCallback(async () => {
     setBackingUp(true);
     try {
-      const res = await fetch('/api/admin/backup');
+      const res = await apiFetch('/api/admin/backup');
       if (!res.ok) {
         toast({ title: 'Backup Failed', description: 'Could not create backup file.', variant: 'destructive' });
         return;
@@ -250,7 +251,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch('/api/admin/restore', {
+      const res = await apiFetch('/api/admin/restore', {
         method: 'POST',
         headers: { 'X-Restore-Preview': 'true' },
         body: formData,
@@ -287,7 +288,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
 
       const formData = new FormData();
       formData.append('file', restoreFile);
-      const res = await fetch('/api/admin/restore', {
+      const res = await apiFetch('/api/admin/restore', {
         method: 'POST',
         body: formData,
       });
@@ -363,7 +364,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
 
     setChangingPassword(true);
     try {
-      const res = await fetch('/api/auth/change-password', {
+      const res = await apiFetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

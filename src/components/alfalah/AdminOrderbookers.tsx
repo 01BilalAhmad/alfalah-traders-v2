@@ -39,6 +39,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { apiFetch } from '@/lib/api';
 
 interface Orderbooker {
   id: string;
@@ -88,7 +89,7 @@ export default function AdminOrderbookers() {
   const fetchOrderbookers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/orderbookers');
+      const res = await apiFetch('/api/orderbookers');
       if (res.ok) setOrderbookers(await res.json());
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -125,7 +126,7 @@ export default function AdminOrderbookers() {
     try {
       const params = new URLSearchParams({ username: trimmed });
       if (excludeId) params.set('excludeId', excludeId);
-      const res = await fetch(`/api/orderbookers/check-username?${params}`);
+      const res = await apiFetch(`/api/orderbookers/check-username?${params}`);
       if (res.ok) {
         const data: UsernameCheckResult = await res.json();
         setUsernameStatus(data.available ? 'available' : 'taken');
@@ -197,7 +198,7 @@ export default function AdminOrderbookers() {
       }
 
       const method = editingOB ? 'PATCH' : 'POST';
-      const res = await fetch('/api/orderbookers', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await apiFetch('/api/orderbookers', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!res.ok) {
         const data = await res.json();
         toast({ title: 'Error', description: data.error, variant: 'destructive' });
@@ -216,7 +217,7 @@ export default function AdminOrderbookers() {
   const handleDeactivate = async () => {
     if (!confirmDeactivate || confirmDeactivate.status === 'inactive') return;
     try {
-      const res = await fetch('/api/orderbookers', {
+      const res = await apiFetch('/api/orderbookers', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: confirmDeactivate.id, status: 'inactive' }),

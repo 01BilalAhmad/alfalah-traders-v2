@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
+import { apiFetch } from '@/lib/api';
 import {
   CheckCircle2,
   XCircle,
@@ -94,7 +95,7 @@ export default function AdminApproveRecovery() {
     setLoading(true);
     setLastError(null);
     try {
-      const res = await fetch('/api/recoveries?status=pending');
+      const res = await apiFetch('/api/recoveries?status=pending');
 
       if (!res.ok) {
         const errText = await res.text();
@@ -167,7 +168,7 @@ export default function AdminApproveRecovery() {
     if (!user) return;
     setActionLoading(txnIds.length === 1 ? txnIds[0] : 'bulk-approve');
     try {
-      const res = await fetch('/api/recoveries', {
+      const res = await apiFetch('/api/recoveries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'approve', transactionIds: txnIds, approvedBy: user.id }),
@@ -196,7 +197,7 @@ export default function AdminApproveRecovery() {
     if (!user || !rejectId) return;
     setActionLoading(rejectId);
     try {
-      const res = await fetch('/api/recoveries', {
+      const res = await apiFetch('/api/recoveries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

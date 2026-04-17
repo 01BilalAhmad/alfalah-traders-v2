@@ -32,10 +32,8 @@ import {
   Pie,
   Cell,
 } from 'recharts';
+import { apiFetch } from '@/lib/api';
 import {
-  Home,
-  Store,
-  Users,
   TrendingUp,
   Wallet,
   CreditCard,
@@ -67,7 +65,7 @@ function PendingRecoveryBanner({ setCurrentView }: { setCurrentView: (v: string)
   useEffect(() => {
     const fetchPending = async () => {
       try {
-        const res = await fetch('/api/recoveries?status=pending');
+        const res = await apiFetch('/api/recoveries?status=pending');
         if (res.ok) {
           const data = await res.json();
           setPendingCount(data.totalPending || 0);
@@ -374,14 +372,14 @@ export default function AdminDashboard() {
   const loadDashboard = useCallback(async () => {
     try {
       const [obRes, todayTxnRes, shopsRes, trendsRes, tlRes, msRes, rtRes, summaryRes] = await Promise.all([
-        fetch('/api/orderbookers'),
-        fetch(`/api/transactions?date=${getLocalDateString()}&limit=500`),
-        fetch('/api/shops'),
-        fetch('/api/reports/daily-trends'),
-        fetch('/api/reports/activity-timeline?limit=20'),
-        fetch('/api/reports/month-summary'),
-        fetch('/api/transactions?limit=5'),
-        fetch('/api/summary'),
+        apiFetch('/api/orderbookers'),
+        apiFetch(`/api/transactions?date=${getLocalDateString()}&limit=500`),
+        apiFetch('/api/shops'),
+        apiFetch('/api/reports/daily-trends'),
+        apiFetch('/api/reports/activity-timeline?limit=20'),
+        apiFetch('/api/reports/month-summary'),
+        apiFetch('/api/transactions?limit=5'),
+        apiFetch('/api/summary'),
       ]);
       const orderbookers = obRes.ok ? await obRes.json() : [];
       const todayTxnData = todayTxnRes.ok ? await todayTxnRes.json() : { transactions: [] };
@@ -424,7 +422,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function fetchSparkline() {
       try {
-        const res = await fetch('/api/reports/ob-recovery-sparkline?days=7');
+        const res = await apiFetch('/api/reports/ob-recovery-sparkline?days=7');
         if (res.ok) setSparklineData(await res.json());
       } catch { /* silent */ }
       finally { setSparklineLoading(false); }

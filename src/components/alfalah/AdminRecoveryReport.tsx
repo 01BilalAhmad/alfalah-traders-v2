@@ -65,6 +65,7 @@ import {
 } from 'lucide-react';
 import { exportToCSV } from '@/lib/csv-export';
 import { toast } from '@/hooks/use-toast';
+import { apiFetch } from '@/lib/api';
 
 function formatCurrency(amount: number): string {
   return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -205,7 +206,7 @@ export default function AdminRecoveryReport() {
   const fetchSummary = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/reports/recovery-summary?date=${selectedDate}`);
+      const res = await apiFetch(`/api/reports/recovery-summary?date=${selectedDate}`);
       if (res.ok) {
         const data = await res.json();
         setSummary(data);
@@ -322,7 +323,7 @@ export default function AdminRecoveryReport() {
     if (!editEntry || !user) return;
     setEditSaving(true);
     try {
-      const res = await fetch('/api/transactions', {
+      const res = await apiFetch('/api/transactions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -359,7 +360,7 @@ export default function AdminRecoveryReport() {
     if (!deleteEntry || !user) return;
     setDeleteSaving(true);
     try {
-      const res = await fetch(`/api/transactions?id=${deleteEntry.id}&deletedBy=${user.id}`, {
+      const res = await apiFetch(`/api/transactions?id=${deleteEntry.id}&deletedBy=${user.id}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -389,8 +390,8 @@ export default function AdminRecoveryReport() {
     setFetchingDropdowns(true);
     try {
       const [obRes, shopRes] = await Promise.all([
-        fetch('/api/orderbookers'),
-        fetch('/api/shops'),
+        apiFetch('/api/orderbookers'),
+        apiFetch('/api/shops'),
       ]);
       if (obRes.ok) {
         const obData = await obRes.json();
@@ -415,7 +416,7 @@ export default function AdminRecoveryReport() {
     if (!selectedShopId || !addAmount || !user) return;
     setAddSaving(true);
     try {
-      const res = await fetch('/api/transactions', {
+      const res = await apiFetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

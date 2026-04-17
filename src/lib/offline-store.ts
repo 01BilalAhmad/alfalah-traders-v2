@@ -5,6 +5,8 @@
  * When back online, queued transactions auto-sync to server
  */
 
+import { apiFetch } from '@/lib/api';
+
 const SHOP_CACHE_KEY = 'alfalah-offline-shops';
 const PENDING_QUEUE_KEY = 'alfalah-pending-txns';
 const CACHE_TIMESTAMP_KEY = 'alfalah-offline-ts';
@@ -158,7 +160,7 @@ export async function syncPendingTransactions(): Promise<{
 
   for (const txn of queue) {
     try {
-      const res = await fetch('/api/transactions', {
+      const res = await apiFetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

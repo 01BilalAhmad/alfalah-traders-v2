@@ -44,6 +44,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { apiFetch } from '@/lib/api';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
 import { getLocalDateString, WORKING_DAYS, getTodayRouteDay } from '@/lib/utils';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
@@ -207,14 +208,14 @@ function ProfileView({
       // Fetch all recovery transactions for this month
       const now = new Date();
       const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-      const res = await fetch(`/api/transactions?limit=200&type=recovery&createdBy=${user.id}&startDate=${firstOfMonth}`);
+      const res = await apiFetch(`/api/transactions?limit=200&type=recovery&createdBy=${user.id}&startDate=${firstOfMonth}`);
       if (res.ok) {
         const data = await res.json();
         setMonthlyRecovery(data.transactions || []);
       }
 
       // Fetch weekly performance data
-      const weeklyRes = await fetch(`/api/reports/ob-weekly-performance?orderbookerId=${user.id}&weeks=4`);
+      const weeklyRes = await apiFetch(`/api/reports/ob-weekly-performance?orderbookerId=${user.id}&weeks=4`);
       if (weeklyRes.ok) {
         const weeklyData = await weeklyRes.json();
         setWeeklyPerf(weeklyData);
@@ -494,7 +495,7 @@ function RecoveryHistory() {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/transactions?limit=500&type=recovery&createdBy=${user.id}`);
+      const res = await apiFetch(`/api/transactions?limit=500&type=recovery&createdBy=${user.id}`);
       if (res.ok) {
         const data = await res.json();
         setAllTransactions(data.transactions || []);
@@ -1048,7 +1049,7 @@ function OrderbookerDashboard() {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/shops?orderbookerId=${user.id}&routeDay=${todayDay}`);
+      const res = await apiFetch(`/api/shops?orderbookerId=${user.id}&routeDay=${todayDay}`);
       if (res.ok) {
         const data = await res.json();
         setShops(data);
@@ -1098,7 +1099,7 @@ function OrderbookerDashboard() {
     setRecoverySummaryLoading(true);
     try {
       const today = getLocalDateString();
-      const res = await fetch(`/api/transactions?date=${today}&limit=50&type=recovery&createdBy=${user.id}`);
+      const res = await apiFetch(`/api/transactions?date=${today}&limit=50&type=recovery&createdBy=${user.id}`);
       if (res.ok) {
         const data = await res.json();
         setTodayRecovery(data.transactions || []);
@@ -1165,7 +1166,7 @@ function OrderbookerDashboard() {
     setShopTxLoading(true);
     setShopTransactions([]);
     try {
-      const res = await fetch(`/api/reports/ledger?shopId=${shop.id}&limit=5`);
+      const res = await apiFetch(`/api/reports/ledger?shopId=${shop.id}&limit=5`);
       if (res.ok) {
         const data = await res.json();
         setShopTransactions(data.transactions || []);
@@ -1187,7 +1188,7 @@ function OrderbookerDashboard() {
 
     setPosting(true);
     try {
-      const res = await fetch('/api/transactions', {
+      const res = await apiFetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1885,7 +1886,7 @@ function LedgerView() {
     if (!user) return;
     setLoadingShops(true);
     try {
-      const res = await fetch(`/api/shops?orderbookerId=${user.id}`);
+      const res = await apiFetch(`/api/shops?orderbookerId=${user.id}`);
       if (res.ok) setShops(await res.json());
     } catch { /* silent */ }
     finally { setLoadingShops(false); }
@@ -1897,7 +1898,7 @@ function LedgerView() {
     setLoadingLedger(true);
     setSelectedShopId(shopId);
     try {
-      const res = await fetch(`/api/reports/ledger?shopId=${shopId}`);
+      const res = await apiFetch(`/api/reports/ledger?shopId=${shopId}`);
       if (res.ok) setLedger(await res.json());
     } catch { /* silent */ }
     finally { setLoadingLedger(false); }

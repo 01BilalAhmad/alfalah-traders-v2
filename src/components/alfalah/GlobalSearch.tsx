@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useAppStore } from '@/lib/store';
+import { apiFetch } from '@/lib/api';
 import {
   Search,
   Store,
@@ -108,7 +109,7 @@ export default function GlobalSearch() {
   const fetchOrderbookers = useCallback(async () => {
     if (cachedOBs.current.length > 0) return cachedOBs.current;
     try {
-      const res = await fetch('/api/orderbookers');
+      const res = await apiFetch('/api/orderbookers');
       if (res.ok) {
         const data = await res.json();
         cachedOBs.current = Array.isArray(data) ? data : [];
@@ -142,7 +143,7 @@ export default function GlobalSearch() {
 
       try {
         // Fetch shops with search
-        const shopRes = await fetch(
+        const shopRes = await apiFetch(
           `/api/shops?search=${encodeURIComponent(searchQuery)}&includeInactive=true`
         );
         const shops: ShopResult[] = shopRes.ok && Array.isArray(await shopRes.json())

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { apiFetch } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -92,7 +93,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
     async function fetchStats() {
       setStatsLoading(true);
       try {
-        const res = await fetch('/api/backup');
+        const res = await apiFetch('/api/backup');
         if (res.ok) {
           const data = await res.json();
           if (data && typeof data === 'object') {
@@ -132,7 +133,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
   const handleExport = useCallback(async () => {
     setExporting(true);
     try {
-      const res = await fetch('/api/backup');
+      const res = await apiFetch('/api/backup');
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         toast({
@@ -160,7 +161,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
       });
 
       // Refresh stats after export
-      const statsRes = await fetch('/api/backup');
+      const statsRes = await apiFetch('/api/backup');
       if (statsRes.ok) {
         const data = await statsRes.json();
         if (data && typeof data === 'object') {
@@ -273,7 +274,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
         setRestoreProgress((prev) => Math.min(prev + Math.random() * 15, 85));
       }, 600);
 
-      const res = await fetch('/api/backup', {
+      const res = await apiFetch('/api/backup', {
         method: 'POST',
         body: formData,
       });
@@ -301,7 +302,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
         setRestoreFile(null);
 
         // Refresh stats
-        const statsRes = await fetch('/api/backup');
+        const statsRes = await apiFetch('/api/backup');
         if (statsRes.ok) {
           const statsData = await statsRes.json();
           if (statsData && typeof statsData === 'object') {
@@ -367,7 +368,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
 
     setChangingPassword(true);
     try {
-      const res = await fetch('/api/auth/change-password', {
+      const res = await apiFetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUser.id, currentPassword, newPassword }),

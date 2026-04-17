@@ -63,6 +63,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { apiFetch } from '@/lib/api';
 import { exportToCSV } from '@/lib/csv-export';
 
 // ─── Helpers ───
@@ -210,7 +211,7 @@ export default function AdminTransactions() {
   // ─── Data Fetching ───
   const fetchOrderbookers = useCallback(async () => {
     try {
-      const res = await fetch('/api/orderbookers');
+      const res = await apiFetch('/api/orderbookers');
       if (res.ok) {
         const data = await res.json();
         setOrderbookers(Array.isArray(data) ? data : []);
@@ -220,7 +221,7 @@ export default function AdminTransactions() {
 
   const fetchShops = useCallback(async () => {
     try {
-      const res = await fetch('/api/shops');
+      const res = await apiFetch('/api/shops');
       if (res.ok) {
         const data = await res.json();
         setShops(Array.isArray(data) ? data : []);
@@ -260,7 +261,7 @@ export default function AdminTransactions() {
         params.set('date', customDate);
       }
 
-      const res = await fetch(`/api/transactions?${params.toString()}`);
+      const res = await apiFetch(`/api/transactions?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setTransactions(data.transactions || []);
@@ -318,7 +319,7 @@ export default function AdminTransactions() {
     }
     setEditSaving(true);
     try {
-      const res = await fetch('/api/transactions', {
+      const res = await apiFetch('/api/transactions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -354,7 +355,7 @@ export default function AdminTransactions() {
     if (!deleteTransaction || !user) return;
     setDeleteSaving(true);
     try {
-      const res = await fetch(`/api/transactions?id=${deleteTransaction.id}&deletedBy=${user.id}`, {
+      const res = await apiFetch(`/api/transactions?id=${deleteTransaction.id}&deletedBy=${user.id}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -393,7 +394,7 @@ export default function AdminTransactions() {
     }
     setAddSaving(true);
     try {
-      const res = await fetch('/api/transactions', {
+      const res = await apiFetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
