@@ -2,23 +2,23 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 
-// POST /api/setup — Create admin user if not exists
+// POST /api/setup — Create all users if database is empty
 export async function POST() {
   try {
-    // Check if any user exists
     const userCount = await db.user.count();
 
     if (userCount > 0) {
       return NextResponse.json({ message: 'Database already has users', userCount });
     }
 
-    // Create admin user
-    const hashedPassword = await bcrypt.hash('Admin@123', 10);
+    // Create all users with original passwords
+    const adminPass = await bcrypt.hash('@AFE@123654', 10);
+    const obPass = await bcrypt.hash('ob123', 10);
 
     const admin = await db.user.create({
       data: {
-        username: 'admin',
-        password: hashedPassword,
+        username: 'al-falah trader',
+        password: adminPass,
         name: 'AL-FALAH TRADER',
         role: 'admin',
         phone: '',
@@ -26,11 +26,60 @@ export async function POST() {
       },
     });
 
+    const ahmed = await db.user.create({
+      data: {
+        username: 'ahmed',
+        password: obPass,
+        name: 'Ahmed Khan',
+        role: 'orderbooker',
+        phone: '',
+        status: 'active',
+      },
+    });
+
+    const bilal = await db.user.create({
+      data: {
+        username: 'bilal',
+        password: obPass,
+        name: 'Bilal Ali',
+        role: 'orderbooker',
+        phone: '',
+        status: 'active',
+      },
+    });
+
+    const ob01 = await db.user.create({
+      data: {
+        username: 'ob01',
+        password: obPass,
+        name: 'Danish Ramzan',
+        role: 'orderbooker',
+        phone: '',
+        status: 'active',
+      },
+    });
+
+    const ob02 = await db.user.create({
+      data: {
+        username: 'ob02',
+        password: obPass,
+        name: 'Kashif Khan',
+        role: 'orderbooker',
+        phone: '',
+        status: 'active',
+      },
+    });
+
     return NextResponse.json({
       success: true,
-      message: 'Admin user created',
-      username: 'admin',
-      password: 'Admin@123',
+      message: 'All 5 users created',
+      users: [
+        { username: admin.username, role: admin.role },
+        { username: ahmed.username, role: ahmed.role },
+        { username: bilal.username, role: bilal.role },
+        { username: ob01.username, role: ob01.role },
+        { username: ob02.username, role: ob02.role },
+      ],
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
