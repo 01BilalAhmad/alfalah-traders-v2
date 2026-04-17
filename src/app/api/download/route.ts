@@ -4,7 +4,7 @@ import path from 'path';
 
 export async function GET(request: NextRequest) {
   try {
-    const apkPath = path.join(process.cwd(), 'download', 'Al-Falah-Recovery.apk');
+    const apkPath = path.join(process.cwd(), 'public', 'Al-Falah-Traders.apk');
     
     // Check if file exists
     try {
