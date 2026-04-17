@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pg from 'pg';
+import crypto from 'crypto';
 
 const { Client } = pg;
 
@@ -258,11 +259,12 @@ export async function POST(request: NextRequest) {
     const txnStatus = type === 'recovery' ? 'pending' : 'approved';
 
     // Create transaction record
+    const txnId = `txn_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
     const txnRes = await client.query(
-      `INSERT INTO "Transaction" ("shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "gpsLat", "gpsLng", "gpsAddress")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "gpsLat", "gpsLng", "gpsAddress", "createdAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
-      [shopId, type, txnStatus, amount, previousBalance, Math.round(newBalance * 100) / 100, description || null, createdBy, gpsLat || null, gpsLng || null, gpsAddress || null]
+      [txnId, shopId, type, txnStatus, amount, previousBalance, Math.round(newBalance * 100) / 100, description || null, createdBy, gpsLat || null, gpsLng || null, gpsAddress || null, new Date().toISOString()]
     );
 
     const transaction = txnRes.rows[0];
@@ -279,10 +281,12 @@ export async function POST(request: NextRequest) {
 
     // Create audit log (best-effort)
     try {
+      const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
       await client.query(
-        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "performedBy", "newValue", description)
-         VALUES ($1, 'transaction', $2, $3, $4, $5)`,
+        `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "performedBy", "newValue", description)
+         VALUES ($1, $2, 'transaction', $3, $4, $5, $6)`,
         [
+          auditId,
           type === 'credit' ? 'credit_post' : 'recovery_entry',
           transaction.id,
           createdBy,
@@ -402,10 +406,12 @@ export async function PATCH(request: NextRequest) {
 
     // Audit log
     try {
+      const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
       await client.query(
-        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "performedBy", "oldValue", "newValue", description)
-         VALUES ('edit', 'transaction', $1, $2, $3, $4, $5)`,
+        `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "performedBy", "oldValue", "newValue", description)
+         VALUES ($1, 'edit', 'transaction', $2, $3, $4, $5, $6)`,
         [
+          auditId,
           id,
           updatedBy,
           JSON.stringify({
@@ -505,10 +511,12 @@ export async function DELETE(request: NextRequest) {
 
     // Audit log
     try {
+      const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
       await client.query(
-        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "performedBy", "oldValue", "newValue", description)
-         VALUES ('delete', 'transaction', $1, $2, $3, $4, $5)`,
+        `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "performedBy", "oldValue", "newValue", description)
+         VALUES ($1, 'delete', 'transaction', $2, $3, $4, $5, $6)`,
         [
+          auditId,
           id,
           deletedBy,
           JSON.stringify({

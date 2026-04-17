@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pg from 'pg';
+import crypto from 'crypto';
 
 const { Client } = pg;
 
@@ -82,21 +83,24 @@ export async function POST(request: NextRequest) {
     const bcrypt = await import('bcryptjs');
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const userId = `user_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
+    const now = new Date().toISOString();
     const obRes = await client.query(
-      `INSERT INTO "User" (username, password, name, phone, role)
-       VALUES ($1, $2, $3, $4, 'orderbooker')
+      `INSERT INTO "User" (id, username, password, name, phone, role, status, "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, 'orderbooker', 'active', $6, $7)
        RETURNING id, username, name, phone, role, status, "createdAt", "updatedAt"`,
-      [normalizedUsername, hashedPassword, name, phone || null]
+      [userId, normalizedUsername, hashedPassword, name, phone || null, now, now]
     );
 
     const orderbooker = obRes.rows[0];
 
     // Audit log (best-effort)
     try {
+      const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
       await client.query(
-        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "newValue", description)
-         VALUES ('create', 'user', $1, $2, $3)`,
-        [orderbooker.id, JSON.stringify({ username: normalizedUsername, name, phone, role: 'orderbooker' }), `Created orderbooker: ${name}`]
+        `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "newValue", description)
+         VALUES ($1, 'create', 'user', $2, $3, $4)`,
+        [auditId, orderbooker.id, JSON.stringify({ username: normalizedUsername, name, phone, role: 'orderbooker' }), `Created orderbooker: ${name}`]
       );
     } catch { /* non-blocking */ }
 
@@ -157,10 +161,11 @@ export async function PATCH(request: NextRequest) {
 
     // Audit log (best-effort)
     try {
+      const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
       await client.query(
-        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "oldValue", "newValue", description)
-         VALUES ('edit', 'user', $1, $2, $3, $4)`,
-        [id, JSON.stringify({ name: existing.name, phone: existing.phone, status: existing.status }), JSON.stringify({ name, phone, status }), `Updated orderbooker: ${existing.name}`]
+        `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "oldValue", "newValue", description)
+         VALUES ($1, 'edit', 'user', $2, $3, $4, $5)`,
+        [auditId, id, JSON.stringify({ name: existing.name, phone: existing.phone, status: existing.status }), JSON.stringify({ name, phone, status }), `Updated orderbooker: ${existing.name}`]
       );
     } catch { /* non-blocking */ }
 

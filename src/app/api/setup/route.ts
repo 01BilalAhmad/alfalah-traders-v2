@@ -99,25 +99,26 @@ export async function POST() {
     const obPass = await bcrypt.hash('ob123', 10);
 
     // Insert users
+    const now = new Date().toISOString();
     await client.query(
-      'INSERT INTO "User" (id, username, password, name, role, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      ['admin-001', 'al-falah trader', adminPass, 'AL-FALAH TRADER', 'admin', '', 'active']
+      'INSERT INTO "User" (id, username, password, name, role, phone, status, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      ['admin-001', 'al-falah trader', adminPass, 'AL-FALAH TRADER', 'admin', '', 'active', now, now]
     );
     await client.query(
-      'INSERT INTO "User" (id, username, password, name, role, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      ['ob-ahmed', 'ahmed', obPass, 'Ahmed Khan', 'orderbooker', '', 'active']
+      'INSERT INTO "User" (id, username, password, name, role, phone, status, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      ['ob-ahmed', 'ahmed', obPass, 'Ahmed Khan', 'orderbooker', '', 'active', now, now]
     );
     await client.query(
-      'INSERT INTO "User" (id, username, password, name, role, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      ['ob-bilal', 'bilal', obPass, 'Bilal Ali', 'orderbooker', '', 'active']
+      'INSERT INTO "User" (id, username, password, name, role, phone, status, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      ['ob-bilal', 'bilal', obPass, 'Bilal Ali', 'orderbooker', '', 'active', now, now]
     );
     await client.query(
-      'INSERT INTO "User" (id, username, password, name, role, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      ['ob-danish', 'ob01', obPass, 'Danish Ramzan', 'orderbooker', '', 'active']
+      'INSERT INTO "User" (id, username, password, name, role, phone, status, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      ['ob-danish', 'ob01', obPass, 'Danish Ramzan', 'orderbooker', '', 'active', now, now]
     );
     await client.query(
-      'INSERT INTO "User" (id, username, password, name, role, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      ['ob-kashif', 'ob02', obPass, 'Kashif Khan', 'orderbooker', '', 'active']
+      'INSERT INTO "User" (id, username, password, name, role, phone, status, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      ['ob-kashif', 'ob02', obPass, 'Kashif Khan', 'orderbooker', '', 'active', now, now]
     );
 
     await client.end();

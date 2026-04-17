@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pg from 'pg';
+import crypto from 'crypto';
 
 const { Client } = pg;
 
@@ -192,11 +193,13 @@ export async function POST(request: NextRequest) {
 
     // Create audit log
     try {
+      const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
       const totalAmount = pendingRes.rows.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
       await client.query(
-        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "performedBy", "newValue", description)
-         VALUES ($1, 'transaction', $2, $3, $4, $5)`,
+        `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "performedBy", "newValue", description)
+         VALUES ($1, $2, 'transaction', $3, $4, $5, $6)`,
         [
+          auditId,
           action === 'approve' ? 'recovery_approved' : 'recovery_rejected',
           transactionIds[0],
           approvedBy,

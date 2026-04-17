@@ -98,21 +98,23 @@ export async function POST(request: NextRequest) {
     await client.connect();
 
     const shopId = generateId();
+    const now = new Date().toISOString();
     const shopRes = await client.query(
-      `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDay", "orderbookerId", "creditLimit")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDay", "orderbookerId", "creditLimit", status, "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-      [shopId, name, ownerName || null, area || null, address || null, phone || null, routeDay, orderbookerId, creditLimit && creditLimit > 0 ? creditLimit : 0]
+      [shopId, name, ownerName || null, area || null, address || null, phone || null, routeDay, orderbookerId, creditLimit && creditLimit > 0 ? creditLimit : 0, 'active', now, now]
     );
 
     const shop = shopRes.rows[0];
 
     // Audit log (best-effort)
     try {
+      const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
       await client.query(
-        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "newValue", description)
-         VALUES ('create', 'shop', $1, $2, $3)`,
-        [shop.id, JSON.stringify({ name, routeDay, orderbookerId }), `Created shop: ${name}`]
+        `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "newValue", description)
+         VALUES ($1, 'create', 'shop', $2, $3, $4)`,
+        [auditId, shop.id, JSON.stringify({ name, routeDay, orderbookerId }), `Created shop: ${name}`]
       );
     } catch { /* non-blocking */ }
 
@@ -170,10 +172,11 @@ export async function PATCH(request: NextRequest) {
 
     // Audit log (best-effort)
     try {
+      const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
       await client.query(
-        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "oldValue", "newValue", description)
-         VALUES ('edit', 'shop', $1, $2, $3, $4)`,
-        [id, JSON.stringify({ name: existing.name, area: existing.area, status: existing.status }), JSON.stringify({ name, area, status }), `Updated shop: ${existing.name}`]
+        `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "oldValue", "newValue", description)
+         VALUES ($1, 'edit', 'shop', $2, $3, $4, $5)`,
+        [auditId, id, JSON.stringify({ name: existing.name, area: existing.area, status: existing.status }), JSON.stringify({ name, area, status }), `Updated shop: ${existing.name}`]
       );
     } catch { /* non-blocking */ }
 

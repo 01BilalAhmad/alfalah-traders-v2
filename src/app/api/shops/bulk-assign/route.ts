@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pg from 'pg';
+import crypto from 'crypto';
 
 const { Client } = pg;
 
@@ -48,10 +49,12 @@ export async function PATCH(request: NextRequest) {
 
     // Create audit log entry (best-effort)
     try {
+      const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
       await client.query(
-        `INSERT INTO "AuditLog" (action, "entityType", "entityId", "performedBy", "newValue", description)
-         VALUES ('edit', 'shop', 'bulk', $1, $2)`,
+        `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "performedBy", "newValue", description)
+         VALUES ($1, 'edit', 'shop', 'bulk', $2, $3)`,
         [
+          auditId,
           JSON.stringify({ action: 'bulk-assign', shopIds, orderbookerId, count: resultCount }),
           `Bulk assigned ${resultCount} shops to orderbooker ${orderbooker.name}`,
         ]
