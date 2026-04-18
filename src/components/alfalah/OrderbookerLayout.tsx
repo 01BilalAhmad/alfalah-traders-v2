@@ -1049,7 +1049,8 @@ function OrderbookerDashboard() {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await apiFetch(`/api/shops?orderbookerId=${user.id}&routeDay=${todayDay}`);
+      // Fetch ALL shops assigned to this orderbooker (no day filter)
+      const res = await apiFetch(`/api/shops?orderbookerId=${user.id}`);
       if (res.ok) {
         const data = await res.json();
         setShops(data);
@@ -1073,26 +1074,23 @@ function OrderbookerDashboard() {
       // Network error — try loading from cache
       const cached = getCachedShops();
       if (cached.length > 0) {
-        const todayCached = cached.filter(s => s.routeDay === todayDay);
-        if (todayCached.length > 0) {
-          setShops(todayCached.map((s: CachedShop) => ({
-            id: s.id,
-            name: s.name,
-            ownerName: s.ownerName,
-            area: s.area,
-            phone: s.phone,
-            routeDay: s.routeDay,
-            balance: s.balance,
-            creditLimit: s.creditLimit,
-            status: s.status,
-            orderbooker: { id: s.orderbookerId, name: s.orderbookerName },
-          })));
-          setIsOfflineMode(true);
-          toast({ title: 'Offline Mode', description: `Loaded ${todayCached.length} shops from cache (${getCacheAge()})` });
-        }
+        setShops(cached.map((s: CachedShop) => ({
+          id: s.id,
+          name: s.name,
+          ownerName: s.ownerName,
+          area: s.area,
+          phone: s.phone,
+          routeDay: s.routeDay,
+          balance: s.balance,
+          creditLimit: s.creditLimit,
+          status: s.status,
+          orderbooker: { id: s.orderbookerId, name: s.orderbookerName },
+        })));
+        setIsOfflineMode(true);
+        toast({ title: 'Offline Mode', description: `Loaded ${cached.length} shops from cache (${getCacheAge()})` });
       }
     } finally { setLoading(false); }
-  }, [user, todayDay, refreshKey]);
+  }, [user, refreshKey]);
 
   const fetchTodayRecovery = useCallback(async () => {
     if (!user) return;
@@ -1111,6 +1109,37 @@ function OrderbookerDashboard() {
   useEffect(() => { fetchShops(); }, [fetchShops]);
   useEffect(() => { fetchTodayRecovery(); }, [fetchTodayRecovery, refreshKey]);
 
+  // Day-change detection: auto-refresh when a new day starts
+  const [currentDateKey, setCurrentDateKey] = useState(getLocalDateString());
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const today = getLocalDateString();
+      if (today !== currentDateKey) {
+        setCurrentDateKey(today);
+        // Clear today's recovery and refresh everything
+        setTodayRecovery([]);
+        setRefreshKey((k) => k + 1);
+      }
+    }, 60000); // Check every 60 seconds
+    return () => clearInterval(interval);
+  }, [currentDateKey]);
+
+  // Visibility change: refresh when user comes back to the tab
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        const today = getLocalDateString();
+        if (today !== currentDateKey) {
+          setCurrentDateKey(today);
+          setTodayRecovery([]);
+          setRefreshKey((k) => k + 1);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [currentDateKey]);
+
   // Load pending transactions
   useEffect(() => {
     setPendingTxns(getPendingTransactions());
@@ -1123,11 +1152,12 @@ function OrderbookerDashboard() {
 
   const { containerRef, isRefreshing, pullDistance } = usePullToRefresh(handlePullRefresh);
 
-  // Recovery summary calculations
+  // Recovery summary calculations (only today's shops for visited progress)
   const totalRecovered = todayRecovery.reduce((s, t) => s + t.amount, 0);
   const visitedShopIds = new Set(todayRecovery.map((t) => t.shop.id));
   const shopsVisited = visitedShopIds.size;
-  const shopsTotal = shops.length;
+  const todayShops = shops.filter((s) => s.routeDay === todayDay);
+  const shopsTotal = todayShops.length;
   const avgRecovery = shopsVisited > 0 ? Math.round(totalRecovered / shopsVisited) : 0;
 
   const captureGPS = () => {
@@ -1252,6 +1282,97 @@ function OrderbookerDashboard() {
   // Progress percentage for shop visit progress bar
   const visitProgress = shopsTotal > 0 ? Math.round((shopsVisited / shopsTotal) * 100) : 0;
 
+  // Helper: render a shop card
+  const renderShopCard = (shop: Shop, idx: number) => {
+    const isOverLimit = shop.creditLimit > 0 && shop.balance > shop.creditLimit;
+    const isTodayShop = shop.routeDay === todayDay;
+    return (
+      <Card
+        key={shop.id}
+        className={`alfalah-card-hover hover-lift animate-card-entrance overflow-hidden cursor-pointer ${isOverLimit ? 'border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-950/20' : ''}`}
+        style={{ animationDelay: `${Math.min(idx * 40, 300)}ms` }}
+        onClick={() => openShopDetail(shop)}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h3 className="font-semibold text-sm truncate">{shop.name}</h3>
+                {visitedShopIds.has(shop.id) && (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                )}
+                {isOverLimit && (
+                  <Badge className="bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 text-[9px] font-bold animate-pulse shrink-0">
+                    ⚠ Over Limit
+                  </Badge>
+                )}
+                {!isTodayShop && (
+                  <Badge variant="outline" className="text-[9px] text-muted-foreground shrink-0">
+                    {shop.routeDay.charAt(0).toUpperCase() + shop.routeDay.slice(1)}
+                  </Badge>
+                )}
+              </div>
+              {shop.area && (
+                <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{shop.area}</span>
+                </div>
+              )}
+              {shop.ownerName && (
+                <p className="text-xs text-muted-foreground mt-0.5">Owner: {shop.ownerName}</p>
+              )}
+              {shop.creditLimit > 0 && (
+                <>
+                  <p className={`text-[10px] mt-0.5 font-medium ${isOverLimit ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
+                    Limit: {formatCurrency(shop.creditLimit)}
+                  </p>
+                  {isOverLimit && (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                      Over limit ({formatCurrency(shop.balance)} / {formatCurrency(shop.creditLimit)})
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="text-right shrink-0 ml-3">
+              <p className={`text-lg font-bold ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {formatCurrency(shop.balance)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Balance</p>
+            </div>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Button
+              size="sm"
+              className="flex-1 h-9 bg-primary hover:bg-primary/90 text-white text-xs font-medium hover-glow-primary btn-ripple"
+              onClick={(e) => {
+                e.stopPropagation();
+                openRecoveryDialog(shop);
+              }}
+            >
+              <Banknote className="h-3.5 w-3.5 mr-1.5" />
+              Collect Recovery
+            </Button>
+            {shop.phone && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 w-9 p-0 shrink-0 border-green-200 dark:border-green-800 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.location.href = `tel:${shop.phone}`;
+                }}
+                aria-label={`Call ${shop.name}`}
+              >
+                <PhoneCall className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div ref={containerRef} className="space-y-4 p-4" style={{ touchAction: 'pan-y' }}>
       {/* Pull to Refresh Indicator */}
@@ -1285,9 +1406,9 @@ function OrderbookerDashboard() {
         <div className="absolute bottom-3 left-1/3 w-12 h-12 rounded-full bg-white/[0.04]" />
         <div className="absolute top-1/2 right-1/4 w-6 h-6 rounded-full bg-white/[0.06]" />
         <div className="relative z-10">
-          <p className="text-xs text-blue-200 uppercase tracking-wider font-medium">Today&apos;s Route</p>
-          <h2 className="text-xl font-bold mt-0.5">{todayDay.charAt(0).toUpperCase() + todayDay.slice(1)}</h2>
-          <p className="text-xs text-blue-100 mt-1">{shopsTotal} shops scheduled</p>
+          <p className="text-xs text-blue-200 uppercase tracking-wider font-medium">Today's Route</p>
+          <h2 className="text-xl font-bold mt-0.5">{todayDay ? todayDay.charAt(0).toUpperCase() + todayDay.slice(1) : 'Off Day'}</h2>
+          <p className="text-xs text-blue-100 mt-1">{todayShops.length} shops scheduled today &bull; {shops.length} total assigned</p>
         </div>
 
         {/* Shop Visit Progress Bar */}
@@ -1400,7 +1521,7 @@ function OrderbookerDashboard() {
       {/* Pending Offline Recovery Card */}
       <PendingSyncCard transactions={pendingTxns.filter(t => !t.synced)} />
 
-      {/* Shop Cards */}
+      {/* Shop Cards - Grouped by Route Day */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1408,95 +1529,73 @@ function OrderbookerDashboard() {
       ) : shops.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-            <MapPin className="h-8 w-8 mb-2 opacity-30" />
-            <p className="text-sm">No shops scheduled for {todayDay}</p>
+            <Store className="h-8 w-8 mb-2 opacity-30" />
+            <p className="text-sm font-medium">No shops assigned</p>
+            <p className="text-xs mt-1">Contact admin to get shops assigned to your route</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {shops.map((shop) => {
-            const isOverLimit = shop.creditLimit > 0 && shop.balance > shop.creditLimit;
+        <div className="space-y-5">
+          {/* Today's Route Shops */}
+          {todayShops.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                <h3 className="text-sm font-bold text-foreground">Today's Route &mdash; {todayDay.charAt(0).toUpperCase() + todayDay.slice(1)}</h3>
+                <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 dark:border-green-800">{todayShops.length} shops</Badge>
+              </div>
+              {todayShops.map((shop, idx) => renderShopCard(shop, idx))}
+            </div>
+          )}
+
+          {/* Other Days' Shops */}
+          {(() => {
+            const otherShops = shops.filter((s) => s.routeDay !== todayDay);
+            if (otherShops.length === 0) return null;
+
+            // Group other shops by route day
+            const grouped: Record<string, Shop[]> = {};
+            otherShops.forEach((s) => {
+              const day = s.routeDay || 'unscheduled';
+              if (!grouped[day]) grouped[day] = [];
+              grouped[day].push(s);
+            });
+
+            // Sort days by working days order
+            const dayOrder = [...ROUTE_DAYS];
+            const sortedDays = Object.keys(grouped).sort((a, b) => {
+              const aIdx = dayOrder.indexOf(a);
+              const bIdx = dayOrder.indexOf(b);
+              return aIdx - bIdx;
+            });
+
             return (
-            <Card
-              key={shop.id}
-              className={`alfalah-card-hover hover-lift animate-card-entrance overflow-hidden cursor-pointer ${isOverLimit ? 'border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-950/20' : ''}`}
-              style={{ animationDelay: `${Math.min(shops.indexOf(shop) * 40, 300)}ms` }}
-              onClick={() => openShopDetail(shop)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="font-semibold text-sm truncate">{shop.name}</h3>
-                      {visitedShopIds.has(shop.id) && (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                      )}
-                      {isOverLimit && (
-                        <Badge className="bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 text-[9px] font-bold animate-pulse shrink-0">
-                          ⚠ Over Limit
-                        </Badge>
-                      )}
-                    </div>
-                    {shop.area && (
-                      <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{shop.area}</span>
+              <div className="space-y-4">
+                <Separator className="my-2" />
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-bold text-foreground">Other Route Days</h3>
+                  <Badge variant="outline" className="text-[10px]">{otherShops.length} shops</Badge>
+                </div>
+                {sortedDays.map((day) => {
+                  const dayShops = grouped[day];
+                  const isToday = day === todayDay;
+                  return (
+                    <div key={day} className="space-y-2">
+                      <div className="flex items-center gap-2 pl-1">
+                        <span className={`inline-block h-2 w-2 rounded-full ${isToday ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          {day.charAt(0).toUpperCase() + day.slice(1)}
+                        </span>
+                        <Badge variant="outline" className="text-[9px]">{dayShops.length}</Badge>
                       </div>
-                    )}
-                    {shop.ownerName && (
-                      <p className="text-xs text-muted-foreground mt-0.5">Owner: {shop.ownerName}</p>
-                    )}
-                    {shop.creditLimit > 0 && (
-                      <>
-                        <p className={`text-[10px] mt-0.5 font-medium ${isOverLimit ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
-                          Limit: {formatCurrency(shop.creditLimit)}
-                        </p>
-                        {isOverLimit && (
-                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                            Over limit ({formatCurrency(shop.balance)} / {formatCurrency(shop.creditLimit)})
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0 ml-3">
-                    <p className={`text-lg font-bold ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {formatCurrency(shop.balance)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">Balance</p>
-                  </div>
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    size="sm"
-                    className="flex-1 h-9 bg-primary hover:bg-primary/90 text-white text-xs font-medium hover-glow-primary btn-ripple"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openRecoveryDialog(shop);
-                    }}
-                  >
-                    <Banknote className="h-3.5 w-3.5 mr-1.5" />
-                    Collect Recovery
-                  </Button>
-                  {shop.phone && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-9 w-9 p-0 shrink-0 border-green-200 dark:border-green-800 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.location.href = `tel:${shop.phone}`;
-                      }}
-                      aria-label={`Call ${shop.name}`}
-                    >
-                      <PhoneCall className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                      {dayShops.map((shop, idx) => renderShopCard(shop, idx))}
+                    </div>
+                  );
+                })}
+              </div>
             );
-          })}
+          })()}
         </div>
       )}
 
@@ -1912,6 +2011,23 @@ function LedgerView() {
 
   const selectedShopName = shops.find((s) => s.id === selectedShopId)?.name;
 
+  // Group shops by route day
+  const groupedShops = (() => {
+    const grouped: Record<string, Shop[]> = {};
+    shops.forEach((s) => {
+      const day = s.routeDay || 'unscheduled';
+      if (!grouped[day]) grouped[day] = [];
+      grouped[day].push(s);
+    });
+    const dayOrder = [...ROUTE_DAYS];
+    const sortedDays = Object.keys(grouped).sort((a, b) => {
+      const aIdx = dayOrder.indexOf(a);
+      const bIdx = dayOrder.indexOf(b);
+      return aIdx - bIdx;
+    });
+    return sortedDays.map((day) => ({ day, shops: grouped[day] }));
+  })();
+
   return (
     <div className="space-y-4 p-4">
       {selectedShopId && ledger ? (
@@ -1990,7 +2106,7 @@ function LedgerView() {
       ) : (
         <>
           <h2 className="text-lg font-bold">My Ledger</h2>
-          <p className="text-sm text-muted-foreground">Select a shop to view its transaction history</p>
+          <p className="text-sm text-muted-foreground">Select a shop to view its transaction history & download PDF</p>
 
           {loadingShops ? (
             <div className="flex items-center justify-center py-12">
@@ -2001,28 +2117,47 @@ function LedgerView() {
               <CardContent className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                 <FileText className="h-8 w-8 mb-2 opacity-30" />
                 <p className="text-sm">No shops assigned</p>
+                <p className="text-xs mt-1">Contact admin to get shops assigned to your route</p>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-2">
-              {shops.map((shop) => (
-                <Card
-                  key={shop.id}
-                  className="cursor-pointer alfalah-card-hover"
-                  onClick={() => fetchLedger(shop.id)}
-                >
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-sm">{shop.name}</p>
-                      <p className="text-xs text-muted-foreground">{shop.area || '\u2014'}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-bold text-sm ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {formatCurrency(shop.balance)}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Store className="h-3.5 w-3.5" />
+                <span className="font-medium">{shops.length} shops assigned</span>
+              </div>
+              {groupedShops.map(({ day, shops: dayShops }) => (
+                <div key={day} className="space-y-2">
+                  <div className="flex items-center gap-2 pl-1">
+                    <span className="h-2 w-2 rounded-full bg-primary" />
+                    <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                      {day.charAt(0).toUpperCase() + day.slice(1)}
+                    </span>
+                    <Badge variant="outline" className="text-[9px]">{dayShops.length}</Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {dayShops.map((shop) => (
+                      <Card
+                        key={shop.id}
+                        className="cursor-pointer alfalah-card-hover hover-lift"
+                        onClick={() => fetchLedger(shop.id)}
+                      >
+                        <CardContent className="p-4 flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{shop.name}</p>
+                            <p className="text-xs text-muted-foreground">{shop.area || '\u2014'}{shop.ownerName ? ` \u2022 ${shop.ownerName}` : ''}</p>
+                          </div>
+                          <div className="text-right shrink-0 ml-3">
+                            <p className={`font-bold text-sm ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              {formatCurrency(shop.balance)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">Balance</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}
