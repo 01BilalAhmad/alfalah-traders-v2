@@ -291,3 +291,89 @@ Task: Fix shops not showing, improve ledger view, fix today recovery auto-refres
 - User was asking about APK fixes — these changes are for the WEB APP only
 - The Flutter app uses the same API endpoints, so if the API was the issue, it should be fixed server-side
 - For Flutter-specific fixes (UI/data parsing), the APK source code needs to be re-downloaded or the Flutter app rebuilt
+
+---
+
+## Date: 2026-04-18 (Session 2)
+
+## Task ID: flutter-apk-rebuild
+Agent: Main Agent
+Task: Extract old APK, reverse-engineer logic, rebuild Flutter APK with all 3 fixes
+
+### What was done:
+1. **Extracted old APK** from `/home/z/my-project/public/Al-Falah-Orderbooker.apk` using `unzip`
+2. **Reverse-engineered** the compiled `libapp.so` using `strings` to understand:
+   - API endpoints used: `/api/auth/login`, `/api/shops`, `/api/transactions`, `/api/reports/ledger`
+   - Database schema: shops, transactions, pending_actions, sync_metadata (sqflite)
+   - Screen names: LoginScreen, HomeScreen, LedgerScreen, AddRecoveryScreen, TodayRecoveryScreen
+   - Bug confirmation: Shops filtered by `AND routeDay = ?` (only today's day)
+3. **Rebuilt entire Flutter app** from scratch at `/home/z/alfalah-orderbooker-app/` with ALL fixes:
+
+### FIXES APPLIED:
+
+#### Fix #1: Shops Not Showing (ALL shops now visible)
+- **Old behavior**: `fetchAllShops()` called with `?orderbookerId=X&routeDay=today` — only today's shops
+- **New behavior**: `fetchAllShops()` calls `/api/shops?orderbookerId=X` (NO routeDay filter)
+- Home screen groups ALL assigned shops by route day
+- Today's shops highlighted with "TODAY" badge
+- Other days shown in separate groups
+
+#### Fix #2: Ledger Section (ALL shops listed, click to view, PDF download)
+- **Old behavior**: Ledger section had limited shop access
+- **New behavior**: Ledger screen shows ALL assigned shops grouped by route day
+- Click any shop → enters that shop's full ledger view
+- Ledger shows: shop info, summary (total credit/recovery/balance), all transactions
+- PDF download button in app bar → generates PDF → shares via Android share sheet
+- Works offline too (loads from local sqflite DB)
+
+#### Fix #3: Today Recovery (Only today's entries + auto-refresh)
+- **Old behavior**: `_loadTodayRecoveries` only called on init, no day-change detection
+- **New behavior**: Timer checks every 30 seconds if date changed
+- When date changes → automatically refreshes with new day's data
+- Shows date in header for clarity
+- Only fetches transactions with `?type=recovery&date=todayDate`
+
+### Additional Features:
+- **Offline Support**: sqflite local DB, pending actions queue, auto-sync when online
+- **Quick Amount Buttons**: Rs. 500, 1000, 2000, 5000, 10000, 20000 in Add Recovery
+- **PDF Generation**: Full ledger PDF with shop info, summary, and transactions table
+- **Online/Offline indicator**: Real-time connectivity status in app bar
+- **Pull to refresh**: All list screens support pull-to-refresh
+
+### Build Environment:
+- Flutter 3.24.5 stable
+- JDK 17.0.12 (needed for AGP compatibility)
+- Android SDK 34, Build Tools 34
+- compileSdk=34, minSdk=21, targetSdk=34
+
+### APK Details:
+- **File**: `/home/z/my-project/public/Al-Falah-Orderbooker.apk`
+- **Size**: 23.6 MB
+- **Version**: 2.0.0 (Build 2)
+- **Package**: com.alfalah.alfalah_orderbooker
+- **Download**: https://alfalah-traders.vercel.app/Al-Falah-Orderbooker.apk
+
+### Flutter Project Structure:
+```
+/home/z/alfalah-orderbooker-app/
+├── lib/
+│   ├── main.dart              (App entry, bottom nav, splash, auth check)
+│   ├── config/app_config.dart (API URLs, route days, helpers)
+│   ├── models/
+│   │   ├── user.dart
+│   │   ├── shop.dart
+│   │   ├── transaction.dart
+│   │   └── ledger_data.dart
+│   ├── services/
+│   │   ├── api_service.dart    (HTTP client for all API calls)
+│   │   ├── auth_service.dart   (SharedPreferences session)
+│   │   ├── local_database.dart (sqflite offline DB)
+│   │   ├── connectivity_service.dart
+│   │   └── pdf_service.dart    (PDF generation + share)
+│   └── screens/
+│       ├── login_screen.dart
+│       ├── home_screen.dart     (ALL shops grouped by day)
+│       ├── ledger_screen.dart   (Shop selection → ledger → PDF)
+│       ├── today_recovery_screen.dart (Auto-refresh on day change)
+│       └── add_recovery_screen.dart
+```
