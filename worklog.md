@@ -236,3 +236,58 @@ Stage Summary:
 - Complete Flutter app ready for building
 - GitHub repo: 01BilalAhmad/alfalah-orderbooker-app
 - To build APK: clone repo, run 'flutter build apk --release'
+
+---
+
+## Date: 2026-04-18
+
+## Task ID: fix-shops-ledger-recovery
+Agent: Main Agent
+Task: Fix shops not showing, improve ledger view, fix today recovery auto-refresh
+
+### User Complaints:
+1. "Koi shop show nai ho rhi sai Sy" — Shops not showing at all
+2. "Ledger wali jaga pr shops Nazar ani chahiye" — Ledger needs to show ALL assigned shops
+3. "Us pr click kr k ledger main enter ho skin or PDF download kr skin" — Click shop → view ledger → download PDF
+4. "Today recovery main Sirf today wali recovery hi show ho" — Only today's entries
+5. "Jysy hi next day aye wo refresh ho jay" — Auto-refresh on day change
+
+### Root Cause Analysis:
+1. **Shops not showing**: Dashboard (`OrderbookerDashboard`) was fetching shops with BOTH `orderbookerId` AND `routeDay=todayDay` filters. If orderbooker had shops on other days but none for today → empty list. Also if today was Friday (off day), `todayDay` was empty string → returned 0 shops.
+2. **Ledger section**: Was already showing all shops but without grouping — flat list was hard to navigate
+3. **Today Recovery**: Only showed on initial load, no mechanism to detect day change and refresh
+
+### Changes Made (OrderbookerLayout.tsx):
+
+#### 1. Dashboard — Show ALL Assigned Shops
+- Changed `fetchShops()` from `/api/shops?orderbookerId=${user.id}&routeDay=${todayDay}` to `/api/shops?orderbookerId=${user.id}` (no day filter)
+- Added `renderShopCard()` helper function
+- Dashboard now groups shops: **Today's Route** section first, then **Other Route Days** grouped by day
+- Each group shows day name + shop count badge
+- Non-today shops show their route day badge
+- Header shows "X shops scheduled today • Y total assigned"
+- Empty state message improved: "Contact admin to get shops assigned"
+
+#### 2. Ledger — Grouped by Route Day
+- `LedgerView` now groups all assigned shops by route day (sorted by working days order)
+- Each day group has header with dot + day name + count
+- Shop cards show owner name alongside area
+- Better empty states
+
+#### 3. Today Recovery — Auto-refresh on Day Change
+- Added `currentDateKey` state tracking `getLocalDateString()`
+- `setInterval` every 60 seconds checks if day changed → clears recovery, triggers refresh
+- `visibilitychange` event listener → when user comes back to tab, checks day change
+- Both mechanisms clear `todayRecovery` and increment `refreshKey` to re-fetch everything
+
+### Files Modified:
+- `src/components/alfalah/OrderbookerLayout.tsx` — All 3 fixes in one file
+
+### Push Status:
+- Pushed to GitHub (commit daf3e4a) — Vercel will auto-deploy
+
+### IMPORTANT NOTES:
+- Flutter APK source code (`/home/z/alfalah-orderbooker-app/`) is NOT available in this sandbox
+- User was asking about APK fixes — these changes are for the WEB APP only
+- The Flutter app uses the same API endpoints, so if the API was the issue, it should be fixed server-side
+- For Flutter-specific fixes (UI/data parsing), the APK source code needs to be re-downloaded or the Flutter app rebuilt
