@@ -1,75 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import pg from 'pg';
 import bcrypt from 'bcryptjs';
 
-// POST /api/auth/reset-password
+const { Client } = pg;
+
+// POST /api/auth/reset-password — Reset any user's password
 export async function POST(request: NextRequest) {
+  let client;
   try {
-    const { username, newPassword, confirmPassword } = await request.json();
+    const { username, newPassword } = await request.json();
 
-    if (!username || !newPassword || !confirmPassword) {
-      return NextResponse.json(
-        { error: 'Username, new password, and confirm password are required' },
-        { status: 400 }
-      );
+    if (!username || !newPassword) {
+      return NextResponse.json({ error: 'Username and new password required' }, { status: 400 });
     }
 
-    // Normalize username
-    const normalizedUsername = username.trim().toLowerCase();
+    client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
 
-    // Validate passwords match
-    if (newPassword !== confirmPassword) {
-      return NextResponse.json(
-        { error: 'Passwords do not match' },
-        { status: 400 }
-      );
-    }
-
-    // Validate password strength (minimum 6 characters)
-    if (newPassword.length < 6) {
-      return NextResponse.json(
-        { error: 'Password must be at least 6 characters long' },
-        { status: 400 }
-      );
-    }
-
-    // Find user
-    const user = await db.user.findUnique({
-      where: { username: normalizedUsername },
-      select: { id: true, username: true, name: true, role: true, status: true },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'No account found with this username' },
-        { status: 404 }
-      );
-    }
-
-    if (user.status === 'inactive') {
-      return NextResponse.json(
-        { error: 'This account is deactivated. Contact admin.' },
-        { status: 403 }
-      );
-    }
-
-    // Hash new password and update
+    // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await db.user.update({
-      where: { id: user.id },
-      data: { password: hashedPassword },
-    });
+
+    // Update user password
+    const result = await client.query(
+      'UPDATE "User" SET password = $1 WHERE LOWER(username) = LOWER($2) RETURNING id, username, name, role',
+      [hashedPassword, username.trim()]
+    );
+
+    await client.end();
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Password reset successfully',
-      user: { name: user.name, username: user.username, role: user.role },
+      user: { id: result.rows[0].id, username: result.rows[0].username, name: result.rows[0].name },
+      message: `Password reset for ${username}`
     });
   } catch (error) {
+    if (client) await client.end().catch(() => {});
     console.error('Reset password error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
