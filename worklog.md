@@ -291,3 +291,31 @@ Task: Fix shops not showing, improve ledger view, fix today recovery auto-refres
 - User was asking about APK fixes — these changes are for the WEB APP only
 - The Flutter app uses the same API endpoints, so if the API was the issue, it should be fixed server-side
 - For Flutter-specific fixes (UI/data parsing), the APK source code needs to be re-downloaded or the Flutter app rebuilt
+---
+Task ID: 1
+Agent: Main Agent
+Task: Clone Flutter app from GitHub, fix issues, build APK, and serve download
+
+Work Log:
+- Cloned Flutter app from https://github.com/01BilalAhmad/alfalah-orderbooker-app.git to /home/z/alfalah-orderbooker-app/
+- Reviewed all source files: models (user, shop, transaction), services (api_service), screens (login, home, shops, add_recovery, ledger, profile, shop_detail)
+- Fixed critical bug: shop_detail_screen.dart used Navigator.pushNamed('/ledger') but no named routes defined → changed to Navigator.push with MaterialPageRoute
+- Added missing import for LedgerScreen in shop_detail_screen.dart
+- Fixed Flutter 3.41.7 breaking change: CardTheme → CardThemeData in app.dart
+- Removed path_provider dependency (causes CMake/NDK overhead), replaced with dart:io Directory('/storage/emulated/0/Download') for PDF saving
+- Set up Android SDK from scratch: command-line tools, platforms/android-34, build-tools/34.0.0, platform-tools
+- Downloaded JDK 17 from Adoptium (system only had JRE, no jlink)
+- Installed NDK 25.1.8937393 and CMake 3.22.1
+- Updated Gradle: AGP 8.1.0 → 8.6.0, Kotlin 1.9.0 → 2.0.21, Gradle 8.5 → 8.9
+- Set Java compatibility to VERSION_17, JVM target to 17
+- Removed old-style buildscript from root build.gradle (conflicts with plugins DSL in settings.gradle)
+- Built arm64-only release APK successfully (18MB)
+- Copied APK to /home/z/my-project/public/Al-Falah-Orderbooker.apk
+- Verified download endpoint: GET /api/download?v=flutter returns 200 with 18.3MB
+
+Stage Summary:
+- APK built successfully from GitHub source code
+- Code fixes: route navigation fix, CardThemeData fix, path_provider removal
+- Android build config: AGP 8.6.0, Kotlin 2.0.21, Gradle 8.9, NDK 25.1.8937393, compileSdk 34, minSdk 21
+- Download endpoint confirmed working: /api/download?v=flutter
+- App features: Login, Shops by day, Add Recovery, Ledger with PDF export, Profile with password change
