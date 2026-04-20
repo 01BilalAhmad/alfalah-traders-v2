@@ -319,3 +319,26 @@ Stage Summary:
 - Android build config: AGP 8.6.0, Kotlin 2.0.21, Gradle 8.9, NDK 25.1.8937393, compileSdk 34, minSdk 21
 - Download endpoint confirmed working: /api/download?v=flutter
 - App features: Login, Shops by day, Add Recovery, Ledger with PDF export, Profile with password change
+---
+Task ID: apk-rebuild-v4
+Agent: Main Agent
+Task: Rebuild APK from GitHub repo code with proper API response handling
+
+Work Log:
+- Cloned https://github.com/01BilalAhmad/alfalah-orderbooker-app.git to /home/z/alfalah-orderbooker-app/
+- Reviewed all source files: models, services/api_service, screens (login, home, shops, shop_detail, add_recovery, ledger, profile)
+- Fixed CRITICAL BUG: api_service._handleResponse() was casting all responses as Map<String, dynamic>, but shops API returns direct array [{...}]. Changed _get/_post return type to dynamic and _handleResponse to return decoded JSON as-is.
+- Added _asMap() and _asList() helper methods for safe type conversion
+- Fixed all API methods (login, validateToken, ping, getShops, createTransaction, getTransactions, getLedger, getTodayRecoveries) to use safe type conversion
+- Fixed Navigator.pushNamed('/ledger') → Navigator.push(MaterialPageRoute) in shop_detail_screen.dart (no named routes registered)
+- Added missing LedgerScreen import in shop_detail_screen.dart
+- Installed Flutter 3.24.5, JDK 17, Android SDK (platforms;android-34, build-tools;34.0.0)
+- Built release APK: 23.3MB
+- Copied to /home/z/my-project/public/Al-Falah-Orderbooker.apk
+
+Stage Summary:
+- APK built successfully from GitHub source code
+- Fixed shops not loading (API response type mismatch)
+- Fixed navigation crash (named routes not registered)
+- APK: 23.3MB, Debug signing, minSdk 21, targetSdk 34
+- Download: /Al-Falah-Orderbooker.apk (via Next.js static file serving)
