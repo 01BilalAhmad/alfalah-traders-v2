@@ -69,6 +69,7 @@ import {
   User,
   CreditCard,
   FileDown,
+  FileSpreadsheet,
   X,
   TrendingUp,
   AlertTriangle,
@@ -78,6 +79,7 @@ import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
 import { exportToCSV } from '@/lib/csv-export';
 import { WORKING_DAYS, getTodayRouteDay } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
+import AdminBulkImport from './AdminBulkImport';
 
 const ROUTE_DAYS = [...WORKING_DAYS];
 
@@ -161,6 +163,9 @@ export default function AdminShops() {
   const [bulkAction, setBulkAction] = useState<'assign' | 'deactivate' | 'reactivate' | null>(null);
   const [bulkOrderbookerId, setBulkOrderbookerId] = useState('');
   const [bulkLoading, setBulkLoading] = useState(false);
+
+  // Bulk import dialog state
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   const fetchOrderbookers = useCallback(async () => {
     try {
@@ -478,6 +483,9 @@ export default function AdminShops() {
         <div className="flex items-center gap-2">
           <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white focus-glow">
             <Plus className="h-4 w-4 mr-2" /> Add Shop
+          </Button>
+          <Button variant="outline" onClick={() => setBulkImportOpen(true)} className="gap-2">
+            <FileSpreadsheet className="h-4 w-4" /> Bulk Import
           </Button>
           {filteredShops.length > 0 && (
             <Button
@@ -1564,6 +1572,14 @@ export default function AdminShops() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Import Dialog */}
+      <AdminBulkImport
+        open={bulkImportOpen}
+        onOpenChange={setBulkImportOpen}
+        orderbookers={orderbookers}
+        onImportComplete={() => { fetchShops(); fetchAllShopsForCounts(); }}
+      />
     </div>
   );
 }
