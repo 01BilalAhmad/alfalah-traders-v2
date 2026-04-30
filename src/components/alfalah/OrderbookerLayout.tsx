@@ -42,6 +42,8 @@ import {
   UserCircle,
   Shield,
   Share2,
+  Layers,
+  Search,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -1043,6 +1045,10 @@ function OrderbookerDashboard() {
   // Pending offline transactions
   const [pendingTxns, setPendingTxns] = useState<PendingTransaction[]>([]);
 
+  // Recovery Mode — shows all routes' shops in one flat list
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
   const todayDay = getTodayRouteDay();
 
   const fetchShops = useCallback(async () => {
@@ -1159,6 +1165,22 @@ function OrderbookerDashboard() {
   const todayShops = shops.filter((s) => s.routeDay === todayDay);
   const shopsTotal = todayShops.length;
   const avgRecovery = shopsVisited > 0 ? Math.round(totalRecovered / shopsVisited) : 0;
+
+  // Recovery Mode: all shops sorted by balance (highest outstanding first), with optional search
+  const recoveryModeShops = recoveryMode
+    ? shops
+        .filter((s) => s.status !== 'inactive')
+        .filter((s) => {
+          if (!searchQuery.trim()) return true;
+          const q = searchQuery.toLowerCase().trim();
+          return (
+            s.name.toLowerCase().includes(q) ||
+            (s.ownerName && s.ownerName.toLowerCase().includes(q)) ||
+            (s.area && s.area.toLowerCase().includes(q))
+          );
+        })
+        .sort((a, b) => b.balance - a.balance)
+    : [];
 
   const captureGPS = () => {
     if (!navigator.geolocation) {
@@ -1521,7 +1543,61 @@ function OrderbookerDashboard() {
       {/* Pending Offline Recovery Card */}
       <PendingSyncCard transactions={pendingTxns.filter(t => !t.synced)} />
 
-      {/* Shop Cards - Grouped by Route Day */}
+      {/* Recovery Mode Toggle — All Routes Switch */}
+      <Card className={`overflow-hidden animate-fade-in transition-all duration-300 ${recoveryMode ? 'border-primary/50 ring-2 ring-primary/20' : ''}`}>
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-300 ${recoveryMode ? 'bg-primary/15' : 'bg-muted/50'}`}>
+                <Layers className={`h-4.5 w-4.5 transition-colors duration-300 ${recoveryMode ? 'text-primary' : 'text-muted-foreground'}`} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold leading-tight">All Routes</p>
+                <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                  {recoveryMode ? `Showing ${recoveryModeShops.length} shops from all days` : 'Toggle to see shops from all route days'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setRecoveryMode((prev) => !prev);
+                if (recoveryMode) setSearchQuery('');
+              }}
+              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${recoveryMode ? 'bg-primary' : 'bg-muted'}`}
+              role="switch"
+              aria-checked={recoveryMode}
+              aria-label="Toggle all routes recovery mode"
+            >
+              <span
+                className={`pointer-events-none inline-block h-5.5 w-5.5 rounded-full bg-white shadow-lg ring-0 transition-transform duration-300 ${recoveryMode ? 'translate-x-5' : 'translate-x-0'}`}
+              />
+            </button>
+          </div>
+
+          {/* Search bar — only visible when recovery mode is ON */}
+          {recoveryMode && (
+            <div className="mt-3 relative animate-fade-in">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search shop name, owner, or area..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Shop Cards — Recovery Mode (All Routes) or Normal Day-Wise View */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1534,7 +1610,72 @@ function OrderbookerDashboard() {
             <p className="text-xs mt-1">Contact admin to get shops assigned to your route</p>
           </CardContent>
         </Card>
+      ) : recoveryMode ? (
+        /* ─── RECOVERY MODE: All shops in a flat list sorted by balance ─── */
+        <div className="space-y-3">
+          {/* Recovery Mode Summary */}
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-bold text-foreground">All Routes &mdash; Recovery View</h3>
+            <Badge variant="outline" className="text-[10px] text-primary border-primary/30">{recoveryModeShops.length} shops</Badge>
+          </div>
+
+          {recoveryModeShops.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                <Search className="h-6 w-6 mb-2 opacity-30" />
+                <p className="text-sm font-medium">No shops found</p>
+                <p className="text-xs mt-1">Try a different search term</p>
+              </CardContent>
+            </Card>
+          ) : (
+            /* Group by route day within recovery mode for clarity */
+            (() => {
+              const grouped: Record<string, Shop[]> = {};
+              recoveryModeShops.forEach((s) => {
+                const day = s.routeDay || 'unscheduled';
+                if (!grouped[day]) grouped[day] = [];
+                grouped[day].push(s);
+              });
+
+              // Sort days: today first, then by WORKING_DAYS order
+              const dayOrder: string[] = [...ROUTE_DAYS];
+              const sortedDays = Object.keys(grouped).sort((a, b) => {
+                if (a === todayDay) return -1;
+                if (b === todayDay) return 1;
+                const aIdx = dayOrder.indexOf(a);
+                const bIdx = dayOrder.indexOf(b);
+                return aIdx - bIdx;
+              });
+
+              return sortedDays.map((day) => {
+                const dayShops = grouped[day];
+                const isToday = day === todayDay;
+                const dayTotal = dayShops.reduce((sum, s) => sum + s.balance, 0);
+                return (
+                  <div key={day} className="space-y-2">
+                    <div className="flex items-center justify-between pl-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-block h-2 w-2 rounded-full ${isToday ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          {day.charAt(0).toUpperCase() + day.slice(1)}
+                        </span>
+                        {isToday && (
+                          <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-[9px] border-0">Today</Badge>
+                        )}
+                        <Badge variant="outline" className="text-[9px]">{dayShops.length} shops</Badge>
+                      </div>
+                      <span className="text-xs font-bold text-red-600">{formatCurrency(dayTotal)}</span>
+                    </div>
+                    {dayShops.map((shop, idx) => renderShopCard(shop, idx))}
+                  </div>
+                );
+              });
+            })()
+          )}
+        </div>
       ) : (
+        /* ─── NORMAL MODE: Today's route first, other days grouped below ─── */
         <div className="space-y-5">
           {/* Today's Route Shops */}
           {todayShops.length > 0 && (
@@ -1562,7 +1703,7 @@ function OrderbookerDashboard() {
             });
 
             // Sort days by working days order
-            const dayOrder = [...ROUTE_DAYS];
+            const dayOrder: string[] = [...ROUTE_DAYS];
             const sortedDays = Object.keys(grouped).sort((a, b) => {
               const aIdx = dayOrder.indexOf(a);
               const bIdx = dayOrder.indexOf(b);
