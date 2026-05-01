@@ -29,6 +29,10 @@ import {
   ArrowDownRight,
   Receipt,
   ShieldCheck,
+  Target,
+  AlertTriangle,
+  Navigation,
+  Clock,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -60,6 +64,10 @@ const adminNavItems: NavItem[] = [
   { id: 'admin-ob-analytics', label: 'OB Analytics', icon: <BarChart3 className="h-5 w-5" /> },
   { id: 'admin-monthly-summary', label: 'Monthly Summary', icon: <CalendarDays className="h-5 w-5" /> },
   { id: 'admin-activity', label: 'Activity', icon: <Activity className="h-5 w-5" /> },
+  { id: 'admin-daily-targets', label: 'Recovery Targets', icon: <Target className="h-5 w-5" /> },
+  { id: 'admin-overdue-shops', label: 'Overdue Shops', icon: <AlertTriangle className="h-5 w-5" /> },
+  { id: 'admin-visit-tracking', label: 'Visit Tracking', icon: <Navigation className="h-5 w-5" /> },
+  { id: 'admin-pending-credits', label: 'Pending Credits', icon: <Clock className="h-5 w-5" /> },
 ];
 
 interface AdminLayoutProps {

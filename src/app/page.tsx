@@ -18,6 +18,10 @@ import ShopDetailAnalytics from '@/components/alfalah/ShopDetailAnalytics';
 import ActivityTimeline from '@/components/alfalah/ActivityTimeline';
 import AdminApproveRecovery from '@/components/alfalah/AdminApproveRecovery';
 import OrderbookerLayout from '@/components/alfalah/OrderbookerLayout';
+import AdminDailyTargets from '@/components/alfalah/AdminDailyTargets';
+import AdminOverdueShops from '@/components/alfalah/AdminOverdueShops';
+import AdminVisitTracking from '@/components/alfalah/AdminVisitTracking';
+import AdminPendingCredits from '@/components/alfalah/AdminPendingCredits';
 
 function AdminRouter() {
   const { currentView } = useAppStore();
@@ -49,6 +53,14 @@ function AdminRouter() {
       return <ShopDetailAnalytics />;
     case 'admin-activity':
       return <ActivityTimeline />;
+    case 'admin-daily-targets':
+      return <AdminDailyTargets />;
+    case 'admin-overdue-shops':
+      return <AdminOverdueShops />;
+    case 'admin-visit-tracking':
+      return <AdminVisitTracking />;
+    case 'admin-pending-credits':
+      return <AdminPendingCredits />;
     default:
       return <AdminDashboard />;
   }

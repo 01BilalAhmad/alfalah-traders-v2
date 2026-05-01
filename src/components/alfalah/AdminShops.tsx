@@ -73,6 +73,9 @@ import {
   X,
   TrendingUp,
   AlertTriangle,
+  StickyNote,
+  Trash2,
+  MessageSquare,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -166,6 +169,14 @@ export default function AdminShops() {
 
   // Bulk import dialog state
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+
+  // Shop notes dialog state
+  const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [notesShop, setNotesShop] = useState<Shop | null>(null);
+  const [shopNotes, setShopNotes] = useState<{ id: string; note: string; createdBy: string; creatorName: string; createdAt: string }[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [newNote, setNewNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   const fetchOrderbookers = useCallback(async () => {
     try {
@@ -308,6 +319,63 @@ export default function AdminShops() {
       }
     } catch { /* silent */ }
     finally { setLedgerLoading(false); }
+  };
+
+  const openNotesDialog = async (shop: Shop) => {
+    setNotesShop(shop);
+    setShopNotes([]);
+    setNewNote('');
+    setNotesDialogOpen(true);
+    setNotesLoading(true);
+    try {
+      const res = await apiFetch(`/api/shops/${shop.id}/notes`);
+      if (res.ok) {
+        const data = await res.json();
+        setShopNotes(Array.isArray(data) ? data : []);
+      }
+    } catch { /* silent */ }
+    finally { setNotesLoading(false); }
+  };
+
+  const handleSaveNote = async () => {
+    if (!notesShop || !newNote.trim()) return;
+    setSavingNote(true);
+    try {
+      const res = await apiFetch(`/api/shops/${notesShop.id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: newNote.trim(), createdBy: 'admin' }),
+      });
+      if (res.ok) {
+        toast({ title: 'Note Saved', description: 'Shop note has been saved' });
+        setNewNote('');
+        // Refresh notes
+        const refreshRes = await apiFetch(`/api/shops/${notesShop.id}/notes`);
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          setShopNotes(Array.isArray(data) ? data : []);
+        }
+      } else {
+        toast({ title: 'Error', description: 'Failed to save note', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!notesShop) return;
+    try {
+      const res = await apiFetch(`/api/shops/${notesShop.id}/notes?noteId=${noteId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        toast({ title: 'Note Deleted', description: 'Note has been removed' });
+        setShopNotes(prev => prev.filter(n => n.id !== noteId));
+      }
+    } catch { /* silent */ }
   };
 
   const openShopDetail = async (shop: Shop) => {
@@ -884,6 +952,9 @@ export default function AdminShops() {
                             setCurrentView('admin-shop-detail');
                           }} title="View Analytics">
                             <TrendingUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple text-amber-600 hover:text-amber-700" onClick={() => openNotesDialog(shop)} title="Shop Notes">
+                            <StickyNote className="h-3.5 w-3.5" />
                           </Button>
                           {shop.status === 'active' && (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover-lift btn-ripple" onClick={() => setConfirmDeactivate(shop)} title="Deactivate">
@@ -1580,6 +1651,76 @@ export default function AdminShops() {
         orderbookers={orderbookers}
         onImportComplete={() => { fetchShops(); fetchAllShopsForCounts(); }}
       />
+
+      {/* Shop Notes Dialog */}
+      <Dialog open={notesDialogOpen} onOpenChange={setNotesDialogOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <StickyNote className="h-5 w-5 text-amber-600" />
+              Notes — {notesShop?.name}
+            </DialogTitle>
+            <DialogDescription>
+              View and manage notes for this shop
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-3 py-2">
+            {notesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : shopNotes.length === 0 ? (
+              <div className="text-center py-8">
+                <MessageSquare className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">No notes yet</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">Add a note about this shop below</p>
+              </div>
+            ) : (
+              shopNotes.map((note) => (
+                <div key={note.id} className="rounded-lg border border-border p-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm whitespace-pre-wrap flex-1">{note.note}</p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 shrink-0 text-muted-foreground hover:text-red-500"
+                      onClick={() => handleDeleteNote(note.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span>{note.creatorName || 'Admin'}</span>
+                    <span>·</span>
+                    <span>{new Date(note.createdAt).toLocaleString('en-PK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="border-t pt-3 space-y-2">
+            <Textarea
+              placeholder="Write a note about this shop..."
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              rows={3}
+              className="resize-none"
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground">{newNote.length}/1000</span>
+              <Button
+                size="sm"
+                onClick={handleSaveNote}
+                disabled={savingNote || !newNote.trim()}
+                className="gap-1.5"
+              >
+                {savingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
+                {savingNote ? 'Saving...' : 'Add Note'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
