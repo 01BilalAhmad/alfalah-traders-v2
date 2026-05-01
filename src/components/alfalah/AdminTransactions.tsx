@@ -683,7 +683,6 @@ export default function AdminTransactions() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-            <ScrollArea className="max-h-[520px]">
               <Table className="min-w-[600px]">
                 <TableHeader>
                   <TableRow className="data-table-header hover:bg-transparent">
@@ -779,7 +778,6 @@ export default function AdminTransactions() {
                   ))}
                 </TableBody>
               </Table>
-            </ScrollArea>
             </div>
           )}
         </CardContent>

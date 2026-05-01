@@ -989,7 +989,7 @@ export default function AdminCreditPosting() {
               <p className="text-sm">No shops found matching your criteria</p>
             </div>
           ) : (
-            <ScrollArea className="max-h-[480px]">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="data-table-header hover:bg-transparent">
@@ -1052,7 +1052,7 @@ export default function AdminCreditPosting() {
                   ))}
                 </TableBody>
               </Table>
-            </ScrollArea>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -1152,7 +1152,7 @@ export default function AdminCreditPosting() {
 
       {/* Quick Post Floating Summary */}
       {quickPostMode && quickPostShops > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up lg:left-64">
+        <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up lg:left-64 mb-14">
           <div className="mx-auto max-w-3xl px-4 pb-4">
             <div className="flex items-center justify-between rounded-xl bg-emerald-600 dark:bg-emerald-700 px-5 py-3 shadow-2xl text-white">
               <div className="flex items-center gap-3">

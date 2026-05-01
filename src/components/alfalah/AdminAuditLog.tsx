@@ -483,7 +483,6 @@ export default function AdminAuditLog() {
             ) : (
               <>
                 <div className="overflow-x-auto">
-                <ScrollArea className="max-h-[560px]">
                   <Table className="min-w-[600px]">
                     <TableHeader>
                       <TableRow className="data-table-header hover:bg-transparent">
@@ -518,7 +517,6 @@ export default function AdminAuditLog() {
                       ))}
                     </TableBody>
                   </Table>
-                </ScrollArea>
                 </div>
                 {data.totalPages > 1 && (
                   <div className="flex items-center justify-between px-5 py-3 border-t border-border">
@@ -555,8 +553,7 @@ export default function AdminAuditLog() {
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
-                <ScrollArea className="max-h-[620px]">
+                <div className="overflow-x-auto max-h-[620px] overflow-y-auto">
                   <div className="px-4 sm:px-6 py-4">
                     {groupedLogs.map((group, groupIdx) => (
                       <div key={group.dateKey} className={groupIdx > 0 ? 'mt-6' : ''}>
@@ -676,7 +673,6 @@ export default function AdminAuditLog() {
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
                 </div>
                 {data.totalPages > 1 && (
                   <div className="flex items-center justify-between px-5 py-3 border-t border-border">
