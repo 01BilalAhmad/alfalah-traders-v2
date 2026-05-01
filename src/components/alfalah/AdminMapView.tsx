@@ -393,6 +393,7 @@ export default function AdminMapView() {
   // Data
   const [shops, setShops] = useState<Shop[]>([]);
   const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
+  const [shopLocations, setShopLocations] = useState<{ shopId: string; lat: number; lng: number; gpsAddress: string | null; lastVisitAt: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // View
@@ -431,12 +432,14 @@ export default function AdminMapView() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [shopsRes, obsRes] = await Promise.all([
+      const [shopsRes, obsRes, locRes] = await Promise.all([
         apiFetch('/api/shops?includeInactive=true'),
         apiFetch('/api/orderbookers'),
+        apiFetch('/api/shops/locations'),
       ]);
       if (shopsRes.ok) setShops(await shopsRes.json());
       if (obsRes.ok) setOrderbookers(await obsRes.json());
+      if (locRes.ok) setShopLocations(await locRes.json());
     } catch {
       toast({ title: 'Error', description: 'Failed to load map data', variant: 'destructive' });
     } finally {
@@ -534,12 +537,13 @@ export default function AdminMapView() {
     return { totalShops, activeCount, inactiveCount, totalOutstanding };
   }, [filteredShops]);
 
-  // Map markers — only shops that have lat/lng (placeholder for future)
+  // Map markers — from ShopVisit GPS coordinates
   const mapMarkers = useMemo(() => {
+    const locationMap = new Map(shopLocations.map((loc) => [loc.shopId, loc]));
     return filteredShops
-      .filter((s) => (s as Shop & { lat?: number; lng?: number }).lat && (s as Shop & { lat?: number; lng?: number }).lng)
+      .filter((s) => locationMap.has(s.id))
       .map((s) => {
-        const ext = s as Shop & { lat?: number; lng?: number };
+        const loc = locationMap.get(s.id)!;
         return {
           id: s.id,
           name: s.name,
@@ -549,11 +553,11 @@ export default function AdminMapView() {
           status: s.status,
           orderbookerName: s.orderbooker.name,
           routeDay: s.routeDay,
-          lat: ext.lat!,
-          lng: ext.lng!,
+          lat: loc.lat,
+          lng: loc.lng,
         };
       });
-  }, [filteredShops]);
+  }, [filteredShops, shopLocations]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
