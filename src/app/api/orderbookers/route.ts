@@ -11,7 +11,7 @@ export async function GET() {
 
     // Get all orderbookers with active shop counts
     const obRes = await client.query(
-      `SELECT u.id, u.username, u.name, u.phone, u.status, u."createdAt",
+      `SELECT u.id, u.username, u.name, u.phone, u.status, u."createdAt", u."allRoutesEnabled",
               COUNT(s.id) AS "activeShopCount"
        FROM "User" u
        LEFT JOIN "Shop" s ON u.id = s."orderbookerId" AND s.status = 'active'
@@ -36,6 +36,7 @@ export async function GET() {
           name: ob.name,
           phone: ob.phone,
           status: ob.status,
+          allRoutesEnabled: ob.allRoutesEnabled ?? false,
           createdAt: ob.createdAt instanceof Date ? ob.createdAt.toISOString() : ob.createdAt,
           totalShops: activeShopCount,
           totalOutstanding: Math.round(totalOutstanding * 100) / 100,
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   let client;
   try {
-    const { id, name, phone, status, password } = await request.json();
+    const { id, name, phone, status, password, allRoutesEnabled } = await request.json();
 
     client = getPgClient();
     await client.connect();
@@ -143,6 +144,7 @@ export async function PATCH(request: NextRequest) {
       setClauses.push(`password = $${paramIndex++}`);
       params.push(hashedPassword);
     }
+    if (allRoutesEnabled !== undefined) { setClauses.push(`"allRoutesEnabled" = $${paramIndex++}`); params.push(allRoutesEnabled); }
 
     if (setClauses.length === 0) {
       await client.end();
@@ -152,7 +154,7 @@ export async function PATCH(request: NextRequest) {
     params.push(id);
     const updatedRes = await client.query(
       `UPDATE "User" SET ${setClauses.join(', ')} WHERE id = $${paramIndex}
-       RETURNING id, username, name, phone, role, status, "createdAt", "updatedAt"`,
+       RETURNING id, username, name, phone, role, status, "allRoutesEnabled", "createdAt", "updatedAt"`,
       params
     );
     const updated = updatedRes.rows[0];

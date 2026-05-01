@@ -37,6 +37,7 @@ import {
   XCircle,
   CheckCircle2,
   AlertCircle,
+  Layers,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -47,6 +48,7 @@ interface Orderbooker {
   username: string;
   phone: string | null;
   status: string;
+  allRoutesEnabled: boolean;
   totalShops: number;
   totalOutstanding: number;
   createdAt: string;
@@ -230,6 +232,26 @@ export default function AdminOrderbookers() {
     } catch { /* silent */ }
   };
 
+  const handleToggleAllRoutes = async (ob: Orderbooker) => {
+    try {
+      const newValue = !ob.allRoutesEnabled;
+      const res = await apiFetch('/api/orderbookers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ob.id, allRoutesEnabled: newValue }),
+      });
+      if (res.ok) {
+        toast({
+          title: newValue ? 'All Routes Enabled' : 'All Routes Disabled',
+          description: `${ob.name} can ${newValue ? 'now' : 'no longer'} see all days' shops at once`,
+        });
+        fetchOrderbookers();
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update', variant: 'destructive' });
+    }
+  };
+
   const canSubmit = formName.trim() && (editingOB ? true : (formUsername.trim() && formPassword.trim() && usernameStatus !== 'taken'));
 
   return (
@@ -309,6 +331,32 @@ export default function AdminOrderbookers() {
                     <span className="font-semibold text-red-600">{formatCurrency(ob.totalOutstanding)}</span>
                     <span>outstanding</span>
                   </div>
+                </div>
+
+                {/* All Routes Toggle */}
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50 border">
+                  <div className="flex items-center gap-2">
+                    <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                    <div>
+                      <span className="text-xs font-medium">All Routes Access</span>
+                      <p className="text-[10px] text-muted-foreground">Show all days&apos; shops at once</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={ob.allRoutesEnabled}
+                    onClick={() => handleToggleAllRoutes(ob)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                      ob.allRoutesEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        ob.allRoutesEnabled ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
 
                 <div className="flex gap-2">

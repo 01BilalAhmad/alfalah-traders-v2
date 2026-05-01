@@ -8,6 +8,7 @@ export interface AppUser {
   role: string;
   phone?: string;
   status: string;
+  allRoutesEnabled?: boolean;
   createdAt?: string;
 }
 

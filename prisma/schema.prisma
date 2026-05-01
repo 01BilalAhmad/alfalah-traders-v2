@@ -13,10 +13,11 @@ model User {
   password  String
   name      String
   role      String   @default("orderbooker") // "admin" or "orderbooker"
-  phone     String?
-  status    String   @default("active") // "active" or "inactive"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  phone             String?
+  status            String   @default("active") // "active" or "inactive"
+  allRoutesEnabled  Boolean  @default(false) // admin can allow OB to see all days' shops
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   orderbookerShops Shop[]
   creditTransactions Transaction[] @relation("CreditBy")

@@ -42,6 +42,7 @@ import {
   UserCircle,
   Shield,
   Share2,
+  Layers,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -1160,6 +1161,9 @@ function OrderbookerDashboard() {
   const shopsTotal = todayShops.length;
   const avgRecovery = shopsVisited > 0 ? Math.round(totalRecovered / shopsVisited) : 0;
 
+  // Check if admin has enabled "All Routes" for this orderbooker
+  const allRoutesEnabled = (user as any)?.allRoutesEnabled === true;
+
   const captureGPS = () => {
     if (!navigator.geolocation) {
       toast({ title: 'Error', description: 'Geolocation not supported', variant: 'destructive' });
@@ -1536,66 +1540,126 @@ function OrderbookerDashboard() {
         </Card>
       ) : (
         <div className="space-y-5">
-          {/* Today's Route Shops */}
-          {todayShops.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                <h3 className="text-sm font-bold text-foreground">Today's Route &mdash; {todayDay.charAt(0).toUpperCase() + todayDay.slice(1)}</h3>
-                <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 dark:border-green-800">{todayShops.length} shops</Badge>
-              </div>
-              {todayShops.map((shop, idx) => renderShopCard(shop, idx))}
-            </div>
-          )}
-
-          {/* Other Days' Shops */}
-          {(() => {
-            const otherShops = shops.filter((s) => s.routeDay !== todayDay);
-            if (otherShops.length === 0) return null;
-
-            // Group other shops by route day
-            const grouped: Record<string, Shop[]> = {};
-            otherShops.forEach((s) => {
-              const day = s.routeDay || 'unscheduled';
-              if (!grouped[day]) grouped[day] = [];
-              grouped[day].push(s);
-            });
-
-            // Sort days by working days order
-            const dayOrder = [...ROUTE_DAYS];
-            const sortedDays = Object.keys(grouped).sort((a, b) => {
-              const aIdx = dayOrder.indexOf(a);
-              const bIdx = dayOrder.indexOf(b);
-              return aIdx - bIdx;
-            });
-
-            return (
-              <div className="space-y-4">
-                <Separator className="my-2" />
-                <div className="flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-bold text-foreground">Other Route Days</h3>
-                  <Badge variant="outline" className="text-[10px]">{otherShops.length} shops</Badge>
+          {allRoutesEnabled ? (
+            /* ═══ ALL ROUTES MODE (admin enabled) ═══ */
+            <>
+              {/* All Routes Banner */}
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                <Layers className="h-4 w-4 text-blue-600 shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-blue-700 dark:text-blue-400">All Routes Mode</p>
+                  <p className="text-[10px] text-blue-600/70 dark:text-blue-300/60">Showing all days&apos; shops together (enabled by admin)</p>
                 </div>
-                {sortedDays.map((day) => {
+              </div>
+
+              {/* Today's Route (highlighted at top) */}
+              {todayShops.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                    <h3 className="text-sm font-bold text-foreground">Today &mdash; {todayDay.charAt(0).toUpperCase() + todayDay.slice(1)}</h3>
+                    <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 dark:border-green-800">{todayShops.length} shops</Badge>
+                  </div>
+                  {todayShops.map((shop, idx) => renderShopCard(shop, idx))}
+                </div>
+              )}
+
+              {/* All Other Days */}
+              {(() => {
+                const otherShops = shops.filter((s) => s.routeDay !== todayDay);
+                if (otherShops.length === 0) return null;
+
+                const grouped: Record<string, Shop[]> = {};
+                otherShops.forEach((s) => {
+                  const day = s.routeDay || 'unscheduled';
+                  if (!grouped[day]) grouped[day] = [];
+                  grouped[day].push(s);
+                });
+
+                const dayOrder = [...ROUTE_DAYS];
+                const sortedDays = Object.keys(grouped).sort((a, b) => {
+                  return dayOrder.indexOf(a) - dayOrder.indexOf(b);
+                });
+
+                return sortedDays.map((day) => {
                   const dayShops = grouped[day];
-                  const isToday = day === todayDay;
                   return (
                     <div key={day} className="space-y-2">
+                      <Separator className="my-2" />
                       <div className="flex items-center gap-2 pl-1">
-                        <span className={`inline-block h-2 w-2 rounded-full ${isToday ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
+                        <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/40" />
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                           {day.charAt(0).toUpperCase() + day.slice(1)}
                         </span>
-                        <Badge variant="outline" className="text-[9px]">{dayShops.length}</Badge>
+                        <Badge variant="outline" className="text-[9px]">{dayShops.length} shops</Badge>
                       </div>
                       {dayShops.map((shop, idx) => renderShopCard(shop, idx))}
                     </div>
                   );
-                })}
-              </div>
-            );
-          })()}
+                });
+              })()}
+            </>
+          ) : (
+            /* ═══ NORMAL DAY-WISE MODE ═══ */
+            <>
+              {/* Today's Route Shops */}
+              {todayShops.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                    <h3 className="text-sm font-bold text-foreground">Today's Route &mdash; {todayDay.charAt(0).toUpperCase() + todayDay.slice(1)}</h3>
+                    <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 dark:border-green-800">{todayShops.length} shops</Badge>
+                  </div>
+                  {todayShops.map((shop, idx) => renderShopCard(shop, idx))}
+                </div>
+              )}
+
+              {/* Other Days' Shops */}
+              {(() => {
+                const otherShops = shops.filter((s) => s.routeDay !== todayDay);
+                if (otherShops.length === 0) return null;
+
+                const grouped: Record<string, Shop[]> = {};
+                otherShops.forEach((s) => {
+                  const day = s.routeDay || 'unscheduled';
+                  if (!grouped[day]) grouped[day] = [];
+                  grouped[day].push(s);
+                });
+
+                const dayOrder = [...ROUTE_DAYS];
+                const sortedDays = Object.keys(grouped).sort((a, b) => {
+                  return dayOrder.indexOf(a) - dayOrder.indexOf(b);
+                });
+
+                return (
+                  <div className="space-y-4">
+                    <Separator className="my-2" />
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="text-sm font-bold text-foreground">Other Route Days</h3>
+                      <Badge variant="outline" className="text-[10px]">{otherShops.length} shops</Badge>
+                    </div>
+                    {sortedDays.map((day) => {
+                      const dayShops = grouped[day];
+                      const isToday = day === todayDay;
+                      return (
+                        <div key={day} className="space-y-2">
+                          <div className="flex items-center gap-2 pl-1">
+                            <span className={`inline-block h-2 w-2 rounded-full ${isToday ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              {day.charAt(0).toUpperCase() + day.slice(1)}
+                            </span>
+                            <Badge variant="outline" className="text-[9px]">{dayShops.length}</Badge>
+                          </div>
+                          {dayShops.map((shop, idx) => renderShopCard(shop, idx))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </>
+          )}
         </div>
       )}
 

@@ -18,10 +18,16 @@ export async function POST() {
         "role" TEXT NOT NULL DEFAULT 'orderbooker',
         "phone" TEXT,
         "status" TEXT NOT NULL DEFAULT 'active',
+        "allRoutesEnabled" BOOLEAN NOT NULL DEFAULT false,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Add allRoutesEnabled column if it doesn't exist (migration for existing databases)
+    try {
+      await client.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "allRoutesEnabled" BOOLEAN NOT NULL DEFAULT false`);
+    } catch { /* column already exists, ignore */ }
 
     // Create Shop table
     await client.query(`
