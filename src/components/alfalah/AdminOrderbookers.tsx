@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Layers,
+  Target,
+  Flame,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -52,6 +55,18 @@ interface Orderbooker {
   totalShops: number;
   totalOutstanding: number;
   createdAt: string;
+}
+
+interface VisitStreak {
+  currentStreak: number;
+  longestStreak: number;
+  lastVisitDate: string | null;
+}
+
+interface MonthlyTarget {
+  target: number;
+  month: string;
+  achieved: number;
 }
 
 interface UsernameCheckResult {
@@ -88,6 +103,19 @@ export default function AdminOrderbookers() {
   // Confirmation dialog state
   const [confirmDeactivate, setConfirmDeactivate] = useState<Orderbooker | null>(null);
 
+  // Visit streak state
+  const [visitStreaks, setVisitStreaks] = useState<Record<string, VisitStreak>>({});
+  const [streaksLoading, setStreaksLoading] = useState(true);
+
+  // Monthly target state
+  const [monthlyTargets, setMonthlyTargets] = useState<Record<string, MonthlyTarget>>({});
+  const [targetsLoading, setTargetsLoading] = useState(true);
+  const [targetDialogOpen, setTargetDialogOpen] = useState(false);
+  const [targetOB, setTargetOB] = useState<Orderbooker | null>(null);
+  const [targetMonth, setTargetMonth] = useState('');
+  const [targetAmount, setTargetAmount] = useState('');
+  const [targetSaving, setTargetSaving] = useState(false);
+
   const fetchOrderbookers = useCallback(async () => {
     setLoading(true);
     try {
@@ -98,6 +126,112 @@ export default function AdminOrderbookers() {
   }, []);
 
   useEffect(() => { fetchOrderbookers(); }, [fetchOrderbookers]);
+
+  // Fetch visit streaks for all orderbookers
+  useEffect(() => {
+    async function fetchStreaks() {
+      if (orderbookers.length === 0) return;
+      setStreaksLoading(true);
+      const streakMap: Record<string, VisitStreak> = {};
+      await Promise.all(
+        orderbookers.map(async (ob) => {
+          try {
+            const res = await apiFetch(`/api/users/${ob.id}/visit-streak`);
+            if (res.ok) {
+              streakMap[ob.id] = await res.json();
+            }
+          } catch { /* silent */ }
+        })
+      );
+      setVisitStreaks(streakMap);
+      setStreaksLoading(false);
+    }
+    fetchStreaks();
+  }, [orderbookers]);
+
+  // Fetch monthly targets for all orderbookers
+  useEffect(() => {
+    async function fetchTargets() {
+      if (orderbookers.length === 0) return;
+      setTargetsLoading(true);
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const targetMap: Record<string, MonthlyTarget> = {};
+      await Promise.all(
+        orderbookers.map(async (ob) => {
+          try {
+            const [targetRes, recoveryRes] = await Promise.all([
+              apiFetch(`/api/users/${ob.id}/daily-target?month=${currentMonth}`),
+              apiFetch(`/api/reports/recovery-summary?date=${now.toISOString().split('T')[0]}`),
+            ]);
+            if (targetRes.ok) {
+              const targetData = await targetRes.json();
+              let achieved = 0;
+              if (recoveryRes.ok) {
+                const recoveryData = await recoveryRes.json();
+                // Get this OB's recovery for the month
+                const obRecovery = recoveryData.byOrderbooker?.find((b: { orderbookerId: string; total: number }) => b.orderbookerId === ob.id);
+                achieved = obRecovery?.total || 0;
+              }
+              targetMap[ob.id] = {
+                target: targetData.target || 0,
+                month: currentMonth,
+                achieved,
+              };
+            }
+          } catch { /* silent */ }
+        })
+      );
+      setMonthlyTargets(targetMap);
+      setTargetsLoading(false);
+    }
+    fetchTargets();
+  }, [orderbookers]);
+
+  const openTargetDialog = (ob: Orderbooker) => {
+    setTargetOB(ob);
+    const now = new Date();
+    setTargetMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+    const existing = monthlyTargets[ob.id];
+    setTargetAmount(existing?.target ? String(existing.target) : '');
+    setTargetDialogOpen(true);
+  };
+
+  const handleSaveTarget = async () => {
+    if (!targetOB || !targetMonth || !targetAmount) return;
+    setTargetSaving(true);
+    try {
+      const res = await apiFetch(`/api/users/${targetOB.id}/daily-target`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: Number(targetAmount),
+          month: targetMonth,
+          createdBy: 'admin-001',
+        }),
+      });
+      if (res.ok) {
+        toast({ title: 'Target Set', description: `Monthly target of ${formatCurrency(Number(targetAmount))} set for ${targetOB.name}` });
+        setTargetDialogOpen(false);
+        // Update local state
+        setMonthlyTargets(prev => ({
+          ...prev,
+          [targetOB.id]: {
+            target: Number(targetAmount),
+            month: targetMonth,
+            achieved: prev[targetOB.id]?.achieved || 0,
+          },
+        }));
+      } else {
+        const data = await res.json();
+        toast({ title: 'Error', description: data.error || 'Failed to set target', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setTargetSaving(false);
+    }
+  };
 
   // Real-time username validation with debounce
   const checkUsername = useCallback(async (username: string, excludeId?: string) => {
@@ -331,7 +465,56 @@ export default function AdminOrderbookers() {
                     <span className="font-semibold text-red-600">{formatCurrency(ob.totalOutstanding)}</span>
                     <span>outstanding</span>
                   </div>
+                  {/* Visit Streak Badge */}
+                  <div className="flex items-center gap-2">
+                    {streaksLoading ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    ) : visitStreaks[ob.id] && visitStreaks[ob.id].currentStreak > 0 ? (
+                      <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border-orange-200 dark:border-orange-800 text-[10px] font-bold gap-1">
+                        <Flame className="h-3 w-3" />
+                        {visitStreaks[ob.id].currentStreak} Day Streak
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-[10px] font-medium">
+                        No Streak
+                      </Badge>
+                    )}
+                  </div>
                 </div>
+
+                {/* Monthly Recovery Target Progress */}
+                {monthlyTargets[ob.id] && monthlyTargets[ob.id].target > 0 && (
+                  <div className="mb-4 p-2.5 rounded-lg bg-muted/50 border">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                        <Target className="h-3 w-3" /> Monthly Target
+                      </span>
+                      <span className="text-[10px] font-bold tabular-nums">
+                        {formatCurrency(monthlyTargets[ob.id].achieved)} / {formatCurrency(monthlyTargets[ob.id].target)}
+                      </span>
+                    </div>
+                    <Progress
+                      value={Math.min((monthlyTargets[ob.id].achieved / monthlyTargets[ob.id].target) * 100, 100)}
+                      className="h-2"
+                    />
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[9px] text-muted-foreground">
+                        {Math.round((monthlyTargets[ob.id].achieved / monthlyTargets[ob.id].target) * 100)}% achieved
+                      </span>
+                      <span className={`text-[9px] font-medium ${
+                        monthlyTargets[ob.id].achieved >= monthlyTargets[ob.id].target
+                          ? 'text-green-600'
+                          : monthlyTargets[ob.id].achieved >= monthlyTargets[ob.id].target * 0.7
+                            ? 'text-amber-600'
+                            : 'text-red-600'
+                      }`}>
+                        {monthlyTargets[ob.id].achieved >= monthlyTargets[ob.id].target
+                          ? '✓ Target met!'
+                          : `${formatCurrency(monthlyTargets[ob.id].target - monthlyTargets[ob.id].achieved)} remaining`}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* All Routes Toggle */}
                 <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50 border">
@@ -362,6 +545,9 @@ export default function AdminOrderbookers() {
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1 text-xs hover-glow-primary" onClick={() => openEditDialog(ob)}>
                     <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 text-xs hover-glow-primary" onClick={() => openTargetDialog(ob)}>
+                    <Target className="h-3.5 w-3.5 mr-1" /> Set Target
                   </Button>
                   {ob.status === 'active' && (
                     <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive hover-glow-red" onClick={() => setConfirmDeactivate(ob)}>
@@ -476,6 +662,50 @@ export default function AdminOrderbookers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Set Target Dialog */}
+      <Dialog open={targetDialogOpen} onOpenChange={setTargetDialogOpen}>
+        <DialogContent className="sm:max-w-md dialog-content-animate">
+          <DialogHeader>
+            <DialogTitle>Set Monthly Target</DialogTitle>
+            <DialogDescription>
+              Set recovery target for {targetOB?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Month (YYYY-MM)</Label>
+              <Input
+                value={targetMonth}
+                onChange={(e) => setTargetMonth(e.target.value)}
+                placeholder="e.g., 2025-03"
+                className="input-enhanced"
+              />
+              <p className="text-[10px] text-muted-foreground">Format: Year-Month (e.g., 2025-03)</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Target Amount (Rs.)</Label>
+              <Input
+                type="number"
+                value={targetAmount}
+                onChange={(e) => setTargetAmount(e.target.value)}
+                placeholder="e.g., 500000"
+                className="input-enhanced"
+              />
+              {targetAmount && (
+                <p className="text-xs text-muted-foreground">Target: {formatCurrency(Number(targetAmount))}</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setTargetDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveTarget} disabled={targetSaving || !targetMonth || !targetAmount} className="bg-primary hover:bg-primary/90 focus-glow">
+              {targetSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Set Target
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -59,29 +59,33 @@ import {
   Sparkles,
   ShieldCheck,
   ChevronRight,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 
 function PendingRecoveryBanner({ setCurrentView }: { setCurrentView: (v: string) => void }) {
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingAmount, setPendingAmount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPending = async () => {
       try {
-        const res = await apiFetch('/api/recoveries?status=pending');
+        const res = await apiFetch('/api/transactions/pending-summary');
         if (res.ok) {
           const data = await res.json();
-          setPendingCount(data.totalPending || 0);
-          setPendingAmount(data.totalAmount || 0);
+          setPendingCount(data.count || 0);
+          setPendingAmount(data.total || 0);
         }
       } catch { /* silent */ }
+      finally { setLoading(false); }
     };
     fetchPending();
     const interval = setInterval(fetchPending, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  if (pendingCount === 0) return null;
+  if (loading || pendingCount === 0) return null;
 
   return (
     <button
@@ -103,6 +107,118 @@ function PendingRecoveryBanner({ setCurrentView }: { setCurrentView: (v: string)
       </div>
       <ChevronRight className="h-5 w-5 text-orange-400 group-hover:translate-x-1 transition-transform" />
     </button>
+  );
+}
+
+// ─── Overdue Shops Alert Widget ───
+interface OverdueShop {
+  id: string;
+  name: string;
+  area: string | null;
+  balance: number;
+  daysSinceRecovery: number;
+}
+
+function OverdueShopsAlert({ setCurrentView }: { setCurrentView: (v: string) => void }) {
+  const [overdueShops, setOverdueShops] = useState<OverdueShop[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchOverdue() {
+      try {
+        const res = await apiFetch('/api/shops/needing-recovery?minDays=14');
+        if (res.ok) {
+          const data = await res.json();
+          setOverdueShops(Array.isArray(data) ? data : data.shops || []);
+        }
+      } catch { /* silent */ }
+      finally { setLoading(false); }
+    }
+    fetchOverdue();
+    const interval = setInterval(fetchOverdue, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return (
+      <Card className="animate-fade-in">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-red-500" />
+            <span className="text-sm text-muted-foreground">Checking overdue shops...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (overdueShops.length === 0) return null;
+
+  const top5 = overdueShops.slice(0, 5);
+  const criticalCount = overdueShops.filter(s => s.daysSinceRecovery >= 30).length;
+
+  return (
+    <Card className="animate-fade-in border-red-200 dark:border-red-800">
+      <CardContent className="p-0">
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/40 dark:to-orange-950/40 border-b border-red-200/60 dark:border-red-800/60">
+          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+          <span className="text-xs font-semibold text-red-800 dark:text-red-200">
+            {overdueShops.length} shop{overdueShops.length === 1 ? '' : 's'} haven&apos;t had recovery in 14+ days
+          </span>
+          {criticalCount > 0 && (
+            <Badge className="ml-auto bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200 dark:border-red-800 text-[10px] font-bold animate-pulse">
+              <AlertTriangle className="h-3 w-3 mr-0.5" />
+              {criticalCount} Critical ({criticalCount} 30+ days)
+            </Badge>
+          )}
+        </div>
+        <div className="px-4 py-3 space-y-2">
+          {top5.map((shop) => (
+            <div key={shop.id} className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${
+                  shop.daysSinceRecovery >= 30
+                    ? 'bg-red-100 dark:bg-red-900/40'
+                    : shop.daysSinceRecovery >= 21
+                      ? 'bg-orange-100 dark:bg-orange-900/40'
+                      : 'bg-amber-100 dark:bg-amber-900/40'
+                }`}>
+                  {shop.daysSinceRecovery >= 30 ? (
+                    <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+                  ) : (
+                    <Store className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{shop.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{shop.area || 'No area'} · {formatCurrency(shop.balance)} balance</p>
+                </div>
+              </div>
+              <Badge className={`text-[9px] font-bold shrink-0 ${
+                shop.daysSinceRecovery >= 30
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200 dark:border-red-800'
+                  : shop.daysSinceRecovery >= 21
+                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400 border-orange-200 dark:border-orange-800'
+                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+              }`}>
+                {shop.daysSinceRecovery}d
+              </Badge>
+            </div>
+          ))}
+        </div>
+        {overdueShops.length > 5 && (
+          <div className="border-t border-border/60 px-4 py-2.5">
+            <button
+              className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+              onClick={() => setCurrentView('admin-shops')}
+            >
+              View All {overdueShops.length} Overdue Shops
+              <ExternalLink className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -670,6 +786,9 @@ export default function AdminDashboard() {
 
       {/* Pending Recovery Alert Banner */}
       <PendingRecoveryBanner setCurrentView={setCurrentView} />
+
+      {/* Overdue Shops Alert */}
+      <OverdueShopsAlert setCurrentView={setCurrentView} />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-3 gap-3">

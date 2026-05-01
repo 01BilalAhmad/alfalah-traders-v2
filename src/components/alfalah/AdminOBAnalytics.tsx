@@ -34,9 +34,11 @@ import {
   Trophy,
   AlertCircle,
   Loader2,
+  CalendarDays,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { exportToCSV } from '@/lib/csv-export';
+import { apiFetch } from '@/lib/api';
 
 function formatCurrency(amount: number): string {
   return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -143,11 +145,14 @@ export default function AdminOBAnalytics() {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<ViewPeriod>('month');
   const [exporting, setExporting] = useState(false);
+  const [dailyBreakdownOB, setDailyBreakdownOB] = useState<OBPerformance | null>(null);
+  const [dailyBreakdownData, setDailyBreakdownData] = useState<{ date: string; credit: number; recovery: number }[]>([]);
+  const [dailyBreakdownLoading, setDailyBreakdownLoading] = useState(false);
 
   const fetchData = useCallback(async (viewPeriod: ViewPeriod) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/reports/ob-performance?period=${viewPeriod}`);
+      const res = await apiFetch(`/api/reports/ob-performance?period=${viewPeriod}`);
       if (res.ok) {
         const result = await res.json();
         setData(result);
@@ -158,6 +163,27 @@ export default function AdminOBAnalytics() {
       toast({ title: 'Error', description: 'Network error fetching analytics', variant: 'destructive' });
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  // Fetch daily breakdown for a specific OB using the optimized endpoint
+  const fetchDailyBreakdown = useCallback(async (ob: OBPerformance) => {
+    setDailyBreakdownOB(ob);
+    setDailyBreakdownLoading(true);
+    try {
+      const res = await apiFetch(`/api/reports/daily-breakdown?userId=${ob.orderbookerId}&days=28`);
+      if (res.ok) {
+        const result = await res.json();
+        setDailyBreakdownData(Array.isArray(result) ? result : result.dailyBreakdown || result.data || []);
+      } else {
+        toast({ title: 'Error', description: 'Failed to load daily breakdown', variant: 'destructive' });
+        setDailyBreakdownData([]);
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+      setDailyBreakdownData([]);
+    } finally {
+      setDailyBreakdownLoading(false);
     }
   }, []);
 
@@ -459,7 +485,12 @@ export default function AdminOBAnalytics() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="text-sm font-medium">{ob.orderbookerName}</p>
+                          <button
+                            className="text-sm font-medium hover:text-primary transition-colors text-left"
+                            onClick={() => fetchDailyBreakdown(ob)}
+                          >
+                            {ob.orderbookerName}
+                          </button>
                           <p className="text-[11px] text-muted-foreground sm:hidden">{ob.totalShops} shops</p>
                         </div>
                       </TableCell>
@@ -502,6 +533,115 @@ export default function AdminOBAnalytics() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Daily Breakdown Chart - Optimized with single API call */}
+      {dailyBreakdownOB && (
+        <Card className="card-elevated hover-scale-102">
+          <CardHeader className="pb-2 pt-4 px-5">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-primary" />
+                Daily Breakdown — {dailyBreakdownOB.orderbookerName}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => { setDailyBreakdownOB(null); setDailyBreakdownData([]); }}
+              >
+                Close
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Last 28 days — pre-aggregated from single API call</p>
+          </CardHeader>
+          <CardContent className="px-4 pb-5">
+            {dailyBreakdownLoading ? (
+              <div className="h-64 sm:h-72 flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : dailyBreakdownData.length > 0 ? (
+              <div className="h-64 sm:h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailyBreakdownData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="dailyCreditGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.9} />
+                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.4} />
+                      </linearGradient>
+                      <linearGradient id="dailyRecoveryGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.9} />
+                        <stop offset="95%" stopColor="#10B981" stopOpacity={0.4} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10, fill: '#64748B' }}
+                      axisLine={{ stroke: '#E2E8F0' }}
+                      tickLine={false}
+                      tickFormatter={(value: string) => {
+                        const d = new Date(value);
+                        return `${d.getDate()}/${d.getMonth() + 1}`;
+                      }}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: '#64748B' }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(value: number) =>
+                        value >= 1000 ? `${(value / 1000).toFixed(0)}k` : String(value)
+                      }
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: '8px',
+                        border: '1px solid #E2E8F0',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                        fontSize: '12px',
+                      }}
+                      formatter={(value: number, name: string) => [
+                        `Rs. ${value.toLocaleString('en-PK', { maximumFractionDigits: 0 })}`,
+                        name,
+                      ]}
+                      labelFormatter={(label: string) => {
+                        const d = new Date(label);
+                        return d.toLocaleDateString('en-PK', { weekday: 'short', day: 'numeric', month: 'short' });
+                      }}
+                      labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                    />
+                    <Legend
+                      verticalAlign="top"
+                      height={28}
+                      iconType="circle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: '12px' }}
+                    />
+                    <Bar
+                      dataKey="credit"
+                      name="Credit"
+                      fill="url(#dailyCreditGradient)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={24}
+                    />
+                    <Bar
+                      dataKey="recovery"
+                      name="Recovery"
+                      fill="url(#dailyRecoveryGradient)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={24}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-64 sm:h-72 flex flex-col items-center justify-center text-sm text-muted-foreground">
+                <BarChart3 className="h-10 w-10 mb-2 opacity-30" />
+                <p>No daily breakdown data available</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

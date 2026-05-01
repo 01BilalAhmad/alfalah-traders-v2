@@ -44,9 +44,14 @@ import {
   UserCircle,
   Activity,
   ShieldCheck,
+  MessageSquare,
+  Trash2,
+  Send,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { exportToCSV } from '@/lib/csv-export';
+import { apiFetch } from '@/lib/api';
+import { Textarea } from '@/components/ui/textarea';
 
 function formatCurrency(amount: number): string {
   return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -105,6 +110,15 @@ interface ShopDetailData {
   }[];
   topCreditDays: string[];
   recoveryRate: number;
+}
+
+// Shop note types
+interface ShopNote {
+  id: string;
+  note: string;
+  createdBy: string;
+  creatorName?: string;
+  createdAt: string;
 }
 
 // Balance trend types
@@ -333,6 +347,11 @@ export default function ShopDetailAnalytics() {
   const [balanceTrend, setBalanceTrend] = useState<BalanceTrendData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [shopNotes, setShopNotes] = useState<ShopNote[]>([]);
+  const [notesLoading, setNotesLoading] = useState(true);
+  const [newNote, setNewNote] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteDeleting, setNoteDeleting] = useState<string | null>(null);
   const fetchShopDetail = useCallback(async () => {
     if (!selectedShopId) return;
     setLoading(true);
@@ -364,10 +383,71 @@ export default function ShopDetailAnalytics() {
     }
   }, [selectedShopId]);
 
+  const fetchShopNotes = useCallback(async () => {
+    if (!selectedShopId) return;
+    setNotesLoading(true);
+    try {
+      const res = await apiFetch(`/api/shops/${selectedShopId}/notes`);
+      if (res.ok) {
+        const data = await res.json();
+        setShopNotes(Array.isArray(data) ? data : data.notes || []);
+      }
+    } catch { /* silent */ }
+    finally { setNotesLoading(false); }
+  }, [selectedShopId]);
+
+  const handleAddNote = async () => {
+    if (!selectedShopId || !newNote.trim()) return;
+    setNoteSaving(true);
+    try {
+      const res = await apiFetch(`/api/shops/${selectedShopId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          note: newNote.trim(),
+          createdBy: selectedShopId, // fallback, store may have user context
+        }),
+      });
+      if (res.ok) {
+        toast({ title: 'Note Added', description: 'Your note has been saved' });
+        setNewNote('');
+        fetchShopNotes();
+      } else {
+        const errData = await res.json();
+        toast({ title: 'Error', description: errData.error || 'Failed to add note', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!selectedShopId) return;
+    setNoteDeleting(noteId);
+    try {
+      const res = await apiFetch(`/api/shops/${selectedShopId}/notes?noteId=${noteId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        toast({ title: 'Note Deleted', description: 'The note has been removed' });
+        setShopNotes(prev => prev.filter(n => n.id !== noteId));
+      } else {
+        toast({ title: 'Error', description: 'Failed to delete note', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setNoteDeleting(null);
+    }
+  };
+
   useEffect(() => {
     fetchShopDetail();
     fetchBalanceTrend();
-  }, [fetchShopDetail, fetchBalanceTrend]);
+    fetchShopNotes();
+  }, [fetchShopDetail, fetchBalanceTrend, fetchShopNotes]);
 
   const handleBack = () => {
     setCurrentView('admin-shops');
@@ -923,6 +1003,99 @@ export default function ShopDetailAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Shop Notes Section */}
+      <Card className="card-elevated">
+        <CardHeader className="pb-2 pt-4 px-5">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              Notes
+            </CardTitle>
+            <Badge variant="secondary" className="text-[11px]">
+              {shopNotes.length}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="px-5 pb-5 space-y-4">
+          {/* Add Note */}
+          <div className="space-y-2">
+            <Textarea
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              placeholder="Add a note about this shop..."
+              className="input-enhanced resize-none"
+              rows={3}
+            />
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                onClick={handleAddNote}
+                disabled={noteSaving || !newNote.trim()}
+                className="bg-primary hover:bg-primary/90 focus-glow"
+              >
+                {noteSaving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+                Add Note
+              </Button>
+            </div>
+          </div>
+
+          {/* Notes List */}
+          {notesLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex gap-3">
+                  <div className="h-8 w-8 rounded-full bg-muted animate-pulse shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 w-24 bg-muted rounded animate-pulse" />
+                    <div className="h-4 w-full bg-muted rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : shopNotes.length === 0 ? (
+            <div className="text-center py-6">
+              <MessageSquare className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
+              <p className="font-medium text-muted-foreground text-sm">No notes yet</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">Add notes to keep track of important information</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
+              {shopNotes.map((note) => (
+                <div key={note.id} className="rounded-lg border border-border/50 bg-muted/30 p-3 group">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <UserCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-xs font-medium text-foreground">{note.creatorName || note.createdBy}</span>
+                        <span className="text-[10px] text-muted-foreground tabular-nums">
+                          {new Date(note.createdAt).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {' · '}
+                          {new Date(note.createdAt).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground/90 whitespace-pre-wrap">{note.note}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                      onClick={() => handleDeleteNote(note.id)}
+                      disabled={noteDeleting === note.id}
+                    >
+                      {noteDeleting === note.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Recent Transactions Table */}
       <Card className="card-elevated">
