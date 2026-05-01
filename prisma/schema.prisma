@@ -19,9 +19,14 @@ model User {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  orderbookerShops Shop[]
-  creditTransactions Transaction[] @relation("CreditBy")
-  auditLogs         AuditLog[]
+  orderbookerShops    Shop[]
+  creditTransactions  Transaction[] @relation("CreditBy")
+  auditLogs           AuditLog[]
+  shopNotes           ShopNote[]    @relation("NoteBy")
+  shopVisits          ShopVisit[]   @relation("VisitsBy")
+  dailyTargetsFor     DailyTarget[] @relation("TargetsFor")
+  dailyTargetsBy      DailyTarget[] @relation("TargetsBy")
+  preferences         UserPreference?
 
   @@index([username])
   @@index([role])
@@ -44,6 +49,8 @@ model Shop {
 
   orderbooker  User          @relation(fields: [orderbookerId], references: [id])
   transactions Transaction[]
+  notes       ShopNote[]
+  visits      ShopVisit[]
 
   @@index([orderbookerId])
   @@index([routeDay])
@@ -96,4 +103,69 @@ model AuditLog {
   @@index([entityType])
   @@index([performedBy])
   @@index([createdAt])
+}
+
+// --- New models for mobile app features ---
+
+model ShopNote {
+  id        String   @id @default(cuid())
+  shopId    String
+  note      String
+  createdBy String   // userId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shop    Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  creator User           @relation("NoteBy", fields: [createdBy], references: [id])
+
+  @@index([shopId])
+  @@index([createdBy])
+}
+
+model ShopVisit {
+  id            String   @id @default(cuid())
+  shopId        String
+  orderbookerId String   // userId
+  gpsLat        Float?
+  gpsLng        Float?
+  gpsAddress    String?
+  inRange       Boolean  @default(true) // whether visit was within 100m radius
+  createdAt     DateTime @default(now())
+
+  shop         Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  orderbooker  User           @relation("VisitsBy", fields: [orderbookerId], references: [id])
+
+  @@index([shopId])
+  @@index([orderbookerId])
+  @@index([createdAt])
+}
+
+model DailyTarget {
+  id             String   @id @default(cuid())
+  orderbookerId  String   // userId
+  target         Float    // monthly recovery target in PKR
+  month          String   // "YYYY-MM" format e.g. "2026-05"
+  createdBy      String   // admin userId who set the target
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orderbooker User           @relation("TargetsFor", fields: [orderbookerId], references: [id])
+  creator     User           @relation("TargetsBy", fields: [createdBy], references: [id])
+
+  @@unique([orderbookerId, month])
+  @@index([orderbookerId])
+  @@index([month])
+}
+
+model UserPreference {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  tourCompleted  Boolean  @default(false)
+  preferences    String?  // JSON string for future extensibility
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

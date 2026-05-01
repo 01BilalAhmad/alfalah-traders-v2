@@ -75,10 +75,65 @@ export async function GET(request: NextRequest) {
 
     // 3. Get user info
     const userRes = await client.query(
-      'SELECT id, username, name, role, phone, status FROM "User" WHERE id = $1',
+      'SELECT id, username, name, role, phone, status, "allRoutesEnabled" FROM "User" WHERE id = $1',
       [userId]
     );
     const user = userRes.rows[0];
+
+    // 4. Get shop notes for this orderbooker's shops
+    let shopNotes: any[] = [];
+    try {
+      const notesRes = await client.query(
+        `SELECT n.id, n."shopId", n.note, n."createdBy", n."createdAt", n."updatedAt"
+         FROM "ShopNote" n
+         INNER JOIN "Shop" s ON n."shopId" = s.id
+         WHERE s."orderbookerId" = $1
+         ORDER BY n."updatedAt" DESC`,
+        [userId]
+      );
+      shopNotes = notesRes.rows.map((n: any) => ({
+        id: n.id,
+        shopId: n.shopId,
+        note: n.note,
+        createdBy: n.createdBy,
+        createdAt: n.createdAt instanceof Date ? n.createdAt.toISOString() : n.createdAt,
+        updatedAt: n.updatedAt instanceof Date ? n.updatedAt.toISOString() : n.updatedAt,
+      }));
+    } catch { /* ShopNote table may not exist yet */ }
+
+    // 5. Get daily target for current month
+    let dailyTarget: any = null;
+    try {
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const targetRes = await client.query(
+        'SELECT * FROM "DailyTarget" WHERE "orderbookerId" = $1 AND month = $2',
+        [userId, currentMonth]
+      );
+      if (targetRes.rows.length > 0) {
+        dailyTarget = {
+          id: targetRes.rows[0].id,
+          orderbookerId: targetRes.rows[0].orderbookerId,
+          target: Number(targetRes.rows[0].target),
+          month: targetRes.rows[0].month,
+        };
+      }
+    } catch { /* DailyTarget table may not exist yet */ }
+
+    // 6. Get user preferences
+    let userPreferences: any = null;
+    try {
+      const prefRes = await client.query(
+        'SELECT * FROM "UserPreference" WHERE "userId" = $1',
+        [userId]
+      );
+      if (prefRes.rows.length > 0) {
+        userPreferences = {
+          tourCompleted: prefRes.rows[0].tourCompleted,
+          preferences: prefRes.rows[0].preferences ? JSON.parse(prefRes.rows[0].preferences) : null,
+        };
+      }
+    } catch { /* UserPreference table may not exist yet */ }
 
     await client.end();
 
@@ -92,7 +147,11 @@ export async function GET(request: NextRequest) {
         role: user.role,
         phone: user.phone,
         status: user.status,
+        allRoutesEnabled: user.allRoutesEnabled ?? false,
       } : null,
+      shopNotes,
+      dailyTarget,
+      userPreferences,
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {
