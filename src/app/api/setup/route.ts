@@ -93,8 +93,14 @@ export async function POST() {
     const userRes = await client.query('SELECT COUNT(*) as count FROM "User"');
     const userCount = parseInt(userRes.rows[0].count);
 
+    // Always run migrations for existing databases
+    try {
+      await client.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "allRoutesEnabled" BOOLEAN NOT NULL DEFAULT false`);
+    } catch { /* column already exists, ignore */ }
+
     if (userCount > 0) {
-      return NextResponse.json({ success: true, message: 'Tables exist, users already seeded', userCount });
+      await client.end();
+      return NextResponse.json({ success: true, message: 'Tables exist, migrations applied', userCount });
     }
 
     // Hash passwords (simple sync-compatible way)
