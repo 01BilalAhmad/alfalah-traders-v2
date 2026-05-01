@@ -33,6 +33,8 @@ import {
   AlertTriangle,
   Navigation,
   Clock,
+  MapPin,
+  FileDown,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -68,6 +70,9 @@ const adminNavItems: NavItem[] = [
   { id: 'admin-overdue-shops', label: 'Overdue Shops', icon: <AlertTriangle className="h-5 w-5" /> },
   { id: 'admin-visit-tracking', label: 'Visit Tracking', icon: <Navigation className="h-5 w-5" /> },
   { id: 'admin-pending-credits', label: 'Pending Credits', icon: <Clock className="h-5 w-5" /> },
+  { id: 'admin-map-view', label: 'Map View', icon: <MapPin className="h-5 w-5" /> },
+  { id: 'admin-calendar', label: 'Route Calendar', icon: <CalendarDays className="h-5 w-5" /> },
+  { id: 'admin-export-data', label: 'Export & Reports', icon: <FileDown className="h-5 w-5" /> },
 ];
 
 interface AdminLayoutProps {
