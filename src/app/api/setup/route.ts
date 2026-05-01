@@ -89,6 +89,93 @@ export async function POST() {
       );
     `);
 
+    // ============================================
+    // New tables for mobile app features
+    // ============================================
+
+    // ShopNote table - shop notes/remarks
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "ShopNote" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "shopId" TEXT NOT NULL,
+        "note" TEXT NOT NULL,
+        "createdBy" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "ShopNote_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE,
+        CONSTRAINT "ShopNote_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "User"("id")
+      );
+    `);
+
+    // ShopNote indexes
+    try {
+      await client.query(`CREATE INDEX IF NOT EXISTS "ShopNote_shopId_idx" ON "ShopNote"("shopId")`);
+      await client.query(`CREATE INDEX IF NOT EXISTS "ShopNote_createdBy_idx" ON "ShopNote"("createdBy")`);
+    } catch { /* index already exists, ignore */ }
+
+    // ShopVisit table - GPS visit verification
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "ShopVisit" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "shopId" TEXT NOT NULL,
+        "orderbookerId" TEXT NOT NULL,
+        "gpsLat" DOUBLE PRECISION,
+        "gpsLng" DOUBLE PRECISION,
+        "gpsAddress" TEXT,
+        "inRange" BOOLEAN NOT NULL DEFAULT true,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "ShopVisit_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE,
+        CONSTRAINT "ShopVisit_orderbookerId_fkey" FOREIGN KEY ("orderbookerId") REFERENCES "User"("id")
+      );
+    `);
+
+    // ShopVisit indexes
+    try {
+      await client.query(`CREATE INDEX IF NOT EXISTS "ShopVisit_shopId_idx" ON "ShopVisit"("shopId")`);
+      await client.query(`CREATE INDEX IF NOT EXISTS "ShopVisit_orderbookerId_idx" ON "ShopVisit"("orderbookerId")`);
+      await client.query(`CREATE INDEX IF NOT EXISTS "ShopVisit_createdAt_idx" ON "ShopVisit"("createdAt")`);
+    } catch { /* index already exists, ignore */ }
+
+    // DailyTarget table - monthly recovery targets
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "DailyTarget" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "orderbookerId" TEXT NOT NULL,
+        "target" DOUBLE PRECISION NOT NULL,
+        "month" TEXT NOT NULL,
+        "createdBy" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "DailyTarget_orderbookerId_fkey" FOREIGN KEY ("orderbookerId") REFERENCES "User"("id"),
+        CONSTRAINT "DailyTarget_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "User"("id"),
+        CONSTRAINT "DailyTarget_orderbookerId_month_key" UNIQUE ("orderbookerId", "month")
+      );
+    `);
+
+    // DailyTarget indexes
+    try {
+      await client.query(`CREATE INDEX IF NOT EXISTS "DailyTarget_orderbookerId_idx" ON "DailyTarget"("orderbookerId")`);
+      await client.query(`CREATE INDEX IF NOT EXISTS "DailyTarget_month_idx" ON "DailyTarget"("month")`);
+    } catch { /* index already exists, ignore */ }
+
+    // UserPreference table - app preferences (tour completed etc)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "UserPreference" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL UNIQUE,
+        "tourCompleted" BOOLEAN NOT NULL DEFAULT false,
+        "preferences" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "UserPreference_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE
+      );
+    `);
+
+    // UserPreference index
+    try {
+      await client.query(`CREATE INDEX IF NOT EXISTS "UserPreference_userId_idx" ON "UserPreference"("userId")`);
+    } catch { /* index already exists, ignore */ }
+
     // Check if users exist
     const userRes = await client.query('SELECT COUNT(*) as count FROM "User"');
     const userCount = parseInt(userRes.rows[0].count);
