@@ -157,10 +157,16 @@
 /* Professional Table Styling */
 .data-table-header {
   background: linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .dark .data-table-header {
   background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 /* Custom Scrollbar */

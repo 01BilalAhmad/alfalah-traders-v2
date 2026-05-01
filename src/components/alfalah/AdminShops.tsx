@@ -794,9 +794,9 @@ export default function AdminShops() {
             </span>
           </div>
         )}
-        <CardContent className="p-0">
+        <CardContent className="px-0 pb-0">
           {loading ? (
-            <div className="p-5 space-y-4">
+            <div className="px-4 py-5 space-y-4">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4">
                   <Skeleton className="skeleton-shimmer h-5 w-32" />
@@ -842,7 +842,7 @@ export default function AdminShops() {
               </div>
             </div>
           ) : (
-            <ScrollArea className="max-h-[520px]">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="data-table-header hover:bg-transparent">
@@ -968,14 +968,14 @@ export default function AdminShops() {
                   })}
                 </TableBody>
               </Table>
-            </ScrollArea>
+            </div>
           )}
         </CardContent>
       </Card>
 
       {/* Bulk Action Bar */}
       {selectedShopIds.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up lg:left-64">
+        <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up lg:left-64 mb-14">
           <div className="mx-2 mb-2">
             <div className="bg-background border border-border shadow-lg rounded-xl px-4 py-3 flex items-center justify-between gap-3 backdrop-blur-sm bg-background/95">
               <div className="flex items-center gap-3">
