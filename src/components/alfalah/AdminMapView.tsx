@@ -906,20 +906,38 @@ export default function AdminMapView() {
           </Card>
 
           {/* Location tracking notice */}
-          <Card className="card-elevated border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
-            <CardContent className="p-4 flex items-start gap-3">
-              <div className="h-8 w-8 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5">
-                <Info className="h-4 w-4 text-amber-600" />
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-400">Location Tracking Not Enabled</h4>
-                <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-0.5 leading-relaxed">
-                  Enable location tracking in the APK to see shop markers on the map. Shop coordinates will be captured
-                  automatically during orderbooker visits and displayed as interactive pins above.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          {mapMarkers.length === 0 ? (
+            <Card className="card-elevated border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+              <CardContent className="p-4 flex items-start gap-3">
+                <div className="h-8 w-8 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                  <Info className="h-4 w-4 text-amber-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-400">No Shop Locations Yet</h4>
+                  <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-0.5 leading-relaxed">
+                    Shop markers appear on the map when orderbookers submit recovery with GPS location or mark a GPS visit.
+                    {shopLocations.length === 0
+                      ? ' No GPS data has been recorded yet. Ask orderbookers to enable GPS when submitting recovery.'
+                      : ` ${shopLocations.length} shop(s) have GPS data but may not match your current filters.`}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="card-elevated border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
+              <CardContent className="p-4 flex items-start gap-3">
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">GPS Tracking Active</h4>
+                  <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-0.5 leading-relaxed">
+                    {mapMarkers.length} shop(s) are pinned on the map based on GPS data from orderbooker visits and recovery submissions.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
