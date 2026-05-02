@@ -61,7 +61,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   let client;
   try {
-    const { username, password, name, phone } = await request.json();
+    const { username, password, name, phone, companyId } = await request.json();
 
     if (!username || !password || !name) {
       return NextResponse.json({ error: 'Username, password, and name are required' }, { status: 400 });
@@ -89,10 +89,10 @@ export async function POST(request: NextRequest) {
     const userId = `user_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
     const now = new Date().toISOString();
     const obRes = await client.query(
-      `INSERT INTO "User" (id, username, password, name, phone, role, status, "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, 'orderbooker', 'active', $6, $7)
-       RETURNING id, username, name, phone, role, status, "createdAt", "updatedAt"`,
-      [userId, normalizedUsername, hashedPassword, name, phone || null, now, now]
+      `INSERT INTO "User" (id, username, password, name, phone, role, status, "companyId", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, 'orderbooker', 'active', $6, $7, $8)
+       RETURNING id, username, name, phone, role, status, "companyId", "createdAt", "updatedAt"`,
+      [userId, normalizedUsername, hashedPassword, name, phone || null, companyId || null, now, now]
     );
 
     const orderbooker = obRes.rows[0];

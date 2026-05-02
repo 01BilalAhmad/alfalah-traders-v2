@@ -178,7 +178,7 @@ export default function AdminCreditPosting() {
   const [selectedOrderbooker, setSelectedOrderbooker] = useState<string>('all');
   const [selectedDay, setSelectedDay] = useState<string>('');
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [selectedCompany, setSelectedCompany] = useState<string>('all');
+  const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -264,7 +264,12 @@ export default function AdminCreditPosting() {
       const res = await apiFetch('/api/companies?status=active');
       if (res.ok) {
         const data = await res.json();
-        setCompanies(data.companies || []);
+        const comps = data.companies || [];
+        setCompanies(comps);
+        // Auto-select first company if available
+        if (comps.length > 0 && !selectedCompany) {
+          setSelectedCompany(comps[0].id);
+        }
       }
     } catch {
       // silent
@@ -499,7 +504,7 @@ export default function AdminCreditPosting() {
           amount,
           description: creditDescription.trim() || 'Goods supplied',
           createdBy: user.id,
-          companyId: selectedCompany !== 'all' ? selectedCompany : null,
+          companyId: selectedCompany || null,
         }),
       });
 
@@ -580,6 +585,12 @@ export default function AdminCreditPosting() {
       return;
     }
     if (!user) return;
+
+    // Require company selection when companies exist
+    if (companies.length > 0 && !selectedCompany) {
+      toast({ title: 'Company Required', description: 'Please select a company at the top before posting credit', variant: 'destructive' });
+      return;
+    }
 
     const amount = parseFloat(creditAmount);
 
@@ -793,16 +804,6 @@ export default function AdminCreditPosting() {
                 <span className="text-sm font-semibold text-foreground">Company:</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSelectedCompany('all')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    selectedCompany === 'all'
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                  }`}
-                >
-                  All Companies
-                </button>
                 {companies.map((company) => (
                   <button
                     key={company.id}
@@ -817,7 +818,7 @@ export default function AdminCreditPosting() {
                   </button>
                 ))}
               </div>
-              {selectedCompany !== 'all' && (
+              {selectedCompany && (
                 <p className="text-xs text-muted-foreground ml-auto">
                   Credits will be posted under <span className="font-semibold text-primary">{companies.find(c => c.id === selectedCompany)?.name}</span>
                 </p>
@@ -1096,7 +1097,7 @@ export default function AdminCreditPosting() {
                       </TableCell>
                       <TableCell className="text-right">
               <div className="flex items-center justify-end gap-1.5">
-                {selectedCompany !== 'all' ? (
+                {selectedCompany ? (
                   // Show company-specific balance when a company is selected
                   (() => {
                     const companyBal = shop.companyBalances?.find(cb => cb.companyId === selectedCompany);

@@ -192,7 +192,6 @@ model Company {
   orderbookers       User[]
   companyBalances    ShopCompanyBalance[]
   transactions       Transaction[]
-  dailyTargets       DailyTarget[]
 
   @@index([name])
   @@index([status])
