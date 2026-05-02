@@ -9,6 +9,8 @@ export interface AppUser {
   phone?: string;
   status: string;
   allRoutesEnabled?: boolean;
+  companyId?: string | null;
+  companyName?: string | null;
   createdAt?: string;
 }
 

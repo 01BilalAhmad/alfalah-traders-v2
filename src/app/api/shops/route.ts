@@ -73,6 +73,35 @@ export async function GET(request: NextRequest) {
       orderbooker: s.ob_id ? { id: s.ob_id, name: s.ob_name } : null,
     }));
 
+    // Fetch company balances for all shops (if ShopCompanyBalance table exists)
+    try {
+      const shopIds = shops.map((s: any) => s.id);
+      if (shopIds.length > 0) {
+        const scbRes = await client.query(
+          `SELECT scb."shopId", scb."companyId", scb.balance, scb."creditLimit", co.name AS "companyName"
+           FROM "ShopCompanyBalance" scb
+           LEFT JOIN "Company" co ON scb."companyId" = co.id`,
+        );
+        // Group by shopId
+        const companyBalancesMap: Record<string, any[]> = {};
+        for (const row of scbRes.rows) {
+          if (!companyBalancesMap[row.shopId]) companyBalancesMap[row.shopId] = [];
+          companyBalancesMap[row.shopId].push({
+            companyId: row.companyId,
+            companyName: row.companyName,
+            balance: Number(row.balance),
+            creditLimit: Number(row.creditLimit),
+          });
+        }
+        // Attach to shops
+        for (const shop of shops) {
+          (shop as any).companyBalances = companyBalancesMap[shop.id] || [];
+        }
+      }
+    } catch {
+      // ShopCompanyBalance table might not exist yet - just skip
+    }
+
     await client.end();
     return NextResponse.json(shops);
   } catch (error) {

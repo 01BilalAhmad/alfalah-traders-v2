@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const createdBy = searchParams.get('createdBy');
+    const companyId = searchParams.get('companyId');
 
     client = getPgClient();
     await client.connect();
@@ -47,6 +48,10 @@ export async function GET(request: NextRequest) {
     if (createdBy) {
       conditions.push(`t."createdBy" = $${paramIndex++}`);
       params.push(createdBy);
+    }
+    if (companyId) {
+      conditions.push(`t."companyId" = $${paramIndex++}`);
+      params.push(companyId);
     }
     if (orderbookerId) {
       conditions.push(`s."orderbookerId" = $${paramIndex++}`);
@@ -77,10 +82,12 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
     const txnRes = await client.query(
       `SELECT t.*, s.id AS "shop_id", s.name AS "shop_name", s.area AS "shop_area",
-              c.id AS "creator_id", c.name AS "creator_name", c.role AS "creator_role"
+              c.id AS "creator_id", c.name AS "creator_name", c.role AS "creator_role",
+              co.id AS "company_id", co.name AS "company_name"
        FROM "Transaction" t
        LEFT JOIN "Shop" s ON t."shopId" = s.id
        LEFT JOIN "User" c ON t."createdBy" = c.id
+       LEFT JOIN "Company" co ON t."companyId" = co.id
        ${whereClause}
        ORDER BY t."createdAt" DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -103,6 +110,7 @@ export async function GET(request: NextRequest) {
       gpsLat: t.gpsLat,
       gpsLng: t.gpsLng,
       gpsAddress: t.gpsAddress,
+      companyId: t.companyId || null,
       createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : t.createdAt,
       shop: {
         id: t.shop_id,
@@ -114,6 +122,10 @@ export async function GET(request: NextRequest) {
         name: t.creator_name,
         role: t.creator_role,
       },
+      company: t.company_id ? {
+        id: t.company_id,
+        name: t.company_name,
+      } : null,
     }));
 
     await client.end();
@@ -134,7 +146,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   let client;
   try {
-    const { shopId, type, amount, description, createdBy, gpsLat, gpsLng, gpsAddress } = await request.json();
+    const { shopId, type, amount, description, createdBy, gpsLat, gpsLng, gpsAddress, companyId } = await request.json();
 
     if (!shopId || !type || !amount || !createdBy) {
       return NextResponse.json({ error: 'Shop, type, amount, and creator are required' }, { status: 400 });
@@ -176,6 +188,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
     const shop = shopRes.rows[0];
+
+    // Validate companyId if provided (after client connect)
+    if (companyId) {
+      try {
+        const companyRes = await client.query('SELECT id, status FROM "Company" WHERE id = $1', [companyId]);
+        if (companyRes.rows.length === 0) {
+          await client.query('ROLLBACK');
+          await client.end();
+          return NextResponse.json({ error: 'Company not found' }, { status: 400 });
+        }
+        if (companyRes.rows[0].status === 'inactive') {
+          await client.query('ROLLBACK');
+          await client.end();
+          return NextResponse.json({ error: 'Cannot post to inactive company' }, { status: 400 });
+        }
+      } catch {
+        // If Company table doesn't exist yet, just proceed
+      }
+    }
 
     // Validation 4: For credit type, check if shop is active
     if (type === 'credit' && shop.status !== 'active') {
@@ -259,10 +290,10 @@ export async function POST(request: NextRequest) {
     // Create transaction record
     const txnId = `txn_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
     const txnRes = await client.query(
-      `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "gpsLat", "gpsLng", "gpsAddress", "createdAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "gpsLat", "gpsLng", "gpsAddress", "companyId", "createdAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
-      [txnId, shopId, type, txnStatus, amount, previousBalance, Math.round(newBalance * 100) / 100, description || null, createdBy, gpsLat || null, gpsLng || null, gpsAddress || null, new Date().toISOString()]
+      [txnId, shopId, type, txnStatus, amount, previousBalance, Math.round(newBalance * 100) / 100, description || null, createdBy, gpsLat || null, gpsLng || null, gpsAddress || null, companyId || null, new Date().toISOString()]
     );
 
     const transaction = txnRes.rows[0];
@@ -273,6 +304,38 @@ export async function POST(request: NextRequest) {
         `UPDATE "Shop" SET balance = $1 WHERE id = $2`,
         [Math.round(newBalance * 100) / 100, shopId]
       );
+
+      // Update ShopCompanyBalance if companyId is provided
+      if (companyId) {
+        try {
+          // Get current company balance for this shop
+          const scbRes = await client.query(
+            `SELECT id, balance, "creditLimit" FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND "companyId" = $2`,
+            [shopId, companyId]
+          );
+
+          if (scbRes.rows.length > 0) {
+            // Update existing balance
+            const currentCompanyBalance = Number(scbRes.rows[0].balance);
+            const newCompanyBalance = Math.round((currentCompanyBalance + amount) * 100) / 100;
+            await client.query(
+              `UPDATE "ShopCompanyBalance" SET balance = $1, "updatedAt" = $2 WHERE id = $3`,
+              [newCompanyBalance, new Date().toISOString(), scbRes.rows[0].id]
+            );
+          } else {
+            // Create new ShopCompanyBalance entry
+            const scbId = `scb_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
+            await client.query(
+              `INSERT INTO "ShopCompanyBalance" (id, "shopId", "companyId", balance, "creditLimit", "createdAt", "updatedAt")
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [scbId, shopId, companyId, Math.round(amount * 100) / 100, 0, new Date().toISOString(), new Date().toISOString()]
+            );
+          }
+        } catch (scbErr) {
+          // ShopCompanyBalance table might not exist yet - non-blocking
+          console.warn('ShopCompanyBalance update failed (table may not exist yet):', scbErr);
+        }
+      }
     }
 
     await client.query('COMMIT');
@@ -308,13 +371,26 @@ export async function POST(request: NextRequest) {
 
     await client.end();
 
+    // Fetch company name if companyId provided
+    let companyInfo: { id: string; name: string } | null = null;
+    if (companyId) {
+      try {
+        const companyInfoRes = await client.query('SELECT id, name FROM "Company" WHERE id = $1', [companyId]);
+        if (companyInfoRes.rows.length > 0) {
+          companyInfo = { id: companyInfoRes.rows[0].id, name: companyInfoRes.rows[0].name };
+        }
+      } catch { /* non-blocking */ }
+    }
+
     return NextResponse.json({
       ...transaction,
       amount: Number(transaction.amount),
       previousBalance: Number(transaction.previousBalance),
       newBalance: Number(transaction.newBalance),
+      companyId: transaction.companyId || null,
       shop: { id: shopInfoRes.rows[0]?.id, name: shopInfoRes.rows[0]?.name },
       creator: { id: creatorInfoRes.rows[0]?.id, name: creatorInfoRes.rows[0]?.name },
+      company: companyInfo,
       creditLimitWarning,
       warnings: warnings.length > 0 ? warnings : undefined,
     }, { status: 201 });

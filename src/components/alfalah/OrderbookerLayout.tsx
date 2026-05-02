@@ -72,6 +72,15 @@ function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(amount);
 }
 
+// Helper: Get the display balance for a shop based on user's company assignment
+function getShopDisplayBalance(shop: Shop, userCompanyId: string | null): number {
+  if (!userCompanyId || !shop.companyBalances || shop.companyBalances.length === 0) {
+    return shop.balance; // No company assigned or no company balances, show total
+  }
+  const companyBal = shop.companyBalances.find(cb => cb.companyId === userCompanyId);
+  return companyBal ? companyBal.balance : 0;
+}
+
 interface Shop {
   id: string;
   name: string;
@@ -83,6 +92,7 @@ interface Shop {
   creditLimit: number;
   status: string;
   orderbooker: { id: string; name: string };
+  companyBalances?: { companyId: string; companyName: string; balance: number; creditLimit: number }[];
 }
 
 interface RecoveryTransaction {
@@ -1233,6 +1243,7 @@ function OrderbookerDashboard() {
           createdBy: user.id,
           gpsLat: gpsLat || undefined,
           gpsLng: gpsLng || undefined,
+          companyId: user.companyId || undefined,
         }),
       });
 
@@ -1281,14 +1292,15 @@ function OrderbookerDashboard() {
     }
   };
 
-  const totalOutstanding = shops.reduce((s, shop) => s + shop.balance, 0);
+  const totalOutstanding = shops.reduce((s, shop) => s + getShopDisplayBalance(shop, user?.companyId || null), 0);
 
   // Progress percentage for shop visit progress bar
   const visitProgress = shopsTotal > 0 ? Math.round((shopsVisited / shopsTotal) * 100) : 0;
 
   // Helper: render a shop card
   const renderShopCard = (shop: Shop, idx: number) => {
-    const isOverLimit = shop.creditLimit > 0 && shop.balance > shop.creditLimit;
+    const displayBalance = getShopDisplayBalance(shop, user?.companyId || null);
+    const isOverLimit = shop.creditLimit > 0 && displayBalance > shop.creditLimit;
     const isTodayShop = shop.routeDay === todayDay;
     return (
       <Card
@@ -1332,15 +1344,15 @@ function OrderbookerDashboard() {
                   </p>
                   {isOverLimit && (
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                      Over limit ({formatCurrency(shop.balance)} / {formatCurrency(shop.creditLimit)})
+                      Over limit ({formatCurrency(displayBalance)} / {formatCurrency(shop.creditLimit)})
                     </span>
                   )}
                 </>
               )}
             </div>
             <div className="text-right shrink-0 ml-3">
-              <p className={`text-lg font-bold ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                {formatCurrency(shop.balance)}
+              <p className={`text-lg font-bold ${displayBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {formatCurrency(displayBalance)}
               </p>
               <p className="text-[10px] text-muted-foreground">Balance</p>
             </div>
@@ -1740,7 +1752,7 @@ function RecoveryDialog({
               </div>
               <h3 className="font-bold text-base">Collect Recovery</h3>
             </div>
-            <p className="text-sm text-muted-foreground mb-5 pl-10">{shop.name} &bull; Current: <span className="font-semibold text-red-600">{formatCurrency(shop.balance)}</span></p>
+            <p className="text-sm text-muted-foreground mb-5 pl-10">{shop.name} &bull; Current: <span className="font-semibold text-red-600">{formatCurrency(getShopDisplayBalance(shop, user?.companyId || null))}</span></p>
 
             <div className="space-y-4">
               <div>
@@ -1903,8 +1915,8 @@ function ShopDetailDialog({
               <Card className="stat-card-red">
                 <CardContent className="p-3">
                   <p className="text-[10px] text-muted-foreground font-medium">Current Balance</p>
-                  <p className={`text-lg font-bold ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'} tabular-nums`}>
-                    {formatCurrency(shop.balance)}
+                  <p className={`text-lg font-bold ${getShopDisplayBalance(shop, user?.companyId || null) > 0 ? 'text-red-600' : 'text-green-600'} tabular-nums`}>
+                    {formatCurrency(getShopDisplayBalance(shop, user?.companyId || null))}
                   </p>
                 </CardContent>
               </Card>
@@ -1919,26 +1931,28 @@ function ShopDetailDialog({
             </div>
 
             {/* Credit Limit Utilization */}
-            {shop.creditLimit > 0 && (
+            {shop.creditLimit > 0 && (() => {
+              const displayBal = getShopDisplayBalance(shop, user?.companyId || null);
+              return (
               <Card className="overflow-hidden">
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[10px] text-muted-foreground font-medium">Limit Used</span>
                     <span className="text-[10px] font-semibold text-foreground tabular-nums">
-                      {Math.min(Math.round((shop.balance / shop.creditLimit) * 100), 100)}%
+                      {Math.min(Math.round((displayBal / shop.creditLimit) * 100), 100)}%
                     </span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
-                        shop.balance > shop.creditLimit
+                        displayBal > shop.creditLimit
                           ? 'bg-red-500'
-                          : shop.balance > shop.creditLimit * 0.8
+                          : displayBal > shop.creditLimit * 0.8
                             ? 'bg-amber-500'
                             : 'bg-green-500'
                       }`}
                       style={{
-                        width: `${Math.min(Math.round((shop.balance / shop.creditLimit) * 100), 100)}%`,
+                        width: `${Math.min(Math.round((displayBal / shop.creditLimit) * 100), 100)}%`,
                       }}
                     />
                   </div>
@@ -1948,7 +1962,8 @@ function ShopDetailDialog({
                   </div>
                 </CardContent>
               </Card>
-            )}
+            );
+            })()}
 
             {/* Recent Transactions */}
             <div>
@@ -2212,8 +2227,8 @@ function LedgerView() {
                             <p className="text-xs text-muted-foreground">{shop.area || '\u2014'}{shop.ownerName ? ` \u2022 ${shop.ownerName}` : ''}</p>
                           </div>
                           <div className="text-right shrink-0 ml-3">
-                            <p className={`font-bold text-sm ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              {formatCurrency(shop.balance)}
+                            <p className={`font-bold text-sm ${getShopDisplayBalance(shop, user?.companyId || null) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              {formatCurrency(getShopDisplayBalance(shop, user?.companyId || null))}
                             </p>
                             <p className="text-[10px] text-muted-foreground">Balance</p>
                           </div>

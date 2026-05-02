@@ -64,6 +64,7 @@ import {
   Pencil,
   Trash2,
   Clock,
+  Building2,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { WORKING_DAYS, getTodayRouteDay, validateTransaction, TRANSACTION_RULES, getCreditLimitStatus } from '@/lib/utils';
@@ -81,6 +82,7 @@ interface Shop {
   creditLimit: number;
   status: string;
   orderbooker: { id: string; name: string };
+  companyBalances?: { companyId: string; companyName: string; balance: number; creditLimit: number }[];
 }
 
 interface Orderbooker {
@@ -162,12 +164,21 @@ function highlightMatch(text: string, query: string) {
   );
 }
 
+interface Company {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+}
+
 export default function AdminCreditPosting() {
   const { user, creditSessionCount, incrementCreditSessionCount } = useAppStore();
   const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [selectedOrderbooker, setSelectedOrderbooker] = useState<string>('all');
   const [selectedDay, setSelectedDay] = useState<string>('');
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -242,6 +253,18 @@ export default function AdminCreditPosting() {
       if (res.ok) {
         const data = await res.json();
         setOrderbookers(data);
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
+  const fetchCompanies = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/companies?status=active');
+      if (res.ok) {
+        const data = await res.json();
+        setCompanies(data.companies || []);
       }
     } catch {
       // silent
@@ -376,7 +399,8 @@ export default function AdminCreditPosting() {
 
   useEffect(() => {
     fetchOrderbookers();
-  }, [fetchOrderbookers]);
+    fetchCompanies();
+  }, [fetchOrderbookers, fetchCompanies]);
 
   useEffect(() => {
     fetchShops();
@@ -475,6 +499,7 @@ export default function AdminCreditPosting() {
           amount,
           description: creditDescription.trim() || 'Goods supplied',
           createdBy: user.id,
+          companyId: selectedCompany !== 'all' ? selectedCompany : null,
         }),
       });
 
@@ -758,6 +783,50 @@ export default function AdminCreditPosting() {
         <p className="text-sm text-muted-foreground mt-0.5">Post credit entries for shops</p>
       </div>
 
+      {/* Company Selector Banner (if companies exist) */}
+      {companies.length > 0 && (
+        <Card className="border-primary/20 bg-primary/5 dark:bg-primary/10">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-center gap-2 shrink-0">
+                <Building2 className="h-5 w-5 text-primary" />
+                <span className="text-sm font-semibold text-foreground">Company:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedCompany('all')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    selectedCompany === 'all'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  }`}
+                >
+                  All Companies
+                </button>
+                {companies.map((company) => (
+                  <button
+                    key={company.id}
+                    onClick={() => setSelectedCompany(company.id)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      selectedCompany === company.id
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    }`}
+                  >
+                    {company.name}
+                  </button>
+                ))}
+              </div>
+              {selectedCompany !== 'all' && (
+                <p className="text-xs text-muted-foreground ml-auto">
+                  Credits will be posted under <span className="font-semibold text-primary">{companies.find(c => c.id === selectedCompany)?.name}</span>
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Summary Cards + Quick Post Toggle */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="alfalah-card-hover">
@@ -1027,14 +1096,29 @@ export default function AdminCreditPosting() {
                       </TableCell>
                       <TableCell className="text-right">
               <div className="flex items-center justify-end gap-1.5">
-                {shop.creditLimit > 0 && (
-                  <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                    /{formatCurrency(shop.creditLimit)}
-                  </span>
+                {selectedCompany !== 'all' ? (
+                  // Show company-specific balance when a company is selected
+                  (() => {
+                    const companyBal = shop.companyBalances?.find(cb => cb.companyId === selectedCompany);
+                    const displayBalance = companyBal ? companyBal.balance : 0;
+                    return (
+                      <span className={`font-semibold text-sm ${displayBalance > 0 ? 'text-red-600 dark:text-red-400' : displayBalance < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                        {formatCurrency(displayBalance)}
+                      </span>
+                    );
+                  })()
+                ) : (
+                  <>
+                    {shop.creditLimit > 0 && (
+                      <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                        /{formatCurrency(shop.creditLimit)}
+                      </span>
+                    )}
+                    <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600 dark:text-red-400' : shop.balance < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                            {formatCurrency(shop.balance)}
+                    </span>
+                  </>
                 )}
-                <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600 dark:text-red-400' : shop.balance < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
-                          {formatCurrency(shop.balance)}
-                </span>
               </div>
                       </TableCell>
                       <TableCell className="text-center">

@@ -165,6 +165,26 @@ export async function POST(request: NextRequest) {
           [newBalance, txn.shopId]
         );
 
+        // Update ShopCompanyBalance if transaction has companyId
+        if (txn.companyId) {
+          try {
+            const scbRes = await client.query(
+              `SELECT id, balance FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND "companyId" = $2`,
+              [txn.shopId, txn.companyId]
+            );
+            if (scbRes.rows.length > 0) {
+              const newCompanyBalance = Math.round((Number(scbRes.rows[0].balance) - Number(txn.amount)) * 100) / 100;
+              await client.query(
+                `UPDATE "ShopCompanyBalance" SET balance = $1, "updatedAt" = $2 WHERE id = $3`,
+                [newCompanyBalance, now, scbRes.rows[0].id]
+              );
+            }
+          } catch (scbErr) {
+            // ShopCompanyBalance table might not exist yet - non-blocking
+            console.warn('ShopCompanyBalance update on recovery approval failed:', scbErr);
+          }
+        }
+
         results.push({
           id: txn.id,
           shopName: txn.shop_name,

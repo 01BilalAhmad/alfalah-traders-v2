@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const normalizedUsername = username.trim().toLowerCase();
 
     const res = await client.query(
-      'SELECT id, username, name, role, phone, status, password, "createdAt", "allRoutesEnabled" FROM "User" WHERE LOWER(username) = $1',
+      'SELECT u.id, u.username, u.name, u.role, u.phone, u.status, u.password, u."createdAt", u."allRoutesEnabled", u."companyId", c.name AS "companyName" FROM "User" u LEFT JOIN "Company" c ON u."companyId" = c.id WHERE LOWER(u.username) = $1',
       [normalizedUsername]
     );
 
