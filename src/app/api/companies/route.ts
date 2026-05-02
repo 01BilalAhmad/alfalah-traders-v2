@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 
 // GET /api/companies - List all companies
 export async function GET(request: NextRequest) {
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const where: any = {};
     if (status) where.status = status;
 
-    const companies = await prisma.company.findMany({
+    const companies = await db.company.findMany({
       where,
       include: {
         _count: {
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if company with same name already exists
-    const existing = await prisma.company.findUnique({
+    const existing = await db.company.findUnique({
       where: { name: name.trim() },
     });
 
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Company with this name already exists' }, { status: 409 });
     }
 
-    const company = await prisma.company.create({
+    const company = await db.company.create({
       data: {
         name: name.trim(),
         description: description?.trim() || null,
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Audit log
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         action: 'create',
         entityType: 'company',

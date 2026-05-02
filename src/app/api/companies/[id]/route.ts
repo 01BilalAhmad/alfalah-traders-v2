@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/db';
 
 // GET /api/companies/[id] - Get single company
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const company = await prisma.company.findUnique({
+    const company = await db.company.findUnique({
       where: { id },
       include: {
         orderbookers: {
@@ -44,14 +44,14 @@ export async function PUT(
     const body = await request.json();
     const { name, description, status } = body;
 
-    const existing = await prisma.company.findUnique({ where: { id } });
+    const existing = await db.company.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
     // If name is being changed, check for duplicates
     if (name && name.trim() !== existing.name) {
-      const duplicate = await prisma.company.findUnique({
+      const duplicate = await db.company.findUnique({
         where: { name: name.trim() },
       });
       if (duplicate) {
@@ -59,7 +59,7 @@ export async function PUT(
       }
     }
 
-    const company = await prisma.company.update({
+    const company = await db.company.update({
       where: { id },
       data: {
         ...(name !== undefined && { name: name.trim() }),
@@ -69,7 +69,7 @@ export async function PUT(
     });
 
     // Audit log
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         action: 'edit',
         entityType: 'company',
@@ -95,7 +95,7 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    const existing = await prisma.company.findUnique({
+    const existing = await db.company.findUnique({
       where: { id },
       include: {
         _count: {
@@ -128,10 +128,10 @@ export async function DELETE(
     }
 
     // Safe to delete (ShopCompanyBalances will cascade)
-    await prisma.company.delete({ where: { id } });
+    await db.company.delete({ where: { id } });
 
     // Audit log
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         action: 'delete',
         entityType: 'company',
