@@ -25,6 +25,7 @@ import AdminPendingCredits from '@/components/alfalah/AdminPendingCredits';
 import AdminMapView from '@/components/alfalah/AdminMapView';
 import AdminCalendarView from '@/components/alfalah/AdminCalendarView';
 import AdminExportData from '@/components/alfalah/AdminExportData';
+import AdminCompanies from '@/components/alfalah/AdminCompanies';
 
 function AdminRouter() {
   const { currentView } = useAppStore();
@@ -70,6 +71,8 @@ function AdminRouter() {
       return <AdminCalendarView />;
     case 'admin-export-data':
       return <AdminExportData />;
+    case 'admin-companies':
+      return <AdminCompanies />;
     default:
       return <AdminDashboard />;
   }

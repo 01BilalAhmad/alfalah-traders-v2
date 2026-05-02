@@ -11,12 +11,14 @@ export async function GET() {
 
     // Get all orderbookers with active shop counts
     const obRes = await client.query(
-      `SELECT u.id, u.username, u.name, u.phone, u.status, u."createdAt", u."allRoutesEnabled",
+      `SELECT u.id, u.username, u.name, u.phone, u.status, u."createdAt", u."allRoutesEnabled", u."companyId",
+              c.name AS "companyName",
               COUNT(s.id) AS "activeShopCount"
        FROM "User" u
        LEFT JOIN "Shop" s ON u.id = s."orderbookerId" AND s.status = 'active'
+       LEFT JOIN "Company" c ON u."companyId" = c.id
        WHERE u.role = 'orderbooker'
-       GROUP BY u.id
+       GROUP BY u.id, c.name
        ORDER BY u.name ASC`
     );
     const orderbookers: any[] = obRes.rows;
@@ -37,6 +39,8 @@ export async function GET() {
           phone: ob.phone,
           status: ob.status,
           allRoutesEnabled: ob.allRoutesEnabled ?? false,
+          companyId: ob.companyId || null,
+          companyName: ob.companyName || null,
           createdAt: ob.createdAt instanceof Date ? ob.createdAt.toISOString() : ob.createdAt,
           totalShops: activeShopCount,
           totalOutstanding: Math.round(totalOutstanding * 100) / 100,
@@ -119,7 +123,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   let client;
   try {
-    const { id, name, phone, status, password, allRoutesEnabled } = await request.json();
+    const { id, name, phone, status, password, allRoutesEnabled, companyId } = await request.json();
 
     client = getPgClient();
     await client.connect();
@@ -145,6 +149,7 @@ export async function PATCH(request: NextRequest) {
       params.push(hashedPassword);
     }
     if (allRoutesEnabled !== undefined) { setClauses.push(`"allRoutesEnabled" = $${paramIndex++}`); params.push(allRoutesEnabled); }
+    if (companyId !== undefined) { setClauses.push(`"companyId" = $${paramIndex++}`); params.push(companyId || null); }
 
     if (setClauses.length === 0) {
       await client.end();

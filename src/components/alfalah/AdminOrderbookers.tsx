@@ -41,6 +41,7 @@ import {
   Layers,
   Target,
   Flame,
+  Building2,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -52,6 +53,8 @@ interface Orderbooker {
   phone: string | null;
   status: string;
   allRoutesEnabled: boolean;
+  companyId: string | null;
+  companyName: string | null;
   totalShops: number;
   totalOutstanding: number;
   createdAt: string;
@@ -116,6 +119,10 @@ export default function AdminOrderbookers() {
   const [targetAmount, setTargetAmount] = useState('');
   const [targetSaving, setTargetSaving] = useState(false);
 
+  // Company assignment state
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [formCompanyId, setFormCompanyId] = useState<string>('');
+
   const fetchOrderbookers = useCallback(async () => {
     setLoading(true);
     try {
@@ -125,7 +132,17 @@ export default function AdminOrderbookers() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchOrderbookers(); }, [fetchOrderbookers]);
+  useEffect(() => { fetchOrderbookers(); fetchCompanies(); }, [fetchOrderbookers]);
+
+  const fetchCompanies = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/companies?status=active');
+      if (res.ok) {
+        const data = await res.json();
+        setCompanies((data.companies || []).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
+      }
+    } catch { /* silent */ }
+  }, []);
 
   // Fetch visit streaks for all orderbookers
   useEffect(() => {
@@ -288,6 +305,7 @@ export default function AdminOrderbookers() {
     setFormUsername('');
     setFormPassword('');
     setFormPhone('');
+    setFormCompanyId('');
     setUsernameStatus('idle');
     setUsernameMessage('');
     setDialogOpen(true);
@@ -299,6 +317,7 @@ export default function AdminOrderbookers() {
     setFormUsername(ob.username);
     setFormPassword('');
     setFormPhone(ob.phone || '');
+    setFormCompanyId(ob.companyId || '');
     setUsernameStatus('idle');
     setUsernameMessage('');
     setDialogOpen(true);
@@ -325,12 +344,14 @@ export default function AdminOrderbookers() {
         payload.id = editingOB.id;
         payload.name = formName.trim();
         payload.phone = formPhone.trim() || '';
+        payload.companyId = formCompanyId || null;
         if (formPassword.trim()) payload.password = formPassword.trim();
       } else {
         payload.name = formName.trim();
         payload.username = formUsername.trim();
         payload.password = formPassword.trim();
         payload.phone = formPhone.trim() || '';
+        payload.companyId = formCompanyId || null;
       }
 
       const method = editingOB ? 'PATCH' : 'POST';
@@ -460,6 +481,14 @@ export default function AdminOrderbookers() {
                     <Store className="h-3.5 w-3.5" />
                     <span>{ob.totalShops} active shops</span>
                   </div>
+                  {ob.companyName && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <Building2 className="h-3.5 w-3.5 text-primary" />
+                      <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-medium gap-1">
+                        {ob.companyName}
+                      </Badge>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Wallet className="h-3.5 w-3.5" />
                     <span className="font-semibold text-red-600">{formatCurrency(ob.totalOutstanding)}</span>
@@ -633,6 +662,22 @@ export default function AdminOrderbookers() {
             <div className="space-y-2">
               <Label>Phone</Label>
               <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="e.g., 0300-1234567" className="input-enhanced" />
+            </div>
+            <div className="space-y-2">
+              <Label>Assign Company</Label>
+              <select
+                value={formCompanyId}
+                onChange={(e) => setFormCompanyId(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="">No Company (All Companies)</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted-foreground">
+                If assigned, this orderbooker will only see their company&apos;s credit data.
+              </p>
             </div>
           </div>
           <DialogFooter className="gap-2">

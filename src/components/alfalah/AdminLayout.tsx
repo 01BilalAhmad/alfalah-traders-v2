@@ -73,6 +73,7 @@ const adminNavItems: NavItem[] = [
   { id: 'admin-map-view', label: 'Map View', icon: <MapPin className="h-5 w-5" /> },
   { id: 'admin-calendar', label: 'Route Calendar', icon: <CalendarDays className="h-5 w-5" /> },
   { id: 'admin-export-data', label: 'Export & Reports', icon: <FileDown className="h-5 w-5" /> },
+  { id: 'admin-companies', label: 'Manage Companies', icon: <Building2 className="h-5 w-5" /> },
 ];
 
 interface AdminLayoutProps {

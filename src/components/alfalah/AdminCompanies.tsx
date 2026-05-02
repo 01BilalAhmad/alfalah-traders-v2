@@ -1,0 +1,403 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Building2,
+  Plus,
+  Pencil,
+  Loader2,
+  Trash2,
+  Users,
+  Store,
+  CheckCircle,
+  XCircle,
+} from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { apiFetch } from '@/lib/api';
+
+interface Company {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    orderbookers: number;
+    companyBalances: number;
+    transactions: number;
+  };
+}
+
+export default function AdminCompanies() {
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Delete confirmation
+  const [confirmDelete, setConfirmDelete] = useState<Company | null>(null);
+
+  const fetchCompanies = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch('/api/companies');
+      if (res.ok) {
+        const data = await res.json();
+        setCompanies(data.companies || []);
+      }
+    } catch {
+      /* silent */
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
+
+  const openAddDialog = () => {
+    setEditingCompany(null);
+    setFormName('');
+    setFormDescription('');
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (company: Company) => {
+    setEditingCompany(company);
+    setFormName(company.name);
+    setFormDescription(company.description || '');
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!formName.trim()) {
+      toast({ title: 'Error', description: 'Company name is required', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        name: formName.trim(),
+        description: formDescription.trim() || undefined,
+      };
+
+      let res: Response;
+      if (editingCompany) {
+        res = await apiFetch(`/api/companies/${editingCompany.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await apiFetch('/api/companies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast({ title: 'Error', description: data.error || 'Failed to save company', variant: 'destructive' });
+        return;
+      }
+
+      toast({
+        title: editingCompany ? 'Updated' : 'Created',
+        description: `${formName} has been ${editingCompany ? 'updated' : 'created'}`,
+      });
+      setDialogOpen(false);
+      fetchCompanies();
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      const res = await apiFetch(`/api/companies/${confirmDelete.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        toast({ title: 'Deleted', description: `${confirmDelete.name} has been deleted` });
+        setConfirmDelete(null);
+        fetchCompanies();
+      } else {
+        const data = await res.json();
+        toast({ title: 'Cannot Delete', description: data.error || 'Failed to delete', variant: 'destructive' });
+        setConfirmDelete(null);
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleStatus = async (company: Company) => {
+    try {
+      const newStatus = company.status === 'active' ? 'inactive' : 'active';
+      const res = await apiFetch(`/api/companies/${company.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        toast({
+          title: newStatus === 'active' ? 'Activated' : 'Deactivated',
+          description: `${company.name} is now ${newStatus}`,
+        });
+        fetchCompanies();
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-primary" />
+            Manage Companies
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {companies.length} {companies.length === 1 ? 'company' : 'companies'} registered
+          </p>
+        </div>
+        <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white focus-glow">
+          <Plus className="h-4 w-4 mr-2" /> Add Company
+        </Button>
+      </div>
+
+      {/* Info Banner */}
+      <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-200">Multi-Company Credit System</p>
+              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1 leading-relaxed">
+                Create companies (e.g., CBL, Cadbury, Shan Foods) and assign orderbookers to them.
+                Each orderbooker will only see their assigned company&apos;s balances.
+                Shops remain shared — their credit is tracked per company automatically when you post credits.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : companies.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-100 dark:from-primary/20 dark:to-blue-900/30 flex items-center justify-center mb-4">
+              <Building2 className="h-9 w-9 text-primary/50 animate-gentle-float" />
+            </div>
+            <p className="font-semibold text-muted-foreground text-sm">No companies yet</p>
+            <p className="text-xs text-muted-foreground/70 mt-1.5 max-w-xs mx-auto leading-relaxed">
+              Create your first company to start managing multi-company credit tracking.
+            </p>
+            <button
+              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors focus-glow"
+              onClick={openAddDialog}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Company
+            </button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 stagger-children">
+          {companies.map((company) => (
+            <Card
+              key={company.id}
+              className={`alfalah-card-hover hover-lift ${company.status === 'inactive' ? 'opacity-60' : ''} animate-card-entrance`}
+            >
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`h-11 w-11 rounded-full flex items-center justify-center ${
+                        company.status === 'active' ? 'bg-primary/10' : 'bg-muted'
+                      }`}
+                    >
+                      <Building2
+                        className={`h-5 w-5 ${company.status === 'active' ? 'text-primary' : 'text-muted-foreground'}`}
+                      />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">{company.name}</p>
+                      {company.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-1">{company.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Badge
+                    className={`text-[10px] animate-badge-pop ${
+                      company.status === 'active' ? 'badge-active' : 'badge-inactive'
+                    }`}
+                  >
+                    {company.status === 'active' ? (
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                    ) : (
+                      <XCircle className="h-3 w-3 mr-1" />
+                    )}
+                    {company.status.charAt(0).toUpperCase() + company.status.slice(1)}
+                  </Badge>
+                </div>
+
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Users className="h-3.5 w-3.5" />
+                    <span>{company._count?.orderbookers || 0} orderbooker(s)</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Store className="h-3.5 w-3.5" />
+                    <span>{company._count?.companyBalances || 0} shop balance(s)</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Building2 className="h-3.5 w-3.5" />
+                    <span>{company._count?.transactions || 0} transaction(s)</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs hover-glow-primary"
+                    onClick={() => openEditDialog(company)}
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs hover-glow-primary"
+                    onClick={() => handleToggleStatus(company)}
+                  >
+                    {company.status === 'active' ? 'Deactivate' : 'Activate'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs text-destructive hover:text-destructive hover-glow-red"
+                    onClick={() => setConfirmDelete(company)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md dialog-content-animate">
+          <DialogHeader>
+            <DialogTitle>{editingCompany ? 'Edit Company' : 'Add New Company'}</DialogTitle>
+            <DialogDescription>
+              {editingCompany
+                ? `Editing ${editingCompany.name}`
+                : 'Create a new company for multi-company credit tracking'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Company Name *</Label>
+              <Input
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="e.g., CBL, Cadbury, Shan Foods"
+                className="input-enhanced"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                This name will be displayed to orderbookers and used for credit tracking.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Input
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                placeholder="e.g., Continental Biscuits Limited"
+                className="input-enhanced"
+              />
+              <p className="text-[10px] text-muted-foreground">Optional full name or description of the company.</p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !formName.trim()}
+              className="bg-primary hover:bg-primary/90 focus-glow"
+            >
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              {editingCompany ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!confirmDelete} onOpenChange={(open) => { if (!open) setConfirmDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {confirmDelete?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {confirmDelete?.name}? This action cannot be undone.
+              If the company has orderbookers or transactions, you must reassign them first.
+              Consider deactivating instead to preserve data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-white">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

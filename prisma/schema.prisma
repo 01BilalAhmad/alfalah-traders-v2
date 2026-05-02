@@ -16,20 +16,23 @@ model User {
   phone             String?
   status            String   @default("active") // "active" or "inactive"
   allRoutesEnabled  Boolean  @default(false) // admin can allow OB to see all days' shops
+  companyId         String?  // nullable - assigned company for orderbookers (null = all/no company)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  orderbookerShops    Shop[]
-  creditTransactions  Transaction[] @relation("CreditBy")
-  auditLogs           AuditLog[]
-  shopNotes           ShopNote[]    @relation("NoteBy")
-  shopVisits          ShopVisit[]   @relation("VisitsBy")
-  dailyTargetsFor     DailyTarget[] @relation("TargetsFor")
-  dailyTargetsBy      DailyTarget[] @relation("TargetsBy")
-  preferences         UserPreference?
+  company            Company?         @relation(fields: [companyId], references: [id])
+  orderbookerShops   Shop[]
+  creditTransactions Transaction[] @relation("CreditBy")
+  auditLogs          AuditLog[]
+  shopNotes          ShopNote[]    @relation("NoteBy")
+  shopVisits         ShopVisit[]   @relation("VisitsBy")
+  dailyTargetsFor    DailyTarget[] @relation("TargetsFor")
+  dailyTargetsBy     DailyTarget[] @relation("TargetsBy")
+  preferences        UserPreference?
 
   @@index([username])
   @@index([role])
+  @@index([companyId])
 }
 
 model Shop {
@@ -47,10 +50,11 @@ model Shop {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  orderbooker  User          @relation(fields: [orderbookerId], references: [id])
-  transactions Transaction[]
-  notes       ShopNote[]
-  visits      ShopVisit[]
+  orderbooker      User                @relation(fields: [orderbookerId], references: [id])
+  transactions     Transaction[]
+  notes            ShopNote[]
+  visits           ShopVisit[]
+  companyBalances  ShopCompanyBalance[]
 
   @@index([orderbookerId])
   @@index([routeDay])
@@ -74,16 +78,19 @@ model Transaction {
   gpsLat        Float?
   gpsLng        Float?
   gpsAddress    String?
+  companyId     String?  // nullable - which company this transaction belongs to
   createdAt     DateTime @default(now())
 
   shop    Shop           @relation(fields: [shopId], references: [id])
   creator User           @relation("CreditBy", fields: [createdBy], references: [id])
+  company Company?       @relation(fields: [companyId], references: [id])
 
   @@index([shopId])
   @@index([type])
   @@index([status])
   @@index([createdBy])
   @@index([createdAt])
+  @@index([companyId])
 }
 
 model AuditLog {
@@ -157,6 +164,8 @@ model DailyTarget {
   @@index([month])
 }
 
+// --- Multi-Company Support ---
+
 model UserPreference {
   id             String   @id @default(cuid())
   userId         String   @unique
@@ -168,4 +177,40 @@ model UserPreference {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// --- Multi-Company Support ---
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g. "CBL", "Cadbury", "Shan Foods"
+  description String?  // optional description
+  status      String   @default("active") // "active" or "inactive"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderbookers       User[]
+  companyBalances    ShopCompanyBalance[]
+  transactions       Transaction[]
+  dailyTargets       DailyTarget[]
+
+  @@index([name])
+  @@index([status])
+}
+
+model ShopCompanyBalance {
+  id          String   @id @default(cuid())
+  shopId      String
+  companyId   String
+  balance     Float    @default(0) // running balance per company
+  creditLimit Float    @default(0) // credit limit per company (0 = no limit)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shop    Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([shopId, companyId]) // one balance per shop per company
+  @@index([shopId])
+  @@index([companyId])
 }
