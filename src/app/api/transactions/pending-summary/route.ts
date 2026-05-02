@@ -1,24 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPgClient } from '@/lib/pg';
 
-// GET /api/transactions/pending-summary?orderbookerId=xxx
-// Returns count + total of pending credit transactions (instead of fetching 500 records)
+// GET /api/transactions/pending-summary?orderbookerId=xxx&type=credit|recovery|all
+// Returns count + total of pending transactions (instead of fetching 500 records)
 export async function GET(request: NextRequest) {
   let client;
   try {
     const { searchParams } = new URL(request.url);
     const orderbookerId = searchParams.get('orderbookerId');
+    // Support type filter: 'credit' (default for mobile banner), 'recovery', or 'all'
+    const typeFilter = searchParams.get('type') || 'credit';
 
     client = getPgClient();
     await client.connect();
 
-    const conditions: string[] = [`t.type = 'credit'`, `t.status = 'pending'`];
+    const conditions: string[] = [`t.status = 'pending'`];
     const params: any[] = [];
-    let paramIndex = 1;
+
+    if (typeFilter !== 'all') {
+      conditions.push(`t.type = $${params.length + 1}`);
+      params.push(typeFilter);
+    }
 
     if (orderbookerId) {
       // Filter by orderbooker's shops
-      conditions.push(`s."orderbookerId" = $${paramIndex++}`);
+      conditions.push(`s."orderbookerId" = $${params.length + 1}`);
       params.push(orderbookerId);
     }
 

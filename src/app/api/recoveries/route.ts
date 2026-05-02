@@ -13,8 +13,15 @@ export async function GET(request: NextRequest) {
     client = getPgClient();
     await client.connect();
 
-    const conditions: string[] = [`t.type = 'recovery'`, `t.status = $1`];
+    // Support filtering by type: 'recovery' (default), 'credit', or 'all'
+    const typeFilter = searchParams.get('type') || 'recovery';
+    const conditions: string[] = [];
     const params: any[] = [status];
+    conditions.push(`t.status = $1`);
+    if (typeFilter !== 'all') {
+      conditions.push(`t.type = $${params.length + 1}`);
+      params.push(typeFilter);
+    }
     let paramIndex = 2;
 
     if (orderbookerId) {
@@ -128,14 +135,14 @@ export async function POST(request: NextRequest) {
       `SELECT t.*, s.id AS "shop_db_id", s.name AS "shop_name", s.balance AS "shop_balance"
        FROM "Transaction" t
        LEFT JOIN "Shop" s ON t."shopId" = s.id
-       WHERE t.id IN (${placeholders}) AND t.type = 'recovery' AND t.status = 'pending'`,
+       WHERE t.id IN (${placeholders}) AND t.status = 'pending'`,
       transactionIds
     );
 
     if (pendingRes.rows.length === 0) {
       await client.query('ROLLBACK');
       await client.end();
-      return NextResponse.json({ error: 'No pending recoveries found' }, { status: 404 });
+      return NextResponse.json({ error: 'No pending transactions found' }, { status: 404 });
     }
 
     if (pendingRes.rows.length !== transactionIds.length) {
@@ -153,7 +160,14 @@ export async function POST(request: NextRequest) {
 
     for (const txn of pendingRes.rows) {
       if (action === 'approve') {
-        const newBalance = Math.round((Number(txn.shop_balance) - Number(txn.amount)) * 100) / 100;
+        // For recovery: deduct from shop balance. For credit: add to shop balance.
+        let newBalance: number;
+        if (txn.type === 'recovery') {
+          newBalance = Math.round((Number(txn.shop_balance) - Number(txn.amount)) * 100) / 100;
+        } else {
+          // Credit approval (legacy pending credits)
+          newBalance = Math.round((Number(txn.shop_balance) + Number(txn.amount)) * 100) / 100;
+        }
 
         await client.query(
           `UPDATE "Transaction" SET status = 'approved', "approvedBy" = $1, "approvedAt" = $2, "newBalance" = $3 WHERE id = $4`,
@@ -173,7 +187,12 @@ export async function POST(request: NextRequest) {
               [txn.shopId, txn.companyId]
             );
             if (scbRes.rows.length > 0) {
-              const newCompanyBalance = Math.round((Number(scbRes.rows[0].balance) - Number(txn.amount)) * 100) / 100;
+              let newCompanyBalance: number;
+              if (txn.type === 'recovery') {
+                newCompanyBalance = Math.round((Number(scbRes.rows[0].balance) - Number(txn.amount)) * 100) / 100;
+              } else {
+                newCompanyBalance = Math.round((Number(scbRes.rows[0].balance) + Number(txn.amount)) * 100) / 100;
+              }
               await client.query(
                 `UPDATE "ShopCompanyBalance" SET balance = $1, "updatedAt" = $2 WHERE id = $3`,
                 [newCompanyBalance, now, scbRes.rows[0].id]
@@ -181,7 +200,7 @@ export async function POST(request: NextRequest) {
             }
           } catch (scbErr) {
             // ShopCompanyBalance table might not exist yet - non-blocking
-            console.warn('ShopCompanyBalance update on recovery approval failed:', scbErr);
+            console.warn('ShopCompanyBalance update on approval failed:', scbErr);
           }
         }
 
@@ -228,7 +247,7 @@ export async function POST(request: NextRequest) {
             totalAmount,
             rejectReason: rejectReason || null,
           }),
-          `${action === 'approve' ? 'Approved' : 'Rejected'} ${pendingRes.rows.length} recovery(ies) totaling Rs. ${Math.round(totalAmount)}`,
+          `${action === 'approve' ? 'Approved' : 'Rejected'} ${pendingRes.rows.length} transaction(s) totaling Rs. ${Math.round(totalAmount)}`,
         ]
       );
     } catch { /* non-blocking */ }

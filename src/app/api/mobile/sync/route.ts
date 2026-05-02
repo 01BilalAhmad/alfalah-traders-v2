@@ -181,32 +181,66 @@ export async function POST(request: NextRequest) {
 
     for (const tx of transactions) {
       try {
+        await client.query('BEGIN');
+
+        const txType = tx.type || 'recovery';
         const txId = `tx_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
         const now = new Date().toISOString();
 
+        // Business rule: credits are auto-approved, recoveries need admin approval
+        const txnStatus = txType === 'credit' ? 'approved' : 'pending';
+
+        // Fetch shop for balance calculation
+        const shopRes = await client.query('SELECT balance, status FROM "Shop" WHERE id = $1', [tx.shopId]);
+        if (shopRes.rows.length === 0) {
+          await client.query('ROLLBACK');
+          errors.push({ localId: tx.localId, error: 'Shop not found' });
+          continue;
+        }
+        const shopBalance = Number(shopRes.rows[0].balance);
+
+        let previousBalance = shopBalance;
+        let newBalance = shopBalance;
+
+        if (txType === 'credit') {
+          // Credit: add to balance immediately
+          newBalance = Math.round((shopBalance + Number(tx.amount)) * 100) / 100;
+          await client.query(
+            'UPDATE "Shop" SET balance = $1 WHERE id = $2',
+            [newBalance, tx.shopId]
+          );
+        }
+        // Recovery: don't change balance yet (pending approval)
+
         const txRes = await client.query(
-          `INSERT INTO "Transaction" (id, "shopId", type, amount, description, "createdBy", status, "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
            RETURNING *`,
           [
             txId,
             tx.shopId,
-            tx.type || 'recovery',
+            txType,
+            txnStatus,
             tx.amount,
-            tx.description || 'Mobile sync recovery',
+            previousBalance,
+            newBalance,
+            tx.description || (txType === 'credit' ? 'Mobile sync credit' : 'Mobile sync recovery'),
             tx.createdBy,
-            'pending', // Recoveries need admin approval
             now,
             now,
           ]
         );
 
+        await client.query('COMMIT');
+
         results.push({
           localId: tx.localId,
           serverId: txRes.rows[0].id,
+          status: txnStatus,
           success: true,
         });
       } catch (err: any) {
+        try { await client.query('ROLLBACK'); } catch {}
         errors.push({
           localId: tx.localId,
           error: err.message,

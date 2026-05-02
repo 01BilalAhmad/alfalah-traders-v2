@@ -37,6 +37,7 @@ import {
 
 interface PendingRecovery {
   id: string;
+  type: string; // 'credit' or 'recovery'
   amount: number;
   previousBalance: number;
   newBalance: number;
@@ -95,7 +96,8 @@ export default function AdminApproveRecovery() {
     setLoading(true);
     setLastError(null);
     try {
-      const res = await apiFetch('/api/recoveries?status=pending');
+      // Fetch BOTH pending recoveries AND pending credits
+      const res = await apiFetch('/api/recoveries?status=pending&type=all');
 
       if (!res.ok) {
         const errText = await res.text();
@@ -178,7 +180,7 @@ export default function AdminApproveRecovery() {
         const data = await res.json();
         toast({
           title: '✅ Approved!',
-          description: `${data.processed} recovery(ies) approved — shop balances updated`,
+          description: `${data.processed} transaction(s) approved — shop balances updated`,
         });
         setSelectedIds(new Set());
         fetchPending();
@@ -240,10 +242,10 @@ export default function AdminApproveRecovery() {
         <div>
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
             <ShieldCheck className="h-6 w-6 text-orange-500" />
-            Approve Recovery
+            Approve Transactions
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Review &amp; approve orderbooker recovery submissions before updating shop balances
+            Review &amp; approve pending recovery submissions and credit entries before updating shop balances
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -421,7 +423,7 @@ export default function AdminApproveRecovery() {
             </div>
             <p className="text-base font-bold text-foreground">All Clear!</p>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              No pending recoveries to review. When orderbookers submit recovery from the app, it will appear here for your approval.
+              No pending transactions to review. When orderbookers submit recovery from the app, or credit entries need approval, they will appear here.
             </p>
             <Button variant="outline" size="sm" onClick={fetchPending} className="mt-4 text-xs">
               <RefreshCw className="h-3.5 w-3.5 mr-1" />
@@ -533,6 +535,10 @@ export default function AdminApproveRecovery() {
                                   <span className="text-xs font-semibold text-foreground">
                                     {txn.shop.name}
                                   </span>
+                                  {/* Type badge */}
+                                  <Badge variant={txn.type === 'credit' ? 'default' : 'secondary'} className={`text-[9px] h-4 px-1.5 ${txn.type === 'credit' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
+                                    {txn.type === 'credit' ? 'CREDIT' : 'RECOVERY'}
+                                  </Badge>
                                   {txn.shop.area && (
                                     <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                                       <MapPin className="h-2.5 w-2.5" />{txn.shop.area}
