@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const createdBy = searchParams.get('createdBy');
     const companyId = searchParams.get('companyId');
+    const status = searchParams.get('status');
 
     client = getPgClient();
     await client.connect();
@@ -48,6 +49,10 @@ export async function GET(request: NextRequest) {
     if (createdBy) {
       conditions.push(`t."createdBy" = $${paramIndex++}`);
       params.push(createdBy);
+    }
+    if (status) {
+      conditions.push(`t.status = $${paramIndex++}`);
+      params.push(status);
     }
     if (companyId) {
       conditions.push(`t."companyId" = $${paramIndex++}`);
