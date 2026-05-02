@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { PWARegister } from "@/components/PWARegister";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -69,6 +70,7 @@ export default function RootLayout({
           {children}
           <Toaster />
           <PWARegister />
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>
