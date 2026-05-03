@@ -151,6 +151,10 @@ export async function PATCH(request: NextRequest) {
     if (allRoutesEnabled !== undefined) { setClauses.push(`"allRoutesEnabled" = $${paramIndex++}`); params.push(allRoutesEnabled); }
     if (companyId !== undefined) { setClauses.push(`"companyId" = $${paramIndex++}`); params.push(companyId || null); }
 
+    // Always update updatedAt timestamp
+    setClauses.push(`"updatedAt" = $${paramIndex++}`);
+    params.push(new Date().toISOString());
+
     if (setClauses.length === 0) {
       await client.end();
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
@@ -159,7 +163,7 @@ export async function PATCH(request: NextRequest) {
     params.push(id);
     const updatedRes = await client.query(
       `UPDATE "User" SET ${setClauses.join(', ')} WHERE id = $${paramIndex}
-       RETURNING id, username, name, phone, role, status, "allRoutesEnabled", "createdAt", "updatedAt"`,
+       RETURNING id, username, name, phone, role, status, "allRoutesEnabled", "companyId", "createdAt", "updatedAt"`,
       params
     );
     const updated = updatedRes.rows[0];

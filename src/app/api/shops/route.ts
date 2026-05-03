@@ -188,6 +188,10 @@ export async function PATCH(request: NextRequest) {
     if (status) { setClauses.push(`status = $${paramIndex++}`); params.push(status); }
     if (creditLimit !== undefined) { setClauses.push(`"creditLimit" = $${paramIndex++}`); params.push(creditLimit > 0 ? creditLimit : 0); }
 
+    // Always update updatedAt timestamp
+    setClauses.push(`"updatedAt" = $${paramIndex++}`);
+    params.push(new Date().toISOString());
+
     if (setClauses.length === 0) {
       await client.end();
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
