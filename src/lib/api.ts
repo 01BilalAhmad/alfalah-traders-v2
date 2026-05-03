@@ -6,6 +6,7 @@
  * - In APK/Capacitor: prepends the configured server URL
  * 
  * Server URL is stored in localStorage under 'alfalah-server-url'
+ * Auth token is stored in localStorage under 'alfalah-token'
  * 
  * Usage: 
  *   import { apiFetch, getServerUrl, setServerUrl, testConnection } from '@/lib/api';
@@ -13,6 +14,7 @@
  */
 
 const STORAGE_KEY = 'alfalah-server-url';
+const TOKEN_KEY = 'alfalah-token';
 
 /**
  * Get the configured server base URL
@@ -51,6 +53,18 @@ export function hasServerUrl(): boolean {
 }
 
 /**
+ * Get the stored authentication token
+ */
+export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Build the full API URL from a relative path
  * If server URL is set, prepend it. Otherwise use relative path.
  */
@@ -66,7 +80,9 @@ export function buildApiUrl(path: string): string {
 }
 
 /**
- * Drop-in replacement for fetch() that automatically uses the configured server URL
+ * Drop-in replacement for fetch() that automatically:
+ * 1. Uses the configured server URL
+ * 2. Sends the auth token in Authorization header (if available)
  * 
  * @param path - API path like '/api/auth/login'
  * @param options - Standard fetch options
@@ -74,11 +90,23 @@ export function buildApiUrl(path: string): string {
  */
 export async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   const fullUrl = buildApiUrl(path);
+  const token = getAuthToken();
+
+  const headers: Record<string, string> = {
+    ...(options?.headers as Record<string, string> || {}),
+  };
+
+  // Attach auth token if available (skip for login/validate/setup endpoints)
+  const publicPaths = ['/api/auth/login', '/api/auth/validate', '/api/setup', '/api/ping'];
+  const isPublicPath = publicPaths.some((p) => path.startsWith(p));
+
+  if (token && !isPublicPath) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   return fetch(fullUrl, {
     ...options,
-    headers: {
-      ...options?.headers,
-    },
+    headers,
   });
 }
 

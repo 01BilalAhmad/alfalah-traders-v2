@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
+import { requireAdmin } from '@/lib/auth-guard';
 
 const { Client } = pg;
 
-// POST /api/auth/reset-password — Reset any user's password
+// POST /api/auth/reset-password — Reset any user's password (Admin only)
 export async function POST(request: NextRequest) {
+  // Verify admin access
+  const auth = await requireAdmin(request);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: 401 });
+  }
+
   let client;
   try {
     const { username, newPassword } = await request.json();

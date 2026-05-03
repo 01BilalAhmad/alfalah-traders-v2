@@ -158,11 +158,21 @@ export async function syncPendingTransactions(): Promise<{
   let failed = 0;
   const errors: string[] = [];
 
+  // Get auth token for API calls
+  const TOKEN_KEY = 'alfalah-token';
+  let authToken: string | null = null;
+  try { authToken = localStorage.getItem(TOKEN_KEY); } catch { /* ignore */ }
+
   for (const txn of queue) {
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
       const res = await apiFetch('/api/transactions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           shopId: txn.shopId,
           type: txn.type,

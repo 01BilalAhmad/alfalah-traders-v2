@@ -96,6 +96,12 @@ export default function LoginView() {
       setLoginError(false);
       setUser(data.user);
 
+      // Save auth token for API calls
+      if (data.token) {
+        const { setToken } = useAppStore.getState();
+        setToken(data.token);
+      }
+
       // Save/clear remembered username
       if (rememberMe) {
         localStorage.setItem('alfalah-remembered-username', username.trim());

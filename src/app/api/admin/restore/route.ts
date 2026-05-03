@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth-guard';
 
-// POST /api/admin/restore - Restores data from a backup JSON file
+// POST /api/admin/restore - Restores data from a backup JSON file (Admin only)
 export async function POST(request: NextRequest) {
+  // Verify admin access
+  const auth = await requireAdmin(request);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: 401 });
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;

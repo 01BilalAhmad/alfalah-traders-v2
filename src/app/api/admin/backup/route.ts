@@ -1,8 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth-guard';
 
-// GET /api/admin/backup - Creates a JSON backup of all data
-export async function GET() {
+// GET /api/admin/backup - Creates a JSON backup of all data (Admin only)
+export async function GET(request: NextRequest) {
+  // Verify admin access
+  const auth = await requireAdmin(request);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: 401 });
+  }
+
   try {
     // Export users (orderbookers + admin)
     const users = await db.user.findMany({

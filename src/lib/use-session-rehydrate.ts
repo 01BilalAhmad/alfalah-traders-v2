@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 
 const STORAGE_KEY = 'alfalah-session';
+const TOKEN_KEY = 'alfalah-token';
 
 function loadSessionFromStorage() {
   try {
@@ -20,6 +21,14 @@ function loadSessionFromStorage() {
   return null;
 }
 
+function loadTokenFromStorage(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Rehydrates auth state from localStorage after mount.
  * Uses useEffect so it only runs on the client AFTER hydration,
@@ -27,11 +36,16 @@ function loadSessionFromStorage() {
  */
 export function useSessionRehydrate() {
   const setUser = useAppStore((s) => s.setUser);
+  const setToken = useAppStore((s) => s.setToken);
 
   useEffect(() => {
     const user = loadSessionFromStorage();
+    const token = loadTokenFromStorage();
     if (user) {
       setUser(user);
     }
-  }, [setUser]);
+    if (token) {
+      setToken(token);
+    }
+  }, [setUser, setToken]);
 }

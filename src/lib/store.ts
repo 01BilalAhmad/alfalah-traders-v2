@@ -16,6 +16,7 @@ export interface AppUser {
 
 export interface AppState {
   user: AppUser | null;
+  token: string | null;
   isAuthenticated: boolean;
   currentView: string;
   selectedShopId: string | null;
@@ -23,6 +24,8 @@ export interface AppState {
   selectedDate: string;
   creditSessionCount: number;
   setUser: (user: AppUser | null) => void;
+  setToken: (token: string | null) => void;
+  setAuth: (user: AppUser, token: string) => void;
   logout: () => void;
   setCurrentView: (view: string) => void;
   setSelectedShopId: (id: string | null) => void;
@@ -34,17 +37,31 @@ export interface AppState {
 
 // Session persistence helpers
 const STORAGE_KEY = 'alfalah-session';
+const TOKEN_KEY = 'alfalah-token';
 
-function saveSession(user: AppUser | null) {
+function saveSession(user: AppUser | null, token: string | null = null) {
   if (typeof window === 'undefined') return;
   try {
     if (user) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ user }));
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+      }
     } else {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(TOKEN_KEY);
     }
   } catch {
     // ignore storage errors
+  }
+}
+
+export function getStoredToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
   }
 }
 
@@ -52,6 +69,7 @@ function saveSession(user: AppUser | null) {
 // Rehydration happens via useSessionRehydrate() hook from @/lib/use-session-rehydrate
 export const useAppStore = create<AppState>((set) => ({
   user: null,
+  token: null,
   isAuthenticated: false,
   currentView: 'login',
   selectedShopId: null,
@@ -62,9 +80,30 @@ export const useAppStore = create<AppState>((set) => ({
     saveSession(user);
     set({ user, isAuthenticated: !!user, currentView: user ? (user.role === 'admin' ? 'admin-dashboard' : 'orderbooker-dashboard') : 'login' });
   },
+  setToken: (token) => {
+    if (typeof window !== 'undefined') {
+      try {
+        if (token) {
+          localStorage.setItem(TOKEN_KEY, token);
+        } else {
+          localStorage.removeItem(TOKEN_KEY);
+        }
+      } catch { /* ignore */ }
+    }
+    set({ token });
+  },
+  setAuth: (user, token) => {
+    saveSession(user, token);
+    set({
+      user,
+      token,
+      isAuthenticated: true,
+      currentView: user.role === 'admin' ? 'admin-dashboard' : 'orderbooker-dashboard',
+    });
+  },
   logout: () => {
     saveSession(null);
-    set({ user: null, isAuthenticated: false, currentView: 'login', selectedShopId: null, selectedShopName: null, creditSessionCount: 0 });
+    set({ user: null, token: null, isAuthenticated: false, currentView: 'login', selectedShopId: null, selectedShopName: null, creditSessionCount: 0 });
   },
   setCurrentView: (view) => set({ currentView: view }),
   setSelectedShopId: (id) => set({ selectedShopId: id }),
