@@ -185,6 +185,52 @@ export async function POST() {
       await client.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "allRoutesEnabled" BOOLEAN NOT NULL DEFAULT false`);
     } catch { /* column already exists, ignore */ }
 
+    // Migration: Normalize routeDay to lowercase for consistent matching
+    try {
+      await client.query(`UPDATE "Shop" SET "routeDay" = LOWER("routeDay") WHERE "routeDay" != LOWER("routeDay")`);
+    } catch { /* non-critical, ignore */ }
+
+    // Migration: Add companyId column to User if it doesn't exist
+    try {
+      await client.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "companyId" TEXT`);
+    } catch { /* column already exists, ignore */ }
+
+    // Migration: Add companyId column to Transaction if it doesn't exist
+    try {
+      await client.query(`ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "companyId" TEXT`);
+    } catch { /* column already exists, ignore */ }
+
+    // Migration: Create ShopCompanyBalance table if it doesn't exist
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS "ShopCompanyBalance" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "shopId" TEXT NOT NULL,
+          "companyId" TEXT NOT NULL,
+          "balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
+          "creditLimit" DOUBLE PRECISION NOT NULL DEFAULT 0,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "ShopCompanyBalance_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE,
+          CONSTRAINT "ShopCompanyBalance_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE,
+          CONSTRAINT "ShopCompanyBalance_shopId_companyId_key" UNIQUE ("shopId", "companyId")
+        )
+      `);
+    } catch { /* table already exists, ignore */ }
+
+    // Migration: Create Company table if it doesn't exist
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS "Company" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "status" TEXT NOT NULL DEFAULT 'active',
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    } catch { /* table already exists, ignore */ }
+
     if (userCount > 0) {
       await client.end();
       return NextResponse.json({ success: true, message: 'Tables exist, migrations applied', userCount });

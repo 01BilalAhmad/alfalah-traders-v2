@@ -17,12 +17,12 @@ export async function GET(request: NextRequest) {
     client = getPgClient();
     await client.connect();
 
-    // 1. Get all shops assigned to this orderbooker (active + inactive)
+    // 1. Get all ACTIVE shops assigned to this orderbooker
     const shopRes = await client.query(
       `SELECT s.*, u.name AS "ob_name"
        FROM "Shop" s
        LEFT JOIN "User" u ON s."orderbookerId" = u.id
-       WHERE s."orderbookerId" = $1
+       WHERE s."orderbookerId" = $1 AND s.status = 'active'
        ORDER BY s.name ASC`,
       [userId]
     );
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       area: s.area,
       address: s.address,
       phone: s.phone,
-      routeDay: s.routeDay,
+      routeDay: s.routeDay ? s.routeDay.toLowerCase() : s.routeDay,
       orderbookerId: s.orderbookerId,
       balance: Number(s.balance),
       creditLimit: Number(s.creditLimit),
@@ -43,6 +43,33 @@ export async function GET(request: NextRequest) {
       updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
       orderbookerName: s.ob_name,
     }));
+
+    // 1b. Get company balances for all synced shops
+    try {
+      const shopIds = shops.map((s: any) => s.id);
+      if (shopIds.length > 0) {
+        const scbRes = await client.query(
+          `SELECT scb."shopId", scb."companyId", scb.balance, scb."creditLimit", co.name AS "companyName"
+           FROM "ShopCompanyBalance" scb
+           LEFT JOIN "Company" co ON scb."companyId" = co.id`,
+        );
+        const companyBalancesMap: Record<string, any[]> = {};
+        for (const row of scbRes.rows) {
+          if (!companyBalancesMap[row.shopId]) companyBalancesMap[row.shopId] = [];
+          companyBalancesMap[row.shopId].push({
+            companyId: row.companyId,
+            companyName: row.companyName,
+            balance: Number(row.balance),
+            creditLimit: Number(row.creditLimit),
+          });
+        }
+        for (const shop of shops) {
+          (shop as any).companyBalances = companyBalancesMap[shop.id] || [];
+        }
+      }
+    } catch {
+      // ShopCompanyBalance table might not exist yet - just skip
+    }
 
     // 2. Get recent transactions for this orderbooker (last 200)
     const txRes = await client.query(
@@ -73,9 +100,9 @@ export async function GET(request: NextRequest) {
       updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : t.updatedAt,
     }));
 
-    // 3. Get user info
+    // 3. Get user info (including companyId and companyName)
     const userRes = await client.query(
-      'SELECT id, username, name, role, phone, status, "allRoutesEnabled" FROM "User" WHERE id = $1',
+      'SELECT u.id, u.username, u.name, u.role, u.phone, u.status, u."allRoutesEnabled", u."companyId", c.name AS "companyName" FROM "User" u LEFT JOIN "Company" c ON u."companyId" = c.id WHERE u.id = $1',
       [userId]
     );
     const user = userRes.rows[0];
@@ -148,6 +175,8 @@ export async function GET(request: NextRequest) {
         phone: user.phone,
         status: user.status,
         allRoutesEnabled: user.allRoutesEnabled ?? false,
+        companyId: user.companyId || null,
+        companyName: user.companyName || null,
       } : null,
       shopNotes,
       dailyTarget,

@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
       params.push(orderbookerId);
     }
     if (routeDay) {
-      conditions.push(`s."routeDay" = $${paramIndex++}`);
-      params.push(routeDay);
+      conditions.push(`LOWER(s."routeDay") = $${paramIndex++}`);
+      params.push(routeDay.toLowerCase());
     }
     if (!includeInactive) {
       conditions.push(`s.status = $${paramIndex++}`);
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       area: s.area,
       address: s.address,
       phone: s.phone,
-      routeDay: s.routeDay,
+      routeDay: s.routeDay ? s.routeDay.toLowerCase() : s.routeDay,
       orderbookerId: s.orderbookerId,
       balance: Number(s.balance),
       creditLimit: Number(s.creditLimit),
@@ -121,6 +121,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name, route day, and orderbooker are required' }, { status: 400 });
     }
 
+    // Normalize routeDay to lowercase for consistency
+    const normalizedRouteDay = routeDay.toLowerCase();
+
     client = getPgClient();
     await client.connect();
 
@@ -130,7 +133,7 @@ export async function POST(request: NextRequest) {
       `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDay", "orderbookerId", "creditLimit", status, "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-      [shopId, name, ownerName || null, area || null, address || null, phone || null, routeDay, orderbookerId, creditLimit && creditLimit > 0 ? creditLimit : 0, 'active', now, now]
+      [shopId, name, ownerName || null, area || null, address || null, phone || null, normalizedRouteDay, orderbookerId, creditLimit && creditLimit > 0 ? creditLimit : 0, 'active', now, now]
     );
 
     const shop = shopRes.rows[0];
@@ -180,7 +183,7 @@ export async function PATCH(request: NextRequest) {
     if (area !== undefined) { setClauses.push(`area = $${paramIndex++}`); params.push(area); }
     if (address !== undefined) { setClauses.push(`address = $${paramIndex++}`); params.push(address); }
     if (phone !== undefined) { setClauses.push(`phone = $${paramIndex++}`); params.push(phone); }
-    if (routeDay) { setClauses.push(`"routeDay" = $${paramIndex++}`); params.push(routeDay); }
+    if (routeDay) { setClauses.push(`"routeDay" = $${paramIndex++}`); params.push(routeDay.toLowerCase()); }
     if (orderbookerId) { setClauses.push(`"orderbookerId" = $${paramIndex++}`); params.push(orderbookerId); }
     if (status) { setClauses.push(`status = $${paramIndex++}`); params.push(status); }
     if (creditLimit !== undefined) { setClauses.push(`"creditLimit" = $${paramIndex++}`); params.push(creditLimit > 0 ? creditLimit : 0); }
