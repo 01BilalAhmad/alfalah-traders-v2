@@ -9,7 +9,7 @@ function generateId(): string {
   return `shop_${timestamp}_${random}`;
 }
 
-// GET /api/shops?orderbookerId=xxx&routeDay=xxx&search=xxx
+// GET /api/shops?orderbookerId=xxx&routeDay=xxx&search=xxx&balanceOnly=true
 export async function GET(request: NextRequest) {
   let client;
   try {
@@ -18,6 +18,12 @@ export async function GET(request: NextRequest) {
     const routeDay = searchParams.get('routeDay');
     const search = searchParams.get('search');
     const includeInactive = searchParams.get('includeInactive') === 'true';
+    // balanceOnly: show only shops with balance > 0
+    // Default: true when orderbookerId is provided (order booker request), false for admin
+    const balanceOnlyParam = searchParams.get('balanceOnly');
+    const balanceOnly = balanceOnlyParam !== null
+      ? balanceOnlyParam === 'true'
+      : !!orderbookerId; // default true for order bookers
 
     client = getPgClient();
     await client.connect();
@@ -37,6 +43,9 @@ export async function GET(request: NextRequest) {
     if (!includeInactive) {
       conditions.push(`s.status = $${paramIndex++}`);
       params.push('active');
+    }
+    if (balanceOnly) {
+      conditions.push(`s.balance > 0`);
     }
     if (search) {
       conditions.push(`(s.name ILIKE $${paramIndex} OR s.area ILIKE $${paramIndex} OR s."ownerName" ILIKE $${paramIndex})`);

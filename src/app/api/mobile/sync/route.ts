@@ -17,12 +17,12 @@ export async function GET(request: NextRequest) {
     client = getPgClient();
     await client.connect();
 
-    // 1. Get all ACTIVE shops assigned to this orderbooker
+    // 1. Get ACTIVE shops with balance > 0 assigned to this orderbooker
     const shopRes = await client.query(
       `SELECT s.*, u.name AS "ob_name"
        FROM "Shop" s
        LEFT JOIN "User" u ON s."orderbookerId" = u.id
-       WHERE s."orderbookerId" = $1 AND s.status = 'active'
+       WHERE s."orderbookerId" = $1 AND s.status = 'active' AND s.balance > 0
        ORDER BY s.name ASC`,
       [userId]
     );

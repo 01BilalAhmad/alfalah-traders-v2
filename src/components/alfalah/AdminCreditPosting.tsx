@@ -289,6 +289,7 @@ export default function AdminCreditPosting() {
       if (debouncedSearch.trim()) {
         params.set('search', debouncedSearch.trim());
       }
+      params.set('balanceOnly', 'false'); // Admin credit posting needs all shops including zero balance
       const res = await apiFetch(`/api/shops?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
@@ -370,6 +371,7 @@ export default function AdminCreditPosting() {
       if (selectedOrderbooker && selectedOrderbooker !== 'all') {
         params.set('orderbookerId', selectedOrderbooker);
       }
+      params.set('balanceOnly', 'false'); // Admin needs all shops
       const res = await apiFetch(`/api/shops?${params.toString()}`);
       if (res.ok) {
         const data: Shop[] = await res.json();
