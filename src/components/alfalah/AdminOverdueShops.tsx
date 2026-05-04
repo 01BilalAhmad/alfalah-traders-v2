@@ -44,7 +44,9 @@ interface OverdueShop {
   phone: string | null;
   orderbookerId: string;
   orderbookerName: string;
+  lastCreditDate: string | null;
   lastRecoveryDate: string | null;
+  daysSinceCredit: number | null;
   daysSinceRecovery: number | null;
 }
 
@@ -95,8 +97,8 @@ function OverdueSkeleton() {
 function DaysBadge({ days }: { days: number | null }) {
   if (days === null) {
     return (
-      <Badge className="text-[10px] bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800 font-semibold">
-        Never
+      <Badge className="text-[10px] bg-muted text-muted-foreground border-border font-semibold">
+        —
       </Badge>
     );
   }
@@ -176,8 +178,8 @@ export default function AdminOverdueShops() {
   // Summary KPIs
   const summary = useMemo(() => {
     const totalBalance = shops.reduce((s, sh) => s + sh.balance, 0);
-    const criticalCount = shops.filter(s => s.daysSinceRecovery === null || s.daysSinceRecovery >= 30).length;
-    const urgentCount = shops.filter(s => s.daysSinceRecovery !== null && s.daysSinceRecovery >= 21 && s.daysSinceRecovery < 30).length;
+    const criticalCount = shops.filter(s => s.daysSinceCredit !== null && s.daysSinceCredit >= 30).length;
+    const urgentCount = shops.filter(s => s.daysSinceCredit !== null && s.daysSinceCredit >= 21 && s.daysSinceCredit < 30).length;
     const neverRecovered = shops.filter(s => s.daysSinceRecovery === null).length;
     return {
       totalOverdue: shops.length,
@@ -369,7 +371,7 @@ export default function AdminOverdueShops() {
                   <TableHead className="text-white font-semibold text-xs">Shop Name</TableHead>
                   <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Area</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-right">Balance</TableHead>
-                  <TableHead className="text-white font-semibold text-xs text-center">Last Recovery</TableHead>
+                  <TableHead className="text-white font-semibold text-xs text-center">Last Credit</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center">Days Overdue</TableHead>
                   <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Orderbooker</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center hidden lg:table-cell">Phone</TableHead>
@@ -420,16 +422,16 @@ export default function AdminOverdueShops() {
                         </span>
                       </TableCell>
                       <TableCell className="text-center">
-                        {shop.lastRecoveryDate ? (
+                        {shop.lastCreditDate ? (
                           <span className="text-xs text-muted-foreground">
-                            {new Date(shop.lastRecoveryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}
+                            {new Date(shop.lastCreditDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}
                           </span>
                         ) : (
-                          <span className="text-xs text-red-500 font-medium">Never</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        <DaysBadge days={shop.daysSinceRecovery} />
+                        <DaysBadge days={shop.daysSinceCredit} />
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <span className="text-sm text-muted-foreground">{shop.orderbookerName}</span>
