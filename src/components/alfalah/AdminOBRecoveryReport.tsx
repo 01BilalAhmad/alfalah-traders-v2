@@ -34,6 +34,8 @@ import {
   User,
   Store,
   CheckCircle,
+  TrendingDown,
+  Scale,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -169,6 +171,13 @@ export default function AdminOBRecoveryReport() {
     ? reportData.shops.filter((s) => s.todayRecovery > 0)
     : [];
 
+  // Calculate route totals from ALL shops (not just recovery shops)
+  const routeTotalBalance = reportData
+    ? reportData.shops.reduce((sum, s) => sum + s.previousBalance, 0)
+    : 0;
+  const todayRecovery = reportData?.totalRecovery || 0;
+  const remainingBalance = routeTotalBalance - todayRecovery;
+
   // Generate PDF
   const generatePDF = useCallback(() => {
     if (!reportData) return;
@@ -211,6 +220,11 @@ export default function AdminOBRecoveryReport() {
     const totalRecovery = recoveryShops.reduce((s, sh) => s + sh.todayRecovery, 0);
     const totalClosing = recoveryShops.reduce((s, sh) => s + sh.closingBalance, 0);
     const totalPrevBalance = recoveryShops.reduce((s, sh) => s + sh.previousBalance, 0);
+
+    // Route totals from ALL shops (not just recovery shops)
+    const allShopsRouteBalance = reportData.shops.reduce((s, sh) => s + sh.previousBalance, 0);
+    const allShopsTotalRecovery = reportData.totalRecovery;
+    const allShopsRemaining = allShopsRouteBalance - allShopsTotalRecovery;
 
     printWindow.document.write(`<!DOCTYPE html>
 <html>
@@ -275,17 +289,17 @@ export default function AdminOBRecoveryReport() {
   </div>
 
   <div class="summary-cards">
-    <div class="summary-card green">
-      <div class="label">Total Recovery</div>
-      <div class="value">${formatCurrencyPDF(totalRecovery)}</div>
-    </div>
     <div class="summary-card blue">
-      <div class="label">Shops Visited</div>
-      <div class="value">${totalRecoveryShops}</div>
+      <div class="label">Route Total Balance</div>
+      <div class="value">${formatCurrencyPDF(allShopsRouteBalance)}</div>
+    </div>
+    <div class="summary-card green">
+      <div class="label">Today's Recovery</div>
+      <div class="value">${formatCurrencyPDF(allShopsTotalRecovery)}</div>
     </div>
     <div class="summary-card amber">
-      <div class="label">Total Credit</div>
-      <div class="value">${formatCurrencyPDF(totalCredit)}</div>
+      <div class="label">Remaining Balance</div>
+      <div class="value">${formatCurrencyPDF(allShopsRemaining)}</div>
     </div>
   </div>
 
@@ -439,37 +453,37 @@ export default function AdminOBRecoveryReport() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
             <Card className="alfalah-card-hover">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="h-11 w-11 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
-                  <Banknote className="h-5 w-5 text-green-600" />
+                <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                  <Scale className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium">Total Recovery</p>
-                  <p className="text-xl font-bold text-green-600">{formatCurrency(reportData.totalRecovery)}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Route Total Balance</p>
+                  <p className="text-xl font-bold text-blue-600">{formatCurrency(routeTotalBalance)}</p>
+                  <p className="text-[10px] text-muted-foreground">Start of day outstanding</p>
                 </div>
               </CardContent>
             </Card>
             <Card className="alfalah-card-hover">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                  <Store className="h-5 w-5 text-blue-600" />
+                <div className="h-11 w-11 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
+                  <Banknote className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium">Shops with Recovery</p>
-                  <p className="text-xl font-bold text-foreground">{recoveryShops.length}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Today's Recovery</p>
+                  <p className="text-xl font-bold text-green-600">{formatCurrency(todayRecovery)}</p>
+                  <p className="text-[10px] text-muted-foreground">From {recoveryShops.length} shop{recoveryShops.length !== 1 ? 's' : ''}</p>
                 </div>
               </CardContent>
             </Card>
             <Card className="alfalah-card-hover">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="h-11 w-11 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                  <FileText className="h-5 w-5 text-amber-600" />
+                  <TrendingDown className="h-5 w-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium">Order Booker</p>
-                  <p className="text-sm font-bold text-foreground truncate">{reportData.orderbookerName}</p>
-                  {reportData.orderbookerPhone && (
-                    <p className="text-[10px] text-muted-foreground">{reportData.orderbookerPhone}</p>
-                  )}
+                  <p className="text-xs text-muted-foreground font-medium">Remaining Balance</p>
+                  <p className="text-xl font-bold text-amber-600">{formatCurrency(remainingBalance)}</p>
+                  <p className="text-[10px] text-muted-foreground">Still outstanding</p>
                 </div>
               </CardContent>
             </Card>
