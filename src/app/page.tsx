@@ -26,6 +26,7 @@ import AdminMapView from '@/components/alfalah/AdminMapView';
 import AdminCalendarView from '@/components/alfalah/AdminCalendarView';
 import AdminExportData from '@/components/alfalah/AdminExportData';
 import AdminCompanies from '@/components/alfalah/AdminCompanies';
+import AdminOBRecoveryReport from '@/components/alfalah/AdminOBRecoveryReport';
 
 function AdminRouter() {
   const { currentView } = useAppStore();
@@ -71,6 +72,8 @@ function AdminRouter() {
       return <AdminCalendarView />;
     case 'admin-export-data':
       return <AdminExportData />;
+    case 'admin-ob-recovery-report':
+      return <AdminOBRecoveryReport />;
     case 'admin-companies':
       return <AdminCompanies />;
     default:
