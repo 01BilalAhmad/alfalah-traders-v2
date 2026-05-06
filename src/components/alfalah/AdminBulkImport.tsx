@@ -44,6 +44,7 @@ import {
   FileUp,
   ClipboardList,
   Rocket,
+  Building2,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -54,6 +55,12 @@ interface Orderbooker {
   id: string;
   name: string;
   phone: string | null;
+  status: string;
+}
+
+interface Company {
+  id: string;
+  name: string;
   status: string;
 }
 
@@ -74,6 +81,7 @@ interface BulkImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orderbookers: Orderbooker[];
+  companies: Company[];
   onImportComplete: () => void;
 }
 
@@ -91,11 +99,12 @@ function normalizeRouteDay(raw: string): string | null {
   ) || null;
 }
 
-export default function AdminBulkImport({ open, onOpenChange, orderbookers, onImportComplete }: BulkImportDialogProps) {
+export default function AdminBulkImport({ open, onOpenChange, orderbookers, companies, onImportComplete }: BulkImportDialogProps) {
   const { user } = useAppStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<'select' | 'upload' | 'preview' | 'result'>('select');
   const [selectedOBId, setSelectedOBId] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [parsedShops, setParsedShops] = useState<ParsedShop[]>([]);
   const [importing, setImporting] = useState(false);
@@ -110,8 +119,10 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, onIm
   } | null>(null);
 
   const activeOrderbookers = orderbookers.filter((ob) => ob.status === 'active');
+  const activeCompanies = companies.filter((c) => c.status === 'active');
   const validShops = parsedShops.filter((s) => s.valid);
   const invalidShops = parsedShops.filter((s) => !s.valid);
+  const selectedCompany = activeCompanies.find((c) => c.id === selectedCompanyId);
 
   const downloadTemplate = useCallback(() => {
     const templateData = [
@@ -223,6 +234,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, onIm
     try {
       const payload = {
         orderbookerId: selectedOBId,
+        companyId: selectedCompanyId || undefined,
         shops: validShops.map((s) => ({
           name: s.name,
           ownerName: s.ownerName || undefined,
@@ -259,11 +271,12 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, onIm
     } finally {
       setImporting(false);
     }
-  }, [selectedOBId, validShops, user]);
+  }, [selectedOBId, selectedCompanyId, validShops, user]);
 
   const resetAndClose = useCallback(() => {
     setStep('select');
     setSelectedOBId('');
+    setSelectedCompanyId('');
     setFile(null);
     setParsedShops([]);
     setImportResult(null);
@@ -341,6 +354,36 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, onIm
             <div className="divider-gradient" />
 
             <div className="space-y-3">
+              <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                Select Company (for Credit)
+              </label>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                If shops have credit, select which company the credit belongs to. This ensures the balance appears correctly in the per-company balance report.
+              </p>
+              <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a company..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeCompanies.map((comp) => (
+                    <SelectItem key={comp.id} value={comp.id}>
+                      {comp.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {totalCredit > 0 && !selectedCompanyId && (
+                <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Credit is entered but no company selected — balance won&apos;t appear in per-company reports
+                </p>
+              )}
+            </div>
+
+            <div className="divider-gradient" />
+
+            <div className="space-y-3">
               <label className="text-sm font-semibold text-foreground">Step 2: Download Template & Fill It</label>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Download the Excel template, fill in your shop details, then upload it.
@@ -389,6 +432,9 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, onIm
               <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Store className="h-4 w-4 text-primary" />
                 Assigning to: {activeOrderbookers.find((o) => o.id === selectedOBId)?.name}
+                {selectedCompany && (
+                  <span className="text-muted-foreground"> — {selectedCompany.name}</span>
+                )}
               </label>
             </div>
 
@@ -462,6 +508,12 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, onIm
                   OB: <span className="font-semibold text-foreground">{activeOrderbookers.find((o) => o.id === selectedOBId)?.name}</span>
                 </span>
               </div>
+              {selectedCompany && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-200 dark:border-blue-800">
+                  <Building2 className="h-3.5 w-3.5 text-blue-600" />
+                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">{selectedCompany.name}</span>
+                </div>
+              )}
             </div>
 
             {invalidShops.length > 0 && (
@@ -621,6 +673,12 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, onIm
             <Button onClick={() => setStep('upload')} disabled={!selectedOBId} className="bg-primary hover:bg-primary/90 text-white gap-1.5">
               Next <ArrowRight className="h-4 w-4" />
             </Button>
+          )}
+          {step === 'select' && selectedOBId && !selectedCompanyId && activeCompanies.length > 0 && (
+            <p className="text-xs text-amber-600 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              Select a company if importing with credit
+            </p>
           )}
 
           {step === 'preview' && (

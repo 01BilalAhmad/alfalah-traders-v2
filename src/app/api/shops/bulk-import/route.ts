@@ -23,7 +23,7 @@ interface BulkShopRow {
 export async function POST(request: NextRequest) {
   let client;
   try {
-    const { orderbookerId, shops, createdBy } = await request.json();
+    const { orderbookerId, companyId, shops, createdBy } = await request.json();
 
     if (!orderbookerId) {
       return NextResponse.json({ error: 'Orderbooker is required' }, { status: 400 });
@@ -36,6 +36,25 @@ export async function POST(request: NextRequest) {
     }
     if (shops.length > 500) {
       return NextResponse.json({ error: 'Maximum 500 shops per import' }, { status: 400 });
+    }
+
+    // Validate company if provided
+    let company: { id: string; name: string } | null = null;
+    if (companyId) {
+      const compRes = await getPgClient();
+      await compRes.connect();
+      const compData = await compRes.query(
+        `SELECT id, name, status FROM "Company" WHERE id = $1`,
+        [companyId]
+      );
+      await compRes.end();
+      if (compData.rows.length === 0) {
+        return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+      }
+      if (compData.rows[0].status !== 'active') {
+        return NextResponse.json({ error: `Company "${compData.rows[0].name}" is inactive` }, { status: 400 });
+      }
+      company = compData.rows[0];
     }
 
     client = getPgClient();
@@ -129,15 +148,36 @@ export async function POST(request: NextRequest) {
 
         createdShops.push(shopRes.rows[0]);
 
+        // Create ShopCompanyBalance entry if company is selected
+        if (company) {
+          const scbId = generateId('scb');
+          await client.query(
+            `INSERT INTO "ShopCompanyBalance" (id, "shopId", "companyId", balance, "creditLimit")
+             VALUES ($1, $2, $3, $4, 0)`,
+            [scbId, shopId, company.id, initialBalance]
+          );
+        }
+
         if (shop.creditAmount && shop.creditAmount > 0) {
           const txnId = generateId('txn');
-          const description = `Opening balance - Bulk import`;
+          const description = company
+            ? `Opening balance - Bulk import (${company.name})`
+            : `Opening balance - Bulk import`;
 
-          await client.query(
-            `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "createdAt")
-             VALUES ($1, $2, 'credit', 'approved', $3, 0, $4, $5, $6, $7)`,
-            [txnId, shopId, shop.creditAmount, shop.creditAmount, description, createdBy, now]
-          );
+          // Include companyId in transaction if company is selected
+          if (company) {
+            await client.query(
+              `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "companyId", "createdAt")
+               VALUES ($1, $2, 'credit', 'approved', $3, 0, $4, $5, $6, $7, $8)`,
+              [txnId, shopId, shop.creditAmount, shop.creditAmount, description, createdBy, company.id, now]
+            );
+          } else {
+            await client.query(
+              `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "createdAt")
+               VALUES ($1, $2, 'credit', 'approved', $3, 0, $4, $5, $6, $7)`,
+              [txnId, shopId, shop.creditAmount, shop.creditAmount, description, createdBy, now]
+            );
+          }
 
           totalCreditAmount += shop.creditAmount;
         }
@@ -166,9 +206,11 @@ export async function POST(request: NextRequest) {
             totalCredit: totalCreditAmount,
             orderbookerId,
             orderbookerName: orderbooker.name,
+            companyId: company?.id || null,
+            companyName: company?.name || null,
             errors: importErrors.length,
           }),
-          `Bulk imported ${createdShops.length} shops to ${orderbooker.name} (total credit: Rs. ${totalCreditAmount.toLocaleString()})`,
+          `Bulk imported ${createdShops.length} shops to ${orderbooker.name}${company ? ` (${company.name})` : ''} (total credit: Rs. ${totalCreditAmount.toLocaleString()})`,
         ]
       );
     } catch { /* non-blocking */ }

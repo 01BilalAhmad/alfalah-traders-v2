@@ -169,6 +169,7 @@ export default function AdminShops() {
 
   // Bulk import dialog state
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [companies, setCompanies] = useState<{ id: string; name: string; status: string }[]>([]);
 
   // Shop notes dialog state
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
@@ -184,6 +185,16 @@ export default function AdminShops() {
       if (res.ok) {
         const data = await res.json();
         setOrderbookers(data);
+      }
+    } catch { /* silent */ }
+  }, []);
+
+  const fetchCompanies = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/companies');
+      if (res.ok) {
+        const data = await res.json();
+        setCompanies(data.companies || []);
       }
     } catch { /* silent */ }
   }, []);
@@ -221,7 +232,7 @@ export default function AdminShops() {
     } catch { /* silent */ }
   }, []);
 
-  useEffect(() => { fetchOrderbookers(); }, [fetchOrderbookers]);
+  useEffect(() => { fetchOrderbookers(); fetchCompanies(); }, [fetchOrderbookers, fetchCompanies]);
   useEffect(() => { fetchShops(); }, [fetchShops]);
   useEffect(() => { fetchAllShopsForCounts(); }, [fetchAllShopsForCounts]);
 
@@ -1649,6 +1660,7 @@ export default function AdminShops() {
         open={bulkImportOpen}
         onOpenChange={setBulkImportOpen}
         orderbookers={orderbookers}
+        companies={companies}
         onImportComplete={() => { fetchShops(); fetchAllShopsForCounts(); }}
       />
 
