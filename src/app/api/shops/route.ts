@@ -9,10 +9,7 @@ export async function GET(request: NextRequest) {
     const routeDay = searchParams.get('routeDay');
     const search = searchParams.get('search');
     const includeInactive = searchParams.get('includeInactive') === 'true';
-    const balanceOnlyParam = searchParams.get('balanceOnly');
-    const balanceOnly = balanceOnlyParam !== null
-      ? balanceOnlyParam === 'true'
-      : !!orderbookerId;
+    const balanceOnly = searchParams.get('balanceOnly') === 'true';
 
     const where: any = {};
 

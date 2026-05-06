@@ -63,6 +63,7 @@ async function generateReport(client: pg.Client, startDate: Date, endDate: Date,
 
       const shopRecoveries = await Promise.all(
         shops.map(async (shop) => {
+          // Fetch approved transactions for balance calculations
           const txnRes = await client.query(
             `SELECT id, type, amount, "previousBalance", "newBalance", "createdAt", description, "gpsLat", "gpsLng"
              FROM "Transaction"
@@ -71,6 +72,15 @@ async function generateReport(client: pg.Client, startDate: Date, endDate: Date,
             [shop.id, startDate.toISOString(), endDate.toISOString()]
           );
           const dayTxns = txnRes.rows;
+
+          // Also fetch pending transactions to determine visited status
+          const pendingRes = await client.query(
+            `SELECT id FROM "Transaction"
+             WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'pending' AND type = 'recovery'
+             LIMIT 1`,
+            [shop.id, startDate.toISOString(), endDate.toISOString()]
+          );
+          const hasPendingRecovery = pendingRes.rows.length > 0;
 
           const todayCredit = dayTxns.filter((t: { type: string; amount: number }) => t.type === 'credit').reduce((s: number, t: { amount: number }) => s + t.amount, 0);
           const recoveryTxns = dayTxns.filter((t: { type: string }) => t.type === 'recovery');
@@ -95,7 +105,7 @@ async function generateReport(client: pg.Client, startDate: Date, endDate: Date,
             todayCredit: Math.round(todayCredit * 100) / 100,
             todayRecovery: Math.round(todayRecovery * 100) / 100,
             closingBalance: Math.round((prevBalance + todayCredit - todayRecovery) * 100) / 100,
-            visited: recoveryTxns.length > 0,
+            visited: recoveryTxns.length > 0 || hasPendingRecovery,
             recoveryEntries,
           };
         })
