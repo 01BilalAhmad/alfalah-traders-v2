@@ -2024,6 +2024,8 @@ function LedgerView() {
   const [ledger, setLedger] = useState<LedgerData | null>(null);
   const [loadingShops, setLoadingShops] = useState(false);
   const [loadingLedger, setLoadingLedger] = useState(false);
+  const [ledgerCompanyFilter, setLedgerCompanyFilter] = useState<string>('all');
+  const [companies, setCompanies] = useState<{ id: string; name: string; status: string }[]>([]);
 
   const fetchShops = useCallback(async () => {
     if (!user) return;
@@ -2035,17 +2037,59 @@ function LedgerView() {
     finally { setLoadingShops(false); }
   }, [user]);
 
-  useEffect(() => { fetchShops(); }, [fetchShops]);
+  const fetchCompanies = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/companies?status=active');
+      if (res.ok) {
+        const data = await res.json();
+        setCompanies(data.companies || []);
+      }
+    } catch { /* silent */ }
+  }, []);
 
-  const fetchLedger = useCallback(async (shopId: string) => {
+  useEffect(() => { fetchShops(); fetchCompanies(); }, [fetchShops, fetchCompanies]);
+
+  const fetchLedger = useCallback(async (shopId: string, companyId?: string) => {
     setLoadingLedger(true);
     setSelectedShopId(shopId);
+    setLedgerCompanyFilter(companyId || 'all');
     try {
-      const res = await apiFetch(`/api/reports/ledger?shopId=${shopId}`);
-      if (res.ok) setLedger(await res.json());
+      const filterId = companyId && companyId !== 'all' ? companyId : '';
+      const url = filterId
+        ? `/api/reports/ledger?shopId=${shopId}&companyId=${filterId}`
+        : `/api/reports/ledger?shopId=${shopId}`;
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (filterId) {
+          data.filteredCompanyName = companies.find(c => c.id === filterId)?.name || null;
+        }
+        setLedger(data);
+      }
     } catch { /* silent */ }
     finally { setLoadingLedger(false); }
-  }, [setSelectedShopId]);
+  }, [setSelectedShopId, companies]);
+
+  const handleLedgerCompanyChange = async (companyId: string) => {
+    setLedgerCompanyFilter(companyId);
+    if (!selectedShopId) return;
+    setLoadingLedger(true);
+    try {
+      const filterId = companyId !== 'all' ? companyId : '';
+      const url = filterId
+        ? `/api/reports/ledger?shopId=${selectedShopId}&companyId=${filterId}`
+        : `/api/reports/ledger?shopId=${selectedShopId}`;
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (filterId) {
+          data.filteredCompanyName = companies.find(c => c.id === filterId)?.name || null;
+        }
+        setLedger(data);
+      }
+    } catch { /* silent */ }
+    finally { setLoadingLedger(false); }
+  };
 
   const handleDownloadPDF = () => {
     if (!ledger) return;
@@ -2089,6 +2133,36 @@ function LedgerView() {
             </Button>
           </div>
 
+          {/* Company Filter */}
+          {companies.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium text-muted-foreground shrink-0">Filter:</span>
+              <button
+                onClick={() => handleLedgerCompanyChange('all')}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  ledgerCompanyFilter === 'all'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-muted text-muted-foreground hover:bg-accent'
+                }`}
+              >
+                All
+              </button>
+              {(ledger.companyBalances || []).map((cb) => (
+                <button
+                  key={cb.companyId}
+                  onClick={() => handleLedgerCompanyChange(cb.companyId)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                    ledgerCompanyFilter === cb.companyId
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-muted text-muted-foreground hover:bg-accent'
+                  }`}
+                >
+                  {cb.companyName} ({formatCurrency(cb.balance)})
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Summary */}
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 text-center">
@@ -2119,10 +2193,15 @@ function LedgerView() {
                       <div key={txn.id} className="px-4 py-3">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <Badge className={`text-[9px] ${txn.type === 'credit' ? 'badge-credit' : 'badge-recovery'}`}>
                                 {txn.type === 'credit' ? 'Credit' : 'Recovery'}
                               </Badge>
+                              {txn.company && (
+                                <Badge variant="outline" className="text-[8px] px-1.5 py-0 h-4 border-primary/30 text-primary">
+                                  {txn.company.name}
+                                </Badge>
+                              )}
                               <span className="text-[10px] text-muted-foreground">
                                 {new Date(txn.createdAt).toLocaleString('en-PK', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                               </span>

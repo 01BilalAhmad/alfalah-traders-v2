@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPgClient } from '@/lib/pg';
 
-// GET /api/reports/ledger?shopId=xxx
+// GET /api/reports/ledger?shopId=xxx&companyId=xxx
 export async function GET(request: NextRequest) {
   let client;
   try {
     const { searchParams } = new URL(request.url);
     const shopId = searchParams.get('shopId');
+    const companyId = searchParams.get('companyId');
     const limitParam = searchParams.get('limit');
     const limit = limitParam ? parseInt(limitParam, 10) : undefined;
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     client = getPgClient();
     await client.connect();
 
-    // Fetch shop with orderbooker info
+    // Fetch shop with orderbooker info + company balances
     const shopRes = await client.query(
       `SELECT s.*, u.id AS "ob_id", u.name AS "ob_name", u.phone AS "ob_phone"
        FROM "Shop" s
@@ -33,16 +34,46 @@ export async function GET(request: NextRequest) {
 
     const shop = shopRes.rows[0];
 
-    // Fetch transactions with creator info
-    let txnQuery = `SELECT t.*, u.id AS "creator_id", u.name AS "creator_name", u.role AS "creator_role"
+    // Fetch company balances for this shop
+    let companyBalances: { companyId: string; companyName: string; balance: number }[] = [];
+    try {
+      const scbRes = await client.query(
+        `SELECT scb."companyId", c.name AS "companyName", scb.balance
+         FROM "ShopCompanyBalance" scb
+         LEFT JOIN "Company" c ON scb."companyId" = c.id
+         WHERE scb."shopId" = $1 AND scb.balance > 0
+         ORDER BY c.name`,
+        [shopId]
+      );
+      companyBalances = scbRes.rows.map((r: any) => ({
+        companyId: r.companyId,
+        companyName: r.companyName,
+        balance: Number(r.balance),
+      }));
+    } catch { /* ShopCompanyBalance might not exist */ }
+
+    // Fetch transactions with creator info + company info
+    const conditions: string[] = [`t."shopId" = $1`];
+    const txnParams: any[] = [shopId];
+    let paramIndex = 2;
+
+    if (companyId) {
+      conditions.push(`t."companyId" = $${paramIndex++}`);
+      txnParams.push(companyId);
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`;
+
+    let txnQuery = `SELECT t.*, u.id AS "creator_id", u.name AS "creator_name", u.role AS "creator_role",
+                           co.id AS "company_id", co.name AS "company_name"
                     FROM "Transaction" t
                     LEFT JOIN "User" u ON t."createdBy" = u.id
-                    WHERE t."shopId" = $1
+                    LEFT JOIN "Company" co ON t."companyId" = co.id
+                    ${whereClause}
                     ORDER BY t."createdAt" ASC`;
-    const txnParams: any[] = [shopId];
 
     if (limit && limit > 0) {
-      txnQuery += ` LIMIT $2`;
+      txnQuery += ` LIMIT $${paramIndex++}`;
       txnParams.push(limit);
     }
 
@@ -66,16 +97,28 @@ export async function GET(request: NextRequest) {
       gpsLat: t.gpsLat,
       gpsLng: t.gpsLng,
       gpsAddress: t.gpsAddress,
+      companyId: t.companyId || null,
       createdAt: t.createdAt,
       creator: {
         id: t.creator_id,
         name: t.creator_name,
         role: t.creator_role,
       },
+      company: t.company_id ? {
+        id: t.company_id,
+        name: t.company_name,
+      } : null,
     }));
 
     const totalCredit = transactions.filter((t: any) => t.type === 'credit').reduce((s: number, t: any) => s + Number(t.amount), 0);
     const totalRecovery = transactions.filter((t: any) => t.type === 'recovery').reduce((s: number, t: any) => s + Number(t.amount), 0);
+
+    // If filtered by company, calculate the company-specific balance
+    let currentBalance = Number(shop.balance);
+    if (companyId) {
+      const companyBal = companyBalances.find(cb => cb.companyId === companyId);
+      currentBalance = companyBal ? companyBal.balance : 0;
+    }
 
     await client.end();
     return NextResponse.json({
@@ -99,8 +142,9 @@ export async function GET(request: NextRequest) {
         totalCredit: Math.round(totalCredit * 100) / 100,
         totalRecovery: Math.round(totalRecovery * 100) / 100,
         totalTransactions: transactions.length,
-        currentBalance: Number(shop.balance),
+        currentBalance: Math.round(currentBalance * 100) / 100,
       },
+      companyBalances,
     });
   } catch (error) {
     if (client) await client.end().catch(() => {});

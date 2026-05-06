@@ -8,11 +8,16 @@ export interface LedgerEntry {
   previousBalance: number;
   newBalance: number;
   description: string | null;
+  companyId?: string | null;
   createdAt: string;
   creator: {
     name: string;
     role: string;
   };
+  company?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface LedgerData {
@@ -36,6 +41,8 @@ export interface LedgerData {
     totalTransactions: number;
     currentBalance: number;
   };
+  companyBalances?: { companyId: string; companyName: string; balance: number }[];
+  filteredCompanyName?: string | null;
 }
 
 function formatCurrency(amount: number): string {
@@ -78,7 +85,10 @@ export function generateLedgerPDF(ledger: LedgerData): jsPDF {
   // Document title
   doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
-  doc.text('SHOP LEDGER / KHATA', pageWidth / 2, 34, { align: 'center' });
+  const docTitle = ledger.filteredCompanyName
+    ? `SHOP LEDGER — ${ledger.filteredCompanyName}`
+    : 'SHOP LEDGER / KHATA';
+  doc.text(docTitle, pageWidth / 2, 34, { align: 'center' });
 
   // Divider line
   doc.setDrawColor(37, 99, 235);
@@ -142,18 +152,50 @@ export function generateLedgerPDF(ledger: LedgerData): jsPDF {
   yPos += 26;
 
   // Transactions Table
-  const tableData = ledger.transactions.map((txn, idx) => [
-    idx + 1,
-    formatDate(txn.createdAt),
-    txn.type === 'credit' ? 'Credit' : 'Recovery',
-    txn.description || (txn.type === 'credit' ? 'Goods supplied' : 'Cash collected'),
-    formatCurrency(txn.amount),
-    formatCurrency(txn.newBalance),
-  ]);
+  const hasCompanyInfo = ledger.transactions.some(t => t.company);
+  const tableData = ledger.transactions.map((txn, idx) => {
+    const row: (string | number)[] = [
+      idx + 1,
+      formatDate(txn.createdAt),
+      txn.type === 'credit' ? 'Credit' : 'Recovery',
+    ];
+    if (hasCompanyInfo) {
+      row.push(txn.company?.name || '—');
+    }
+    row.push(
+      txn.description || (txn.type === 'credit' ? 'Goods supplied' : 'Cash collected'),
+      formatCurrency(txn.amount),
+      formatCurrency(txn.newBalance),
+    );
+    return row;
+  });
+
+  const tableHeaders = hasCompanyInfo
+    ? ['#', 'Date & Time', 'Type', 'Company', 'Description', 'Amount', 'Balance']
+    : ['#', 'Date & Time', 'Type', 'Description', 'Amount', 'Balance'];
+
+  const columnStyles = hasCompanyInfo
+    ? {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { cellWidth: 34 },
+        2: { cellWidth: 18, halign: 'center' },
+        3: { cellWidth: 25 },
+        4: { cellWidth: 40 },
+        5: { halign: 'right', cellWidth: 26 },
+        6: { halign: 'right', cellWidth: 26 },
+      }
+    : {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { cellWidth: 38 },
+        2: { cellWidth: 20, halign: 'center' },
+        3: { cellWidth: 50 },
+        4: { halign: 'right', cellWidth: 28 },
+        5: { halign: 'right', cellWidth: 28 },
+      };
 
   autoTable(doc, {
     startY: yPos,
-    head: [['#', 'Date & Time', 'Type', 'Description', 'Amount', 'Balance']],
+    head: [tableHeaders],
     body: tableData,
     headStyles: {
       fillColor: navyBlue,
@@ -170,14 +212,7 @@ export function generateLedgerPDF(ledger: LedgerData): jsPDF {
     alternateRowStyles: {
       fillColor: [248, 250, 252],
     },
-    columnStyles: {
-      0: { halign: 'center', cellWidth: 10 },
-      1: { cellWidth: 38 },
-      2: { cellWidth: 20, halign: 'center' },
-      3: { cellWidth: 50 },
-      4: { halign: 'right', cellWidth: 28 },
-      5: { halign: 'right', cellWidth: 28 },
-    },
+    columnStyles,
     margin: { left: 15, right: 15 },
     didParseCell: (data) => {
       if (data.section === 'body' && data.column.index === 2) {
@@ -216,6 +251,7 @@ export function generateLedgerPDF(ledger: LedgerData): jsPDF {
 
 export function downloadLedgerPDF(ledger: LedgerData): void {
   const doc = generateLedgerPDF(ledger);
-  const fileName = `AlFalah_Ledger_${ledger.shop.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+  const companySuffix = ledger.filteredCompanyName ? `_${ledger.filteredCompanyName.replace(/\s+/g, '_')}` : '';
+  const fileName = `AlFalah_Ledger_${ledger.shop.name.replace(/\s+/g, '_')}${companySuffix}_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(fileName);
 }
