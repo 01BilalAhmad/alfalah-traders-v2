@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient, toPgArray } from '@/lib/pg';
-import crypto from 'crypto';
+import { db } from '@/lib/db';
+import { getPgClient } from '@/lib/pg';
 
 const VALID_ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'saturday', 'sunday'];
-
-function generateId(prefix: string): string {
-  const timestamp = Date.now().toString(36);
-  const random = crypto.randomBytes(8).toString('hex');
-  return `${prefix}_${timestamp}_${random}`;
-}
 
 interface BulkShopRow {
   name: string;
@@ -16,12 +10,11 @@ interface BulkShopRow {
   area?: string;
   address?: string;
   phone?: string;
-  routeDays: string[]; // Changed from routeDay: string to routeDays: string[]
+  routeDays: string[];
   creditAmount?: number;
 }
 
 export async function POST(request: NextRequest) {
-  let client;
   try {
     const { orderbookerId, companyId, shops, createdBy } = await request.json();
 
@@ -41,36 +34,22 @@ export async function POST(request: NextRequest) {
     // Validate company if provided
     let company: { id: string; name: string } | null = null;
     if (companyId) {
-      const compRes = await getPgClient();
-      await compRes.connect();
-      const compData = await compRes.query(
-        `SELECT id, name, status FROM "Company" WHERE id = $1`,
-        [companyId]
-      );
-      await compRes.end();
-      if (compData.rows.length === 0) {
+      const compData = await db.company.findUnique({ where: { id: companyId } });
+      if (!compData) {
         return NextResponse.json({ error: 'Company not found' }, { status: 404 });
       }
-      if (compData.rows[0].status !== 'active') {
-        return NextResponse.json({ error: `Company "${compData.rows[0].name}" is inactive` }, { status: 400 });
+      if (compData.status !== 'active') {
+        return NextResponse.json({ error: `Company "${compData.name}" is inactive` }, { status: 400 });
       }
-      company = compData.rows[0];
+      company = { id: compData.id, name: compData.name };
     }
 
-    client = getPgClient();
-    await client.connect();
-
-    const obRes = await client.query(
-      `SELECT id, name, status FROM "User" WHERE id = $1`,
-      [orderbookerId]
-    );
-    if (obRes.rows.length === 0) {
-      await client.end();
+    // Validate orderbooker
+    const orderbooker = await db.user.findUnique({ where: { id: orderbookerId } });
+    if (!orderbooker) {
       return NextResponse.json({ error: 'Orderbooker not found' }, { status: 404 });
     }
-    const orderbooker = obRes.rows[0];
     if (orderbooker.status !== 'active') {
-      await client.end();
       return NextResponse.json({
         error: `"${orderbooker.name}" is inactive. Please activate them first or choose a different orderbooker.`,
       }, { status: 400 });
@@ -84,8 +63,14 @@ export async function POST(request: NextRequest) {
       const rowNumber = i + 2;
       const name = (row.name || '').toString().trim();
       // Parse routeDays - support comma-separated values (e.g., "monday,thursday")
-      const routeDaysRaw = (row.routeDays || row.routeDay || '').toString().trim().toLowerCase();
-      const routeDayParts = routeDaysRaw.split(',').map((d: string) => d.trim()).filter((d: string) => d);
+      // Also handle if routeDays is already an array
+      let routeDayParts: string[];
+      if (Array.isArray(row.routeDays)) {
+        routeDayParts = row.routeDays.map((d: string) => String(d).trim().toLowerCase()).filter((d: string) => d);
+      } else {
+        const routeDaysRaw = (row.routeDays || row.routeDay || '').toString().trim().toLowerCase();
+        routeDayParts = routeDaysRaw.split(',').map((d: string) => d.trim()).filter((d: string) => d);
+      }
 
       if (!name) {
         errors.push({ row: rowNumber, error: 'Shop name is required' });
@@ -135,111 +120,121 @@ export async function POST(request: NextRequest) {
     }
 
     if (validatedShops.length === 0) {
-      await client.end();
       return NextResponse.json({
         error: 'No valid shops to import',
         details: errors,
       }, { status: 400 });
     }
 
-    await client.query('BEGIN');
+    // Use Prisma transaction — it handles arrays natively!
+    const result = await db.$transaction(async (tx) => {
+      const createdShops: any[] = [];
+      const importErrors: { row: number; name: string; error: string }[] = [];
+      let totalCreditAmount = 0;
 
-    const createdShops: any[] = [];
-    const importErrors: { row: number; name: string; error: string }[] = [];
-    let totalCreditAmount = 0;
+      for (const shop of validatedShops) {
+        try {
+          const initialBalance = shop.creditAmount || 0;
 
-    for (const shop of validatedShops) {
-      try {
-        const shopId = generateId('shop');
-        const now = new Date().toISOString();
-        const initialBalance = shop.creditAmount || 0;
+          // Prisma handles routeDays (String[]) natively — no toPgArray needed!
+          const newShop = await tx.shop.create({
+            data: {
+              name: shop.name,
+              ownerName: shop.ownerName,
+              area: shop.area,
+              address: shop.address,
+              phone: shop.phone,
+              routeDays: shop.routeDays,
+              orderbookerId: orderbookerId,
+              balance: initialBalance,
+              creditLimit: 0,
+              status: 'active',
+            },
+          });
 
-        const shopRes = await client.query(
-          `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDays", "orderbookerId", balance, "creditLimit", status, "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4, $5, $6, $7::text[], $8, $9, 0, 'active', $10, $11)
-           RETURNING *`,
-          [shopId, shop.name, shop.ownerName, shop.area, shop.address, shop.phone, toPgArray(shop.routeDays), orderbookerId, initialBalance, now, now]
-        );
+          createdShops.push(newShop);
 
-        createdShops.push(shopRes.rows[0]);
-
-        // Create ShopCompanyBalance entry if company is selected
-        if (company) {
-          const scbId = generateId('scb');
-          await client.query(
-            `INSERT INTO "ShopCompanyBalance" (id, "shopId", "companyId", balance, "creditLimit")
-             VALUES ($1, $2, $3, $4, 0)`,
-            [scbId, shopId, company.id, initialBalance]
-          );
-        }
-
-        if (shop.creditAmount && shop.creditAmount > 0) {
-          const txnId = generateId('txn');
-          const description = company
-            ? `Opening balance - Bulk import (${company.name})`
-            : `Opening balance - Bulk import`;
-
-          // Include companyId in transaction if company is selected
+          // Create ShopCompanyBalance entry if company is selected
           if (company) {
-            await client.query(
-              `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "companyId", "createdAt")
-               VALUES ($1, $2, 'credit', 'approved', $3, 0, $4, $5, $6, $7, $8)`,
-              [txnId, shopId, shop.creditAmount, shop.creditAmount, description, createdBy, company.id, now]
-            );
-          } else {
-            await client.query(
-              `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "createdAt")
-               VALUES ($1, $2, 'credit', 'approved', $3, 0, $4, $5, $6, $7)`,
-              [txnId, shopId, shop.creditAmount, shop.creditAmount, description, createdBy, now]
-            );
+            await tx.shopCompanyBalance.create({
+              data: {
+                shopId: newShop.id,
+                companyId: company.id,
+                balance: initialBalance,
+                creditLimit: 0,
+              },
+            });
           }
 
-          totalCreditAmount += shop.creditAmount;
+          // Create opening balance transaction if credit > 0
+          if (shop.creditAmount && shop.creditAmount > 0) {
+            const description = company
+              ? `Opening balance - Bulk import (${company.name})`
+              : `Opening balance - Bulk import`;
+
+            await tx.transaction.create({
+              data: {
+                shopId: newShop.id,
+                type: 'credit',
+                status: 'approved',
+                amount: shop.creditAmount,
+                previousBalance: 0,
+                newBalance: shop.creditAmount,
+                description: description,
+                createdBy: createdBy,
+                companyId: company?.id || null,
+              },
+            });
+
+            totalCreditAmount += shop.creditAmount;
+          }
+        } catch (err: any) {
+          console.error(`[BULK-IMPORT] Failed to insert shop "${shop.name}":`, err?.message || err);
+          importErrors.push({
+            row: shop.rowNumber,
+            name: shop.name,
+            error: err?.message || 'Failed to create shop',
+          });
         }
-      } catch (err: any) {
-        console.error(`[BULK-IMPORT] Failed to insert shop "${shop.name}":`, err?.message || err);
-        importErrors.push({
-          row: shop.rowNumber,
-          name: shop.name,
-          error: err?.message || 'Failed to create shop',
-        });
       }
-    }
 
-    await client.query('COMMIT');
+      // Audit log (best effort)
+      try {
+        await tx.auditLog.create({
+          data: {
+            action: 'create',
+            entityType: 'shop',
+            entityId: 'bulk',
+            performedBy: createdBy,
+            newValue: JSON.stringify({
+              action: 'bulk-import',
+              shopCount: createdShops.length,
+              totalCredit: totalCreditAmount,
+              orderbookerId,
+              orderbookerName: orderbooker.name,
+              companyId: company?.id || null,
+              companyName: company?.name || null,
+              errors: importErrors.length,
+            }),
+            description: `Bulk imported ${createdShops.length} shops to ${orderbooker.name}${company ? ` (${company.name})` : ''} (total credit: Rs. ${totalCreditAmount.toLocaleString()})`,
+          },
+        });
+      } catch { /* non-blocking */ }
 
-    try {
-      const auditId = generateId('audit');
-      await client.query(
-        `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "performedBy", "newValue", description)
-         VALUES ($1, 'create', 'shop', 'bulk', $2, $3)`,
-        [
-          auditId,
-          createdBy,
-          JSON.stringify({
-            action: 'bulk-import',
-            shopCount: createdShops.length,
-            totalCredit: totalCreditAmount,
-            orderbookerId,
-            orderbookerName: orderbooker.name,
-            companyId: company?.id || null,
-            companyName: company?.name || null,
-            errors: importErrors.length,
-          }),
-          `Bulk imported ${createdShops.length} shops to ${orderbooker.name}${company ? ` (${company.name})` : ''} (total credit: Rs. ${totalCreditAmount.toLocaleString()})`,
-        ]
-      );
-    } catch { /* non-blocking */ }
-
-    await client.end();
+      return {
+        createdShops,
+        importErrors,
+        totalCreditAmount,
+      };
+    });
 
     return NextResponse.json({
       success: true,
-      created: createdShops.length,
-      failed: importErrors.length,
-      totalCredit: totalCreditAmount,
+      created: result.createdShops.length,
+      failed: result.importErrors.length,
+      totalCredit: result.totalCreditAmount,
       orderbookerName: orderbooker.name,
-      shops: createdShops.map((s: any) => ({
+      shops: result.createdShops.map((s: any) => ({
         id: s.id,
         name: s.name,
         ownerName: s.ownerName,
@@ -247,15 +242,13 @@ export async function POST(request: NextRequest) {
         routeDays: s.routeDays,
         balance: Number(s.balance),
       })),
-      errors: importErrors,
+      errors: result.importErrors,
       validationErrors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
-    if (client) {
-      try { await client.query('ROLLBACK'); } catch {}
-      await client.end().catch(() => {});
-    }
     console.error('[BULK-IMPORT] Fatal error:', error);
-    return NextResponse.json({ error: `Failed to bulk import shops: ${(error as Error)?.message || 'Unknown error'}` }, { status: 500 });
+    return NextResponse.json({
+      error: `Failed to bulk import shops: ${(error as Error)?.message || 'Unknown error'}`,
+    }, { status: 500 });
   }
 }

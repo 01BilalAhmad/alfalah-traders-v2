@@ -4,7 +4,7 @@
  * Used by sensitive API routes (backup, restore, reset-password, etc.)
  */
 
-import { getPgClient } from '@/lib/pg';
+import { db } from '@/lib/db';
 
 interface AuthResult {
   authorized: boolean;
@@ -25,35 +25,26 @@ export async function requireAdmin(request: Request): Promise<AuthResult> {
     return { authorized: false, userId: null, user: null, error: 'Authentication required' };
   }
 
-  let client;
   try {
-    client = getPgClient();
-    await client.connect();
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, name: true, role: true, status: true },
+    });
 
-    const res = await client.query(
-      'SELECT id, username, name, role, status FROM "User" WHERE id = $1',
-      [userId]
-    );
-
-    await client.end();
-
-    if (res.rows.length === 0) {
+    if (!user) {
       return { authorized: false, userId, user: null, error: 'User not found' };
     }
-
-    const user = res.rows[0];
 
     if (user.status === 'inactive') {
       return { authorized: false, userId, user: null, error: 'Account is deactivated' };
     }
 
     if (user.role !== 'admin') {
-      return { authorized: false, userId, user, error: 'Admin access required' };
+      return { authorized: false, userId, user: null, error: 'Admin access required' };
     }
 
     return { authorized: true, userId, user };
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Auth guard error:', error);
     return { authorized: false, userId, user: null, error: 'Authentication verification failed' };
   }
@@ -70,23 +61,15 @@ export async function requireAuth(request: Request): Promise<AuthResult> {
     return { authorized: false, userId: null, user: null, error: 'Authentication required' };
   }
 
-  let client;
   try {
-    client = getPgClient();
-    await client.connect();
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, name: true, role: true, status: true },
+    });
 
-    const res = await client.query(
-      'SELECT id, username, name, role, status FROM "User" WHERE id = $1',
-      [userId]
-    );
-
-    await client.end();
-
-    if (res.rows.length === 0) {
+    if (!user) {
       return { authorized: false, userId, user: null, error: 'User not found' };
     }
-
-    const user = res.rows[0];
 
     if (user.status === 'inactive') {
       return { authorized: false, userId, user: null, error: 'Account is deactivated' };
@@ -94,7 +77,6 @@ export async function requireAuth(request: Request): Promise<AuthResult> {
 
     return { authorized: true, userId, user };
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Auth guard error:', error);
     return { authorized: false, userId, user: null, error: 'Authentication verification failed' };
   }
