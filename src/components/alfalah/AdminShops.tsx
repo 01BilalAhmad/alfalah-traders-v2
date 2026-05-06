@@ -76,6 +76,7 @@ import {
   StickyNote,
   Trash2,
   MessageSquare,
+  CalendarDays,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -168,9 +169,10 @@ export default function AdminShops() {
   // Bulk selection state
   const [selectedShopIds, setSelectedShopIds] = useState<Set<string>>(new Set());
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
-  const [bulkAction, setBulkAction] = useState<'assign' | 'deactivate' | 'reactivate' | null>(null);
+  const [bulkAction, setBulkAction] = useState<'assign' | 'deactivate' | 'reactivate' | 'route-days' | null>(null);
   const [bulkOrderbookerId, setBulkOrderbookerId] = useState('');
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkRouteDays, setBulkRouteDays] = useState<string[]>([]);
 
   // Bulk import dialog state
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
@@ -489,6 +491,12 @@ export default function AdminShops() {
     setBulkDialogOpen(true);
   };
 
+  const openBulkRouteDays = () => {
+    setBulkAction('route-days');
+    setBulkRouteDays([]);
+    setBulkDialogOpen(true);
+  };
+
   const openBulkDeactivate = () => {
     setBulkAction('deactivate');
     setBulkDialogOpen(true);
@@ -553,6 +561,29 @@ export default function AdminShops() {
         if (res.ok) {
           toast({ title: 'Bulk Reactivate Complete', description: `${ids.length} shops reactivated` });
           setBulkDialogOpen(false);
+          clearSelection();
+          fetchShops();
+          fetchAllShopsForCounts();
+        } else {
+          const data = await res.json();
+          toast({ title: 'Error', description: data.error, variant: 'destructive' });
+        }
+      } else if (bulkAction === 'route-days') {
+        if (bulkRouteDays.length === 0) {
+          toast({ title: 'Error', description: 'Select at least one route day', variant: 'destructive' });
+          setBulkLoading(false);
+          return;
+        }
+        const res = await apiFetch('/api/shops/bulk-route-days', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shopIds: ids, routeDays: bulkRouteDays }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          toast({ title: 'Route Days Assigned', description: `${data.updated} shops assigned to ${formatRouteDays(bulkRouteDays)}` });
+          setBulkDialogOpen(false);
+          setBulkAction(null);
           clearSelection();
           fetchShops();
           fetchAllShopsForCounts();
@@ -1046,6 +1077,15 @@ export default function AdminShops() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-8 text-xs gap-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 hover:border-blue-200"
+                  onClick={openBulkRouteDays}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Set Route
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="h-8 text-xs gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-200"
                   onClick={openBulkDeactivate}
                 >
@@ -1121,6 +1161,74 @@ export default function AdminShops() {
             >
               {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Assign to {selectedShopIds.size} {selectedShopIds.size === 1 ? 'Shop' : 'Shops'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Route Days Dialog */}
+      <Dialog open={bulkDialogOpen && bulkAction === 'route-days'} onOpenChange={(open) => { setBulkDialogOpen(open); if (!open) setBulkAction(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              Set Route Days
+            </DialogTitle>
+            <DialogDescription>
+              Assign route days to {selectedShopIds.size} selected {selectedShopIds.size === 1 ? 'shop' : 'shops'}.
+              A shop can have multiple route days (e.g., Monday &amp; Thursday for twice-a-week visits).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <Label className="text-sm font-medium">Select Route Days</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {ROUTE_DAYS.map((day) => (
+                <label
+                  key={day}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-all text-sm font-medium ${
+                    bulkRouteDays.includes(day)
+                      ? 'bg-primary/10 border-primary text-primary'
+                      : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  <Checkbox
+                    checked={bulkRouteDays.includes(day)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setBulkRouteDays([...bulkRouteDays, day]);
+                      } else {
+                        setBulkRouteDays(bulkRouteDays.filter(d => d !== day));
+                      }
+                    }}
+                  />
+                  {day.charAt(0).toUpperCase() + day.slice(1)}
+                </label>
+              ))}
+            </div>
+            {bulkRouteDays.length > 0 && (
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-xs text-muted-foreground">Selected:</span>
+                <div className="flex gap-1">
+                  {bulkRouteDays.map((day) => (
+                    <Badge key={day} className="bg-primary/10 text-primary border-primary/20 text-xs">
+                      {day.charAt(0).toUpperCase() + day.slice(1)}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setBulkDialogOpen(false); setBulkAction(null); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkAction}
+              disabled={bulkRouteDays.length === 0 || bulkLoading}
+              className="bg-primary hover:bg-primary/90 text-white"
+            >
+              {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Set Route for {selectedShopIds.size} {selectedShopIds.size === 1 ? 'Shop' : 'Shops'}
             </Button>
           </DialogFooter>
         </DialogContent>
