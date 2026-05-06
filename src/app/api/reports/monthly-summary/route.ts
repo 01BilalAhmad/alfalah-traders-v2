@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
        FROM "Transaction" t
        LEFT JOIN "Shop" s ON t."shopId" = s.id
        LEFT JOIN "User" c ON t."createdBy" = c.id
-       WHERE t."createdAt" >= $1 AND t."createdAt" <= $2
+       WHERE t."createdAt" >= $1 AND t."createdAt" <= $2 AND t.status = 'approved'
        ORDER BY t."createdAt" ASC`,
       [startDate.toISOString(), endDate.toISOString()]
     );

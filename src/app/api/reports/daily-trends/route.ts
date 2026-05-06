@@ -23,7 +23,7 @@ export async function GET() {
       const dateStr = startOfDay.toISOString().split('T')[0];
 
       const txnRes = await client.query(
-        `SELECT type, amount FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2`,
+        `SELECT type, amount FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND status = 'approved'`,
         [startOfDay.toISOString(), endOfDay.toISOString()]
       );
       const transactions: any[] = txnRes.rows;

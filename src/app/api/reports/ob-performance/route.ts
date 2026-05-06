@@ -62,14 +62,14 @@ export async function GET(request: NextRequest) {
 
         // Today's recovery
         const todayRecoveryRes = await client!.query(
-          `SELECT amount FROM "Transaction" WHERE type = 'recovery' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3`,
+          `SELECT amount FROM "Transaction" WHERE type = 'recovery' AND status = 'approved' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3`,
           [ob.id, todayStart.toISOString(), todayEnd.toISOString()]
         );
         const todayRecovery = todayRecoveryRes.rows.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
         // Period recovery
         const periodRecoveryRes = await client!.query(
-          `SELECT amount FROM "Transaction" WHERE type = 'recovery' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3`,
+          `SELECT amount FROM "Transaction" WHERE type = 'recovery' AND status = 'approved' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3`,
           [ob.id, startDate.toISOString(), endDate.toISOString()]
         );
         const periodRecovery = periodRecoveryRes.rows.reduce((sum: number, t: any) => sum + Number(t.amount), 0);

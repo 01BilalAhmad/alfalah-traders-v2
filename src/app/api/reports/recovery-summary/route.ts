@@ -64,9 +64,9 @@ async function generateReport(client: pg.Client, startDate: Date, endDate: Date,
       const shopRecoveries = await Promise.all(
         shops.map(async (shop) => {
           const txnRes = await client.query(
-            `SELECT id, type, amount, "previousBalance", "newBalance", "createdAt", description, "gpsLat", "gpsLng" 
-             FROM "Transaction" 
-             WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 
+            `SELECT id, type, amount, "previousBalance", "newBalance", "createdAt", description, "gpsLat", "gpsLng"
+             FROM "Transaction"
+             WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'approved'
              ORDER BY "createdAt" DESC`,
             [shop.id, startDate.toISOString(), endDate.toISOString()]
           );

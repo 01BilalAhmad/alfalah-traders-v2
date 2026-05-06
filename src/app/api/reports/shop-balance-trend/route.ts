@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch all transactions for this shop before the range to calculate starting balance
     const beforeRes = await client.query(
-      `SELECT type, amount FROM "Transaction" WHERE "shopId" = $1 AND "createdAt" < $2 ORDER BY "createdAt" ASC`,
+      `SELECT type, amount FROM "Transaction" WHERE "shopId" = $1 AND "createdAt" < $2 AND status = 'approved' ORDER BY "createdAt" ASC`,
       [shopId, startDate.toISOString()]
     );
     const transactionsBeforeRange: any[] = beforeRes.rows;
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch all transactions within the range, ordered by date
     const rangeRes = await client.query(
-      `SELECT type, amount, "createdAt" FROM "Transaction" WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 ORDER BY "createdAt" ASC`,
+      `SELECT type, amount, "createdAt" FROM "Transaction" WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'approved' ORDER BY "createdAt" ASC`,
       [shopId, startDate.toISOString(), endDate.toISOString()]
     );
     const transactionsInRange: any[] = rangeRes.rows;

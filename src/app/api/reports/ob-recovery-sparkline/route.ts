@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
             const placeholders = shopIds.map((_, idx: number) => `$${idx + 3}`).join(', ');
             const sumRes = await client!.query(
               `SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction"
-               WHERE "shopId" IN (${placeholders}) AND type = 'recovery' AND "createdAt" >= $1 AND "createdAt" <= $2`,
+               WHERE "shopId" IN (${placeholders}) AND type = 'recovery' AND status = 'approved' AND "createdAt" >= $1 AND "createdAt" <= $2`,
               [startOfDay.toISOString(), endOfDay.toISOString(), ...shopIds]
             );
 

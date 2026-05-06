@@ -18,8 +18,8 @@ export async function GET() {
       client.query('SELECT COUNT(*) FROM "User"'),
       client.query('SELECT COUNT(*) FROM "Shop"'),
       client.query('SELECT COUNT(*) FROM "Transaction"'),
-      client.query('SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type = \'credit\''),
-      client.query('SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type = \'recovery\''),
+      client.query('SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type = \'credit\' AND status = \'approved\''),
+      client.query('SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type = \'recovery\' AND status = \'approved\''),
       client.query('SELECT COALESCE(SUM(balance), 0) AS total FROM "Shop"'),
     ]);
 

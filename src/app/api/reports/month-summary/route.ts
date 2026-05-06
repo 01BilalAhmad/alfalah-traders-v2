@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch all transactions in the month
     const monthTxnRes = await client.query(
-      `SELECT type, amount, "createdAt" FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2 ORDER BY "createdAt" DESC`,
+      `SELECT type, amount, "createdAt" FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND status = 'approved' ORDER BY "createdAt" DESC`,
       [startDate.toISOString(), endDate.toISOString()]
     );
     const monthTransactions: any[] = monthTxnRes.rows;
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     const prevEndDate = new Date(prevYear, prevMonth, 0, 23, 59, 59, 999);
 
     const prevTxnRes = await client.query(
-      `SELECT type, amount FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2`,
+      `SELECT type, amount FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND status = 'approved'`,
       [prevStartDate.toISOString(), prevEndDate.toISOString()]
     );
     const prevTransactions: any[] = prevTxnRes.rows;

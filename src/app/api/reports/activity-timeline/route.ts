@@ -149,8 +149,8 @@ export async function GET(request: NextRequest) {
     // If fetching 'all', also get counts for types we might not have fully loaded
     if (type === 'all') {
       const [creditCountRes, recoveryCountRes, editCountRes] = await Promise.all([
-        client.query('SELECT COUNT(*) FROM "Transaction" WHERE type = \'credit\''),
-        client.query('SELECT COUNT(*) FROM "Transaction" WHERE type = \'recovery\''),
+        client.query('SELECT COUNT(*) FROM "Transaction" WHERE type = \'credit\' AND status = \'approved\''),
+        client.query('SELECT COUNT(*) FROM "Transaction" WHERE type = \'recovery\' AND status = \'approved\''),
         client.query('SELECT COUNT(*) FROM "AuditLog" WHERE action = \'edit\''),
       ]);
       creditCount = parseInt(creditCountRes.rows[0].count, 10);

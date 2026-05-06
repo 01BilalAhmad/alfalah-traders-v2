@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
 
     const txnRes = await client.query(
       `SELECT amount, "createdAt", "shopId" FROM "Transaction"
-       WHERE type = 'recovery' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3
+       WHERE type = 'recovery' AND status = 'approved' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3
        ORDER BY "createdAt" ASC`,
       [orderbookerId, overallStart.toISOString(), overallEnd.toISOString()]
     );
