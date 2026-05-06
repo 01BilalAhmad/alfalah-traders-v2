@@ -89,6 +89,10 @@ const ROUTE_DAYS = [...WORKING_DAYS];
 // Off days not in working days (e.g., Friday)
 const OFF_DAYS = ['friday'];
 
+function formatRouteDays(days: string[]): string {
+  return days.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ');
+}
+
 interface Shop {
   id: string;
   name: string;
@@ -96,7 +100,7 @@ interface Shop {
   area: string | null;
   address: string | null;
   phone: string | null;
-  routeDay: string;
+  routeDays: string[];
   balance: number;
   creditLimit: number;
   status: string;
@@ -137,7 +141,7 @@ export default function AdminShops() {
   const [formArea, setFormArea] = useState('');
   const [formAddress, setFormAddress] = useState('');
   const [formPhone, setFormPhone] = useState('');
-  const [formRouteDay, setFormRouteDay] = useState('');
+  const [formRouteDays, setFormRouteDays] = useState<string[]>([]);
   const [formOrderbookerId, setFormOrderbookerId] = useState('');
   const [formCreditLimit, setFormCreditLimit] = useState('');
   const [saving, setSaving] = useState(false);
@@ -223,10 +227,11 @@ export default function AdminShops() {
         ROUTE_DAYS.forEach((d) => { counts[d] = 0; });
         data.forEach((s) => {
           // Count all days, including non-working days like 'friday'
-          if (!counts[s.routeDay]) {
-            counts[s.routeDay] = 0;
+          // A shop can belong to multiple days, so count it for each day it's in
+          for (const day of s.routeDays) {
+            if (!counts[day]) counts[day] = 0;
+            counts[day]++;
           }
-          counts[s.routeDay]++;
         });
         setDayCounts(counts);
       }
@@ -244,7 +249,7 @@ export default function AdminShops() {
     setFormArea('');
     setFormAddress('');
     setFormPhone('');
-    setFormRouteDay('');
+    setFormRouteDays([]);
     setFormOrderbookerId('');
     setFormCreditLimit('');
     setDialogOpen(true);
@@ -257,15 +262,15 @@ export default function AdminShops() {
     setFormArea(shop.area || '');
     setFormAddress(shop.address || '');
     setFormPhone(shop.phone || '');
-    setFormRouteDay(shop.routeDay);
+    setFormRouteDays(shop.routeDays || []);
     setFormOrderbookerId(shop.orderbooker.id);
     setFormCreditLimit(shop.creditLimit > 0 ? String(shop.creditLimit) : '');
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    if (!formName.trim() || !formRouteDay || !formOrderbookerId) {
-      toast({ title: 'Error', description: 'Name, route day, and orderbooker are required', variant: 'destructive' });
+    if (!formName.trim() || formRouteDays.length === 0 || !formOrderbookerId) {
+      toast({ title: 'Error', description: 'Name, route days, and orderbooker are required', variant: 'destructive' });
       return;
     }
     setSaving(true);
@@ -276,7 +281,7 @@ export default function AdminShops() {
         area: formArea.trim() || null,
         address: formAddress.trim() || null,
         phone: formPhone.trim() || null,
-        routeDay: formRouteDay,
+        routeDays: formRouteDays,
         orderbookerId: formOrderbookerId,
         creditLimit: formCreditLimit ? parseFloat(formCreditLimit) : 0,
       };
@@ -451,7 +456,7 @@ export default function AdminShops() {
     : orderbookers.filter((ob) => ob.status === 'active');
 
   const filteredShops = shops
-    .filter((s) => !selectedDay || s.routeDay === selectedDay)
+    .filter((s) => !selectedDay || s.routeDays.includes(selectedDay))
     .filter((s) => !selectedOBFilter || s.orderbooker.id === selectedOBFilter);
 
   // Bulk selection helpers
@@ -607,12 +612,12 @@ export default function AdminShops() {
                   Owner: s.ownerName || '',
                   Area: s.area || '',
                   Phone: s.phone || '',
-                  'Route Day': s.routeDay.charAt(0).toUpperCase() + s.routeDay.slice(1),
+                  'Route Days': formatRouteDays(s.routeDays),
                   Orderbooker: s.orderbooker.name,
                   Balance: s.balance,
                   Status: s.status.charAt(0).toUpperCase() + s.status.slice(1),
                 }));
-                exportToCSV(rows, 'shops-list', ['Name', 'Owner', 'Area', 'Phone', 'Route Day', 'Orderbooker', 'Balance', 'Status']);
+                exportToCSV(rows, 'shops-list', ['Name', 'Owner', 'Area', 'Phone', 'Route Days', 'Orderbooker', 'Balance', 'Status']);
                 toast({ title: 'Exported', description: `${filteredShops.length} shops exported` });
               }}
             >
@@ -930,7 +935,7 @@ export default function AdminShops() {
                       <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{shop.ownerName || '—'}</TableCell>
                       <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{shop.area || '—'}</TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        <Badge variant="outline" className="text-[10px]">{shop.routeDay.charAt(0).toUpperCase() + shop.routeDay.slice(1)}</Badge>
+                        <Badge variant="outline" className="text-[10px]">{formatRouteDays(shop.routeDays)}</Badge>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-sm">{shop.orderbooker.name}</TableCell>
                       <TableCell className="text-right">
@@ -1198,9 +1203,9 @@ export default function AdminShops() {
                   </DialogDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  {detailShop?.routeDay && (
+                  {detailShop?.routeDays && detailShop.routeDays.length > 0 && (
                     <Badge className="bg-white/15 text-white border-white/20 text-[10px]">
-                      {detailShop.routeDay.charAt(0).toUpperCase() + detailShop.routeDay.slice(1)}
+                      {formatRouteDays(detailShop.routeDays)}
                     </Badge>
                   )}
                   <Badge className={`text-[10px] ${detailShop?.status === 'active' ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30' : 'bg-red-500/20 text-red-200 border-red-400/30'}`}>
@@ -1514,15 +1519,26 @@ export default function AdminShops() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Route Day *</Label>
-                <Select value={formRouteDay} onValueChange={setFormRouteDay}>
-                  <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
-                  <SelectContent>
-                    {ROUTE_DAYS.map((d) => (
-                      <SelectItem key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Route Days *</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {WORKING_DAYS.map(day => (
+                    <label key={day} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formRouteDays.includes(day)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormRouteDays([...formRouteDays, day]);
+                          } else {
+                            setFormRouteDays(formRouteDays.filter(d => d !== day));
+                          }
+                        }}
+                        className="rounded border-gray-300"
+                      />
+                      <span className="text-sm">{day.charAt(0).toUpperCase() + day.slice(1)}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Orderbooker *</Label>
@@ -1557,7 +1573,7 @@ export default function AdminShops() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !formName.trim() || !formRouteDay || !formOrderbookerId} className="bg-primary hover:bg-primary/90 focus-glow">
+            <Button onClick={handleSave} disabled={saving || !formName.trim() || formRouteDays.length === 0 || !formOrderbookerId} className="bg-primary hover:bg-primary/90 focus-glow">
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {editingShop ? 'Update Shop' : 'Create Shop'}
             </Button>

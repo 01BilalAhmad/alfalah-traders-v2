@@ -18,7 +18,7 @@ export interface CachedShop {
   ownerName: string | null;
   area: string | null;
   phone: string | null;
-  routeDay: string;
+  routeDays: string[];
   balance: number;
   creditLimit: number;
   status: string;

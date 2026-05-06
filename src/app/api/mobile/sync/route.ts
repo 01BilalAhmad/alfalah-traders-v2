@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       area: s.area,
       address: s.address,
       phone: s.phone,
-      routeDay: s.routeDay ? s.routeDay.toLowerCase() : s.routeDay,
+      routeDays: s.routeDays || [],
       orderbookerId: s.orderbookerId,
       balance: Number(s.balance),
       creditLimit: Number(s.creditLimit),
@@ -216,6 +216,24 @@ export async function POST(request: NextRequest) {
         const txId = `tx_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
         const now = new Date().toISOString();
 
+        // Idempotency check: if idempotencyKey is provided, skip if already exists
+        if (tx.idempotencyKey) {
+          const existingRes = await client.query(
+            'SELECT id FROM "Transaction" WHERE "idempotencyKey" = $1',
+            [tx.idempotencyKey]
+          );
+          if (existingRes.rows.length > 0) {
+            await client.query('ROLLBACK');
+            results.push({
+              localId: tx.localId,
+              serverId: existingRes.rows[0].id,
+              status: 'duplicate_skipped',
+              success: true,
+            });
+            continue;
+          }
+        }
+
         // Business rule: credits are auto-approved, recoveries need admin approval
         const txnStatus = txType === 'credit' ? 'approved' : 'pending';
 
@@ -242,8 +260,8 @@ export async function POST(request: NextRequest) {
         // Recovery: don't change balance yet (pending approval)
 
         const txRes = await client.query(
-          `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "idempotencyKey", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
            RETURNING *`,
           [
             txId,
@@ -255,6 +273,7 @@ export async function POST(request: NextRequest) {
             newBalance,
             tx.description || (txType === 'credit' ? 'Mobile sync credit' : 'Mobile sync recovery'),
             tx.createdBy,
+            tx.idempotencyKey || null,
             now,
             now,
           ]

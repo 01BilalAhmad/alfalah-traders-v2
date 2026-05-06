@@ -110,8 +110,8 @@ export async function GET(request: NextRequest) {
       } : null,
     }));
 
-    const totalCredit = transactions.filter((t: any) => t.type === 'credit').reduce((s: number, t: any) => s + Number(t.amount), 0);
-    const totalRecovery = transactions.filter((t: any) => t.type === 'recovery').reduce((s: number, t: any) => s + Number(t.amount), 0);
+    const totalCredit = transactions.filter((t: any) => t.type === 'credit' && t.status === 'approved').reduce((s: number, t: any) => s + Number(t.amount), 0);
+    const totalRecovery = transactions.filter((t: any) => t.type === 'recovery' && t.status === 'approved').reduce((s: number, t: any) => s + Number(t.amount), 0);
 
     // If filtered by company, calculate the company-specific balance
     let currentBalance = Number(shop.balance);
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
         area: shop.area,
         address: shop.address,
         phone: shop.phone,
-        routeDay: shop.routeDay,
+        routeDays: shop.routeDays || [],
         balance: Number(shop.balance),
         orderbooker: shop.ob_id ? {
           id: shop.ob_id,

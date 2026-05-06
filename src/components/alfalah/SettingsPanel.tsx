@@ -159,14 +159,14 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
       if (shopRes.ok) {
         const shops = await shopRes.json();
         if (Array.isArray(shops) && shops.length > 0) {
-          const shopHeaders = ['name', 'area', 'ownerName', 'phone', 'routeDay', 'creditLimit', 'balance', 'status'];
+          const shopHeaders = ['name', 'area', 'ownerName', 'phone', 'routeDays', 'creditLimit', 'balance', 'status'];
           exportToCSV(
             shops.map((s: Record<string, unknown>) => ({
               name: s.name || '',
               area: s.area || '',
               ownerName: s.ownerName || '',
               phone: s.phone || '',
-              routeDay: s.routeDay || '',
+              routeDays: s.routeDays ? s.routeDays.join(', ') : '',
               creditLimit: s.creditLimit || 0,
               balance: s.balance || 0,
               status: s.status || '',

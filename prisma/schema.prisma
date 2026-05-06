@@ -42,7 +42,7 @@ model Shop {
   area           String?
   address        String?
   phone          String?
-  routeDay       String   // "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"
+  routeDays      String[] // ["monday", "thursday"] — supports multiple route days per shop
   orderbookerId  String
   balance        Float    @default(0) // running balance
   creditLimit    Float    @default(0) // 0 = no limit
@@ -57,7 +57,7 @@ model Shop {
   companyBalances  ShopCompanyBalance[]
 
   @@index([orderbookerId])
-  @@index([routeDay])
+  @@index([routeDays])
   @@index([name])
   @@index([area])
 }
@@ -79,6 +79,7 @@ model Transaction {
   gpsLng        Float?
   gpsAddress    String?
   companyId     String?  // nullable - which company this transaction belongs to
+  idempotencyKey String? @unique // prevents duplicate recovery submissions
   createdAt     DateTime @default(now())
 
   shop    Shop           @relation(fields: [shopId], references: [id])

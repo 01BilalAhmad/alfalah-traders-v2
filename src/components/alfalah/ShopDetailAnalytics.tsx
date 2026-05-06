@@ -79,7 +79,7 @@ interface ShopDetailData {
     area: string | null;
     address: string | null;
     phone: string | null;
-    routeDay: string;
+    routeDays: string[];
     balance: number;
     creditLimit: number;
     status: string;
@@ -586,7 +586,7 @@ export default function ShopDetailAnalytics() {
                 )}
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />
-                  {data.shop.routeDay.charAt(0).toUpperCase() + data.shop.routeDay.slice(1)}
+                  {data.shop.routeDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}
                 </span>
                 <span className="flex items-center gap-1">
                   <UserCircle className="h-3.5 w-3.5" />

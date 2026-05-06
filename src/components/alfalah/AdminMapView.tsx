@@ -76,7 +76,7 @@ interface Shop {
   area: string | null;
   address: string | null;
   phone: string | null;
-  routeDay: string;
+  routeDays: string[];
   balance: number;
   creditLimit: number;
   status: string;
@@ -221,7 +221,7 @@ function AreaCard({ group, expanded, onToggle, onSelectShop }: {
                     <TableRow key={shop.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => onSelectShop(shop)}>
                       <TableCell className="py-1.5">
                         <p className="text-xs font-medium">{shop.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{capitalizeDay(shop.routeDay)}</p>
+                        <p className="text-[10px] text-muted-foreground">{shop.routeDays.map(capitalizeDay).join(', ')}</p>
                       </TableCell>
                       <TableCell className="py-1.5 text-xs text-muted-foreground hidden sm:table-cell">{shop.ownerName || '—'}</TableCell>
                       <TableCell className="py-1.5 text-xs text-muted-foreground hidden md:table-cell">{shop.orderbooker.name}</TableCell>
@@ -464,7 +464,7 @@ export default function AdminMapView() {
   const filteredShops = useMemo(() => {
     return shops.filter((s) => {
       if (filterOB && s.orderbooker.id !== filterOB) return false;
-      if (filterDay && s.routeDay !== filterDay) return false;
+      if (filterDay && !s.routeDays.includes(filterDay)) return false;
       if (filterArea && s.area !== filterArea) return false;
       return true;
     });
@@ -504,7 +504,7 @@ export default function AdminMapView() {
       const areaMap = new Map<string, number>();
 
       obShops.forEach((s) => {
-        routeDaySet.add(s.routeDay);
+        for (const d of s.routeDays) { routeDaySet.add(d); }
         const area = s.area || 'Unknown';
         areaMap.set(area, (areaMap.get(area) || 0) + 1);
       });
@@ -552,7 +552,7 @@ export default function AdminMapView() {
           balance: s.balance,
           status: s.status,
           orderbookerName: s.orderbooker.name,
-          routeDay: s.routeDay,
+          routeDays: s.routeDays,
           lat: loc.lat,
           lng: loc.lng,
         };

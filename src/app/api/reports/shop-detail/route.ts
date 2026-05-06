@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       `SELECT t.*, u.id AS "creator_id", u.name AS "creator_name", u.role AS "creator_role"
        FROM "Transaction" t
        LEFT JOIN "User" u ON t."createdBy" = u.id
-       WHERE t."shopId" = $1
+       WHERE t."shopId" = $1 AND t.status = 'approved'
        ORDER BY t."createdAt" DESC`,
       [shopId]
     );
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
         area: shop.area,
         address: shop.address,
         phone: shop.phone,
-        routeDay: shop.routeDay,
+        routeDays: shop.routeDays || [],
         balance: Number(shop.balance),
         creditLimit: Number(shop.creditLimit),
         status: shop.status,

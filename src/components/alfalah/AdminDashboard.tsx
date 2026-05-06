@@ -239,6 +239,7 @@ interface Orderbooker {
 interface TodayTxn {
   id: string;
   type: string;
+  status: string;
   amount: number;
   createdAt: string;
   shop: { id: string; name: string; area: string };
@@ -278,7 +279,7 @@ interface Shop {
   id: string;
   name: string;
   area: string | null;
-  routeDay: string;
+  routeDays: string[];
   balance: number;
   status: string;
 }
@@ -493,18 +494,19 @@ export default function AdminDashboard() {
     try {
       const [obRes, todayTxnRes, shopsRes, trendsRes, tlRes, msRes, rtRes, summaryRes] = await Promise.all([
         apiFetch('/api/orderbookers'),
-        apiFetch(`/api/transactions?date=${getLocalDateString()}&limit=500`),
+        apiFetch(`/api/transactions?date=${getLocalDateString()}&limit=500&status=approved`),
         apiFetch('/api/shops'),
         apiFetch('/api/reports/daily-trends'),
         apiFetch('/api/reports/activity-timeline?limit=20'),
         apiFetch('/api/reports/month-summary'),
-        apiFetch('/api/transactions?limit=5'),
+        apiFetch('/api/transactions?limit=5&status=approved'),
         apiFetch('/api/summary'),
       ]);
       const orderbookers = obRes.ok ? await obRes.json() : [];
       const todayTxnData = todayTxnRes.ok ? await todayTxnRes.json() : { transactions: [] };
-      const todayCredit = todayTxnData.transactions.filter((t: TodayTxn) => t.type === 'credit').reduce((s: number, t: TodayTxn) => s + t.amount, 0);
-      const todayRecovery = todayTxnData.transactions.filter((t: TodayTxn) => t.type === 'recovery').reduce((s: number, t: TodayTxn) => s + t.amount, 0);
+      const approvedTxns = todayTxnData.transactions.filter((t: TodayTxn) => t.status === 'approved');
+      const todayCredit = approvedTxns.filter((t: TodayTxn) => t.type === 'credit').reduce((s: number, t: TodayTxn) => s + t.amount, 0);
+      const todayRecovery = approvedTxns.filter((t: TodayTxn) => t.type === 'recovery').reduce((s: number, t: TodayTxn) => s + t.amount, 0);
       const totalOutstanding = orderbookers.reduce((s: number, ob: Orderbooker) => s + ob.totalOutstanding, 0);
       const totalShops = orderbookers.reduce((s: number, ob: Orderbooker) => s + ob.totalShops, 0);
 
@@ -628,7 +630,7 @@ export default function AdminDashboard() {
   // Compute route distribution data
   const routeData = ROUTE_DAYS.map((day, idx) => ({
     name: day.charAt(0).toUpperCase() + day.slice(1),
-    value: allShops.filter(s => s.routeDay === day).length,
+    value: allShops.filter(s => s.routeDays.includes(day)).length,
     fill: ROUTE_COLORS[idx],
   })).filter(d => d.value > 0);
 
@@ -977,7 +979,7 @@ export default function AdminDashboard() {
               ))}
             </div>
           ) : (() => {
-            const recoveryTxns = recentTxns.filter(t => t.type === 'recovery').slice(0, 8);
+            const recoveryTxns = recentTxns.filter(t => t.type === 'recovery' && t.status === 'approved').slice(0, 8);
             if (recoveryTxns.length === 0) {
               return (
                 <div className="text-center py-6">

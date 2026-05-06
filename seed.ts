@@ -50,18 +50,18 @@ async function seed() {
 
   // Create shops for Ahmed Khan
   const shopsOb1 = [
-    { name: 'Al-Madina General Store', ownerName: 'Muhammad Aslam', area: 'Gulshan-e-Iqbal', routeDay: 'monday' },
-    { name: 'City Mart', ownerName: 'Tariq Mehmood', area: 'Gulshan-e-Iqbal', routeDay: 'monday' },
-    { name: 'Fresh Bakers', ownerName: 'Imran Ahmed', area: 'Bahadurabad', routeDay: 'monday' },
-    { name: 'Karachi Electronics', ownerName: 'Faisal Shah', area: 'Tariq Road', routeDay: 'tuesday' },
-    { name: 'Super Market Plus', ownerName: 'Kamran Raza', area: 'Tariq Road', routeDay: 'tuesday' },
-    { name: 'Green Grocers', ownerName: 'Nasir Hussain', area: 'PECHS', routeDay: 'tuesday' },
-    { name: 'Quetta Dry Fruits', ownerName: 'Abdul Waheed', area: 'Saddar', routeDay: 'wednesday' },
-    { name: 'Al-Noor Traders', ownerName: 'Rashid Ali', area: 'Saddar', routeDay: 'wednesday' },
-    { name: 'Metro Cash & Carry', ownerName: 'Zubair Ahmed', area: 'Clifton', routeDay: 'thursday' },
-    { name: 'D-Mart', ownerName: 'Salman Farooqi', area: 'DHA', routeDay: 'thursday' },
-    { name: 'Habib Grocery', ownerName: 'Habib Ullah', area: 'North Nazimabad', routeDay: 'friday' },
-    { name: 'Jhelum Stores', ownerName: 'Arshad Mehmood', area: 'North Nazimabad', routeDay: 'friday' },
+    { name: 'Al-Madina General Store', ownerName: 'Muhammad Aslam', area: 'Gulshan-e-Iqbal', routeDays: ['monday'] },
+    { name: 'City Mart', ownerName: 'Tariq Mehmood', area: 'Gulshan-e-Iqbal', routeDays: ['monday'] },
+    { name: 'Fresh Bakers', ownerName: 'Imran Ahmed', area: 'Bahadurabad', routeDays: ['monday'] },
+    { name: 'Karachi Electronics', ownerName: 'Faisal Shah', area: 'Tariq Road', routeDays: ['tuesday'] },
+    { name: 'Super Market Plus', ownerName: 'Kamran Raza', area: 'Tariq Road', routeDays: ['tuesday'] },
+    { name: 'Green Grocers', ownerName: 'Nasir Hussain', area: 'PECHS', routeDays: ['tuesday'] },
+    { name: 'Quetta Dry Fruits', ownerName: 'Abdul Waheed', area: 'Saddar', routeDays: ['wednesday'] },
+    { name: 'Al-Noor Traders', ownerName: 'Rashid Ali', area: 'Saddar', routeDays: ['wednesday'] },
+    { name: 'Metro Cash & Carry', ownerName: 'Zubair Ahmed', area: 'Clifton', routeDays: ['thursday'] },
+    { name: 'D-Mart', ownerName: 'Salman Farooqi', area: 'DHA', routeDays: ['thursday'] },
+    { name: 'Habib Grocery', ownerName: 'Habib Ullah', area: 'North Nazimabad', routeDays: ['friday'] },
+    { name: 'Jhelum Stores', ownerName: 'Arshad Mehmood', area: 'North Nazimabad', routeDays: ['friday'] },
   ];
 
   for (const shopData of shopsOb1) {
@@ -80,14 +80,14 @@ async function seed() {
 
   // Create shops for Bilal Ali
   const shopsOb2 = [
-    { name: 'Hyderi Market', ownerName: 'Syed Ali', area: 'Hyderi', routeDay: 'monday' },
-    { name: 'Nazimabad General Store', ownerName: 'Pervez Akhtar', area: 'Nazimabad', routeDay: 'monday' },
-    { name: 'Pak Electronics', ownerName: 'Waqar Hasan', area: 'Liaquatabad', routeDay: 'tuesday' },
-    { name: 'Rana Traders', ownerName: 'Rana Muhammad', area: 'Landhi', routeDay: 'wednesday' },
-    { name: 'Malir Cash & Carry', ownerName: 'Yousuf Memon', area: 'Malir', routeDay: 'thursday' },
-    { name: 'Shahrah-e-Faisal Store', ownerName: 'Shahid Iqbal', area: 'Shahrah-e-Faisal', routeDay: 'friday' },
-    { name: 'Korangi Whole Sale', ownerName: 'Aslam Korangi', area: 'Korangi', routeDay: 'saturday' },
-    { name: 'Bin Qasim Traders', ownerName: 'Qasim Ali', area: 'Bin Qasim', routeDay: 'saturday' },
+    { name: 'Hyderi Market', ownerName: 'Syed Ali', area: 'Hyderi', routeDays: ['monday'] },
+    { name: 'Nazimabad General Store', ownerName: 'Pervez Akhtar', area: 'Nazimabad', routeDays: ['monday'] },
+    { name: 'Pak Electronics', ownerName: 'Waqar Hasan', area: 'Liaquatabad', routeDays: ['tuesday'] },
+    { name: 'Rana Traders', ownerName: 'Rana Muhammad', area: 'Landhi', routeDays: ['wednesday'] },
+    { name: 'Malir Cash & Carry', ownerName: 'Yousuf Memon', area: 'Malir', routeDays: ['thursday'] },
+    { name: 'Shahrah-e-Faisal Store', ownerName: 'Shahid Iqbal', area: 'Shahrah-e-Faisal', routeDays: ['friday'] },
+    { name: 'Korangi Whole Sale', ownerName: 'Aslam Korangi', area: 'Korangi', routeDays: ['saturday'] },
+    { name: 'Bin Qasim Traders', ownerName: 'Qasim Ali', area: 'Bin Qasim', routeDays: ['saturday'] },
   ];
 
   for (const shopData of shopsOb2) {

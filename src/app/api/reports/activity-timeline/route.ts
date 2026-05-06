@@ -57,11 +57,14 @@ export async function GET(request: NextRequest) {
       const txnParams: any[] = [];
 
       if (type === 'credit') {
-        txnQuery += ` WHERE t.type = $1`;
+        txnQuery += ` WHERE t.type = $1 AND t.status = 'approved'`;
         txnParams.push('credit');
       } else if (type === 'recovery') {
-        txnQuery += ` WHERE t.type = $1`;
+        txnQuery += ` WHERE t.type = $1 AND t.status = 'approved'`;
         txnParams.push('recovery');
+      } else {
+        // type === 'all': filter to approved only
+        txnQuery += ` WHERE t.status = 'approved'`;
       }
 
       const fetchLimit = type === 'all' ? limit + offset : Math.ceil((limit + offset) * 0.6);

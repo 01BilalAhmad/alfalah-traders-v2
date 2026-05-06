@@ -78,7 +78,7 @@ interface Shop {
   name: string;
   ownerName: string | null;
   area: string | null;
-  routeDay: string;
+  routeDays: string[];
   balance: number;
   creditLimit: number;
   status: string;
@@ -381,8 +381,10 @@ export default function AdminCreditPosting() {
         const counts: Record<string, number> = {};
         ROUTE_DAYS.forEach((d) => { counts[d] = 0; });
         data.forEach((s) => {
-          if (!counts[s.routeDay]) counts[s.routeDay] = 0;
-          counts[s.routeDay]++;
+          for (const day of s.routeDays) {
+            if (!counts[day]) counts[day] = 0;
+            counts[day]++;
+          }
         });
         setDayCounts(counts);
       }
@@ -1114,7 +1116,7 @@ export default function AdminCreditPosting() {
                           : (shop.area || '—')}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
-                        <Badge variant="outline" className="text-[10px] font-medium">{shop.routeDay.charAt(0).toUpperCase() + shop.routeDay.slice(1)}</Badge>
+                        <Badge variant="outline" className="text-[10px] font-medium">{shop.routeDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
               <div className="flex items-center justify-end gap-1.5">

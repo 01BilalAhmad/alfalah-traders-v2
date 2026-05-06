@@ -16,7 +16,7 @@ interface BulkShopRow {
   area?: string;
   address?: string;
   phone?: string;
-  routeDay: string;
+  routeDays: string[]; // Changed from routeDay: string to routeDays: string[]
   creditAmount?: number;
 }
 
@@ -83,23 +83,38 @@ export async function POST(request: NextRequest) {
       const row = shops[i];
       const rowNumber = i + 2;
       const name = (row.name || '').toString().trim();
-      const routeDayRaw = (row.routeDay || '').toString().trim().toLowerCase();
+      // Parse routeDays - support comma-separated values (e.g., "monday,thursday")
+      const routeDaysRaw = (row.routeDays || row.routeDay || '').toString().trim().toLowerCase();
+      const routeDayParts = routeDaysRaw.split(',').map((d: string) => d.trim()).filter((d: string) => d);
 
       if (!name) {
         errors.push({ row: rowNumber, error: 'Shop name is required' });
         continue;
       }
 
-      const routeDay = VALID_ROUTE_DAYS.find(
-        (d) => d === routeDayRaw || d.startsWith(routeDayRaw)
-      );
-      if (!routeDay) {
-        errors.push({
-          row: rowNumber,
-          error: `Invalid route day "${row.routeDay}". Valid: ${VALID_ROUTE_DAYS.join(', ')}`,
-        });
+      if (routeDayParts.length === 0) {
+        errors.push({ row: rowNumber, error: `At least one route day is required. Valid: ${VALID_ROUTE_DAYS.join(', ')}` });
         continue;
       }
+
+      // Validate each day part
+      const validatedDays: string[] = [];
+      let hasInvalidDay = false;
+      for (const part of routeDayParts) {
+        const matched = VALID_ROUTE_DAYS.find(
+          (d) => d === part || d.startsWith(part)
+        );
+        if (!matched) {
+          errors.push({
+            row: rowNumber,
+            error: `Invalid route day "${part}". Valid: ${VALID_ROUTE_DAYS.join(', ')}`,
+          });
+          hasInvalidDay = true;
+        } else {
+          validatedDays.push(matched);
+        }
+      }
+      if (hasInvalidDay) continue;
 
       const creditAmount = row.creditAmount ? parseFloat(row.creditAmount) : 0;
       if (isNaN(creditAmount) || creditAmount < 0) {
@@ -114,7 +129,7 @@ export async function POST(request: NextRequest) {
         area: (row.area || '').toString().trim() || null,
         address: (row.address || '').toString().trim() || null,
         phone: (row.phone || '').toString().trim() || null,
-        routeDay,
+        routeDays: [...new Set(validatedDays)], // Remove duplicates
         creditAmount,
       });
     }
@@ -140,10 +155,10 @@ export async function POST(request: NextRequest) {
         const initialBalance = shop.creditAmount || 0;
 
         const shopRes = await client.query(
-          `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDay", "orderbookerId", balance, "creditLimit", status, "createdAt", "updatedAt")
+          `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDays", "orderbookerId", balance, "creditLimit", status, "createdAt", "updatedAt")
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, 'active', $10, $11)
            RETURNING *`,
-          [shopId, shop.name, shop.ownerName, shop.area, shop.address, shop.phone, shop.routeDay, orderbookerId, initialBalance, now, now]
+          [shopId, shop.name, shop.ownerName, shop.area, shop.address, shop.phone, shop.routeDays, orderbookerId, initialBalance, now, now]
         );
 
         createdShops.push(shopRes.rows[0]);
@@ -228,7 +243,7 @@ export async function POST(request: NextRequest) {
         name: s.name,
         ownerName: s.ownerName,
         area: s.area,
-        routeDay: s.routeDay,
+        routeDays: s.routeDays,
         balance: Number(s.balance),
       })),
       errors: importErrors,

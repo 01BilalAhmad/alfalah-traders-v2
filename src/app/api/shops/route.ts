@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const orderbookerId = searchParams.get('orderbookerId');
+    // routeDay filter: show shops whose routeDays array contains this day
     const routeDay = searchParams.get('routeDay');
     const search = searchParams.get('search');
     const includeInactive = searchParams.get('includeInactive') === 'true';
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
       params.push(orderbookerId);
     }
     if (routeDay) {
-      conditions.push(`LOWER(s."routeDay") = $${paramIndex++}`);
+      conditions.push(`$${paramIndex++} = ANY(s."routeDays")`);
       params.push(routeDay.toLowerCase());
     }
     if (!includeInactive) {
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
       area: s.area,
       address: s.address,
       phone: s.phone,
-      routeDay: s.routeDay ? s.routeDay.toLowerCase() : s.routeDay,
+      routeDays: s.routeDays || [],
       orderbookerId: s.orderbookerId,
       balance: Number(s.balance),
       creditLimit: Number(s.creditLimit),
@@ -124,14 +125,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   let client;
   try {
-    const { name, ownerName, area, address, phone, routeDay, orderbookerId, creditLimit } = await request.json();
+    const { name, ownerName, area, address, phone, routeDays, orderbookerId, creditLimit } = await request.json();
 
-    if (!name || !routeDay || !orderbookerId) {
-      return NextResponse.json({ error: 'Name, route day, and orderbooker are required' }, { status: 400 });
+    if (!name || !routeDays || !orderbookerId) {
+      return NextResponse.json({ error: 'Name, route days, and orderbooker are required' }, { status: 400 });
     }
 
-    // Normalize routeDay to lowercase for consistency
-    const normalizedRouteDay = routeDay.toLowerCase();
+    // Normalize routeDays to lowercase array
+    const normalizedRouteDays = Array.isArray(routeDays)
+      ? routeDays.map((d: string) => d.toLowerCase()).filter((d: string) => d)
+      : [routeDays.toLowerCase()];
 
     client = getPgClient();
     await client.connect();
@@ -139,10 +142,10 @@ export async function POST(request: NextRequest) {
     const shopId = generateId();
     const now = new Date().toISOString();
     const shopRes = await client.query(
-      `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDay", "orderbookerId", "creditLimit", status, "createdAt", "updatedAt")
+      `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDays", "orderbookerId", "creditLimit", status, "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-      [shopId, name, ownerName || null, area || null, address || null, phone || null, normalizedRouteDay, orderbookerId, creditLimit && creditLimit > 0 ? creditLimit : 0, 'active', now, now]
+      [shopId, name, ownerName || null, area || null, address || null, phone || null, normalizedRouteDays, orderbookerId, creditLimit && creditLimit > 0 ? creditLimit : 0, 'active', now, now]
     );
 
     const shop = shopRes.rows[0];
@@ -153,7 +156,7 @@ export async function POST(request: NextRequest) {
       await client.query(
         `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "newValue", description)
          VALUES ($1, 'create', 'shop', $2, $3, $4)`,
-        [auditId, shop.id, JSON.stringify({ name, routeDay, orderbookerId }), `Created shop: ${name}`]
+        [auditId, shop.id, JSON.stringify({ name, routeDays: normalizedRouteDays, orderbookerId }), `Created shop: ${name}`]
       );
     } catch { /* non-blocking */ }
 
@@ -170,7 +173,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   let client;
   try {
-    const { id, name, ownerName, area, address, phone, routeDay, orderbookerId, status, creditLimit } = await request.json();
+    const { id, name, ownerName, area, address, phone, routeDays, orderbookerId, status, creditLimit } = await request.json();
 
     client = getPgClient();
     await client.connect();
@@ -192,7 +195,13 @@ export async function PATCH(request: NextRequest) {
     if (area !== undefined) { setClauses.push(`area = $${paramIndex++}`); params.push(area); }
     if (address !== undefined) { setClauses.push(`address = $${paramIndex++}`); params.push(address); }
     if (phone !== undefined) { setClauses.push(`phone = $${paramIndex++}`); params.push(phone); }
-    if (routeDay) { setClauses.push(`"routeDay" = $${paramIndex++}`); params.push(routeDay.toLowerCase()); }
+    if (routeDays !== undefined) {
+      const normalizedDays = Array.isArray(routeDays)
+        ? routeDays.map((d: string) => d.toLowerCase()).filter((d: string) => d)
+        : [routeDays.toLowerCase()];
+      setClauses.push(`"routeDays" = $${paramIndex++}`);
+      params.push(normalizedDays);
+    }
     if (orderbookerId) { setClauses.push(`"orderbookerId" = $${paramIndex++}`); params.push(orderbookerId); }
     if (status) { setClauses.push(`status = $${paramIndex++}`); params.push(status); }
     if (creditLimit !== undefined) { setClauses.push(`"creditLimit" = $${paramIndex++}`); params.push(creditLimit > 0 ? creditLimit : 0); }

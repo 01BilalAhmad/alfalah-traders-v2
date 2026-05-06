@@ -195,7 +195,7 @@ export interface ShopData {
   name: string;
   ownerName: string | null;
   area: string | null;
-  routeDay: string;
+  routeDays: string[];
   balance: number;
   creditLimit: number;
   status: string;
@@ -554,7 +554,7 @@ export function generateShopListPDF(shops: ShopData[]): jsPDF {
     shop.name,
     shop.ownerName || '—',
     shop.area || '—',
-    shop.routeDay.charAt(0).toUpperCase() + shop.routeDay.slice(1),
+    shop.routeDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', '),
     shop.orderbooker?.name || '—',
     formatCurrencyShort(shop.balance),
     formatCurrencyShort(shop.creditLimit),

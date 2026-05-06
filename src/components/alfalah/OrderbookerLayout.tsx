@@ -87,7 +87,7 @@ interface Shop {
   ownerName: string | null;
   area: string | null;
   phone: string | null;
-  routeDay: string;
+  routeDays: string[];
   balance: number;
   creditLimit: number;
   status: string;
@@ -1073,7 +1073,7 @@ function OrderbookerDashboard() {
           ownerName: s.ownerName,
           area: s.area,
           phone: s.phone,
-          routeDay: s.routeDay,
+          routeDays: s.routeDays,
           balance: s.balance,
           creditLimit: s.creditLimit,
           status: s.status,
@@ -1091,7 +1091,7 @@ function OrderbookerDashboard() {
           ownerName: s.ownerName,
           area: s.area,
           phone: s.phone,
-          routeDay: s.routeDay,
+          routeDays: s.routeDays,
           balance: s.balance,
           creditLimit: s.creditLimit,
           status: s.status,
@@ -1167,7 +1167,7 @@ function OrderbookerDashboard() {
   const totalRecovered = todayRecovery.reduce((s, t) => s + t.amount, 0);
   const visitedShopIds = new Set(todayRecovery.map((t) => t.shop.id));
   const shopsVisited = visitedShopIds.size;
-  const todayShops = shops.filter((s) => s.routeDay === todayDay);
+  const todayShops = shops.filter((s) => s.routeDays.includes(todayDay));
   const shopsTotal = todayShops.length;
   const avgRecovery = shopsVisited > 0 ? Math.round(totalRecovered / shopsVisited) : 0;
 
@@ -1301,7 +1301,7 @@ function OrderbookerDashboard() {
   const renderShopCard = (shop: Shop, idx: number) => {
     const displayBalance = getShopDisplayBalance(shop, user?.companyId || null);
     const isOverLimit = shop.creditLimit > 0 && displayBalance > shop.creditLimit;
-    const isTodayShop = shop.routeDay === todayDay;
+    const isTodayShop = shop.routeDays.includes(todayDay);
     return (
       <Card
         key={shop.id}
@@ -1324,7 +1324,7 @@ function OrderbookerDashboard() {
                 )}
                 {!isTodayShop && (
                   <Badge variant="outline" className="text-[9px] text-muted-foreground shrink-0">
-                    {shop.routeDay.charAt(0).toUpperCase() + shop.routeDay.slice(1)}
+                    {shop.routeDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}
                   </Badge>
                 )}
               </div>
@@ -1578,12 +1578,12 @@ function OrderbookerDashboard() {
 
               {/* All Other Days */}
               {(() => {
-                const otherShops = shops.filter((s) => s.routeDay !== todayDay);
+                const otherShops = shops.filter((s) => !s.routeDays.includes(todayDay));
                 if (otherShops.length === 0) return null;
 
                 const grouped: Record<string, Shop[]> = {};
                 otherShops.forEach((s) => {
-                  const day = s.routeDay || 'unscheduled';
+                  const day = s.routeDays[0] || 'unscheduled';
                   if (!grouped[day]) grouped[day] = [];
                   grouped[day].push(s);
                 });
@@ -2103,7 +2103,7 @@ function LedgerView() {
   const groupedShops = (() => {
     const grouped: Record<string, Shop[]> = {};
     shops.forEach((s) => {
-      const day = s.routeDay || 'unscheduled';
+      const day = s.routeDays[0] || 'unscheduled';
       if (!grouped[day]) grouped[day] = [];
       grouped[day].push(s);
     });

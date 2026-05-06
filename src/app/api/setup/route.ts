@@ -38,7 +38,7 @@ export async function POST() {
         "area" TEXT,
         "address" TEXT,
         "phone" TEXT,
-        "routeDay" TEXT NOT NULL,
+        "routeDays" TEXT[] NOT NULL,
         "orderbookerId" TEXT NOT NULL,
         "balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
         "creditLimit" DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -67,6 +67,8 @@ export async function POST() {
         "gpsLat" DOUBLE PRECISION,
         "gpsLng" DOUBLE PRECISION,
         "gpsAddress" TEXT,
+        "companyId" TEXT,
+        "idempotencyKey" TEXT UNIQUE,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "Transaction_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id"),
         CONSTRAINT "Transaction_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "User"("id")
@@ -185,10 +187,44 @@ export async function POST() {
       await client.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "allRoutesEnabled" BOOLEAN NOT NULL DEFAULT false`);
     } catch { /* column already exists, ignore */ }
 
-    // Migration: Normalize routeDay to lowercase for consistent matching
+    // Migration: Convert routeDay (TEXT) to routeDays (TEXT[]) — safe, no data loss
     try {
-      await client.query(`UPDATE "Shop" SET "routeDay" = LOWER("routeDay") WHERE "routeDay" != LOWER("routeDay")`);
-    } catch { /* non-critical, ignore */ }
+      // Step 1: Add routeDays column if it doesn't exist
+      const routeDaysColRes = await client.query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'Shop' AND column_name = 'routeDays'
+      `);
+      if (routeDaysColRes.rows.length === 0) {
+        // Step 2: Check if old routeDay column exists
+        const routeDayColRes = await client.query(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'Shop' AND column_name = 'routeDay'
+        `);
+        if (routeDayColRes.rows.length > 0) {
+          // Step 3: Add new routeDays column, copy data from routeDay
+          await client.query(`ALTER TABLE "Shop" ADD COLUMN "routeDays" TEXT[]`);
+          // Copy each shop's routeDay to routeDays as single-element array
+          await client.query(`UPDATE "Shop" SET "routeDays" = ARRAY[LOWER("routeDay")] WHERE "routeDay" IS NOT NULL`);
+          // Set default for any nulls
+          await client.query(`UPDATE "Shop" SET "routeDays" = ARRAY['monday'] WHERE "routeDays" IS NULL`);
+          // Make column NOT NULL
+          await client.query(`ALTER TABLE "Shop" ALTER COLUMN "routeDays" SET NOT NULL`);
+          // Drop old column
+          await client.query(`ALTER TABLE "Shop" DROP COLUMN "routeDay"`);
+          console.log('Migration: routeDay → routeDays completed successfully');
+        } else {
+          // No routeDay column exists, just add routeDays
+          await client.query(`ALTER TABLE "Shop" ADD COLUMN IF NOT EXISTS "routeDays" TEXT[] NOT NULL DEFAULT ARRAY['monday']`);
+        }
+      }
+      // Add GIN index for array containment queries
+      try {
+        await client.query(`CREATE INDEX IF NOT EXISTS "Shop_routeDays_idx" ON "Shop" USING GIN ("routeDays")`);
+      } catch { /* index might already exist */ }
+    } catch (migrateErr) {
+      console.error('routeDay → routeDays migration error:', migrateErr);
+      /* non-critical, continue */
+    }
 
     // Migration: Add companyId column to User if it doesn't exist
     try {
@@ -198,6 +234,11 @@ export async function POST() {
     // Migration: Add companyId column to Transaction if it doesn't exist
     try {
       await client.query(`ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "companyId" TEXT`);
+    } catch { /* column already exists, ignore */ }
+
+    // Migration: Add idempotencyKey column to Transaction for duplicate prevention
+    try {
+      await client.query(`ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "idempotencyKey" TEXT UNIQUE`);
     } catch { /* column already exists, ignore */ }
 
     // Migration: Create ShopCompanyBalance table if it doesn't exist

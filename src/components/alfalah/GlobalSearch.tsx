@@ -28,7 +28,7 @@ interface ShopResult {
   name: string;
   ownerName: string | null;
   area: string | null;
-  routeDay: string;
+  routeDays: string[];
   status: string;
   balance: number;
   orderbooker: { id: string; name: string } | null;
@@ -398,7 +398,7 @@ export default function GlobalSearch() {
                             )}
                             <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
                               <Hash className="h-3 w-3 shrink-0" />
-                              {shop.routeDay}
+                              {shop.routeDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}
                             </span>
                             {shop.orderbooker && (
                               <span className="text-[11px] text-muted-foreground hidden sm:inline">

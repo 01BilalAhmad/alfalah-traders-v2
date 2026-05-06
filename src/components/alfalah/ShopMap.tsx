@@ -37,7 +37,7 @@ interface ShopMapMarker {
   balance: number;
   status: string;
   orderbookerName: string;
-  routeDay: string;
+  routeDays: string[];
   lat: number;
   lng: number;
 }
@@ -122,7 +122,7 @@ export default function ShopMap({ markers }: ShopMapProps) {
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground mb-1">
-                  OB: {marker.orderbookerName} &bull; Route: {marker.routeDay.charAt(0).toUpperCase() + marker.routeDay.slice(1)}
+                  OB: {marker.orderbookerName} &bull; Route: {marker.routeDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}
                 </p>
                 <p className={`text-xs font-bold ${marker.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
                   Balance: {formatCurrency(marker.balance)}

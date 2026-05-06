@@ -151,10 +151,35 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   let client;
   try {
-    const { shopId, type, amount, description, createdBy, gpsLat, gpsLng, gpsAddress, companyId } = await request.json();
+    const { shopId, type, amount, description, createdBy, gpsLat, gpsLng, gpsAddress, companyId, idempotencyKey } = await request.json();
 
     if (!shopId || !type || !amount || !createdBy) {
       return NextResponse.json({ error: 'Shop, type, amount, and creator are required' }, { status: 400 });
+    }
+
+    // Idempotency check: if idempotencyKey is provided, check for existing transaction
+    if (idempotencyKey) {
+      try {
+        const pgClient = getPgClient();
+        await pgClient.connect();
+        const existingRes = await pgClient.query(
+          'SELECT * FROM "Transaction" WHERE "idempotencyKey" = $1',
+          [idempotencyKey]
+        );
+        if (existingRes.rows.length > 0) {
+          // Return the existing transaction — this is a duplicate submission
+          await pgClient.end();
+          const existing = existingRes.rows[0];
+          return NextResponse.json({
+            ...existing,
+            amount: Number(existing.amount),
+            previousBalance: Number(existing.previousBalance),
+            newBalance: Number(existing.newBalance),
+            _idempotent: true, // Flag to indicate this was a duplicate
+          }, { status: 200 });
+        }
+        await pgClient.end();
+      } catch { /* idempotencyKey column may not exist yet — skip check */ }
     }
 
     if (type !== 'credit' && type !== 'recovery') {
@@ -239,7 +264,7 @@ export async function POST(request: NextRequest) {
       const dayEnd = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
 
       const creditSumRes = await client.query(
-        `SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE "shopId" = $1 AND type = 'credit' AND "createdAt" >= $2 AND "createdAt" <= $3`,
+        `SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE "shopId" = $1 AND type = 'credit' AND status = 'approved' AND "createdAt" >= $2 AND "createdAt" <= $3`,
         [shopId, dayStart.toISOString(), dayEnd.toISOString()]
       );
       const todayCreditTotal = Number(creditSumRes.rows[0].total);
@@ -295,10 +320,10 @@ export async function POST(request: NextRequest) {
     // Create transaction record
     const txnId = `txn_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
     const txnRes = await client.query(
-      `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "gpsLat", "gpsLng", "gpsAddress", "companyId", "createdAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "gpsLat", "gpsLng", "gpsAddress", "companyId", "idempotencyKey", "createdAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
-      [txnId, shopId, type, txnStatus, amount, previousBalance, Math.round(newBalance * 100) / 100, description || null, createdBy, gpsLat || null, gpsLng || null, gpsAddress || null, companyId || null, new Date().toISOString()]
+      [txnId, shopId, type, txnStatus, amount, previousBalance, Math.round(newBalance * 100) / 100, description || null, createdBy, gpsLat || null, gpsLng || null, gpsAddress || null, companyId || null, idempotencyKey || null, new Date().toISOString()]
     );
 
     const transaction = txnRes.rows[0];

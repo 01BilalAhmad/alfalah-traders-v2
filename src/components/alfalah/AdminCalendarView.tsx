@@ -58,7 +58,7 @@ interface Shop {
   area: string | null;
   address: string | null;
   phone: string | null;
-  routeDay: string;
+  routeDays: string[];
   balance: number;
   creditLimit: number;
   status: string;
@@ -75,7 +75,7 @@ interface Orderbooker {
 }
 
 interface DaySchedule {
-  routeDay: string;
+  routeDays: string[];
   shops: Shop[];
   orderbookers: { id: string; name: string; shopCount: number; totalOutstanding: number }[];
 }

@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         s.area,
         s.balance,
         s.status,
-        s."routeDay",
+        s."routeDays",
         u.name AS "orderbookerName"
       FROM combined c
       INNER JOIN "Shop" s ON c."shopId" = s.id
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       area: row.area,
       balance: Number(row.balance),
       status: row.status,
-      routeDay: row.routeDay,
+      routeDays: row.routeDays || [],
       orderbookerName: row.orderbookerName,
       lat: Number(row.lat),
       lng: Number(row.lng),

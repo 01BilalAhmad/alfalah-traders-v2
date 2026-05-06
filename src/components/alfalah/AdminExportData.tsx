@@ -250,7 +250,7 @@ export default function AdminExportData() {
               Name: s.name,
               Owner: s.ownerName || '',
               Area: s.area || '',
-              Route: s.routeDay,
+              Route: s.routeDays.join(', '),
               Orderbooker: s.orderbooker?.name || '',
               Balance: s.balance,
               CreditLimit: s.creditLimit,

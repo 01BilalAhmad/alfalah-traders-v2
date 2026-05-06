@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
             area: shop.area ? String(shop.area) : null,
             address: shop.address ? String(shop.address) : null,
             phone: shop.phone ? String(shop.phone) : null,
-            routeDay: String(shop.routeDay || 'monday'),
+            routeDays: Array.isArray(shop.routeDays) ? shop.routeDays : (shop.routeDay ? [String(shop.routeDay)] : ['monday']),
             orderbookerId: newObId,
             balance: Number(shop.balance || 0),
             creditLimit: Number(shop.creditLimit || 0),

@@ -71,7 +71,7 @@ interface ParsedShop {
   area: string;
   address: string;
   phone: string;
-  routeDay: string;
+  routeDays: string[];
   creditAmount: number;
   valid: boolean;
   error?: string;
@@ -85,18 +85,21 @@ interface BulkImportDialogProps {
   onImportComplete: () => void;
 }
 
-const VALID_ROUTE_DAYS = [...WORKING_DAYS];
-
 function formatCurrency(amount: number): string {
   return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-function normalizeRouteDay(raw: string): string | null {
-  if (!raw) return null;
-  const cleaned = raw.toString().trim().toLowerCase();
-  return VALID_ROUTE_DAYS.find(
-    (d) => d === cleaned || d.startsWith(cleaned)
-  ) || null;
+function normalizeRouteDays(raw: string): string[] {
+  const VALID_ROUTE_DAYS = [...WORKING_DAYS];
+  const parts = raw.split(',').map(p => p.trim().toLowerCase()).filter(p => p);
+  const result: string[] = [];
+  for (const part of parts) {
+    const matched = VALID_ROUTE_DAYS.find(d => d === part || d.startsWith(part));
+    if (matched && !result.includes(matched)) {
+      result.push(matched);
+    }
+  }
+  return result;
 }
 
 export default function AdminBulkImport({ open, onOpenChange, orderbookers, companies, onImportComplete }: BulkImportDialogProps) {
@@ -126,9 +129,9 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
 
   const downloadTemplate = useCallback(() => {
     const templateData = [
-      { 'Shop Name': 'Al-Falah General Store', 'Owner Name': 'Muhammad Ali', 'Area': 'Saddar', 'Address': 'Shop #12, Main Market', 'Phone': '0300-1234567', 'Route Day': 'Monday', 'Credit Amount': 5000 },
-      { 'Shop Name': 'Madina Traders', 'Owner Name': 'Ahmed Khan', 'Area': 'Cantt', 'Address': '', 'Phone': '0312-9876543', 'Route Day': 'Tuesday', 'Credit Amount': 10000 },
-      { 'Shop Name': 'City Electronics', 'Owner Name': 'Bilal', 'Area': 'DHA', 'Address': 'Block-C, Shop 5', 'Phone': '', 'Route Day': 'Wednesday', 'Credit Amount': 0 },
+      { 'Shop Name': 'Al-Falah General Store', 'Owner Name': 'Muhammad Ali', 'Area': 'Saddar', 'Address': 'Shop #12, Main Market', 'Phone': '0300-1234567', 'Route Days': 'Monday', 'Credit Amount': 5000 },
+      { 'Shop Name': 'Madina Traders', 'Owner Name': 'Ahmed Khan', 'Area': 'Cantt', 'Address': '', 'Phone': '0312-9876543', 'Route Days': 'Tuesday', 'Credit Amount': 10000 },
+      { 'Shop Name': 'City Electronics', 'Owner Name': 'Bilal', 'Area': 'DHA', 'Address': 'Block-C, Shop 5', 'Phone': '', 'Route Days': 'Wednesday', 'Credit Amount': 0 },
     ];
 
     const ws = XLSX.utils.json_to_sheet(templateData);
@@ -180,7 +183,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
           const area = (row['Area'] || '').toString().trim();
           const address = (row['Address'] || '').toString().trim();
           const phone = (row['Phone'] || '').toString().trim();
-          const routeDayRaw = (row['Route Day'] || '').toString().trim();
+          const routeDaysRaw = (row['Route Days'] || row['Route Day'] || '').toString().trim();
           const creditAmountRaw = parseFloat((row['Credit Amount'] || '0').toString());
 
           let valid = true;
@@ -190,10 +193,10 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
             valid = false;
             error = 'Shop name is required';
           } else {
-            const routeDay = normalizeRouteDay(routeDayRaw);
-            if (!routeDay) {
+            const routeDays = normalizeRouteDays(routeDaysRaw);
+            if (routeDays.length === 0) {
               valid = false;
-              error = `Invalid route day "${routeDayRaw}"`;
+              error = `Invalid route day(s) "${routeDaysRaw}"`;
             } else if (isNaN(creditAmountRaw) || creditAmountRaw < 0) {
               valid = false;
               error = 'Invalid credit amount';
@@ -207,7 +210,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
             area,
             address,
             phone,
-            routeDay: normalizeRouteDay(routeDayRaw) || routeDayRaw,
+            routeDays: normalizeRouteDays(routeDaysRaw),
             creditAmount: isNaN(creditAmountRaw) ? 0 : creditAmountRaw,
             valid,
             error: valid ? undefined : error,
@@ -241,7 +244,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
           area: s.area || undefined,
           address: s.address || undefined,
           phone: s.phone || undefined,
-          routeDay: s.routeDay,
+          routeDays: s.routeDays,
           creditAmount: s.creditAmount || undefined,
         })),
         createdBy: user?.id,
@@ -408,7 +411,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                   { col: 'Area', req: false, desc: 'Area/location name' },
                   { col: 'Address', req: false, desc: 'Full address' },
                   { col: 'Phone', req: false, desc: 'Contact number' },
-                  { col: 'Route Day', req: true, desc: 'Monday/Tue/Wed/Thu/Sat/Sun' },
+                  { col: 'Route Days', req: true, desc: 'Monday,Thursday or Mon,Thu (comma-separated for multiple days)' },
                   { col: 'Credit Amount', req: false, desc: 'Initial opening balance (0 if none)' },
                 ].map((item) => (
                   <div key={item.col} className="flex items-start gap-2 text-xs">
@@ -537,7 +540,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                     <TableHead className="text-white font-semibold text-xs">Shop Name</TableHead>
                     <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Owner</TableHead>
                     <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Area</TableHead>
-                    <TableHead className="text-white font-semibold text-xs hidden lg:table-cell">Route Day</TableHead>
+                    <TableHead className="text-white font-semibold text-xs hidden lg:table-cell">Route Days</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-right">Credit</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-center">Status</TableHead>
                   </TableRow>
@@ -550,7 +553,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                       <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{shop.ownerName || '—'}</TableCell>
                       <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{shop.area || '—'}</TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        <Badge variant="outline" className="text-[10px]">{shop.routeDay.charAt(0).toUpperCase() + shop.routeDay.slice(1)}</Badge>
+                        <Badge variant="outline" className="text-[10px]">{shop.routeDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         {shop.creditAmount > 0 ? (

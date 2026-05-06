@@ -27,7 +27,7 @@ export interface LedgerData {
     area: string | null;
     address: string | null;
     phone: string | null;
-    routeDay: string;
+    routeDays: string[];
     balance: number;
     orderbooker: {
       name: string;
@@ -112,7 +112,7 @@ export function generateLedgerPDF(ledger: LedgerData): jsPDF {
 
   const shopInfo = [
     [`Owner: ${ledger.shop.ownerName || 'N/A'}`, `Area: ${ledger.shop.area || 'N/A'}`],
-    [`Route Day: ${ledger.shop.routeDay.charAt(0).toUpperCase() + ledger.shop.routeDay.slice(1)}`, `Orderbooker: ${ledger.shop.orderbooker.name}`],
+    [`Route Days: ${ledger.shop.routeDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}`, `Orderbooker: ${ledger.shop.orderbooker.name}`],
     [`Phone: ${ledger.shop.phone || 'N/A'}`, `Address: ${ledger.shop.address || 'N/A'}`],
   ];
 

@@ -80,7 +80,7 @@ async function seed() {
   for (let i = 0; i < shopNames.length; i++) {
     const name = shopNames[i].trim();
     const area = AREAS[i % AREAS.length];
-    const routeDay = WORKING_DAYS[i % WORKING_DAYS.length];
+    const routeDays = [WORKING_DAYS[i % WORKING_DAYS.length]];
     const orderbooker = orderbookers[i % 2];
     const balance = Math.floor(Math.random() * 50000) + 5000;
     const creditLimit = Math.random() > 0.5 ? Math.floor(Math.random() * 100000) + 20000 : 0;
@@ -93,7 +93,7 @@ async function seed() {
         area,
         address: `Shop #${i + 1}, ${area}, Karachi`,
         phone: `03${String(Math.floor(Math.random() * 9000000000 + 1000000000)).slice(0, 10)}`,
-        routeDay,
+        routeDays,
         orderbookerId: orderbooker.id,
         balance,
         creditLimit,

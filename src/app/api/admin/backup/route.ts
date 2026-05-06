@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
         area: true,
         address: true,
         phone: true,
-        routeDay: true,
+        routeDays: true,
         orderbookerId: true,
         balance: true,
         creditLimit: true,
