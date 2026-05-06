@@ -263,6 +263,13 @@ export default function AdminBalanceReport() {
       {/* ─── PRINT AREA ─── */}
       {data && data.orderbookers.length > 0 && (
         <div className="print-area">
+          {/* Print Header */}
+          <div className="print-header print-only">
+            <div className="print-header-title">Al-Falah Traders</div>
+            <div className="print-header-subtitle">Remaining Balance Report</div>
+            <div className="print-header-date">{new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+          </div>
+
           {data.orderbookers.map((ob) => (
             <div key={ob.orderbookerId} className="balance-section">
               {/* Orderbooker Header */}
@@ -274,10 +281,12 @@ export default function AdminBalanceReport() {
               {/* Companies within orderbooker */}
               {ob.companies.map((comp) => (
                 <div key={comp.companyId} className="company-section">
-                  {/* Company Sub-header */}
-                  <div className="company-header">
-                    <span className="company-name">{comp.companyName}</span>
-                  </div>
+                  {/* Company Sub-header - only show if multiple companies */}
+                  {ob.companies.length > 1 && (
+                    <div className="company-header">
+                      <span className="company-name">{comp.companyName}</span>
+                    </div>
+                  )}
 
                   {/* Balance Table */}
                   <table className="balance-table">
@@ -300,10 +309,13 @@ export default function AdminBalanceReport() {
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="total-row">
-                        <td colSpan={3} className="total-label">Total {comp.companyName}</td>
-                        <td className="total-value">{formatCurrency(comp.totalBalance)}</td>
-                      </tr>
+                      {/* Show company total only when multiple companies */}
+                      {ob.companies.length > 1 && (
+                        <tr className="total-row">
+                          <td colSpan={3} className="total-label">Total {comp.companyName}</td>
+                          <td className="total-value">{formatCurrency(comp.totalBalance)}</td>
+                        </tr>
+                      )}
                     </tfoot>
                   </table>
                 </div>
@@ -312,7 +324,7 @@ export default function AdminBalanceReport() {
               {/* Orderbooker Total */}
               <div className="ob-total">
                 <span className="ob-total-label">Total {ob.orderbookerName}</span>
-                <span className="ob-total-value">{formatCurrency(ob.totalBalance)}</span>
+                <span className="ob-total-value">Rs. {formatCurrency(ob.totalBalance)}</span>
               </div>
             </div>
           ))}

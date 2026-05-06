@@ -127,7 +127,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Header */}
-      <header className="alfalah-header animate-header-gradient sticky top-0 z-50 h-16 flex items-center justify-between px-4 lg:px-6 md:backdrop-blur-md md:bg-opacity-95">
+      <header className="alfalah-header animate-header-gradient sticky top-0 z-50 h-16 flex items-center justify-between px-4 lg:px-6 md:backdrop-blur-md md:bg-opacity-95 print-hidden">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -238,7 +238,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
         {/* Sidebar */}
         <aside
-          className={`fixed lg:static inset-y-0 left-0 z-40 w-64 sidebar-navy-gradient transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:top-16 pt-16 lg:pt-0 border-r border-white/10 ${
+          className={`fixed lg:static inset-y-0 left-0 z-40 w-64 sidebar-navy-gradient transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:top-16 pt-16 lg:pt-0 border-r border-white/10 print-hidden ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >

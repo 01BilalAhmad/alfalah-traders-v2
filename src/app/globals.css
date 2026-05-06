@@ -694,6 +694,10 @@
   display: none;
 }
 
+.print-area {
+  display: none;
+}
+
 /* ====== Tooltip Enhancement ====== */
 .tooltip-alfalah {
   background: #1E293B !important;
@@ -2079,6 +2083,28 @@ textarea:focus-visible {
   .print-area {
     display: block !important;
   }
+  .print-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #1E3A8A;
+  }
+  .print-header-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #1E3A8A;
+  }
+  .print-header-subtitle {
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+    margin-top: 2px;
+  }
+  .print-header-date {
+    font-size: 11px;
+    color: #64748B;
+    margin-top: 4px;
+  }
   .balance-section {
     page-break-inside: avoid;
     margin-bottom: 20px;
@@ -2212,6 +2238,7 @@ textarea:focus-visible {
   .grand-total-label {
     font-weight: 700;
     font-size: 16px;
+    margin-right: 24px;
   }
   .grand-total-value {
     font-weight: 800;
