@@ -75,6 +75,7 @@ const adminNavItems: NavItem[] = [
   { id: 'admin-ob-recovery-report', label: 'OB Recovery Report', icon: <FileText className="h-5 w-5" /> },
   { id: 'admin-export-data', label: 'Export & Reports', icon: <FileDown className="h-5 w-5" /> },
   { id: 'admin-companies', label: 'Manage Companies', icon: <Building2 className="h-5 w-5" /> },
+  { id: 'admin-balance-report', label: 'Balance Report', icon: <Banknote className="h-5 w-5" /> },
 ];
 
 interface AdminLayoutProps {

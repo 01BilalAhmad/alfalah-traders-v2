@@ -26,6 +26,7 @@ import AdminMapView from '@/components/alfalah/AdminMapView';
 import AdminCalendarView from '@/components/alfalah/AdminCalendarView';
 import AdminExportData from '@/components/alfalah/AdminExportData';
 import AdminCompanies from '@/components/alfalah/AdminCompanies';
+import AdminBalanceReport from '@/components/alfalah/AdminBalanceReport';
 import AdminOBRecoveryReport from '@/components/alfalah/AdminOBRecoveryReport';
 
 function AdminRouter() {
@@ -76,6 +77,8 @@ function AdminRouter() {
       return <AdminOBRecoveryReport />;
     case 'admin-companies':
       return <AdminCompanies />;
+    case 'admin-balance-report':
+      return <AdminBalanceReport />;
     default:
       return <AdminDashboard />;
   }
