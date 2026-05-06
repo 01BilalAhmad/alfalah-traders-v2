@@ -48,6 +48,7 @@ const PROTECTED_PATHS = [
   '/api/auth/reset-password',
   '/api/admin/backup',
   '/api/admin/restore',
+  '/api/admin/reset-shops',
 ];
 
 // ─── Token Parsing ────────────────────────────────────────────────────────────

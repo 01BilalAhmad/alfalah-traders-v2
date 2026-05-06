@@ -91,6 +91,10 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
   const [restoring, setRestoring] = useState(false);
   const [restoreProgress, setRestoreProgress] = useState(0);
 
+  // Reset shop data state
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
   // Password change state
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -239,6 +243,39 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
       toast({ title: 'Backup Failed', description: 'Network error. Please try again.', variant: 'destructive' });
     } finally {
       setBackingUp(false);
+    }
+  }, []);
+
+  // Reset shop data handler
+  const handleResetShops = useCallback(async () => {
+    setResetting(true);
+    try {
+      const res = await apiFetch('/api/admin/reset-shops', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        toast({
+          title: 'Shop Data Reset Complete',
+          description: `Deleted ${data.deleted.shops} shops, ${data.deleted.transactions} transactions. ${data.kept.users} users and ${data.kept.companies} companies preserved.`,
+        });
+        setResetDialogOpen(false);
+        // Refresh stats
+        setSystemStats(prev => prev ? { ...prev, shops: 0 } : null);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast({
+          title: 'Reset Failed',
+          description: (data as { error?: string }).error || 'Could not reset shop data.',
+          variant: 'destructive',
+        });
+      }
+    } catch {
+      toast({
+        title: 'Reset Failed',
+        description: 'Network error. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setResetting(false);
     }
   }, []);
 
@@ -700,6 +737,41 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                   )}
                 </div>
               </Card>
+
+              {/* Reset Shop Data */}
+              <Card className="py-0 gap-0 mt-3">
+                <div className="px-4 py-3.5 space-y-3">
+                  {/* Danger warning */}
+                  <div className="flex items-start gap-2.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 px-3 py-2.5">
+                    <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                    <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
+                      <span className="font-semibold">Danger:</span> This will permanently delete ALL shops, transactions, notes, visits, and company balances. Users and companies will be preserved. Make sure you have a backup first!
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-red-50 dark:bg-red-950/50 flex items-center justify-center">
+                        <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Reset Shop Data</p>
+                        <p className="text-xs text-muted-foreground">Delete all shops & transactions</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setResetDialogOpen(true)}
+                      disabled={resetting}
+                      className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              </Card>
             </section>
           )}
 
@@ -1054,6 +1126,43 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
             >
               Yes, Restore Now
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset Shop Data Confirmation AlertDialog */}
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />
+              Reset All Shop Data?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete ALL shops, transactions, shop notes, visits, and company balances. 
+              <strong className="text-foreground"> Users (orderbookers) and companies will be preserved.</strong>
+              <br /><br />
+              Make sure you have downloaded a backup first! This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resetting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetShops}
+              disabled={resetting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {resetting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                'Yes, Delete All Shop Data'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
