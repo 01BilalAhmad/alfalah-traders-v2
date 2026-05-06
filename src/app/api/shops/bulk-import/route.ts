@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPgClient, toPgArray } from '@/lib/pg';
 import crypto from 'crypto';
 
 const VALID_ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'saturday', 'sunday'];
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
           `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDays", "orderbookerId", balance, "creditLimit", status, "createdAt", "updatedAt")
            VALUES ($1, $2, $3, $4, $5, $6, $7::text[], $8, $9, 0, 'active', $10, $11)
            RETURNING *`,
-          [shopId, shop.name, shop.ownerName, shop.area, shop.address, shop.phone, shop.routeDays, orderbookerId, initialBalance, now, now]
+          [shopId, shop.name, shop.ownerName, shop.area, shop.address, shop.phone, toPgArray(shop.routeDays), orderbookerId, initialBalance, now, now]
         );
 
         createdShops.push(shopRes.rows[0]);
@@ -197,10 +197,11 @@ export async function POST(request: NextRequest) {
           totalCreditAmount += shop.creditAmount;
         }
       } catch (err: any) {
+        console.error(`[BULK-IMPORT] Failed to insert shop "${shop.name}":`, err?.message || err);
         importErrors.push({
           row: shop.rowNumber,
           name: shop.name,
-          error: err.message || 'Failed to create shop',
+          error: err?.message || 'Failed to create shop',
         });
       }
     }
@@ -254,7 +255,7 @@ export async function POST(request: NextRequest) {
       try { await client.query('ROLLBACK'); } catch {}
       await client.end().catch(() => {});
     }
-    console.error('Error bulk importing shops:', error);
-    return NextResponse.json({ error: 'Failed to bulk import shops' }, { status: 500 });
+    console.error('[BULK-IMPORT] Fatal error:', error);
+    return NextResponse.json({ error: `Failed to bulk import shops: ${(error as Error)?.message || 'Unknown error'}` }, { status: 500 });
   }
 }

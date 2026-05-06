@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPgClient, toPgArray } from '@/lib/pg';
 import crypto from 'crypto';
 
 // Generate a CUID-like ID (compatible with existing data)
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
       `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDays", "orderbookerId", "creditLimit", status, "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7::text[], $8, $9, $10, $11, $12)
        RETURNING *`,
-      [shopId, name, ownerName || null, area || null, address || null, phone || null, normalizedRouteDays, orderbookerId, creditLimit && creditLimit > 0 ? creditLimit : 0, 'active', now, now]
+      [shopId, name, ownerName || null, area || null, address || null, phone || null, toPgArray(normalizedRouteDays), orderbookerId, creditLimit && creditLimit > 0 ? creditLimit : 0, 'active', now, now]
     );
 
     const shop = shopRes.rows[0];
@@ -201,7 +201,7 @@ export async function PATCH(request: NextRequest) {
         : [routeDays.toLowerCase()];
       setClauses.push(`"routeDays" = $${paramIndex}::text[]`);
       paramIndex++;
-      params.push(normalizedDays);
+      params.push(toPgArray(normalizedDays));
     }
     if (orderbookerId) { setClauses.push(`"orderbookerId" = $${paramIndex++}`); params.push(orderbookerId); }
     if (status) { setClauses.push(`status = $${paramIndex++}`); params.push(status); }

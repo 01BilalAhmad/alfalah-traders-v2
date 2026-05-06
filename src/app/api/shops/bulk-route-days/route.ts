@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPgClient, toPgArray } from '@/lib/pg';
 import crypto from 'crypto';
 
 const VALID_ROUTE_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'saturday', 'sunday'];
@@ -32,12 +32,12 @@ export async function PATCH(request: NextRequest) {
       if (areaFilter) {
         updateRes = await client.query(
           `UPDATE "Shop" SET "routeDays" = $1::text[], "updatedAt" = $2 WHERE ("routeDays" = '{}' OR "routeDays" = ARRAY[]::text[] OR "routeDays" IS NULL) AND area ILIKE $3`,
-          [normalizedDays, new Date().toISOString(), `%${areaFilter}%`]
+          [toPgArray(normalizedDays), new Date().toISOString(), `%${areaFilter}%`]
         );
       } else {
         updateRes = await client.query(
           `UPDATE "Shop" SET "routeDays" = $1::text[], "updatedAt" = $2 WHERE "routeDays" = '{}' OR "routeDays" = ARRAY[]::text[] OR "routeDays" IS NULL`,
-          [normalizedDays, new Date().toISOString()]
+          [toPgArray(normalizedDays), new Date().toISOString()]
         );
       }
     } else if (shopIds && Array.isArray(shopIds) && shopIds.length > 0) {
@@ -45,13 +45,13 @@ export async function PATCH(request: NextRequest) {
       const placeholders = shopIds.map((_: unknown, idx: number) => `$${idx + 3}`).join(', ');
       updateRes = await client.query(
         `UPDATE "Shop" SET "routeDays" = $1::text[], "updatedAt" = $2 WHERE id IN (${placeholders})`,
-        [normalizedDays, new Date().toISOString(), ...shopIds]
+        [toPgArray(normalizedDays), new Date().toISOString(), ...shopIds]
       );
     } else if (areaFilter) {
       // Assign routeDays to all shops matching area
       updateRes = await client.query(
         `UPDATE "Shop" SET "routeDays" = $1::text[], "updatedAt" = $2 WHERE area ILIKE $3`,
-        [normalizedDays, new Date().toISOString(), `%${areaFilter}%`]
+        [toPgArray(normalizedDays), new Date().toISOString(), `%${areaFilter}%`]
       );
     } else {
       await client.end();

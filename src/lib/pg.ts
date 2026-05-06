@@ -42,7 +42,7 @@ pg.types.setTypeParser(pg.types.builtins.TEXT_ARRAY, (val: string) => {
   return [val];
 });
 
-// Also parse FLOAT8 (double precision) to avoid string returns
+// Parse FLOAT8 (double precision) to avoid string returns
 pg.types.setTypeParser(pg.types.builtins.FLOAT8, (val: string) => {
   return val === null ? null : parseFloat(val);
 });
@@ -51,6 +51,26 @@ pg.types.setTypeParser(pg.types.builtins.FLOAT8, (val: string) => {
 pg.types.setTypeParser(pg.types.builtins.NUMERIC, (val: string) => {
   return val === null ? null : parseFloat(val);
 });
+
+/**
+ * Convert a JavaScript string[] to a PostgreSQL text[] literal string.
+ *
+ * The pg (node-postgres) driver does NOT automatically serialize JS arrays
+ * into PostgreSQL array format. If you pass ['monday', 'thursday'] as a
+ * parameter, pg sends the string "monday,thursday" which PostgreSQL cannot
+ * parse as an array.
+ *
+ * This helper formats the array as a PostgreSQL array literal: {"monday","thursday"}
+ * which PostgreSQL can correctly parse with the ::text[] cast.
+ *
+ * Usage in SQL:
+ *   `INSERT INTO "Shop" (..., "routeDays", ...) VALUES (..., $7::text[], ...)`
+ *   params[6] = toPgArray(['monday', 'thursday'])
+ */
+export function toPgArray(arr: string[]): string {
+  if (!arr || arr.length === 0) return '{}';
+  return `{${arr.map(item => `"${item.replace(/"/g, '\\"')}"`).join(',')}}`;
+}
 
 /**
  * Create a new pg Client with proper SSL configuration for Neon.
