@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
     const shopRes = await client.query(
       `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDays", "orderbookerId", "creditLimit", status, "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::text[], $8, $9, $10, $11, $12)
        RETURNING *`,
       [shopId, name, ownerName || null, area || null, address || null, phone || null, normalizedRouteDays, orderbookerId, creditLimit && creditLimit > 0 ? creditLimit : 0, 'active', now, now]
     );
@@ -199,7 +199,8 @@ export async function PATCH(request: NextRequest) {
       const normalizedDays = Array.isArray(routeDays)
         ? routeDays.map((d: string) => d.toLowerCase()).filter((d: string) => d)
         : [routeDays.toLowerCase()];
-      setClauses.push(`"routeDays" = $${paramIndex++}`);
+      setClauses.push(`"routeDays" = $${paramIndex}::text[]`);
+      paramIndex++;
       params.push(normalizedDays);
     }
     if (orderbookerId) { setClauses.push(`"orderbookerId" = $${paramIndex++}`); params.push(orderbookerId); }

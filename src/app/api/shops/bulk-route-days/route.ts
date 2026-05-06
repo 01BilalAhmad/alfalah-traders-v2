@@ -31,12 +31,12 @@ export async function PATCH(request: NextRequest) {
       // Assign routeDays to ALL shops that currently have empty routeDays
       if (areaFilter) {
         updateRes = await client.query(
-          `UPDATE "Shop" SET "routeDays" = $1, "updatedAt" = $2 WHERE ("routeDays" = '{}' OR "routeDays" = ARRAY[]::text[] OR "routeDays" IS NULL) AND area ILIKE $3`,
+          `UPDATE "Shop" SET "routeDays" = $1::text[], "updatedAt" = $2 WHERE ("routeDays" = '{}' OR "routeDays" = ARRAY[]::text[] OR "routeDays" IS NULL) AND area ILIKE $3`,
           [normalizedDays, new Date().toISOString(), `%${areaFilter}%`]
         );
       } else {
         updateRes = await client.query(
-          `UPDATE "Shop" SET "routeDays" = $1, "updatedAt" = $2 WHERE "routeDays" = '{}' OR "routeDays" = ARRAY[]::text[] OR "routeDays" IS NULL`,
+          `UPDATE "Shop" SET "routeDays" = $1::text[], "updatedAt" = $2 WHERE "routeDays" = '{}' OR "routeDays" = ARRAY[]::text[] OR "routeDays" IS NULL`,
           [normalizedDays, new Date().toISOString()]
         );
       }
@@ -44,13 +44,13 @@ export async function PATCH(request: NextRequest) {
       // Assign routeDays to specific shops
       const placeholders = shopIds.map((_: unknown, idx: number) => `$${idx + 3}`).join(', ');
       updateRes = await client.query(
-        `UPDATE "Shop" SET "routeDays" = $1, "updatedAt" = $2 WHERE id IN (${placeholders})`,
+        `UPDATE "Shop" SET "routeDays" = $1::text[], "updatedAt" = $2 WHERE id IN (${placeholders})`,
         [normalizedDays, new Date().toISOString(), ...shopIds]
       );
     } else if (areaFilter) {
       // Assign routeDays to all shops matching area
       updateRes = await client.query(
-        `UPDATE "Shop" SET "routeDays" = $1, "updatedAt" = $2 WHERE area ILIKE $3`,
+        `UPDATE "Shop" SET "routeDays" = $1::text[], "updatedAt" = $2 WHERE area ILIKE $3`,
         [normalizedDays, new Date().toISOString(), `%${areaFilter}%`]
       );
     } else {

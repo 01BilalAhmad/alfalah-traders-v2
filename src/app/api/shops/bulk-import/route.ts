@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
         const shopRes = await client.query(
           `INSERT INTO "Shop" (id, name, "ownerName", area, address, phone, "routeDays", "orderbookerId", balance, "creditLimit", status, "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, 'active', $10, $11)
+           VALUES ($1, $2, $3, $4, $5, $6, $7::text[], $8, $9, 0, 'active', $10, $11)
            RETURNING *`,
           [shopId, shop.name, shop.ownerName, shop.area, shop.address, shop.phone, shop.routeDays, orderbookerId, initialBalance, now, now]
         );
