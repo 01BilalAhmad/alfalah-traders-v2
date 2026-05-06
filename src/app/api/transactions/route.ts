@@ -409,17 +409,22 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH /api/transactions - Edit a transaction
+// PATCH /api/transactions - Edit a transaction (amount, description, and/or company change)
 export async function PATCH(request: NextRequest) {
   let client;
   try {
-    const { id, amount, description, updatedBy } = await request.json();
+    const { id, amount, description, updatedBy, newCompanyId } = await request.json();
 
-    if (!id || !amount || !updatedBy) {
-      return NextResponse.json({ error: 'Transaction ID, amount, and updater are required' }, { status: 400 });
+    if (!id || !updatedBy) {
+      return NextResponse.json({ error: 'Transaction ID and updater are required' }, { status: 400 });
     }
 
-    if (amount <= 0) {
+    // At least one of amount or newCompanyId must be provided
+    if (!amount && !newCompanyId && newCompanyId !== null) {
+      return NextResponse.json({ error: 'At least amount or newCompanyId must be provided' }, { status: 400 });
+    }
+
+    if (amount !== undefined && amount <= 0) {
       return NextResponse.json({ error: 'Amount must be greater than 0' }, { status: 400 });
     }
 
@@ -446,73 +451,250 @@ export async function PATCH(request: NextRequest) {
     const existingTxn = existingRes.rows[0];
     const oldAmount = Number(existingTxn.amount);
     const oldType = existingTxn.type;
-    const newAmount = amount;
+    const oldCompanyId = existingTxn.companyId || null;
+    const finalAmount = amount || oldAmount;
     const shopBalance = Number(existingTxn.shop_balance);
+    const isApproved = existingTxn.status === 'approved';
 
-    // Step 1: Reverse old transaction's effect on shop balance
-    let balanceAfterReverse: number;
-    if (oldType === 'credit') {
-      balanceAfterReverse = shopBalance - oldAmount;
-    } else {
-      balanceAfterReverse = shopBalance + oldAmount;
+    // === Handle company change ===
+    let companyChanged = false;
+    const effectiveNewCompanyId = newCompanyId !== undefined ? newCompanyId : oldCompanyId;
+
+    if (newCompanyId !== undefined && newCompanyId !== oldCompanyId) {
+      companyChanged = true;
+
+      // Validate new company exists and is active
+      if (newCompanyId !== null) {
+        try {
+          const companyRes = await client.query('SELECT id, status FROM "Company" WHERE id = $1', [newCompanyId]);
+          if (companyRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            await client.end();
+            return NextResponse.json({ error: 'New company not found' }, { status: 400 });
+          }
+          if (companyRes.rows[0].status === 'inactive') {
+            await client.query('ROLLBACK');
+            await client.end();
+            return NextResponse.json({ error: 'Cannot transfer to an inactive company' }, { status: 400 });
+          }
+        } catch {
+          // Company table might not exist - proceed
+        }
+      }
+
+      // Adjust ShopCompanyBalance for approved transactions
+      if (isApproved && (oldType === 'credit' || oldType === 'recovery')) {
+        const txnAmount = oldAmount;
+
+        // 1. Subtract from old company balance (if old company existed)
+        if (oldCompanyId) {
+          try {
+            const oldScbRes = await client.query(
+              `SELECT id, balance FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND "companyId" = $2`,
+              [existingTxn.shopId, oldCompanyId]
+            );
+            if (oldScbRes.rows.length > 0) {
+              const currentOldBalance = Number(oldScbRes.rows[0].balance);
+              let adjustedOldBalance: number;
+              if (oldType === 'credit') {
+                // Credit added to balance, so reverse = subtract
+                adjustedOldBalance = currentOldBalance - txnAmount;
+              } else {
+                // Recovery deducted from balance, so reverse = add back
+                adjustedOldBalance = currentOldBalance + txnAmount;
+              }
+              adjustedOldBalance = Math.round(adjustedOldBalance * 100) / 100;
+
+              if (adjustedOldBalance <= 0) {
+                // Remove the ShopCompanyBalance entry if balance is zero or negative
+                await client.query(
+                  `DELETE FROM "ShopCompanyBalance" WHERE id = $1`,
+                  [oldScbRes.rows[0].id]
+                );
+              } else {
+                await client.query(
+                  `UPDATE "ShopCompanyBalance" SET balance = $1, "updatedAt" = $2 WHERE id = $3`,
+                  [adjustedOldBalance, new Date().toISOString(), oldScbRes.rows[0].id]
+                );
+              }
+            }
+          } catch (scbErr) {
+            console.warn('Old ShopCompanyBalance adjustment failed:', scbErr);
+          }
+        }
+
+        // 2. Add to new company balance (if new company is provided)
+        if (newCompanyId) {
+          try {
+            const newScbRes = await client.query(
+              `SELECT id, balance FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND "companyId" = $2`,
+              [existingTxn.shopId, newCompanyId]
+            );
+            if (newScbRes.rows.length > 0) {
+              const currentNewBalance = Number(newScbRes.rows[0].balance);
+              let adjustedNewBalance: number;
+              if (oldType === 'credit') {
+                adjustedNewBalance = currentNewBalance + txnAmount;
+              } else {
+                adjustedNewBalance = currentNewBalance - txnAmount;
+              }
+              adjustedNewBalance = Math.round(adjustedNewBalance * 100) / 100;
+              await client.query(
+                `UPDATE "ShopCompanyBalance" SET balance = $1, "updatedAt" = $2 WHERE id = $3`,
+                [adjustedNewBalance, new Date().toISOString(), newScbRes.rows[0].id]
+              );
+            } else {
+              // Create new ShopCompanyBalance entry
+              const scbId = `scb_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
+              let initialBalance: number;
+              if (oldType === 'credit') {
+                initialBalance = txnAmount;
+              } else {
+                initialBalance = -txnAmount; // Recovery on a new company entry (rare but possible)
+              }
+              initialBalance = Math.round(initialBalance * 100) / 100;
+              await client.query(
+                `INSERT INTO "ShopCompanyBalance" (id, "shopId", "companyId", balance, "creditLimit", "createdAt", "updatedAt")
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [scbId, existingTxn.shopId, newCompanyId, initialBalance, 0, new Date().toISOString(), new Date().toISOString()]
+              );
+            }
+          } catch (scbErr) {
+            console.warn('New ShopCompanyBalance adjustment failed:', scbErr);
+          }
+        }
+      }
     }
 
-    // Step 2: Apply new amount
-    let newShopBalance: number;
-    if (oldType === 'credit') {
-      newShopBalance = balanceAfterReverse + newAmount;
-    } else {
-      newShopBalance = balanceAfterReverse - newAmount;
+    // === Handle amount change (existing logic, but also update ShopCompanyBalance) ===
+    let newShopBalance = shopBalance;
+
+    if (finalAmount !== oldAmount) {
+      // Step 1: Reverse old transaction's effect on shop balance
+      let balanceAfterReverse: number;
+      if (oldType === 'credit') {
+        balanceAfterReverse = shopBalance - oldAmount;
+      } else {
+        balanceAfterReverse = shopBalance + oldAmount;
+      }
+
+      // Step 2: Apply new amount
+      if (oldType === 'credit') {
+        newShopBalance = balanceAfterReverse + finalAmount;
+      } else {
+        newShopBalance = balanceAfterReverse - finalAmount;
+      }
+      newShopBalance = Math.round(newShopBalance * 100) / 100;
+
+      // Update shop balance
+      await client.query(
+        `UPDATE "Shop" SET balance = $1 WHERE id = $2`,
+        [newShopBalance, existingTxn.shopId]
+      );
+
+      // Update ShopCompanyBalance for amount change (if approved and has company)
+      if (isApproved && effectiveNewCompanyId) {
+        try {
+          const scbRes = await client.query(
+            `SELECT id, balance FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND "companyId" = $2`,
+            [existingTxn.shopId, effectiveNewCompanyId]
+          );
+          if (scbRes.rows.length > 0) {
+            const currentScbBalance = Number(scbRes.rows[0].balance);
+            let adjustedScbBalance: number;
+            if (oldType === 'credit') {
+              adjustedScbBalance = currentScbBalance - oldAmount + finalAmount;
+            } else {
+              adjustedScbBalance = currentScbBalance + oldAmount - finalAmount;
+            }
+            adjustedScbBalance = Math.round(adjustedScbBalance * 100) / 100;
+            await client.query(
+              `UPDATE "ShopCompanyBalance" SET balance = $1, "updatedAt" = $2 WHERE id = $3`,
+              [adjustedScbBalance, new Date().toISOString(), scbRes.rows[0].id]
+            );
+          }
+        } catch (scbErr) {
+          console.warn('ShopCompanyBalance amount adjustment failed:', scbErr);
+        }
+      }
     }
 
-    newShopBalance = Math.round(newShopBalance * 100) / 100;
-
-    // Update transaction
+    // Update transaction record
     const newDesc = description !== undefined ? description : existingTxn.description;
     const updatedTxnRes = await client.query(
-      `UPDATE "Transaction" SET amount = $1, description = $2, "newBalance" = $3 WHERE id = $4 RETURNING *`,
-      [newAmount, newDesc, newShopBalance, id]
+      `UPDATE "Transaction" SET amount = $1, description = $2, "newBalance" = $3, "companyId" = $4 WHERE id = $5 RETURNING *`,
+      [finalAmount, newDesc, newShopBalance, effectiveNewCompanyId, id]
     );
     const updatedTxn = updatedTxnRes.rows[0];
-
-    // Update shop balance
-    await client.query(
-      `UPDATE "Shop" SET balance = $1 WHERE id = $2`,
-      [newShopBalance, existingTxn.shopId]
-    );
 
     await client.query('COMMIT');
 
     // Audit log
     try {
       const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
+      const oldVal: Record<string, unknown> = {
+        shopName: existingTxn.shop_name,
+        type: oldType,
+        amount: oldAmount,
+        description: existingTxn.description,
+      };
+      const newVal: Record<string, unknown> = {
+        shopName: existingTxn.shop_name,
+        type: oldType,
+        amount: finalAmount,
+        description: newDesc,
+      };
+
+      if (companyChanged) {
+        // Fetch company names for audit
+        let oldCompanyName = oldCompanyId;
+        let newCompanyName = effectiveNewCompanyId;
+        try {
+          if (oldCompanyId) {
+            const oldCoRes = await client.query('SELECT name FROM "Company" WHERE id = $1', [oldCompanyId]);
+            if (oldCoRes.rows.length > 0) oldCompanyName = oldCoRes.rows[0].name;
+          }
+          if (effectiveNewCompanyId) {
+            const newCoRes = await client.query('SELECT name FROM "Company" WHERE id = $1', [effectiveNewCompanyId]);
+            if (newCoRes.rows.length > 0) newCompanyName = newCoRes.rows[0].name;
+          }
+        } catch { /* non-blocking */ }
+        oldVal.companyId = oldCompanyId;
+        oldVal.companyName = oldCompanyName;
+        newVal.companyId = effectiveNewCompanyId;
+        newVal.companyName = newCompanyName;
+      }
+
       await client.query(
         `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "performedBy", "oldValue", "newValue", description)
-         VALUES ($1, 'edit', 'transaction', $2, $3, $4, $5, $6)`,
+         VALUES ($1, $2, 'transaction', $3, $4, $5, $6, $7)`,
         [
           auditId,
+          companyChanged ? 'company_change' : 'edit',
           id,
           updatedBy,
-          JSON.stringify({
-            shopName: existingTxn.shop_name,
-            type: oldType,
-            amount: oldAmount,
-            description: existingTxn.description,
-          }),
-          JSON.stringify({
-            shopName: existingTxn.shop_name,
-            type: oldType,
-            amount: newAmount,
-            description: newDesc,
-          }),
-          `Transaction edited: ${oldType} Rs. ${oldAmount} → Rs. ${newAmount} at ${existingTxn.shop_name}`,
+          JSON.stringify(oldVal),
+          JSON.stringify(newVal),
+          companyChanged
+            ? `Company changed for ${oldType} Rs. ${oldAmount} at ${existingTxn.shop_name}: ${oldVal.companyName || 'None'} → ${newVal.companyName || 'None'}`
+            : `Transaction edited: ${oldType} Rs. ${oldAmount} → Rs. ${finalAmount} at ${existingTxn.shop_name}`,
         ]
       );
     } catch { /* non-blocking */ }
 
-    // Fetch shop and creator for response
+    // Fetch shop, creator, and company for response
     const shopInfoRes = await client.query('SELECT id, name FROM "Shop" WHERE id = $1', [existingTxn.shopId]);
     const creatorInfoRes = await client.query('SELECT id, name FROM "User" WHERE id = $1', [existingTxn.createdBy]);
+
+    let companyInfo: { id: string; name: string } | null = null;
+    if (effectiveNewCompanyId) {
+      try {
+        const companyInfoRes = await client.query('SELECT id, name FROM "Company" WHERE id = $1', [effectiveNewCompanyId]);
+        if (companyInfoRes.rows.length > 0) {
+          companyInfo = { id: companyInfoRes.rows[0].id, name: companyInfoRes.rows[0].name };
+        }
+      } catch { /* non-blocking */ }
+    }
 
     await client.end();
     return NextResponse.json({
@@ -520,8 +702,10 @@ export async function PATCH(request: NextRequest) {
       amount: Number(updatedTxn.amount),
       previousBalance: Number(updatedTxn.previousBalance),
       newBalance: Number(updatedTxn.newBalance),
+      companyId: effectiveNewCompanyId,
       shop: { id: shopInfoRes.rows[0]?.id, name: shopInfoRes.rows[0]?.name },
       creator: { id: creatorInfoRes.rows[0]?.id, name: creatorInfoRes.rows[0]?.name },
+      company: companyInfo,
     });
   } catch (error) {
     if (client) {

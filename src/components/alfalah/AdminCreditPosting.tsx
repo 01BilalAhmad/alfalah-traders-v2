@@ -65,6 +65,7 @@ import {
   Trash2,
   Clock,
   Building2,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { WORKING_DAYS, getTodayRouteDay, validateTransaction, TRANSACTION_RULES, getCreditLimitStatus } from '@/lib/utils';
@@ -124,6 +125,8 @@ interface EditableTransaction {
   amount: string;
   description: string;
   createdAt: string;
+  companyId: string | null;
+  companyName: string | null;
 }
 
 function formatCurrency(amount: number): string {
@@ -676,11 +679,13 @@ export default function AdminCreditPosting() {
       if (res.ok) {
         const data = await res.json();
         const txns = data.transactions || [];
-        setEditTransactions(txns.map((t: { id: string; amount: number; description: string; createdAt: string }) => ({
+        setEditTransactions(txns.map((t: { id: string; amount: number; description: string; createdAt: string; companyId?: string | null; company?: { id: string; name: string } | null }) => ({
           id: t.id,
           amount: String(t.amount),
           description: t.description,
           createdAt: t.createdAt,
+          companyId: t.companyId || (t.company?.id) || null,
+          companyName: t.company?.name || null,
         })));
         setEditShopName(item.shopName);
         setEditDialogOpen(true);
@@ -706,6 +711,15 @@ export default function AdminCreditPosting() {
     });
   };
 
+  const handleUpdateTransactionCompany = (index: number, companyId: string) => {
+    setEditTransactions((prev) => {
+      const updated = [...prev];
+      const companyName = companies.find(c => c.id === companyId)?.name || null;
+      updated[index] = { ...updated[index], companyId, companyName };
+      return updated;
+    });
+  };
+
   const handleEditSave = () => {
     const txn = editTransactions[editConfirmIndex];
     if (!txn || !user) return;
@@ -717,15 +731,20 @@ export default function AdminCreditPosting() {
     }
 
     setEditLoading(true);
+    const patchBody: Record<string, unknown> = {
+      id: txn.id,
+      updatedBy: user.id,
+      newCompanyId: txn.companyId,
+    };
+
+    // Include amount and description in the patch
+    patchBody.amount = newAmount;
+    patchBody.description = txn.description.trim() || 'Goods supplied';
+
     apiFetch('/api/transactions', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: txn.id,
-        amount: newAmount,
-        description: txn.description.trim() || 'Goods supplied',
-        updatedBy: user.id,
-      }),
+      body: JSON.stringify(patchBody),
     })
       .then((res) => {
         if (!res.ok) return res.json().then((d: { error?: string }) => { throw new Error(d.error || 'Failed to update'); });
@@ -1639,6 +1658,36 @@ export default function AdminCreditPosting() {
                         {formatDateTime(txn.createdAt)}
                       </span>
                     </div>
+                    {/* Company Selector */}
+                    {companies.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-xs flex items-center gap-1.5">
+                          <Building2 className="h-3.5 w-3.5" />
+                          Company
+                        </Label>
+                        <Select
+                          value={txn.companyId || 'none'}
+                          onValueChange={(val) => handleUpdateTransactionCompany(idx, val === 'none' ? '' : val)}
+                        >
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="Select company" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No Company</SelectItem>
+                            {companies.map((company) => (
+                              <SelectItem key={company.id} value={company.id}>
+                                {company.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {txn.companyName && (
+                          <p className="text-[11px] text-muted-foreground">
+                            Currently under: <span className="font-semibold text-primary">{txn.companyName}</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor={`edit-amount-${idx}`} className="text-xs">Amount (Rs.)</Label>
                       <Input
@@ -1694,7 +1743,22 @@ export default function AdminCreditPosting() {
             <AlertDialogTitle>Confirm Edit</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to update this credit entry for <span className="font-semibold text-foreground">{editShopName}</span>?
-              The shop&apos;s balance will be recalculated based on the new amount.
+              {editConfirmIndex >= 0 && editTransactions[editConfirmIndex] && (
+                <>
+                  {(() => {
+                    const txn = editTransactions[editConfirmIndex];
+                    const isCompanyChange = txn.companyName !== null && companies.find(c => c.id === txn.companyId)?.name !== txn.companyName;
+                    return isCompanyChange ? (
+                      <span className="block mt-2 text-amber-600 dark:text-amber-400 font-medium">
+                        <ArrowRightLeft className="h-4 w-4 inline mr-1" />
+                        Company will be changed — balances will be adjusted accordingly.
+                      </span>
+                    ) : (
+                      <span className="block mt-1">The shop&apos;s balance will be recalculated based on the new amount.</span>
+                    );
+                  })()}
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
