@@ -2245,6 +2245,37 @@ textarea:focus-visible {
     font-size: 16px;
     font-variant-numeric: tabular-nums;
   }
+
+  /* Company Report Print Styles - Landscape */
+  @page companyreport {
+    size: landscape;
+    margin: 8mm;
+  }
+
+  /* Apply landscape to the whole print when company report is visible */
+  body:has(.company-report-print) {
+    @page {
+      size: landscape;
+      margin: 8mm;
+    }
+  }
+
+  .company-report-print table {
+    font-size: 9px !important;
+  }
+  .company-report-print th,
+  .company-report-print td {
+    padding: 2px 4px !important;
+    font-size: 9px !important;
+  }
+  .company-report-print th:first-child,
+  .company-report-print td:first-child {
+    padding: 2px 6px !important;
+  }
+  .company-report-print tfoot td,
+  .company-report-print tfoot th {
+    font-weight: 800 !important;
+  }
 }
 
 /* ====== Final Polish: Micro-interactions & Premium Details ====== */

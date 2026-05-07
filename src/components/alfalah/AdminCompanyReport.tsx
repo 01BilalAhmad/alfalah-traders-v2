@@ -153,7 +153,17 @@ export default function AdminCompanyReport() {
   }, [fetchData, selectedCompany]);
 
   const handlePrint = () => {
+    // Inject landscape @page rule for this print job
+    const style = document.createElement('style');
+    style.id = 'company-report-print-style';
+    style.textContent = '@page { size: landscape; margin: 6mm; }';
+    document.head.appendChild(style);
     window.print();
+    // Clean up after print dialog closes
+    setTimeout(() => {
+      const el = document.getElementById('company-report-print-style');
+      if (el) el.remove();
+    }, 1000);
   };
 
   // Generate month options (current month ± 12 months)
@@ -171,7 +181,7 @@ export default function AdminCompanyReport() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 company-report-print">
       {/* Screen-only header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print-hidden">
         <div className="animate-fade-in">
@@ -304,11 +314,11 @@ export default function AdminCompanyReport() {
 
       {/* ─── PRINT HEADER ─── */}
       {data && data.orderbookers.length > 0 && (
-        <div className="print-only mb-4">
+        <div className="print-only mb-2">
           <div className="text-center">
-            <h1 className="text-lg font-bold">AL FALAH TRADERS</h1>
-            <h2 className="text-sm font-semibold">{data.company.name} — Credit &amp; Recovery Report</h2>
-            <p className="text-xs text-muted-foreground">
+            <h1 className="text-base font-bold">AL FALAH TRADERS</h1>
+            <h2 className="text-xs font-semibold">{data.company.name} — Credit &amp; Recovery Report</h2>
+            <p className="text-[10px] text-muted-foreground">
               {data.monthLabel} | Working Days: {data.workingDays}
             </p>
           </div>
