@@ -65,6 +65,10 @@ interface ShopVisit {
   inRange: boolean;
   createdAt: string;
   shopName?: string;
+  source?: 'gps' | 'transaction';
+  sourceLabel?: string;
+  amount?: number | null;
+  transactionType?: string | null;
 }
 
 function VisitSkeleton() {
@@ -177,37 +181,14 @@ export default function AdminVisitTracking() {
   const fetchRecentVisits = useCallback(async () => {
     setVisitsLoading(true);
     try {
-      // Fetch recent visits by getting shops and then their visits
-      // Since there's no global visits endpoint, we use a different approach:
-      // Get today's date and query shop visits for recent activity
-      const shopsRes = await apiFetch('/api/shops?limit=50');
-      if (!shopsRes.ok) {
+      // Use the global visits endpoint that combines ShopVisit + Transaction data
+      const res = await apiFetch('/api/visits/recent?limit=200');
+      if (!res.ok) {
         setVisitsLoading(false);
         return;
       }
-      const shops = await shopsRes.json();
-      const shopArray = Array.isArray(shops) ? shops : [];
-
-      // For a sample of shops, get their recent visits
-      const visitPromises = shopArray.slice(0, 30).map((shop: any) =>
-        apiFetch(`/api/shops/${shop.id}/visits?limit=5`)
-          .then(r => r.ok ? r.json() : [])
-          .catch(() => [])
-      );
-      const visitResults = await Promise.all(visitPromises);
-
-      const allVisits: ShopVisit[] = [];
-      visitResults.forEach((visits, i) => {
-        if (Array.isArray(visits)) {
-          visits.forEach((v: ShopVisit) => {
-            allVisits.push({ ...v, shopName: shopArray[i]?.name || 'Unknown' });
-          });
-        }
-      });
-
-      // Sort by date descending
-      allVisits.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setRecentVisits(allVisits.slice(0, 100));
+      const visits = await res.json();
+      setRecentVisits(Array.isArray(visits) ? visits : []);
     } catch {
       // silent
     } finally {
@@ -245,13 +226,24 @@ export default function AdminVisitTracking() {
       ? Math.round(streakValues.reduce((s, v) => s + v.currentStreak, 0) / streakValues.length)
       : 0;
     const bestStreak = Math.max(0, ...streakValues.map(v => v.currentStreak));
-    const activeToday = streakValues.filter(v => {
+
+    // Active today: count OBs who have visits in recentVisits (today's data)
+    const obsWithVisitToday = new Set(recentVisits.map(v => v.orderbookerId));
+    // Also check streak data
+    const obsWithStreakToday = streakValues.filter(v => {
       if (!v.lastVisitDate) return false;
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
       return v.lastVisitDate.startsWith(today);
-    }).length;
-    return { totalVisitDays, avgStreak, bestStreak, activeToday, totalOBs: orderbookers.length };
-  }, [streaks, orderbookers]);
+    }).map(v => v.orderbookerId);
+    obsWithStreakToday.forEach(id => obsWithVisitToday.add(id));
+
+    const activeToday = obsWithVisitToday.size;
+
+    // Shops visited today count
+    const shopsVisitedToday = new Set(recentVisits.map(v => v.shopId)).size;
+
+    return { totalVisitDays, avgStreak, bestStreak, activeToday, totalOBs: orderbookers.length, shopsVisitedToday };
+  }, [streaks, orderbookers, recentVisits]);
 
   const handleShopClick = (shopId: string, shopName: string) => {
     setSelectedShopId(shopId);
@@ -268,10 +260,10 @@ export default function AdminVisitTracking() {
         <div>
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Navigation className="h-5 w-5 text-primary" />
-            Visit Tracking & Streaks
+            Visit Tracking
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Monitor shop visits and orderbooker activity streaks
+            Today's shop visits by orderbookers (from recovery, credit & GPS check-ins)
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -283,7 +275,7 @@ export default function AdminVisitTracking() {
       </div>
 
       {/* Summary KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 stagger-children">
         <Card className="card-elevated stat-card-green hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -324,12 +316,26 @@ export default function AdminVisitTracking() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/40 dark:to-emerald-950/40 flex items-center justify-center shadow-sm">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Today</Badge>
             </div>
-            <p className="text-xs text-muted-foreground font-medium mb-0.5">Active Today</p>
+            <p className="text-xs text-muted-foreground font-medium mb-0.5">Shops Visited Today</p>
             <p className="text-2xl font-bold text-emerald-600 tabular-nums number-animate">
+              {summary.shopsVisitedToday}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="card-elevated stat-card-blue hover-scale-102">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-950/40 flex items-center justify-center shadow-sm">
+                <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <Badge variant="secondary" className="text-[10px] font-medium">Today</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground font-medium mb-0.5">OBs Active Today</p>
+            <p className="text-2xl font-bold text-blue-600 tabular-nums number-animate">
               {summary.activeToday}/{summary.totalOBs}
             </p>
           </CardContent>
@@ -469,19 +475,20 @@ export default function AdminVisitTracking() {
                   <TableRow className="data-table-header hover:bg-transparent">
                     <TableHead className="text-white font-semibold text-xs">Shop</TableHead>
                     <TableHead className="text-white font-semibold text-xs">Orderbooker</TableHead>
-                    <TableHead className="text-white font-semibold text-xs text-center">In Range</TableHead>
-                    <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Location</TableHead>
+                    <TableHead className="text-white font-semibold text-xs text-center">Source</TableHead>
+                    <TableHead className="text-white font-semibold text-xs text-right hidden sm:table-cell">Amount</TableHead>
+                    <TableHead className="text-white font-semibold text-xs text-center hidden md:table-cell">GPS</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-right">Time</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredVisits.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5}>
+                      <TableCell colSpan={6}>
                         <div className="text-center py-10">
                           <MapPin className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
-                          <p className="font-medium text-muted-foreground text-sm">No visit records yet</p>
-                          <p className="text-xs text-muted-foreground/70 mt-1">Visits will appear when orderbookers check in at shops</p>
+                          <p className="font-medium text-muted-foreground text-sm">No visits recorded today</p>
+                          <p className="text-xs text-muted-foreground/70 mt-1">Visits appear when orderbookers post recovery or check in at shops</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -501,25 +508,38 @@ export default function AdminVisitTracking() {
                           <span className="text-sm text-muted-foreground">{visit.orderbookerName}</span>
                         </TableCell>
                         <TableCell className="text-center">
+                          {visit.source === 'gps' ? (
+                            <Badge className="text-[10px] bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-800">
+                              <MapPin className="h-3 w-3 mr-1" /> Check-in
+                            </Badge>
+                          ) : visit.transactionType === 'recovery' ? (
+                            <Badge className="text-[10px] bg-green-100 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-400 dark:border-green-800">
+                              Recovery
+                            </Badge>
+                          ) : (
+                            <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800">
+                              Credit
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right hidden sm:table-cell">
+                          {visit.amount != null ? (
+                            <span className={`text-sm font-semibold tabular-nums ${visit.transactionType === 'recovery' ? 'text-green-600' : 'text-amber-600'}`}>
+                              {formatCurrency(visit.amount)}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center hidden md:table-cell">
                           {visit.inRange ? (
                             <Badge className="text-[10px] bg-green-100 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-400 dark:border-green-800">
                               <CheckCircle2 className="h-3 w-3 mr-1" /> In Range
                             </Badge>
-                          ) : (
-                            <Badge className="text-[10px] bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800">
-                              <XCircle className="h-3 w-3 mr-1" /> Out of Range
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {visit.gpsAddress ? (
-                            <span className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">
-                              {visit.gpsAddress}
-                            </span>
                           ) : visit.gpsLat && visit.gpsLng ? (
-                            <span className="text-xs text-muted-foreground font-mono">
-                              {Number(visit.gpsLat).toFixed(4)}, {Number(visit.gpsLng).toFixed(4)}
-                            </span>
+                            <Badge className="text-[10px] bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800">
+                              <XCircle className="h-3 w-3 mr-1" /> Out
+                            </Badge>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
