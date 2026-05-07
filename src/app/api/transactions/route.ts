@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPgClient } from '@/lib/pg';
-import { getSmsConfig, sendSms, getCreditSmsTemplate } from '@/lib/sms';
 import crypto from 'crypto';
 
 // Business rule constants
@@ -397,7 +396,7 @@ export async function POST(request: NextRequest) {
     } catch { /* non-blocking */ }
 
     // Fetch shop and creator info for response
-    const shopInfoRes = await client.query('SELECT id, name, phone FROM "Shop" WHERE id = $1', [shopId]);
+    const shopInfoRes = await client.query('SELECT id, name FROM "Shop" WHERE id = $1', [shopId]);
     const creatorInfoRes = await client.query('SELECT id, name FROM "User" WHERE id = $1', [createdBy]);
 
     // Fetch company name if companyId provided
@@ -409,38 +408,6 @@ export async function POST(request: NextRequest) {
           companyInfo = { id: companyInfoRes.rows[0].id, name: companyInfoRes.rows[0].name };
         }
       } catch { /* non-blocking */ }
-    }
-
-    // === Send SMS notification (non-blocking, best-effort) ===
-    let smsStatus: { sent: boolean; error?: string } | null = null;
-    if (type === 'credit') {
-      try {
-        const smsConfig = await getSmsConfig(client);
-        if (smsConfig.enabled && smsConfig.creditSmsEnabled && smsConfig.gatewayUrl) {
-          const shopPhone = shopInfoRes.rows[0]?.phone;
-          if (shopPhone) {
-            const smsMessage = getCreditSmsTemplate(
-              shop.name,
-              amount,
-              Math.round(newBalance * 100) / 100,
-              companyInfo?.name
-            );
-            // Send SMS in background - don't block the response
-            sendSms(shopPhone, smsMessage, smsConfig.gatewayUrl)
-              .then(result => {
-                if (result.success) {
-                  console.log(`SMS sent to ${shopPhone} for credit Rs.${amount} at ${shop.name}`);
-                } else {
-                  console.warn(`SMS failed for ${shopPhone}: ${result.error}`);
-                }
-              })
-              .catch(err => console.warn('SMS send error:', err));
-            smsStatus = { sent: true };
-          }
-        }
-      } catch (smsErr) {
-        console.warn('SMS config/send error:', smsErr);
-      }
     }
 
     await client.end();
@@ -456,7 +423,6 @@ export async function POST(request: NextRequest) {
       company: companyInfo,
       creditLimitWarning,
       warnings: warnings.length > 0 ? warnings : undefined,
-      smsStatus, // SMS notification status (null = not attempted, { sent: true } = attempted)
     }, { status: 201 });
   } catch (error) {
     if (client) {

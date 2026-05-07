@@ -214,14 +214,3 @@ model ShopCompanyBalance {
   @@index([shopId])
   @@index([companyId])
 }
-
-// --- SMS Gateway Settings ---
-
-model AppSetting {
-  id        String   @id @default(cuid())
-  key       String   @unique // e.g. "sms_enabled", "sms_gateway_url", "sms_sender_phone"
-  value     String   // JSON string or plain value
-  updatedAt DateTime @updatedAt
-
-  @@index([key])
-}
