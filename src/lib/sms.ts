@@ -34,11 +34,13 @@ export function getRecoverySmsTemplate(shopName: string, amount: number, outstan
 /**
  * Send SMS via Android SMS Gateway app
  *
- * Common SMS Gateway App API formats:
- * - SMS Gateway: GET http://ip:port/sms?phone=03001234567&message=hello
+ * Supported SMS Gateway App API formats:
+ * - Simple SMS Gateway: POST http://ip:port/send-sms with { phone, message }
+ * - SMS Gateway by mebjas: GET http://ip:port/send?phone=xxx&message=xxx
  * - HTTP SMS: POST http://ip:port/sms with { phone, message }
  *
- * We try GET first, then POST as fallback
+ * We try POST to /send-sms first (Simple SMS Gateway format),
+ * then GET to /send (mebjas format), then POST to /sms as final fallback
  */
 export async function sendSms(phone: string, message: string, gatewayUrl: string): Promise<{ success: boolean; error?: string }> {
   if (!phone || !gatewayUrl) {
@@ -58,49 +60,69 @@ export async function sendSms(phone: string, message: string, gatewayUrl: string
 
   const baseUrl = gatewayUrl.replace(/\/+$/, '');
 
-  try {
-    // Try GET request first (most common SMS Gateway format)
-    const getUrl = `${baseUrl}/sms?phone=${encodeURIComponent(formattedPhone)}&message=${encodeURIComponent(message)}`;
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-    const response = await fetch(getUrl, {
-      method: 'GET',
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (response.ok) {
-      return { success: true };
-    }
-
-    // If GET failed, try POST
-    const postUrl = `${baseUrl}/sms`;
-    const postController = new AbortController();
-    const postTimeout = setTimeout(() => postController.abort(), 10000);
-
-    const postResponse = await fetch(postUrl, {
+  // List of endpoints to try (in order of priority)
+  const endpoints: { method: string; url: string; body?: string }[] = [
+    // 1. Simple SMS Gateway format (POST /send-sms)
+    {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      url: `${baseUrl}/send-sms`,
       body: JSON.stringify({ phone: formattedPhone, message }),
-      signal: postController.signal,
-    });
+    },
+    // 2. SMS Gateway by mebjas format (GET /send)
+    {
+      method: 'GET',
+      url: `${baseUrl}/send?phone=${encodeURIComponent(formattedPhone)}&message=${encodeURIComponent(message)}`,
+    },
+    // 3. Generic format (POST /sms)
+    {
+      method: 'POST',
+      url: `${baseUrl}/sms`,
+      body: JSON.stringify({ phone: formattedPhone, message }),
+    },
+    // 4. Another common format (GET /sms)
+    {
+      method: 'GET',
+      url: `${baseUrl}/sms?phone=${encodeURIComponent(formattedPhone)}&message=${encodeURIComponent(message)}`,
+    },
+  ];
 
-    clearTimeout(postTimeout);
+  for (const endpoint of endpoints) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-    if (postResponse.ok) {
-      return { success: true };
+      const fetchOptions: RequestInit = {
+        method: endpoint.method,
+        signal: controller.signal,
+      };
+
+      if (endpoint.body) {
+        fetchOptions.headers = { 'Content-Type': 'application/json' };
+        fetchOptions.body = endpoint.body;
+      }
+
+      const response = await fetch(endpoint.url, fetchOptions);
+      clearTimeout(timeout);
+
+      if (response.ok) {
+        return { success: true };
+      }
+
+      // If 404, try next endpoint
+      if (response.status === 404) continue;
+
+      // For other errors, also try next endpoint
+      continue;
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        return { success: false, error: 'Gateway request timed out (10s)' };
+      }
+      // Connection error - try next endpoint
+      continue;
     }
-
-    return { success: false, error: `Gateway returned ${postResponse.status}` };
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
-      return { success: false, error: 'Gateway request timed out (10s)' };
-    }
-    return { success: false, error: error.message || 'Failed to connect to SMS gateway' };
   }
+
+  return { success: false, error: 'All SMS gateway endpoints failed. Check if the app is running and the URL is correct.' };
 }
 
 /**

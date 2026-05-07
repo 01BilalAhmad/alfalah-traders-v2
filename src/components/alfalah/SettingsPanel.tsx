@@ -749,14 +749,14 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                     <Label className="text-sm font-medium">Gateway URL</Label>
                   </div>
                   <Input
-                    placeholder="http://192.168.1.100:8080"
+                    placeholder="http://100.93.105.110:8080"
                     value={smsGatewayUrl}
                     onChange={(e) => setSmsGatewayUrl(e.target.value)}
                     disabled={!smsEnabled}
                     className="text-sm h-9"
                   />
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Enter your Android SMS Gateway app URL. Install an SMS Gateway app on your phone (e.g., &quot;SMS Gateway&quot; from Play Store) and enter the URL shown in the app.
+                    Enter the URL shown in your SMS Gateway app. For &quot;Simple SMS Gateway&quot; app, enter the base URL (e.g., http://100.93.105.110:8080). The /send-sms endpoint is auto-detected.
                   </p>
                 </div>
                 <Separator />
