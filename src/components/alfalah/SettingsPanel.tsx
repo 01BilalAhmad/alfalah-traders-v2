@@ -65,6 +65,9 @@ import {
   HardDrive,
   CheckCircle2,
   FileJson,
+  Smartphone,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -97,6 +100,18 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
   const [resetUnlocked, setResetUnlocked] = useState(false);
   const versionTapCount = useRef(0);
   const versionTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // SMS Gateway state
+  const [smsEnabled, setSmsEnabled] = useState(false);
+  const [smsGatewayUrl, setSmsGatewayUrl] = useState('');
+  const [smsSenderPhone, setSmsSenderPhone] = useState('');
+  const [smsCreditEnabled, setSmsCreditEnabled] = useState(true);
+  const [smsRecoveryEnabled, setSmsRecoveryEnabled] = useState(false);
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [smsSaving, setSmsSaving] = useState(false);
+  const [smsTestPhone, setSmsTestPhone] = useState('');
+  const [smsTesting, setSmsTesting] = useState(false);
+  const [smsLoaded, setSmsLoaded] = useState(false);
 
   // Password change state
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -132,6 +147,82 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
     });
   }, []);
 
+  // Fetch SMS settings
+  const fetchSmsSettings = useCallback(async () => {
+    setSmsLoading(true);
+    try {
+      const res = await apiFetch('/api/sms-settings');
+      if (res.ok) {
+        const config = await res.json();
+        setSmsEnabled(config.enabled || false);
+        setSmsGatewayUrl(config.gatewayUrl || '');
+        setSmsSenderPhone(config.senderPhone || '');
+        setSmsCreditEnabled(config.creditSmsEnabled !== false);
+        setSmsRecoveryEnabled(config.recoverySmsEnabled || false);
+        setSmsLoaded(true);
+      }
+    } catch {
+      // silent
+    } finally {
+      setSmsLoading(false);
+    }
+  }, []);
+
+  // Save SMS settings
+  const handleSaveSmsSettings = useCallback(async () => {
+    setSmsSaving(true);
+    try {
+      const res = await apiFetch('/api/sms-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: smsEnabled,
+          gatewayUrl: smsGatewayUrl,
+          senderPhone: smsSenderPhone,
+          creditSmsEnabled: smsCreditEnabled,
+          recoverySmsEnabled: smsRecoveryEnabled,
+          customMessage: '',
+        }),
+      });
+      if (res.ok) {
+        toast({ title: 'SMS Settings Saved', description: 'SMS gateway configuration updated.' });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: 'Save Failed', description: (data as { error?: string }).error || 'Could not save SMS settings.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Save Failed', description: 'Network error. Please try again.', variant: 'destructive' });
+    } finally {
+      setSmsSaving(false);
+    }
+  }, [smsEnabled, smsGatewayUrl, smsSenderPhone, smsCreditEnabled, smsRecoveryEnabled]);
+
+  // Test SMS
+  const handleTestSms = useCallback(async () => {
+    if (!smsTestPhone) {
+      toast({ title: 'Phone Required', description: 'Enter a phone number to send test SMS.', variant: 'destructive' });
+      return;
+    }
+    setSmsTesting(true);
+    try {
+      const res = await apiFetch('/api/sms-settings/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: smsTestPhone }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast({ title: 'Test SMS Sent!', description: 'Check the phone for the test message.' });
+      } else {
+        toast({ title: 'SMS Failed', description: data.error || 'Could not send test SMS.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'SMS Failed', description: 'Network error. Is the gateway phone reachable?', variant: 'destructive' });
+    } finally {
+      setSmsTesting(false);
+    }
+  }, [smsTestPhone]);
+
   // Fetch system stats when sheet opens
   useEffect(() => {
     if (!open) return;
@@ -152,7 +243,9 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
       }
     }
     fetchStats();
-  }, [open]);
+    // Also load SMS settings
+    if (!smsLoaded) fetchSmsSettings();
+  }, [open, smsLoaded, fetchSmsSettings]);
 
   // Export all data as CSV
   const handleExportAll = useCallback(async () => {
@@ -622,6 +715,156 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
               </div>
             </Card>
           </section>
+
+          {/* SMS Gateway Section - Admin Only */}
+          {user?.role === 'admin' && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <MessageSquare className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">SMS Gateway</h3>
+              </div>
+              <Card className="py-0 gap-0">
+                {/* Enable SMS Toggle */}
+                <div className="flex items-center justify-between px-4 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-purple-50 dark:bg-purple-950/50 flex items-center justify-center">
+                      <MessageSquare className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Enable SMS Notifications</p>
+                      <p className="text-xs text-muted-foreground">Send SMS when credit is posted</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={smsEnabled}
+                    onCheckedChange={setSmsEnabled}
+                  />
+                </div>
+                <Separator />
+
+                {/* SMS Gateway URL */}
+                <div className="px-4 py-3.5 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Label className="text-sm font-medium">Gateway URL</Label>
+                  </div>
+                  <Input
+                    placeholder="http://192.168.1.100:8080"
+                    value={smsGatewayUrl}
+                    onChange={(e) => setSmsGatewayUrl(e.target.value)}
+                    disabled={!smsEnabled}
+                    className="text-sm h-9"
+                  />
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Enter your Android SMS Gateway app URL. Install an SMS Gateway app on your phone (e.g., &quot;SMS Gateway&quot; from Play Store) and enter the URL shown in the app.
+                  </p>
+                </div>
+                <Separator />
+
+                {/* Sender Phone */}
+                <div className="px-4 py-3.5 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Label className="text-sm font-medium">Your SIM Phone Number</Label>
+                  </div>
+                  <Input
+                    placeholder="03001234567"
+                    value={smsSenderPhone}
+                    onChange={(e) => setSmsSenderPhone(e.target.value)}
+                    disabled={!smsEnabled}
+                    className="text-sm h-9"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    The phone number with SMS package (used for reference only).
+                  </p>
+                </div>
+                <Separator />
+
+                {/* Credit SMS Toggle */}
+                <div className="flex items-center justify-between px-4 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-orange-50 dark:bg-orange-950/50 flex items-center justify-center">
+                      <Send className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">SMS on Credit Post</p>
+                      <p className="text-xs text-muted-foreground">Auto SMS when admin posts credit</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={smsCreditEnabled}
+                    onCheckedChange={setSmsCreditEnabled}
+                    disabled={!smsEnabled}
+                  />
+                </div>
+                <Separator />
+
+                {/* Recovery SMS Toggle */}
+                <div className="flex items-center justify-between px-4 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-green-50 dark:bg-green-950/50 flex items-center justify-center">
+                      <Send className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">SMS on Recovery</p>
+                      <p className="text-xs text-muted-foreground">Auto SMS when recovery is collected</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={smsRecoveryEnabled}
+                    onCheckedChange={setSmsRecoveryEnabled}
+                    disabled={!smsEnabled}
+                  />
+                </div>
+                <Separator />
+
+                {/* Save & Test Buttons */}
+                <div className="px-4 py-3.5 space-y-3">
+                  <Button
+                    size="sm"
+                    className="w-full bg-primary hover:bg-primary/90 text-white btn-ripple"
+                    onClick={handleSaveSmsSettings}
+                    disabled={smsSaving}
+                  >
+                    {smsSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Settings className="h-4 w-4 mr-2" />
+                    )}
+                    {smsSaving ? 'Saving...' : 'Save SMS Settings'}
+                  </Button>
+
+                  {/* Test SMS */}
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="03001234567"
+                      value={smsTestPhone}
+                      onChange={(e) => setSmsTestPhone(e.target.value)}
+                      disabled={!smsEnabled || !smsGatewayUrl}
+                      className="text-sm h-9 flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTestSms}
+                      disabled={!smsEnabled || !smsGatewayUrl || smsTesting}
+                      className="h-9 text-xs shrink-0"
+                    >
+                      {smsTesting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                      ) : (
+                        <Send className="h-3.5 w-3.5 mr-1.5" />
+                      )}
+                      Test
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Enter any phone number and click Test to verify the SMS gateway is working.
+                  </p>
+                </div>
+              </Card>
+            </section>
+          )}
 
           {/* Backup & Restore Section - Admin Only */}
           {user?.role === 'admin' && (
