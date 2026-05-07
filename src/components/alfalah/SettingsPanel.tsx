@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useTheme } from 'next-themes';
 import { useHydrated } from '@/lib/use-hydrated';
@@ -94,6 +94,9 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
   // Reset shop data state
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [resetUnlocked, setResetUnlocked] = useState(false);
+  const versionTapCount = useRef(0);
+  const versionTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Password change state
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -738,40 +741,42 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                 </div>
               </Card>
 
-              {/* Reset Shop Data */}
-              <Card className="py-0 gap-0 mt-3">
-                <div className="px-4 py-3.5 space-y-3">
-                  {/* Danger warning */}
-                  <div className="flex items-start gap-2.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 px-3 py-2.5">
-                    <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-                    <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
-                      <span className="font-semibold">Danger:</span> This will permanently delete ALL shops, transactions, notes, visits, and company balances. Users and companies will be preserved. Make sure you have a backup first!
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-red-50 dark:bg-red-950/50 flex items-center justify-center">
-                        <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Reset Shop Data</p>
-                        <p className="text-xs text-muted-foreground">Delete all shops & transactions</p>
-                      </div>
+              {/* Reset Shop Data — Hidden by default, unlock by tapping version 5 times */}
+              {resetUnlocked && (
+                <Card className="py-0 gap-0 mt-3">
+                  <div className="px-4 py-3.5 space-y-3">
+                    {/* Danger warning */}
+                    <div className="flex items-start gap-2.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 px-3 py-2.5">
+                      <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                      <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
+                        <span className="font-semibold">Danger:</span> This will permanently delete ALL shops, transactions, notes, visits, and company balances. Users and companies will be preserved. Make sure you have a backup first!
+                      </p>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setResetDialogOpen(true)}
-                      disabled={resetting}
-                      className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                      Reset
-                    </Button>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-lg bg-red-50 dark:bg-red-950/50 flex items-center justify-center">
+                          <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Reset Shop Data</p>
+                          <p className="text-xs text-muted-foreground">Delete all shops & transactions</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setResetDialogOpen(true)}
+                        disabled={resetting}
+                        className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                        Reset
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
+              )}
             </section>
           )}
 
@@ -810,10 +815,38 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
             </div>
             <Card className="py-0 gap-0">
               <div className="px-4 py-3.5 space-y-3">
-                {/* Version */}
+                {/* Version — Tap 5 times to unlock Reset option */}
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Version</span>
-                  <span className="text-sm font-medium">v1.0</span>
+                  <span
+                    className="text-sm font-medium cursor-default select-none"
+                    onClick={() => {
+                      if (resetUnlocked) return;
+                      versionTapCount.current += 1;
+                      const tapsLeft = 5 - versionTapCount.current;
+                      if (tapsLeft > 0 && tapsLeft <= 3) {
+                        toast({
+                          title: `${tapsLeft} more tap${tapsLeft > 1 ? 's' : ''} to unlock reset`,
+                          description: 'Keep tapping the version number.',
+                        });
+                      }
+                      if (versionTapCount.current >= 5) {
+                        setResetUnlocked(true);
+                        versionTapCount.current = 0;
+                        toast({
+                          title: 'Reset Option Unlocked',
+                          description: 'The Reset Shop Data option is now visible in Backup & Restore.',
+                        });
+                      }
+                      // Reset tap count after 3 seconds of inactivity
+                      if (versionTapTimer.current) clearTimeout(versionTapTimer.current);
+                      versionTapTimer.current = setTimeout(() => {
+                        versionTapCount.current = 0;
+                      }, 3000);
+                    }}
+                  >
+                    v1.0
+                  </span>
                 </div>
                 <Separator />
                 {/* Total Shops */}
