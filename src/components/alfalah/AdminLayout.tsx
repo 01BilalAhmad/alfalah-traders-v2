@@ -70,7 +70,6 @@ const adminNavItems: NavItem[] = [
   { id: 'admin-daily-targets', label: 'Recovery Targets', icon: <Target className="h-5 w-5" /> },
   { id: 'admin-overdue-shops', label: 'Overdue Shops', icon: <AlertTriangle className="h-5 w-5" /> },
   { id: 'admin-visit-tracking', label: 'Visit Tracking', icon: <Navigation className="h-5 w-5" /> },
-  { id: 'admin-pending-credits', label: 'Pending Credits', icon: <Clock className="h-5 w-5" /> },
   { id: 'admin-map-view', label: 'Map View', icon: <MapPin className="h-5 w-5" /> },
   { id: 'admin-calendar', label: 'Route Calendar', icon: <CalendarDays className="h-5 w-5" /> },
   { id: 'admin-ob-recovery-report', label: 'OB Recovery Report', icon: <FileText className="h-5 w-5" /> },

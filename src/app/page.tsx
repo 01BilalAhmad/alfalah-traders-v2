@@ -21,7 +21,6 @@ import OrderbookerLayout from '@/components/alfalah/OrderbookerLayout';
 import AdminDailyTargets from '@/components/alfalah/AdminDailyTargets';
 import AdminOverdueShops from '@/components/alfalah/AdminOverdueShops';
 import AdminVisitTracking from '@/components/alfalah/AdminVisitTracking';
-import AdminPendingCredits from '@/components/alfalah/AdminPendingCredits';
 import AdminMapView from '@/components/alfalah/AdminMapView';
 import AdminCalendarView from '@/components/alfalah/AdminCalendarView';
 import AdminExportData from '@/components/alfalah/AdminExportData';
@@ -66,8 +65,6 @@ function AdminRouter() {
       return <AdminOverdueShops />;
     case 'admin-visit-tracking':
       return <AdminVisitTracking />;
-    case 'admin-pending-credits':
-      return <AdminPendingCredits />;
     case 'admin-map-view':
       return <AdminMapView />;
     case 'admin-calendar':
