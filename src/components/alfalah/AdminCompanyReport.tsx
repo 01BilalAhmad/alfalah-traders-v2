@@ -369,13 +369,15 @@ export default function AdminCompanyReport() {
                 </tr>
               </thead>
               <tbody>
-                {data.days.map((day, dayIdx) => {
+                {data.days.filter((day) => {
+                  // Only show days that have at least one credit or recovery transaction
+                  return data.orderbookers.some(
+                    (ob) => (data.data[day.date]?.[ob.id]?.credit || 0) > 0 || (data.data[day.date]?.[ob.id]?.recovery || 0) > 0
+                  );
+                }).map((day, dayIdx) => {
                   // Calculate day totals
                   let dayTotalCredit = 0;
                   let dayTotalRecovery = 0;
-                  const hasData = data.orderbookers.some(
-                    (ob) => data.data[day.date]?.[ob.id]?.credit > 0 || data.data[day.date]?.[ob.id]?.recovery > 0
-                  );
                   for (const ob of data.orderbookers) {
                     dayTotalCredit += data.data[day.date]?.[ob.id]?.credit || 0;
                     dayTotalRecovery += data.data[day.date]?.[ob.id]?.recovery || 0;
@@ -384,7 +386,7 @@ export default function AdminCompanyReport() {
                   return (
                     <tr
                       key={day.date}
-                      className={`border-b border-border/50 ${hasData ? 'hover:bg-muted/20' : 'opacity-40'} ${dayIdx % 2 === 0 ? 'bg-background' : 'bg-muted/10'}`}
+                      className={`border-b border-border/50 hover:bg-muted/20 ${dayIdx % 2 === 0 ? 'bg-background' : 'bg-muted/10'}`}
                     >
                       {/* Date cell — sticky */}
                       <td className="sticky left-0 z-10 border-r border-border/50 px-2 py-1.5 font-medium text-foreground bg-background print:bg-white">
