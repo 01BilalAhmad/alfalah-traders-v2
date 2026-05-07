@@ -39,6 +39,7 @@ interface DayInfo {
 interface DayData {
   credit: number;
   recovery: number;
+  balance: number;
 }
 
 interface ReportData {
@@ -48,8 +49,9 @@ interface ReportData {
   days: DayInfo[];
   orderbookers: Orderbooker[];
   data: Record<string, Record<string, DayData>>;
-  obTotals: Record<string, { credit: number; recovery: number }>;
-  grandTotals: { credit: number; recovery: number };
+  obTotals: Record<string, { credit: number; recovery: number; balance: number }>;
+  openingBalances: Record<string, number>;
+  grandTotals: { credit: number; recovery: number; balance: number };
   workingDays: number;
 }
 
@@ -330,35 +332,53 @@ export default function AdminCompanyReport() {
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-xs print:text-[9px]">
-              {/* Header Row 1: Orderbooker Names (each spans 2: Credit + Recovery) */}
+              {/* Header Row 1: Closing Balance above OB names */}
               <thead>
                 <tr className="bg-primary/10 border-b border-primary/20">
                   {/* Date column header */}
                   <th
-                    className="sticky left-0 z-20 bg-primary/10 border-r border-primary/20 px-2 py-2 text-center font-bold text-foreground min-w-[70px] print:min-w-[50px]"
-                    rowSpan={2}
+                    className="sticky left-0 z-20 bg-primary/10 border-r border-primary/20 px-2 py-1 text-center font-bold text-foreground min-w-[70px] print:min-w-[50px]"
+                    rowSpan={3}
                   >
                     Date
                   </th>
-                  {/* Orderbooker name headers — each colSpan=2 for Credit+Recovery */}
+                  {/* Closing Balance (bold) above each OB name */}
+                  {data.orderbookers.map((ob) => (
+                    <th
+                      key={`bal-${ob.id}`}
+                      className="border-r border-border/50 px-1 py-1 text-center font-extrabold text-blue-800 dark:text-blue-300 text-xs print:text-[8px]"
+                      colSpan={2}
+                    >
+                      Rs. {formatCurrency(data.obTotals[ob.id]?.balance || 0)}
+                    </th>
+                  ))}
+                  {/* Grand total balance */}
+                  <th
+                    className="border-l-2 border-primary/30 px-1 py-1 text-center font-extrabold text-blue-800 dark:text-blue-300 text-xs print:text-[8px] bg-primary/5"
+                    colSpan={2}
+                  >
+                    Rs. {formatCurrency(data.grandTotals.balance)}
+                  </th>
+                </tr>
+                {/* Header Row 2: Orderbooker Names */}
+                <tr className="bg-primary/10 border-b border-primary/20">
                   {data.orderbookers.map((ob) => (
                     <th
                       key={ob.id}
-                      className="border-r border-border/50 px-1 py-1.5 text-center font-bold text-foreground"
+                      className="border-r border-border/50 px-1 py-1 text-center font-bold text-foreground"
                       colSpan={2}
                     >
                       {ob.name}
                     </th>
                   ))}
-                  {/* Total column header — colSpan=2 */}
                   <th
-                    className="border-l-2 border-primary/30 px-1 py-1.5 text-center font-bold text-foreground bg-primary/5"
+                    className="border-l-2 border-primary/30 px-1 py-1 text-center font-bold text-foreground bg-primary/5"
                     colSpan={2}
                   >
                     TOTAL
                   </th>
                 </tr>
-                {/* Header Row 2: Credit | Recovery sub-headers — paired under each OB */}
+                {/* Header Row 3: Credit | Recovery sub-headers */}
                 <tr className="bg-muted/50 border-b border-border">
                   {data.orderbookers.map((ob) => (
                     <>
@@ -473,11 +493,15 @@ export default function AdminCompanyReport() {
         <div className="flex items-center gap-4 text-xs text-muted-foreground print:hidden">
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded-sm bg-orange-100 dark:bg-orange-900/30 border border-orange-300" />
-            <span>Cr = Credit Posted</span>
+            <span>Credit = Credit Posted</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded-sm bg-green-100 dark:bg-green-900/30 border border-green-300" />
-            <span>Re = Recovery Collected</span>
+            <span>Recovery = Recovery Collected</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded-sm bg-blue-100 dark:bg-blue-900/30 border border-blue-300" />
+            <span>Bold amount = Closing Balance</span>
           </div>
           <span>|</span>
           <span>— = No data</span>

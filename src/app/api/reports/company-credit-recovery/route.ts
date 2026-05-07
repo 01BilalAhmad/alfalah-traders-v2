@@ -64,7 +64,6 @@ export async function GET(request: NextRequest) {
 
     if (orderbookerIds.length === 0) {
       await client.end();
-      // Return empty structure
       const daysInMonth = new Date(year, month, 0).getDate();
       const days: { date: string; label: string }[] = [];
       for (let d = 1; d <= daysInMonth; d++) {
@@ -78,13 +77,36 @@ export async function GET(request: NextRequest) {
         days,
         orderbookers: [],
         data: {},
-        grandTotals: { credit: 0, recovery: 0 },
+        obTotals: {},
+        openingBalances: {},
+        grandTotals: { credit: 0, recovery: 0, balance: 0 },
         workingDays: 0,
       });
     }
 
-    // 3. Fetch all CREDIT transactions for this company in the month
-    // Credit transactions have companyId set directly
+    // 3. Get opening balance for each orderbooker at the start of the month
+    // This is the sum of ShopCompanyBalance for all shops belonging to this OB's shops under this company
+    const openingBalRes = await client.query(
+      `SELECT s."orderbookerId", COALESCE(SUM(scb.balance), 0) AS "openingBalance"
+       FROM "ShopCompanyBalance" scb
+       JOIN "Shop" s ON s.id = scb."shopId"
+       WHERE scb."companyId" = $1
+         AND s."orderbookerId" IN (${orderbookerIds.map((_: string, idx: number) => `$${idx + 2}`).join(', ')})
+       GROUP BY s."orderbookerId"`,
+      [companyId, ...orderbookerIds]
+    );
+    const openingBalances: Record<string, number> = {};
+    for (const row of openingBalRes.rows) {
+      openingBalances[row.orderbookerId] = Math.round(Number(row.openingBalance) * 100) / 100;
+    }
+    // Initialize OBs with no ShopCompanyBalance entries
+    for (const ob of orderbookers) {
+      if (openingBalances[ob.id] === undefined) {
+        openingBalances[ob.id] = 0;
+      }
+    }
+
+    // 4. Fetch all CREDIT transactions for this company in the month
     const creditRes = await client.query(
       `SELECT t."shopId", t."createdBy", t.amount, t."createdAt",
               s."orderbookerId" AS "shop_orderbookerId"
@@ -99,8 +121,7 @@ export async function GET(request: NextRequest) {
       [companyId, startDate.toISOString(), endDate.toISOString()]
     );
 
-    // 4. Fetch all RECOVERY transactions from this company's orderbookers in the month
-    // Recovery transactions are linked via the orderbooker's company
+    // 5. Fetch all RECOVERY transactions from this company's orderbookers in the month
     const obPlaceholders = orderbookerIds.map((_: string, idx: number) => `$${idx + 3}`).join(', ');
     const recoveryRes = await client.query(
       `SELECT t."shopId", t."createdBy", t.amount, t."createdAt"
@@ -114,12 +135,12 @@ export async function GET(request: NextRequest) {
       [startDate.toISOString(), endDate.toISOString(), ...orderbookerIds]
     );
 
-    // 5. Build the data structure
+    // 6. Build the data structure
     const daysInMonth = new Date(year, month, 0).getDate();
     const days: { date: string; label: string }[] = [];
 
-    // Initialize data map: date -> orderbookerId -> { credit, recovery }
-    const dataMap: Record<string, Record<string, { credit: number; recovery: number }>> = {};
+    // Initialize data map: date -> orderbookerId -> { credit, recovery, balance }
+    const dataMap: Record<string, Record<string, { credit: number; recovery: number; balance: number }>> = {};
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -127,19 +148,18 @@ export async function GET(request: NextRequest) {
       days.push({ date: dateStr, label });
       dataMap[dateStr] = {};
       for (const ob of orderbookers) {
-        dataMap[dateStr][ob.id] = { credit: 0, recovery: 0 };
+        dataMap[dateStr][ob.id] = { credit: 0, recovery: 0, balance: 0 };
       }
     }
 
     // Helper: extract date string from createdAt in Pakistan timezone
     function getPakistanDate(createdAt: Date | string): string {
       const d = createdAt instanceof Date ? createdAt : new Date(createdAt);
-      // Pakistan is UTC+5
       const pkTime = new Date(d.getTime() + (5 * 60 * 60 * 1000));
       return `${pkTime.getUTCFullYear()}-${String(pkTime.getUTCMonth() + 1).padStart(2, '0')}-${String(pkTime.getUTCDate()).padStart(2, '0')}`;
     }
 
-    // Fill credit data — use shop's orderbookerId to assign to correct OB
+    // Fill credit data
     for (const row of creditRes.rows) {
       const dateStr = getPakistanDate(row.createdAt);
       const obId = row.shop_orderbookerId || row.createdBy;
@@ -148,7 +168,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fill recovery data — use createdBy (orderbooker) directly
+    // Fill recovery data
     for (const row of recoveryRes.rows) {
       const dateStr = getPakistanDate(row.createdAt);
       const obId = row.createdBy;
@@ -157,10 +177,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Calculate OB totals
-    const obTotals: Record<string, { credit: number; recovery: number }> = {};
+    // 7. Calculate running closing balances
+    // Balance = opening + cumulative(credit - recovery) up to each day
+    const obRunningBal: Record<string, number> = {};
     for (const ob of orderbookers) {
-      obTotals[ob.id] = { credit: 0, recovery: 0 };
+      obRunningBal[ob.id] = openingBalances[ob.id] || 0;
+    }
+
+    for (const day of days) {
+      for (const ob of orderbookers) {
+        const entry = dataMap[day.date][ob.id];
+        obRunningBal[ob.id] += entry.credit - entry.recovery;
+        entry.balance = Math.round(obRunningBal[ob.id] * 100) / 100;
+      }
+    }
+
+    // Calculate OB totals
+    const obTotals: Record<string, { credit: number; recovery: number; balance: number }> = {};
+    for (const ob of orderbookers) {
+      obTotals[ob.id] = { credit: 0, recovery: 0, balance: 0 };
     }
 
     let grandCredit = 0;
@@ -182,17 +217,35 @@ export async function GET(request: NextRequest) {
       if (dayHasData) workingDays++;
     }
 
+    // Set OB total balance = last day's balance (closing balance for the month)
+    for (const ob of orderbookers) {
+      const lastDayWithData = [...days].reverse().find(day => {
+        const entry = dataMap[day.date][ob.id];
+        return entry.credit > 0 || entry.recovery > 0 || entry.balance !== (openingBalances[ob.id] || 0);
+      });
+      obTotals[ob.id].balance = lastDayWithData
+        ? dataMap[lastDayWithData.date][ob.id].balance
+        : (openingBalances[ob.id] || 0);
+    }
+
     // Round all values
     for (const day of days) {
       for (const ob of orderbookers) {
         dataMap[day.date][ob.id].credit = Math.round(dataMap[day.date][ob.id].credit * 100) / 100;
         dataMap[day.date][ob.id].recovery = Math.round(dataMap[day.date][ob.id].recovery * 100) / 100;
+        dataMap[day.date][ob.id].balance = Math.round(dataMap[day.date][ob.id].balance * 100) / 100;
       }
     }
     for (const ob of orderbookers) {
       obTotals[ob.id].credit = Math.round(obTotals[ob.id].credit * 100) / 100;
       obTotals[ob.id].recovery = Math.round(obTotals[ob.id].recovery * 100) / 100;
+      obTotals[ob.id].balance = Math.round(obTotals[ob.id].balance * 100) / 100;
     }
+
+    // Grand total balance = sum of all OB closing balances
+    const grandBalance = Math.round(
+      orderbookers.reduce((sum, ob) => sum + obTotals[ob.id].balance, 0) * 100
+    ) / 100;
 
     await client.end();
 
@@ -204,9 +257,11 @@ export async function GET(request: NextRequest) {
       orderbookers,
       data: dataMap,
       obTotals,
+      openingBalances,
       grandTotals: {
         credit: Math.round(grandCredit * 100) / 100,
         recovery: Math.round(grandRecovery * 100) / 100,
+        balance: grandBalance,
       },
       workingDays,
     });
