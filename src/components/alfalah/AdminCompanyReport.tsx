@@ -342,22 +342,22 @@ export default function AdminCompanyReport() {
                   >
                     Date
                   </th>
-                  {/* Closing Balance (bold) above each OB name */}
+                  {/* Outstanding Balance (bold) above each OB name — from ShopCompanyBalance */}
                   {data.orderbookers.map((ob) => (
                     <th
                       key={`bal-${ob.id}`}
                       className="border-r border-border/50 px-1 py-1 text-center font-extrabold text-blue-800 dark:text-blue-300 text-xs print:text-[8px]"
                       colSpan={2}
                     >
-                      Rs. {formatCurrency(data.obTotals[ob.id]?.balance || 0)}
+                      Rs. {formatCurrency(data.openingBalances[ob.id] || 0)}
                     </th>
                   ))}
-                  {/* Grand total balance */}
+                  {/* Grand total outstanding */}
                   <th
                     className="border-l-2 border-primary/30 px-1 py-1 text-center font-extrabold text-blue-800 dark:text-blue-300 text-xs print:text-[8px] bg-primary/5"
                     colSpan={2}
                   >
-                    Rs. {formatCurrency(data.grandTotals.balance)}
+                    Rs. {formatCurrency(data.orderbookers.reduce((sum, ob) => sum + (data.openingBalances[ob.id] || 0), 0))}
                   </th>
                 </tr>
                 {/* Header Row 2: Orderbooker Names */}
@@ -501,7 +501,7 @@ export default function AdminCompanyReport() {
           </div>
           <div className="flex items-center gap-1.5">
             <div className="h-3 w-3 rounded-sm bg-blue-100 dark:bg-blue-900/30 border border-blue-300" />
-            <span>Bold amount = Closing Balance</span>
+            <span>Bold amount = Outstanding Balance</span>
           </div>
           <span>|</span>
           <span>— = No data</span>
