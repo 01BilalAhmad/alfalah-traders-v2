@@ -28,6 +28,7 @@ import AdminExportData from '@/components/alfalah/AdminExportData';
 import AdminCompanies from '@/components/alfalah/AdminCompanies';
 import AdminBalanceReport from '@/components/alfalah/AdminBalanceReport';
 import AdminOBRecoveryReport from '@/components/alfalah/AdminOBRecoveryReport';
+import AdminCompanyReport from '@/components/alfalah/AdminCompanyReport';
 
 function AdminRouter() {
   const { currentView } = useAppStore();
@@ -79,6 +80,8 @@ function AdminRouter() {
       return <AdminCompanies />;
     case 'admin-balance-report':
       return <AdminBalanceReport />;
+    case 'admin-company-report':
+      return <AdminCompanyReport />;
     default:
       return <AdminDashboard />;
   }

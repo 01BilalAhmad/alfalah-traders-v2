@@ -35,6 +35,7 @@ import {
   Clock,
   MapPin,
   FileDown,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -76,6 +77,7 @@ const adminNavItems: NavItem[] = [
   { id: 'admin-export-data', label: 'Export & Reports', icon: <FileDown className="h-5 w-5" /> },
   { id: 'admin-companies', label: 'Manage Companies', icon: <Building2 className="h-5 w-5" /> },
   { id: 'admin-balance-report', label: 'Balance Report', icon: <Banknote className="h-5 w-5" /> },
+  { id: 'admin-company-report', label: 'Company Report', icon: <FileSpreadsheet className="h-5 w-5" /> },
 ];
 
 interface AdminLayoutProps {
