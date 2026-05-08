@@ -70,12 +70,6 @@ export async function POST(request: NextRequest) {
         [shop.id]
       );
 
-      // Get all existing ShopCompanyBalance rows for this shop
-      const existingScb = await client.query(
-        `SELECT "companyId", balance FROM "ShopCompanyBalance" WHERE "shopId" = $1`,
-        [shop.id]
-      );
-
       // Build a map of correct balances from transactions
       const correctBalances: Record<string, number> = {};
       for (const cb of companyBalances.rows) {
@@ -85,26 +79,18 @@ export async function POST(request: NextRequest) {
         correctBalances[cb.companyId] = correctCompanyBalance;
       }
 
-      // Delete any ShopCompanyBalance that should be 0 or has no transactions
-      for (const scb of existingScb.rows) {
-        const correctBalance = correctBalances[scb.companyId];
-        if (correctBalance === undefined || correctBalance <= 0) {
-          // No transactions for this company, or balance is 0/negative — delete the row
-          await client.query(
-            `DELETE FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND "companyId" = $2`,
-            [shop.id, scb.companyId]
-          );
-        }
-      }
+      // Delete ALL existing ShopCompanyBalance rows for this shop first (clean slate)
+      await client.query(
+        `DELETE FROM "ShopCompanyBalance" WHERE "shopId" = $1`,
+        [shop.id]
+      );
 
-      // Upsert correct balances
+      // Insert correct balances (only if > 0)
       for (const [companyId, balance] of Object.entries(correctBalances)) {
         if (balance > 0) {
           await client.query(
             `INSERT INTO "ShopCompanyBalance" ("shopId", "companyId", balance, "createdAt", "updatedAt")
-             VALUES ($1, $2, $3, NOW(), NOW())
-             ON CONFLICT ("shopId", "companyId") 
-             DO UPDATE SET balance = $3, "updatedAt" = NOW()`,
+             VALUES ($1, $2, $3, NOW(), NOW())`,
             [shop.id, companyId, balance]
           );
         }
