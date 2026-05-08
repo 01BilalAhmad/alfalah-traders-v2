@@ -777,11 +777,19 @@ export async function DELETE(request: NextRequest) {
     const shopBalance = Number(existingTxn.shop_balance);
 
     // Reverse the effect on shop balance
+    // IMPORTANT: Pending recoveries never deducted balance, so don't add it back
     let newShopBalance: number;
     if (existingTxn.type === 'credit') {
+      // Credits are always approved and added to balance — reverse it
       newShopBalance = shopBalance - Number(existingTxn.amount);
     } else {
-      newShopBalance = shopBalance + Number(existingTxn.amount);
+      // Recovery: only reverse if it was approved (balance was actually deducted)
+      if (existingTxn.status === 'approved') {
+        newShopBalance = shopBalance + Number(existingTxn.amount);
+      } else {
+        // Pending recovery never changed the balance — don't reverse
+        newShopBalance = shopBalance;
+      }
     }
 
     newShopBalance = Math.round(newShopBalance * 100) / 100;
@@ -794,6 +802,36 @@ export async function DELETE(request: NextRequest) {
       `UPDATE "Shop" SET balance = $1 WHERE id = $2`,
       [newShopBalance, existingTxn.shopId]
     );
+
+    // Update ShopCompanyBalance if applicable
+    if (existingTxn.companyId && (existingTxn.type === 'credit' || existingTxn.status === 'approved')) {
+      try {
+        const scbRes = await client.query(
+          `SELECT id, balance FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND "companyId" = $2`,
+          [existingTxn.shopId, existingTxn.companyId]
+        );
+        if (scbRes.rows.length > 0) {
+          let adjustedBalance: number;
+          if (existingTxn.type === 'credit') {
+            adjustedBalance = Number(scbRes.rows[0].balance) - Number(existingTxn.amount);
+          } else {
+            adjustedBalance = Number(scbRes.rows[0].balance) + Number(existingTxn.amount);
+          }
+          adjustedBalance = Math.round(adjustedBalance * 100) / 100;
+
+          if (adjustedBalance <= 0) {
+            await client.query(`DELETE FROM "ShopCompanyBalance" WHERE id = $1`, [scbRes.rows[0].id]);
+          } else {
+            await client.query(
+              `UPDATE "ShopCompanyBalance" SET balance = $1, "updatedAt" = $2 WHERE id = $3`,
+              [adjustedBalance, new Date().toISOString(), scbRes.rows[0].id]
+            );
+          }
+        }
+      } catch (scbErr) {
+        console.warn('ShopCompanyBalance adjustment on delete failed:', scbErr);
+      }
+    }
 
     await client.query('COMMIT');
 
