@@ -109,11 +109,15 @@ export async function POST(request: NextRequest) {
 
     await client.end();
     return NextResponse.json({ success: true, results });
-  } catch (error) {
+  } catch (error: any) {
     if (client) {
       await client.end().catch(() => {});
     }
     console.error('Error recalculating balance:', error);
-    return NextResponse.json({ error: 'Failed to recalculate balance' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to recalculate balance', 
+      detail: error?.message || String(error),
+      stack: error?.code || undefined
+    }, { status: 500 });
   }
 }
