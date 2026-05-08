@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPgClient } from '@/lib/pg';
 
-// PATCH /api/users/phone - Update own phone number (self-service for orderbookers)
+// PATCH /api/users/phone - Update own phone number (self-service for orderbookers/distributors)
+// Allows distributors to set their contact number that appears on payment receipts
 export async function PATCH(request: NextRequest) {
   let client;
   try {
