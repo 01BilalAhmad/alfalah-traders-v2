@@ -125,6 +125,78 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// DELETE /api/shops?id=xxx&deletedBy=xxx - Permanently delete a shop and all related records
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const deletedBy = searchParams.get('deletedBy');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Shop ID is required' }, { status: 400 });
+    }
+
+    const existing = await db.shop.findUnique({
+      where: { id },
+      include: {
+        orderbooker: { select: { id: true, name: true } },
+        companyBalances: { include: { company: { select: { id: true, name: true } } } },
+      },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
+    }
+
+    // Capture shop data for audit log before deletion
+    const shopSnapshot = {
+      id: existing.id,
+      name: existing.name,
+      ownerName: existing.ownerName,
+      area: existing.area,
+      balance: Number(existing.balance),
+      creditLimit: Number(existing.creditLimit),
+      status: existing.status,
+      orderbooker: existing.orderbooker?.name,
+      companyBalances: existing.companyBalances.map(cb => ({
+        company: cb.company?.name,
+        balance: Number(cb.balance),
+      })),
+    };
+
+    // Delete related Transactions first (no cascade on Transaction → Shop)
+    const deletedTxns = await db.transaction.deleteMany({ where: { shopId: id } });
+
+    // Delete the shop (cascade will handle ShopNote, ShopVisit, ShopCompanyBalance)
+    await db.shop.delete({ where: { id } });
+
+    // Delete audit logs referencing this shop
+    await db.auditLog.deleteMany({ where: { entityType: 'shop', entityId: id } });
+
+    // Create audit log for the deletion
+    try {
+      await db.auditLog.create({
+        data: {
+          action: 'delete',
+          entityType: 'shop',
+          entityId: id,
+          performedBy: deletedBy || undefined,
+          oldValue: JSON.stringify(shopSnapshot),
+          description: `Permanently deleted shop: ${existing.name} (owner: ${existing.ownerName || 'N/A'})`,
+        },
+      });
+    } catch { /* non-blocking */ }
+
+    return NextResponse.json({
+      success: true,
+      deletedShop: shopSnapshot,
+      deletedTransactionsCount: deletedTxns.count,
+    });
+  } catch (error) {
+    console.error('Error deleting shop:', error);
+    return NextResponse.json({ error: `Failed to delete shop: ${(error as Error)?.message || 'Unknown error'}` }, { status: 500 });
+  }
+}
+
 // PATCH /api/shops - Update shop
 export async function PATCH(request: NextRequest) {
   try {
