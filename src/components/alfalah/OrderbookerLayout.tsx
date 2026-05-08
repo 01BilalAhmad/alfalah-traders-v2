@@ -205,11 +205,53 @@ function ProfileView({
   onChangePassword: () => void;
   onOpenSettings: () => void;
 }) {
-  const { user } = useAppStore();
+  const { user, setUser } = useAppStore();
   const [monthlyRecovery, setMonthlyRecovery] = useState<RecoveryTransaction[]>([]);
   const [profileLoading, setProfileLoading] = useState(true);
   const [weeklyPerf, setWeeklyPerf] = useState<WeeklyPerformance | null>(null);
   const [weeklyLoading, setWeeklyLoading] = useState(true);
+
+  // Distributor phone edit state
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
+
+  const handleSavePhone = async () => {
+    const trimmedPhone = phoneInput.trim();
+    if (trimmedPhone && !/^[\d+\-\s()]{7,15}$/.test(trimmedPhone)) {
+      toast({ title: 'Invalid Phone', description: 'Please enter a valid phone number (7-15 digits)', variant: 'destructive' });
+      return;
+    }
+
+    setIsSavingPhone(true);
+    try {
+      const res = await apiFetch('/api/users/phone', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id, phone: trimmedPhone }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast({ title: 'Error', description: data.error || 'Failed to update phone', variant: 'destructive' });
+        return;
+      }
+
+      // Update the store with new phone number
+      if (user) {
+        setUser({ ...user, phone: trimmedPhone || undefined });
+      }
+      setIsEditingPhone(false);
+      setPhoneInput('');
+      toast({ title: 'Phone Updated', description: trimmedPhone ? `Distributor number set to ${trimmedPhone}` : 'Phone number removed' });
+    } catch (err) {
+      console.error('Error updating phone:', err);
+      toast({ title: 'Error', description: 'Failed to update phone number', variant: 'destructive' });
+    } finally {
+      setIsSavingPhone(false);
+    }
+  };
 
   const fetchProfileData = useCallback(async () => {
     if (!user) return;
@@ -271,12 +313,64 @@ function ProfileView({
                   @{user.username}
                 </p>
               )}
-              {user?.phone && (
-                <p className="text-xs text-blue-100 mt-0.5 flex items-center gap-1">
-                  <Phone className="h-3 w-3" />
-                  {user.phone}
-                </p>
-              )}
+              {/* Distributor Phone with Edit */}
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {isEditingPhone ? (
+                  <div className="flex items-center gap-1.5 w-full">
+                    <Input
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      placeholder="03XXXXXXXXX"
+                      className="h-6 text-xs bg-white/20 border-white/30 text-white placeholder:text-blue-200/70 flex-1 min-w-0"
+                      maxLength={15}
+                      disabled={isSavingPhone}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSavePhone();
+                        if (e.key === 'Escape') { setIsEditingPhone(false); setPhoneInput(''); }
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      className="h-5 w-5 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white shrink-0 disabled:opacity-50"
+                      onClick={handleSavePhone}
+                      disabled={isSavingPhone}
+                    >
+                      {isSavingPhone ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                    </button>
+                    <button
+                      className="h-5 w-5 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white shrink-0"
+                      onClick={() => { setIsEditingPhone(false); setPhoneInput(''); }}
+                      disabled={isSavingPhone}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {user?.phone ? (
+                      <p className="text-xs text-blue-100 flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {user.phone}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-blue-200/70 flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        Add distributor number
+                      </p>
+                    )}
+                    <button
+                      className="h-4 w-4 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white/80 hover:text-white shrink-0 transition-colors"
+                      onClick={() => {
+                        setPhoneInput(user?.phone || '');
+                        setIsEditingPhone(true);
+                      }}
+                      title="Edit distributor number"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-2.5 w-2.5"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -288,6 +382,75 @@ function ProfileView({
           <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs font-medium">
             Orderbooker
           </Badge>
+        </CardContent>
+      </Card>
+
+      {/* Distributor Phone Number Card */}
+      <Card className="animate-fade-in border-amber-200 dark:border-amber-800/50" style={{ animationDelay: '50ms' }}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-md shrink-0">
+                <PhoneCall className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Distributor Number</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Ye number receipt par show hoga</p>
+                {isEditingPhone ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <Input
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      placeholder="03XXXXXXXXX"
+                      className="h-8 text-sm flex-1"
+                      maxLength={15}
+                      disabled={isSavingPhone}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSavePhone();
+                        if (e.key === 'Escape') { setIsEditingPhone(false); setPhoneInput(''); }
+                      }}
+                      autoFocus
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 rounded-full text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                      onClick={handleSavePhone}
+                      disabled={isSavingPhone}
+                    >
+                      {isSavingPhone ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+                      onClick={() => { setIsEditingPhone(false); setPhoneInput(''); }}
+                      disabled={isSavingPhone}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-sm font-semibold text-foreground">
+                      {user?.phone || 'Not set'}
+                    </p>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 rounded-full text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/50"
+                      onClick={() => {
+                        setPhoneInput(user?.phone || '');
+                        setIsEditingPhone(true);
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
