@@ -18,7 +18,11 @@ import {
   Store,
   CheckCircle2,
   LogOut,
+  Pencil,
+  Check,
+  Loader2,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 interface OrderbookerProfileProps {
   open: boolean;
@@ -61,9 +65,14 @@ function getDeviceInfo(): string {
 const APP_VERSION = '1.4.0';
 
 export default function OrderbookerProfile({ open, onOpenChange }: OrderbookerProfileProps) {
-  const { user, logout } = useAppStore();
+  const { user, setUser, logout } = useAppStore();
   const [sessionDuration, setSessionDuration] = useState(getSessionDuration());
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Phone edit state
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
 
   // Update session duration every minute
   useEffect(() => {
@@ -83,6 +92,41 @@ export default function OrderbookerProfile({ open, onOpenChange }: OrderbookerPr
   }, []);
 
   if (!open || !user) return null;
+
+  const handleSavePhone = async () => {
+    const trimmedPhone = phoneInput.trim();
+    if (trimmedPhone && !/^[\d+\-\s()]{7,15}$/.test(trimmedPhone)) {
+      toast({ title: 'Invalid Phone', description: 'Please enter a valid phone number (7-15 digits)', variant: 'destructive' });
+      return;
+    }
+
+    setIsSavingPhone(true);
+    try {
+      const res = await fetch('/api/users/phone', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, phone: trimmedPhone }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast({ title: 'Error', description: data.error || 'Failed to update phone', variant: 'destructive' });
+        return;
+      }
+
+      // Update the store with new phone number
+      setUser({ ...user, phone: trimmedPhone || undefined });
+      setIsEditingPhone(false);
+      setPhoneInput('');
+      toast({ title: 'Phone Updated', description: trimmedPhone ? `Distributor number set to ${trimmedPhone}` : 'Phone number removed' });
+    } catch (err) {
+      console.error('Error updating phone:', err);
+      toast({ title: 'Error', description: 'Failed to update phone number', variant: 'destructive' });
+    } finally {
+      setIsSavingPhone(false);
+    }
+  };
 
   const handleLogout = () => {
     onOpenChange(false);
@@ -225,10 +269,59 @@ export default function OrderbookerProfile({ open, onOpenChange }: OrderbookerPr
                     <Phone className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-muted-foreground font-medium">Phone</p>
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {user.phone || 'Not set'}
-                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium">Phone (Distributor Number)</p>
+                    {isEditingPhone ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input
+                          value={phoneInput}
+                          onChange={(e) => setPhoneInput(e.target.value)}
+                          placeholder="03XXXXXXXXX"
+                          className="h-8 text-sm flex-1"
+                          maxLength={15}
+                          disabled={isSavingPhone}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSavePhone();
+                            if (e.key === 'Escape') { setIsEditingPhone(false); setPhoneInput(''); }
+                          }}
+                          autoFocus
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 rounded-full text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                          onClick={handleSavePhone}
+                          disabled={isSavingPhone}
+                        >
+                          {isSavingPhone ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+                          onClick={() => { setIsEditingPhone(false); setPhoneInput(''); }}
+                          disabled={isSavingPhone}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground truncate">
+                          {user.phone || 'Not set'}
+                        </p>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 rounded-full text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/50"
+                          onClick={() => {
+                            setPhoneInput(user.phone || '');
+                            setIsEditingPhone(true);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
