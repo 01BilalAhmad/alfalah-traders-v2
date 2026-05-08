@@ -12,6 +12,7 @@ interface BulkShopRow {
   phone?: string;
   routeDays: string[];
   creditAmount?: number;
+  creditLimit?: number;
 }
 
 export async function POST(request: NextRequest) {
@@ -107,6 +108,12 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      const creditLimit = row.creditLimit ? parseFloat(row.creditLimit) : 0;
+      if (isNaN(creditLimit) || creditLimit < 0) {
+        errors.push({ row: rowNumber, error: 'Credit limit must be a valid positive number or 0' });
+        continue;
+      }
+
       validatedShops.push({
         rowNumber,
         name,
@@ -116,6 +123,7 @@ export async function POST(request: NextRequest) {
         phone: (row.phone || '').toString().trim() || null,
         routeDays: [...new Set(validatedDays)], // Remove duplicates
         creditAmount,
+        creditLimit,
       });
     }
 
@@ -147,7 +155,7 @@ export async function POST(request: NextRequest) {
               routeDays: shop.routeDays,
               orderbookerId: orderbookerId,
               balance: initialBalance,
-              creditLimit: 0,
+              creditLimit: shop.creditLimit || 0,
               status: 'active',
             },
           });
@@ -161,7 +169,7 @@ export async function POST(request: NextRequest) {
                 shopId: newShop.id,
                 companyId: company.id,
                 balance: initialBalance,
-                creditLimit: 0,
+                creditLimit: shop.creditLimit || 0,
               },
             });
           }

@@ -73,6 +73,7 @@ interface ParsedShop {
   phone: string;
   routeDays: string[];
   creditAmount: number;
+  creditLimit: number;
   valid: boolean;
   error?: string;
 }
@@ -129,14 +130,14 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
 
   const downloadTemplate = useCallback(() => {
     const templateData = [
-      { 'Shop Name': 'Al-Falah General Store', 'Owner Name': 'Muhammad Ali', 'Area': 'Saddar', 'Address': 'Shop #12, Main Market', 'Phone': '0300-1234567', 'Route Days': 'Monday', 'Credit Amount': 5000 },
-      { 'Shop Name': 'Madina Traders', 'Owner Name': 'Ahmed Khan', 'Area': 'Cantt', 'Address': '', 'Phone': '0312-9876543', 'Route Days': 'Tuesday', 'Credit Amount': 10000 },
-      { 'Shop Name': 'City Electronics', 'Owner Name': 'Bilal', 'Area': 'DHA', 'Address': 'Block-C, Shop 5', 'Phone': '', 'Route Days': 'Wednesday', 'Credit Amount': 0 },
+      { 'Shop Name': 'Al-Falah General Store', 'Owner Name': 'Muhammad Ali', 'Area': 'Saddar', 'Address': 'Shop #12, Main Market', 'Phone': '0300-1234567', 'Route Days': 'Monday', 'Credit Amount': 5000, 'Credit Limit': 20000 },
+      { 'Shop Name': 'Madina Traders', 'Owner Name': 'Ahmed Khan', 'Area': 'Cantt', 'Address': '', 'Phone': '0312-9876543', 'Route Days': 'Tuesday', 'Credit Amount': 10000, 'Credit Limit': 30000 },
+      { 'Shop Name': 'City Electronics', 'Owner Name': 'Bilal', 'Area': 'DHA', 'Address': 'Block-C, Shop 5', 'Phone': '', 'Route Days': 'Wednesday', 'Credit Amount': 0, 'Credit Limit': 0 },
     ];
 
     const ws = XLSX.utils.json_to_sheet(templateData);
     ws['!cols'] = [
-      { wch: 28 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 18 }, { wch: 14 }, { wch: 16 },
+      { wch: 28 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 18 }, { wch: 14 }, { wch: 16 }, { wch: 14 },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -185,6 +186,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
           const phone = (row['Phone'] || '').toString().trim();
           const routeDaysRaw = (row['Route Days'] || row['Route Day'] || '').toString().trim();
           const creditAmountRaw = parseFloat((row['Credit Amount'] || '0').toString());
+          const creditLimitRaw = parseFloat((row['Credit Limit'] || '0').toString());
 
           let valid = true;
           let error = '';
@@ -200,6 +202,9 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
             } else if (isNaN(creditAmountRaw) || creditAmountRaw < 0) {
               valid = false;
               error = 'Invalid credit amount';
+            } else if (isNaN(creditLimitRaw) || creditLimitRaw < 0) {
+              valid = false;
+              error = 'Invalid credit limit';
             }
           }
 
@@ -212,6 +217,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
             phone,
             routeDays: normalizeRouteDays(routeDaysRaw),
             creditAmount: isNaN(creditAmountRaw) ? 0 : creditAmountRaw,
+            creditLimit: isNaN(creditLimitRaw) ? 0 : creditLimitRaw,
             valid,
             error: valid ? undefined : error,
           };
@@ -246,6 +252,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
           phone: s.phone || undefined,
           routeDays: s.routeDays,
           creditAmount: s.creditAmount || undefined,
+          creditLimit: s.creditLimit || undefined,
         })),
         createdBy: user?.id,
       };
@@ -413,6 +420,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                   { col: 'Phone', req: false, desc: 'Contact number' },
                   { col: 'Route Days', req: true, desc: 'Monday,Thursday or Mon,Thu (comma-separated for multiple days)' },
                   { col: 'Credit Amount', req: false, desc: 'Initial opening balance (0 if none)' },
+                  { col: 'Credit Limit', req: false, desc: 'Maximum credit allowed (0 = no limit)' },
                 ].map((item) => (
                   <div key={item.col} className="flex items-start gap-2 text-xs">
                     <Badge variant={item.req ? 'default' : 'outline'} className="shrink-0 text-[10px] mt-0.5">
@@ -542,6 +550,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                     <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Area</TableHead>
                     <TableHead className="text-white font-semibold text-xs hidden lg:table-cell">Route Days</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-right">Credit</TableHead>
+                    <TableHead className="text-white font-semibold text-xs text-right">Limit</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-center">Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -558,6 +567,13 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                       <TableCell className="text-right">
                         {shop.creditAmount > 0 ? (
                           <span className="font-semibold text-sm text-amber-600">{formatCurrency(shop.creditAmount)}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {shop.creditLimit > 0 ? (
+                          <span className="font-semibold text-sm text-blue-600">{formatCurrency(shop.creditLimit)}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
