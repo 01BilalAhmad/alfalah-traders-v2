@@ -478,16 +478,10 @@ export default function AdminOrderbookers() {
                 </div>
 
                 <div className="space-y-2 mb-4">
-                  {ob.phone ? (
-                    <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
+                  {ob.phone && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Phone className="h-3.5 w-3.5" />
-                      <span className="font-medium">{ob.phone}</span>
-                      <span className="text-[9px] text-muted-foreground">(Distributor)</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground/50">
-                      <Phone className="h-3.5 w-3.5" />
-                      <span className="italic">No distributor number</span>
+                      <span>{ob.phone}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -673,12 +667,8 @@ export default function AdminOrderbookers() {
               )}
             </div>
             <div className="space-y-2">
-              <Label className="flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5 text-amber-600" />
-                Distributor Number
-              </Label>
+              <Label>Phone</Label>
               <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="e.g., 0300-1234567" className="input-enhanced" />
-              <p className="text-[10px] text-muted-foreground">Ye number receipt par show hoga. Admin hi yahan se add/edit kar sakta hai.</p>
             </div>
             <div className="space-y-2">
               <Label>Assign Company</Label>

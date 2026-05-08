@@ -183,12 +183,13 @@ model UserPreference {
 // --- Multi-Company Support ---
 
 model Company {
-  id          String   @id @default(cuid())
-  name        String   @unique // e.g. "CBL", "Cadbury", "Shan Foods"
-  description String?  // optional description
-  status      String   @default("active") // "active" or "inactive"
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String   @unique // e.g. "CBL", "Cadbury", "Shan Foods"
+  description      String?  // optional description
+  distributorPhone String?  // distributor contact number shown on receipts
+  status           String   @default("active") // "active" or "inactive"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   orderbookers       User[]
   companyBalances    ShopCompanyBalance[]

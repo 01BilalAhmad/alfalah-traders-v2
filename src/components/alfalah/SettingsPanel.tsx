@@ -65,6 +65,10 @@ import {
   HardDrive,
   CheckCircle2,
   FileJson,
+  Phone,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -107,6 +111,12 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+
+  // Distributor phone state (admin-only)
+  const [distributorPhones, setDistributorPhones] = useState<{ companyId: string; companyName: string; distributorPhone: string | null }[]>([]);
+  const [editingDistPhone, setEditingDistPhone] = useState<string | null>(null); // companyId being edited
+  const [distPhoneInput, setDistPhoneInput] = useState('');
+  const [savingDistPhone, setSavingDistPhone] = useState(false);
 
   // Load last backup date from localStorage
   useEffect(() => {
@@ -152,7 +162,50 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
       }
     }
     fetchStats();
-  }, [open]);
+    // Fetch distributor phones for admin
+    if (user?.role === 'admin') {
+      fetchDistributorPhones();
+    }
+  }, [open, user?.role]);
+
+  const fetchDistributorPhones = async () => {
+    try {
+      const res = await apiFetch('/api/companies?status=active');
+      if (res.ok) {
+        const data = await res.json();
+        const companies = (data.companies || []).map((c: { id: string; name: string; distributorPhone: string | null }) => ({
+          companyId: c.id,
+          companyName: c.name,
+          distributorPhone: c.distributorPhone || null,
+        }));
+        setDistributorPhones(companies);
+      }
+    } catch { /* silent */ }
+  };
+
+  const handleSaveDistPhone = async (companyId: string) => {
+    setSavingDistPhone(true);
+    try {
+      const res = await apiFetch(`/api/companies/${companyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ distributorPhone: distPhoneInput.trim() || null }),
+      });
+      if (res.ok) {
+        toast({ title: 'Distributor Number Updated', description: 'Receipt par ab ye number show hoga' });
+        setEditingDistPhone(null);
+        setDistPhoneInput('');
+        fetchDistributorPhones();
+      } else {
+        const data = await res.json();
+        toast({ title: 'Error', description: data.error || 'Failed to update', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setSavingDistPhone(false);
+    }
+  };
 
   // Export all data as CSV
   const handleExportAll = useCallback(async () => {
@@ -775,6 +828,96 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                       </Button>
                     </div>
                   </div>
+                </Card>
+              )}
+            </section>
+          )}
+
+          {/* Distributor Number Section - Admin Only */}
+          {user?.role === 'admin' && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Phone className="h-4 w-4 text-amber-600" />
+                <h3 className="text-sm font-semibold text-foreground">Distributor Number</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">Ye number receipt par show hoga. Customer isi number pe contact kar sakta hai.</p>
+              {distributorPhones.length === 0 ? (
+                <Card className="py-0 gap-0">
+                  <div className="px-4 py-3.5 text-center">
+                    <p className="text-xs text-muted-foreground">Koi company nahi mili. Pehle Manage Companies mein company add karein.</p>
+                  </div>
+                </Card>
+              ) : (
+                <Card className="py-0 gap-0">
+                  {distributorPhones.map((comp, idx) => (
+                    <div key={comp.companyId}>
+                      {idx > 0 && <Separator />}
+                      <div className="px-4 py-3.5">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Building2 className="h-3.5 w-3.5 text-primary" />
+                          <span className="text-sm font-medium">{comp.companyName}</span>
+                        </div>
+                        {editingDistPhone === comp.companyId ? (
+                          <div className="flex items-center gap-2 pl-5">
+                            <Input
+                              value={distPhoneInput}
+                              onChange={(e) => setDistPhoneInput(e.target.value)}
+                              placeholder="03XXXXXXXXX"
+                              className="h-8 text-sm flex-1"
+                              maxLength={15}
+                              disabled={savingDistPhone}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveDistPhone(comp.companyId);
+                                if (e.key === 'Escape') { setEditingDistPhone(null); setDistPhoneInput(''); }
+                              }}
+                              autoFocus
+                            />
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 rounded-full text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                              onClick={() => handleSaveDistPhone(comp.companyId)}
+                              disabled={savingDistPhone}
+                            >
+                              {savingDistPhone ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+                              onClick={() => { setEditingDistPhone(null); setDistPhoneInput(''); }}
+                              disabled={savingDistPhone}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between pl-5">
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-3.5 w-3.5 text-amber-600" />
+                              <span className="text-sm font-medium text-foreground">
+                                {comp.distributorPhone || 'Not set'}
+                              </span>
+                              {!comp.distributorPhone && (
+                                <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded">Add karein</span>
+                              )}
+                            </div>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 rounded-full text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/50"
+                              onClick={() => {
+                                setDistPhoneInput(comp.distributorPhone || '');
+                                setEditingDistPhone(comp.companyId);
+                              }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </Card>
               )}
             </section>

@@ -42,7 +42,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, status } = body;
+    const { name, description, status, distributorPhone } = body;
 
     const existing = await db.company.findUnique({ where: { id } });
     if (!existing) {
@@ -65,6 +65,7 @@ export async function PUT(
         ...(name !== undefined && { name: name.trim() }),
         ...(description !== undefined && { description: description?.trim() || null }),
         ...(status !== undefined && { status }),
+        ...(distributorPhone !== undefined && { distributorPhone: distributorPhone?.trim() || null }),
       },
     });
 
@@ -77,6 +78,50 @@ export async function PUT(
         oldValue: JSON.stringify(existing),
         newValue: JSON.stringify(company),
         description: `Company "${company.name}" updated`,
+      },
+    });
+
+    return NextResponse.json({ company });
+  } catch (error: any) {
+    console.error('Failed to update company:', error);
+    return NextResponse.json({ error: error.message || 'Failed to update company' }, { status: 500 });
+  }
+}
+
+// PATCH /api/companies/[id] - Partial update (e.g., distributor phone)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { name, description, status, distributorPhone } = body;
+
+    const existing = await db.company.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
+
+    const company = await db.company.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name: name.trim() }),
+        ...(description !== undefined && { description: description?.trim() || null }),
+        ...(status !== undefined && { status }),
+        ...(distributorPhone !== undefined && { distributorPhone: distributorPhone?.trim() || null }),
+      },
+    });
+
+    // Audit log
+    await db.auditLog.create({
+      data: {
+        action: 'edit',
+        entityType: 'company',
+        entityId: id,
+        oldValue: JSON.stringify({ distributorPhone: existing.distributorPhone }),
+        newValue: JSON.stringify({ distributorPhone: company.distributorPhone }),
+        description: `Company "${company.name}" distributor phone updated`,
       },
     });
 
