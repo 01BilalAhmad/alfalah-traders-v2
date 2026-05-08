@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPgClient } from '@/lib/pg';
 
-// PATCH /api/shops/phone - Update shop phone number (lightweight endpoint for mobile)
+// PATCH /api/shops/phone - Update shop phone number and/or owner name (lightweight endpoint for mobile)
 export async function PATCH(request: NextRequest) {
   let client;
   try {
-    const { shopId, phone } = await request.json();
+    const { shopId, phone, ownerName } = await request.json();
 
     if (!shopId) {
       return NextResponse.json({ error: 'Shop ID is required' }, { status: 400 });
@@ -25,7 +25,7 @@ export async function PATCH(request: NextRequest) {
     await client.connect();
 
     // Check if shop exists
-    const shopRes = await client.query('SELECT id, name, phone FROM "Shop" WHERE id = $1', [shopId]);
+    const shopRes = await client.query('SELECT id, name, phone, "ownerName" FROM "Shop" WHERE id = $1', [shopId]);
     if (shopRes.rows.length === 0) {
       await client.end();
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
@@ -34,10 +34,19 @@ export async function PATCH(request: NextRequest) {
     const oldPhone = shopRes.rows[0].phone;
     const now = new Date().toISOString();
 
-    await client.query(
-      'UPDATE "Shop" SET phone = $1, "updatedAt" = $2 WHERE id = $3',
-      [trimmedPhone || null, now, shopId]
-    );
+    // Build update query dynamically based on what fields are provided
+    if (ownerName !== undefined && ownerName !== null) {
+      const trimmedOwner = String(ownerName).trim();
+      await client.query(
+        'UPDATE "Shop" SET phone = $1, "ownerName" = $2, "updatedAt" = $3 WHERE id = $4',
+        [trimmedPhone || null, trimmedOwner || null, now, shopId]
+      );
+    } else {
+      await client.query(
+        'UPDATE "Shop" SET phone = $1, "updatedAt" = $2 WHERE id = $3',
+        [trimmedPhone || null, now, shopId]
+      );
+    }
 
     await client.end();
 
