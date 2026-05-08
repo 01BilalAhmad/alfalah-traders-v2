@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPgClient } from '@/lib/pg';
+import crypto from 'crypto';
 
 // POST /api/shops/recalculate-balance
 // Recalculates shop balance from actual transactions (fixes corrupted balances)
@@ -88,10 +89,11 @@ export async function POST(request: NextRequest) {
       // Insert correct balances (only if > 0)
       for (const [companyId, balance] of Object.entries(correctBalances)) {
         if (balance > 0) {
+          const scbId = `scb_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
           await client.query(
-            `INSERT INTO "ShopCompanyBalance" ("shopId", "companyId", balance, "createdAt", "updatedAt")
-             VALUES ($1, $2, $3, NOW(), NOW())`,
-            [shop.id, companyId, balance]
+            `INSERT INTO "ShopCompanyBalance" (id, "shopId", "companyId", balance, "createdAt", "updatedAt")
+             VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+            [scbId, shop.id, companyId, balance]
           );
         }
       }
