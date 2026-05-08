@@ -130,7 +130,7 @@ function formatCurrency(amount: number): string {
 }
 
 export default function AdminShops() {
-  const { setCurrentView, setSelectedShopId, setSelectedShopName } = useAppStore();
+  const { setCurrentView, setSelectedShopId, setSelectedShopName, user } = useAppStore();
   const [shops, setShops] = useState<Shop[]>([]);
   const [allShops, setAllShops] = useState<Shop[]>([]);
   const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
@@ -419,7 +419,7 @@ export default function AdminShops() {
       const res = await apiFetch(`/api/shops/${notesShop.id}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note: newNote.trim(), createdBy: 'admin' }),
+        body: JSON.stringify({ note: newNote.trim(), createdBy: user?.id || 'admin' }),
       });
       if (res.ok) {
         toast({ title: 'Note Saved', description: 'Shop note has been saved' });

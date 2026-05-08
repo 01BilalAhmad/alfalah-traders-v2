@@ -59,8 +59,8 @@ export async function POST(
     const { id: shopId } = await params;
     const { note, createdBy } = await request.json();
 
-    if (!note || !createdBy) {
-      return NextResponse.json({ error: 'Note text and createdBy are required' }, { status: 400 });
+    if (!note) {
+      return NextResponse.json({ error: 'Note text is required' }, { status: 400 });
     }
 
     if (note.length > 1000) {
@@ -77,10 +77,31 @@ export async function POST(
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
 
+    // Resolve createdBy: if not a valid user ID, find the admin user
+    let resolvedCreatedBy = createdBy;
+    if (!resolvedCreatedBy || resolvedCreatedBy === 'admin') {
+      const adminRes = await client.query(
+        'SELECT id FROM "User" WHERE role = $1 LIMIT 1',
+        ['admin']
+      );
+      if (adminRes.rows.length > 0) {
+        resolvedCreatedBy = adminRes.rows[0].id;
+      } else {
+        // Fallback: use any first user
+        const anyUserRes = await client.query('SELECT id FROM "User" LIMIT 1');
+        if (anyUserRes.rows.length > 0) {
+          resolvedCreatedBy = anyUserRes.rows[0].id;
+        } else {
+          await client.end();
+          return NextResponse.json({ error: 'No users found in system' }, { status: 500 });
+        }
+      }
+    }
+
     // Check if a note already exists for this shop by this user
     const existingRes = await client.query(
       'SELECT id FROM "ShopNote" WHERE "shopId" = $1 AND "createdBy" = $2',
-      [shopId, createdBy]
+      [shopId, resolvedCreatedBy]
     );
 
     let result;
@@ -89,7 +110,7 @@ export async function POST(
       const updateRes = await client.query(
         `UPDATE "ShopNote" SET note = $1, "updatedAt" = NOW() WHERE "shopId" = $2 AND "createdBy" = $3
          RETURNING *`,
-        [note, shopId, createdBy]
+        [note, shopId, resolvedCreatedBy]
       );
       result = updateRes.rows[0];
     } else {
@@ -99,7 +120,7 @@ export async function POST(
         `INSERT INTO "ShopNote" (id, "shopId", note, "createdBy", "createdAt", "updatedAt")
          VALUES ($1, $2, $3, $4, NOW(), NOW())
          RETURNING *`,
-        [noteId, shopId, note, createdBy]
+        [noteId, shopId, note, resolvedCreatedBy]
       );
       result = insertRes.rows[0];
     }
