@@ -611,13 +611,8 @@ export default function AdminCreditPosting() {
     }
     setAmountError('');
 
-    // 2. Description required & max length
-    if (!creditDescription.trim()) {
-      setDescriptionError('Description is required');
-      toast({ title: 'Validation Error', description: 'Description is required', variant: 'destructive' });
-      return;
-    }
-    if (creditDescription.trim().length > TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH) {
+    // 2. Description max length (optional field)
+    if (creditDescription.trim() && creditDescription.trim().length > TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH) {
       setDescriptionError(`Description must be ${TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH} characters or less`);
       toast({ title: 'Validation Error', description: `Description must be ${TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH} characters or less`, variant: 'destructive' });
       return;
