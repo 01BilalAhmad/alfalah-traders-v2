@@ -17,12 +17,21 @@ export async function GET(request: NextRequest) {
     client = getPgClient();
     await client.connect();
 
-    // 1. Get ACTIVE shops with balance > 0 assigned to this orderbooker
+    // 1. Get ACTIVE shops assigned to this orderbooker (PRIMARY + JUNCTION)
+    // Primary: shops where orderbookerId = userId
+    // Junction: shops where userId is in ShopOrderbooker table
     const shopRes = await client.query(
-      `SELECT s.*, u.name AS "ob_name"
+      `SELECT DISTINCT s.*, u.name AS "ob_name"
        FROM "Shop" s
        LEFT JOIN "User" u ON s."orderbookerId" = u.id
-       WHERE s."orderbookerId" = $1 AND s.status = 'active' AND s.balance > 0
+       WHERE s.status = 'active'
+         AND (
+           s."orderbookerId" = $1
+           OR EXISTS (
+             SELECT 1 FROM "ShopOrderbooker" so
+             WHERE so."shopId" = s.id AND so."orderbookerId" = $1
+           )
+         )
        ORDER BY s.name ASC`,
       [userId]
     );
@@ -51,7 +60,9 @@ export async function GET(request: NextRequest) {
         const scbRes = await client.query(
           `SELECT scb."shopId", scb."companyId", scb.balance, scb."creditLimit", co.name AS "companyName"
            FROM "ShopCompanyBalance" scb
-           LEFT JOIN "Company" co ON scb."companyId" = co.id`,
+           LEFT JOIN "Company" co ON scb."companyId" = co.id
+           WHERE scb."shopId" = ANY($1)`,
+          [shopIds]
         );
         const companyBalancesMap: Record<string, any[]> = {};
         for (const row of scbRes.rows) {
@@ -69,6 +80,33 @@ export async function GET(request: NextRequest) {
       }
     } catch {
       // ShopCompanyBalance table might not exist yet - just skip
+    }
+
+    // 1c. Get route day overrides from ShopOrderbooker for this user
+    try {
+      const junctionRes = await client.query(
+        `SELECT so."shopId", so."routeDays", so."companyId"
+         FROM "ShopOrderbooker" so
+         WHERE so."orderbookerId" = $1`,
+        [userId]
+      );
+      // Create a map for quick lookup
+      const junctionMap: Record<string, { routeDays: string[]; companyId: string }> = {};
+      for (const row of junctionRes.rows) {
+        junctionMap[row.shopId] = {
+          routeDays: row.routeDays || [],
+          companyId: row.companyId,
+        };
+      }
+      // Override routeDays for junction shops with assignment-specific days
+      for (const shop of shops) {
+        if (junctionMap[shop.id]) {
+          // This is a secondary assignment — use junction-specific routeDays
+          (shop as any).routeDays = junctionMap[shop.id].routeDays;
+        }
+      }
+    } catch {
+      // ShopOrderbooker table might not exist yet - just skip
     }
 
     // 2. Get recent transactions for this orderbooker (last 200)
@@ -115,6 +153,10 @@ export async function GET(request: NextRequest) {
          FROM "ShopNote" n
          INNER JOIN "Shop" s ON n."shopId" = s.id
          WHERE s."orderbookerId" = $1
+            OR EXISTS (
+              SELECT 1 FROM "ShopOrderbooker" so
+              WHERE so."shopId" = s.id AND so."orderbookerId" = $1
+            )
          ORDER BY n."updatedAt" DESC`,
         [userId]
       );
@@ -126,7 +168,7 @@ export async function GET(request: NextRequest) {
         createdAt: n.createdAt instanceof Date ? n.createdAt.toISOString() : n.createdAt,
         updatedAt: n.updatedAt instanceof Date ? n.updatedAt.toISOString() : n.updatedAt,
       }));
-    } catch { /* ShopNote table may not exist yet */ }
+    } catch { /* ShopNote/ShopOrderbooker table may not exist yet */ }
 
     // 5. Get daily target for current month
     let dailyTarget: any = null;

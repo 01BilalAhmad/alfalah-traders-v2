@@ -106,6 +106,14 @@ interface Shop {
   creditLimit: number;
   status: string;
   orderbooker: { id: string; name: string };
+  assignedOrderbookers?: {
+    id: string;
+    orderbookerId: string;
+    orderbookerName: string;
+    companyId: string;
+    companyName: string;
+    routeDays: string[];
+  }[];
 }
 
 interface Orderbooker {
@@ -186,6 +194,14 @@ export default function AdminShops() {
   const [newNote, setNewNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
+  // Additional orderbooker assignment state
+  const [shopAssignments, setShopAssignments] = useState<any[]>([]);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [assignOBId, setAssignOBId] = useState('');
+  const [assignCompanyId, setAssignCompanyId] = useState('');
+  const [assignRouteDays, setAssignRouteDays] = useState<string[]>([]);
+  const [assignLoading, setAssignLoading] = useState(false);
+
   const fetchOrderbookers = useCallback(async () => {
     try {
       const res = await apiFetch('/api/orderbookers');
@@ -202,6 +218,16 @@ export default function AdminShops() {
       if (res.ok) {
         const data = await res.json();
         setCompanies(data.companies || []);
+      }
+    } catch { /* silent */ }
+  }, []);
+
+  const fetchShopAssignments = useCallback(async (shopId: string) => {
+    try {
+      const res = await apiFetch(`/api/shops/assign-orderbooker?shopId=${shopId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setShopAssignments(data);
       }
     } catch { /* silent */ }
   }, []);
@@ -432,6 +458,8 @@ export default function AdminShops() {
     setDetailLedgerData(null);
     setDetailOpen(true);
     setDetailLoading(true);
+    setShopAssignments([]);
+    fetchShopAssignments(shop.id);
     try {
       const res = await apiFetch(`/api/reports/ledger?shopId=${shop.id}`);
       if (res.ok) {
@@ -439,6 +467,60 @@ export default function AdminShops() {
       }
     } catch { /* silent */ }
     finally { setDetailLoading(false); }
+  };
+
+  const handleAssignOrderbooker = async () => {
+    if (!detailShop || !assignOBId || !assignCompanyId) {
+      toast({ title: 'Error', description: 'Orderbooker and company are required', variant: 'destructive' });
+      return;
+    }
+    if (assignRouteDays.length === 0) {
+      toast({ title: 'Error', description: 'Select at least one route day', variant: 'destructive' });
+      return;
+    }
+    setAssignLoading(true);
+    try {
+      const res = await apiFetch('/api/shops/assign-orderbooker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopId: detailShop.id,
+          orderbookerId: assignOBId,
+          companyId: assignCompanyId,
+          routeDays: assignRouteDays,
+        }),
+      });
+      if (res.ok) {
+        toast({ title: 'Orderbooker Assigned', description: 'Additional orderbooker has been assigned' });
+        setAssignDialogOpen(false);
+        fetchShopAssignments(detailShop.id);
+      } else {
+        const data = await res.json();
+        toast({ title: 'Error', description: data.error || 'Failed to assign orderbooker', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  const handleRemoveAssignment = async (assignmentId: string) => {
+    if (!detailShop) return;
+    try {
+      const res = await apiFetch(`/api/shops/assign-orderbooker?id=${assignmentId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        toast({ title: 'Assignment Removed', description: 'Orderbooker assignment has been removed' });
+        fetchShopAssignments(detailShop.id);
+      } else {
+        const data = await res.json();
+        toast({ title: 'Error', description: data.error || 'Failed to remove assignment', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    }
   };
 
   const handleDownloadLedgerPDF = () => {
@@ -968,7 +1050,16 @@ export default function AdminShops() {
                       <TableCell className="hidden lg:table-cell">
                         <Badge variant="outline" className="text-[10px]">{formatRouteDays(shop.routeDays)}</Badge>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm">{shop.orderbooker.name}</TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm">{shop.orderbooker.name}</span>
+                          {shop.assignedOrderbookers && shop.assignedOrderbookers.length > 0 && (
+                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 text-[9px] h-4 px-1" title={`${shop.assignedOrderbookers.length} additional orderbooker(s)`}>
+                              +{shop.assignedOrderbookers.length}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                         <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(shop.balance)}</span>
                       </TableCell>
@@ -1406,6 +1497,82 @@ export default function AdminShops() {
                         </div>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+
+                {/* Assigned Orderbookers Section */}
+                <Card className="border-0 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-primary" />
+                        <p className="text-xs text-muted-foreground font-medium">Assigned Orderbookers</p>
+                        <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] h-5">
+                          {1 + shopAssignments.length}
+                        </Badge>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        onClick={() => {
+                          setAssignOBId('');
+                          setAssignCompanyId('');
+                          setAssignRouteDays(detailShop?.routeDays || []);
+                          setAssignDialogOpen(true);
+                        }}
+                      >
+                        <Plus className="h-3 w-3" /> Add Orderbooker
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {/* Primary orderbooker */}
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/10">
+                        <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                          <User className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium text-foreground truncate">{detailShop.orderbooker.name}</p>
+                            <Badge className="bg-primary text-primary-foreground text-[9px] h-4 px-1.5 font-bold">Primary</Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Additional orderbooker assignments */}
+                      {shopAssignments.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-2">No additional orderbookers assigned</p>
+                      ) : (
+                        shopAssignments.map((assignment) => (
+                          <div key={assignment.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border/50">
+                            <div className="h-7 w-7 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
+                              <Users className="h-3.5 w-3.5 text-emerald-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-sm font-medium text-foreground truncate">{assignment.orderbookerName}</p>
+                                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 text-[9px] h-4 px-1.5">
+                                  {assignment.companyName}
+                                </Badge>
+                              </div>
+                              {assignment.routeDays && assignment.routeDays.length > 0 && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5">{formatRouteDays(assignment.routeDays)}</p>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 shrink-0 text-muted-foreground hover:text-red-600"
+                              onClick={() => handleRemoveAssignment(assignment.id)}
+                              title="Remove assignment"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -1854,6 +2021,103 @@ export default function AdminShops() {
         companies={companies}
         onImportComplete={() => { fetchShops(); fetchAllShopsForCounts(); }}
       />
+
+      {/* Add Orderbooker Assignment Dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Add Orderbooker Assignment
+            </DialogTitle>
+            <DialogDescription>
+              Assign an additional orderbooker to {detailShop?.name} for a specific company.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Orderbooker Selection */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Orderbooker</Label>
+              <Select value={assignOBId} onValueChange={setAssignOBId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select orderbooker" />
+                </SelectTrigger>
+                <SelectContent>
+                  {orderbookers
+                    .filter((ob) => ob.status === 'active' && ob.id !== detailShop?.orderbooker.id)
+                    .map((ob) => (
+                      <SelectItem key={ob.id} value={ob.id}>
+                        {ob.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Company Selection */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Company</Label>
+              <Select value={assignCompanyId} onValueChange={setAssignCompanyId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select company" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies
+                    .filter((c) => c.status === 'active')
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Route Days Selection */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Route Days</Label>
+              <div className="flex flex-wrap gap-2">
+                {WORKING_DAYS.map((day) => (
+                  <label
+                    key={day}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
+                      assignRouteDays.includes(day)
+                        ? 'bg-primary/10 border-primary/30 text-primary'
+                        : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={assignRouteDays.includes(day)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setAssignRouteDays([...assignRouteDays, day]);
+                        } else {
+                          setAssignRouteDays(assignRouteDays.filter((d) => d !== day));
+                        }
+                      }}
+                      className="h-3 w-3"
+                    />
+                    {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)} disabled={assignLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAssignOrderbooker}
+              disabled={assignLoading || !assignOBId || !assignCompanyId || assignRouteDays.length === 0}
+              className="gap-1.5"
+            >
+              {assignLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserCheck className="h-3.5 w-3.5" />}
+              {assignLoading ? 'Assigning...' : 'Assign'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Shop Notes Dialog */}
       <Dialog open={notesDialogOpen} onOpenChange={setNotesDialogOpen}>

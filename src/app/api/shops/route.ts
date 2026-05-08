@@ -11,42 +11,42 @@ export async function GET(request: NextRequest) {
     const includeInactive = searchParams.get('includeInactive') === 'true';
     const balanceOnly = searchParams.get('balanceOnly') === 'true';
 
-    const where: any = {};
+    // Build base where clause for primary shops (where orderbookerId matches Shop.orderbookerId)
+    const baseWhere: any = {};
 
-    if (orderbookerId) {
-      where.orderbookerId = orderbookerId;
-    }
     if (routeDay) {
-      where.routeDays = { has: routeDay.toLowerCase() };
+      baseWhere.routeDays = { has: routeDay.toLowerCase() };
     }
     if (!includeInactive) {
-      where.status = 'active';
+      baseWhere.status = 'active';
     }
     if (balanceOnly) {
-      where.balance = { gt: 0 };
+      baseWhere.balance = { gt: 0 };
     }
     if (search) {
-      where.OR = [
+      baseWhere.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { area: { contains: search, mode: 'insensitive' } },
         { ownerName: { contains: search, mode: 'insensitive' } },
       ];
     }
 
-    const shops = await db.shop.findMany({
-      where,
-      include: {
-        orderbooker: { select: { id: true, name: true } },
-        companyBalances: {
-          include: {
-            company: { select: { id: true, name: true } },
-          },
+    const include = {
+      orderbooker: { select: { id: true, name: true } },
+      companyBalances: {
+        include: {
+          company: { select: { id: true, name: true } },
         },
       },
-      orderBy: { name: 'asc' },
-    });
+      assignedOrderbookers: {
+        include: {
+          orderbooker: { select: { id: true, name: true } },
+          company: { select: { id: true, name: true } },
+        },
+      },
+    };
 
-    const result = shops.map((s) => ({
+    const formatShop = (s: any) => ({
       id: s.id,
       name: s.name,
       ownerName: s.ownerName,
@@ -61,15 +61,91 @@ export async function GET(request: NextRequest) {
       createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
       updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
       orderbooker: s.orderbooker ? { id: s.orderbooker.id, name: s.orderbooker.name } : null,
-      companyBalances: s.companyBalances.map((cb) => ({
+      companyBalances: s.companyBalances.map((cb: any) => ({
         companyId: cb.companyId,
         companyName: cb.company?.name || '',
         balance: Number(cb.balance),
         creditLimit: Number(cb.creditLimit),
       })),
-    }));
+      assignedOrderbookers: (s.assignedOrderbookers || []).map((a: any) => ({
+        id: a.id,
+        orderbookerId: a.orderbookerId,
+        orderbookerName: a.orderbooker?.name || '',
+        companyId: a.companyId,
+        companyName: a.company?.name || '',
+        routeDays: a.routeDays,
+      })),
+    });
 
-    return NextResponse.json(result);
+    if (orderbookerId) {
+      // Fetch primary shops (where this user is the main orderbooker)
+      const primaryWhere = { ...baseWhere, orderbookerId };
+      const primaryShops = await db.shop.findMany({
+        where: primaryWhere,
+        include,
+        orderBy: { name: 'asc' },
+      });
+
+      // Fetch secondary shops (where this user is assigned via ShopOrderbooker junction table)
+      // Build junction filter
+      const junctionWhere: any = {
+        orderbookerId,
+      };
+      if (routeDay) {
+        junctionWhere.routeDays = { has: routeDay.toLowerCase() };
+      }
+
+      const assignments = await db.shopOrderbooker.findMany({
+        where: junctionWhere,
+        include: {
+          shop: {
+            include,
+          },
+        },
+      });
+
+      // Filter shops by additional criteria (status, balance, search)
+      const secondaryShops = assignments
+        .filter((a) => {
+          const shop = a.shop;
+          if (!includeInactive && shop.status !== 'active') return false;
+          if (balanceOnly && shop.balance <= 0) return false;
+          if (search) {
+            const q = search.toLowerCase();
+            return (
+              shop.name.toLowerCase().includes(q) ||
+              (shop.area || '').toLowerCase().includes(q) ||
+              (shop.ownerName || '').toLowerCase().includes(q)
+            );
+          }
+          return true;
+        })
+        .map((a) => a.shop);
+
+      // Merge and deduplicate (a shop might appear in both primary and secondary)
+      const seenIds = new Set(primaryShops.map((s) => s.id));
+      const allShops = [...primaryShops];
+      for (const shop of secondaryShops) {
+        if (!seenIds.has(shop.id)) {
+          seenIds.add(shop.id);
+          allShops.push(shop);
+        }
+      }
+
+      // Sort by name
+      allShops.sort((a, b) => a.name.localeCompare(b.name));
+
+      return NextResponse.json(allShops.map(formatShop));
+    }
+
+    // No orderbooker filter — return all shops normally
+    const shops = await db.shop.findMany({
+      where: baseWhere,
+      include,
+      orderBy: { name: 'asc' },
+    });
+
+    return NextResponse.json(shops.map(formatShop));
   } catch (error) {
     console.error('Error fetching shops:', error);
     return NextResponse.json({ error: 'Failed to fetch shops' }, { status: 500 });
@@ -166,7 +242,7 @@ export async function DELETE(request: NextRequest) {
     // Delete related Transactions first (no cascade on Transaction → Shop)
     const deletedTxns = await db.transaction.deleteMany({ where: { shopId: id } });
 
-    // Delete the shop (cascade will handle ShopNote, ShopVisit, ShopCompanyBalance)
+    // Delete the shop (cascade will handle ShopNote, ShopVisit, ShopCompanyBalance, ShopOrderbooker)
     await db.shop.delete({ where: { id } });
 
     // Delete audit logs referencing this shop

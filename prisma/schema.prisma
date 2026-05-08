@@ -22,6 +22,7 @@ model User {
 
   company            Company?         @relation(fields: [companyId], references: [id])
   orderbookerShops   Shop[]
+  shopAssignments    ShopOrderbooker[] // additional shop assignments (multi-OB per shop)
   creditTransactions Transaction[] @relation("CreditBy")
   auditLogs          AuditLog[]
   shopNotes          ShopNote[]    @relation("NoteBy")
@@ -55,6 +56,7 @@ model Shop {
   notes            ShopNote[]
   visits           ShopVisit[]
   companyBalances  ShopCompanyBalance[]
+  assignedOrderbookers ShopOrderbooker[] // additional orderbooker assignments
 
   @@index([orderbookerId])
   @@index([routeDays])
@@ -194,6 +196,7 @@ model Company {
   orderbookers       User[]
   companyBalances    ShopCompanyBalance[]
   transactions       Transaction[]
+  shopOrderbookers   ShopOrderbooker[] // additional OB assignments for this company
 
   @@index([name])
   @@index([status])
@@ -213,5 +216,26 @@ model ShopCompanyBalance {
 
   @@unique([shopId, companyId]) // one balance per shop per company
   @@index([shopId])
+  @@index([companyId])
+}
+
+// --- Multi-Orderbooker Shop Assignment ---
+
+model ShopOrderbooker {
+  id            String   @id @default(cuid())
+  shopId        String
+  orderbookerId String
+  companyId     String   // which company this orderbooker handles for this shop
+  routeDays     String[] // route days specific to this assignment (can differ from shop's default)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  shop         Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  orderbooker  User    @relation(fields: [orderbookerId], references: [id], onDelete: Cascade)
+  company      Company @relation(fields: [companyId], references: [id])
+
+  @@unique([shopId, orderbookerId, companyId]) // one assignment per shop-orderbooker-company
+  @@index([shopId])
+  @@index([orderbookerId])
   @@index([companyId])
 }
