@@ -7,6 +7,7 @@ import { useHydrated } from '@/lib/use-hydrated';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
 import { exportToCSV } from '@/lib/csv-export';
+import * as XLSX from 'xlsx';
 import {
   Sheet,
   SheetContent,
@@ -207,7 +208,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
     }
   };
 
-  // Export all data as CSV
+  // Export all data as XLSX (single file with multiple sheets)
   const handleExportAll = useCallback(async () => {
     setExporting(true);
     try {
@@ -216,48 +217,99 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
         apiFetch('/api/orderbookers'),
       ]);
 
+      const wb = XLSX.utils.book_new();
+      let shopsCount = 0;
+      let obsCount = 0;
+
+      // Process shops data
       if (shopRes.ok) {
         const shops = await shopRes.json();
         if (Array.isArray(shops) && shops.length > 0) {
-          const shopHeaders = ['name', 'area', 'ownerName', 'phone', 'routeDays', 'creditLimit', 'balance', 'status'];
-          exportToCSV(
-            shops.map((s: Record<string, unknown>) => ({
-              name: s.name || '',
-              area: s.area || '',
-              ownerName: s.ownerName || '',
-              phone: s.phone || '',
-              routeDays: s.routeDays ? s.routeDays.join(', ') : '',
-              creditLimit: s.creditLimit || 0,
-              balance: s.balance || 0,
-              status: s.status || '',
-            })),
-            'alfalah-shops-export',
-            shopHeaders,
-          );
+          shopsCount = shops.length;
+          const shopSheetData = shops.map((s: Record<string, unknown>) => {
+            // Build company balances string
+            const companyBalances = Array.isArray(s.companyBalances)
+              ? (s.companyBalances as Record<string, unknown>[]).map((cb: Record<string, unknown>) =>
+                  `${cb.companyName || ''}: ${cb.balance || 0}/${cb.creditLimit || 0}`
+                ).join('; ')
+              : '';
+            // Build assigned orderbookers string
+            const assignedOBs = Array.isArray(s.assignedOrderbookers)
+              ? (s.assignedOrderbookers as Record<string, unknown>[]).map((a: Record<string, unknown>) =>
+                  `${a.orderbookerName || ''} (${a.companyName || ''}) [${Array.isArray(a.routeDays) ? (a.routeDays as string[]).join(',') : a.routeDays || ''}]`
+                ).join('; ')
+              : '';
+
+            return {
+              Name: s.name || '',
+              Owner: s.ownerName || '',
+              Area: s.area || '',
+              Phone: s.phone || '',
+              Route: Array.isArray(s.routeDays) ? (s.routeDays as string[]).join(', ') : '',
+              PrimaryOrderbooker: (s.orderbooker as Record<string, string>)?.name || '',
+              CompanyBalances: companyBalances,
+              Balance: s.balance || 0,
+              CreditLimit: s.creditLimit || 0,
+              Status: s.status || '',
+              AssignedOrderbookers: assignedOBs,
+            };
+          });
+          const shopWs = XLSX.utils.json_to_sheet(shopSheetData);
+          // Auto-size columns
+          const shopCols = Object.keys(shopSheetData[0] || {}).map((key) => {
+            const maxLen = Math.max(
+              key.length,
+              ...shopSheetData.map((row) => String(row[key as keyof typeof row] ?? '').length)
+            );
+            return { wch: Math.min(maxLen + 2, 50) };
+          });
+          shopWs['!cols'] = shopCols;
+          XLSX.utils.book_append_sheet(wb, shopWs, 'Shops');
         }
       }
 
+      // Process orderbookers data
       if (obRes.ok) {
         const obs = await obRes.json();
         if (Array.isArray(obs) && obs.length > 0) {
-          const obHeaders = ['name', 'username', 'phone', 'status'];
-          exportToCSV(
-            obs.map((o: Record<string, unknown>) => ({
-              name: o.name || '',
-              username: o.username || '',
-              phone: o.phone || '',
-              status: o.status || '',
-            })),
-            'alfalah-orderbookers-export',
-            obHeaders,
-          );
+          obsCount = obs.length;
+          const obSheetData = obs.map((o: Record<string, unknown>) => ({
+            Name: o.name || '',
+            Username: o.username || '',
+            Phone: o.phone || '',
+            Company: o.companyName || '',
+            Status: o.status || '',
+            TotalShops: o.totalShops || 0,
+            TotalOutstanding: o.totalOutstanding || 0,
+          }));
+          const obWs = XLSX.utils.json_to_sheet(obSheetData);
+          const obCols = Object.keys(obSheetData[0] || {}).map((key) => {
+            const maxLen = Math.max(
+              key.length,
+              ...obSheetData.map((row) => String(row[key as keyof typeof row] ?? '').length)
+            );
+            return { wch: Math.min(maxLen + 2, 40) };
+          });
+          obWs['!cols'] = obCols;
+          XLSX.utils.book_append_sheet(wb, obWs, 'Orderbookers');
         }
       }
 
-      toast({
-        title: 'Export Complete',
-        description: 'Shops and orderbookers data exported as CSV files.',
-      });
+      // Download the XLSX file
+      if (wb.SheetNames.length > 0) {
+        const dateStr = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `AlFalah_AllData_${dateStr}.xlsx`);
+        toast({
+          title: 'Export Complete',
+          description: `Exported ${shopsCount} shops and ${obsCount} orderbookers to Excel file.`,
+        });
+      } else {
+        toast({
+          title: 'No Data',
+          description: 'No data found to export.',
+          variant: 'destructive',
+        });
+      }
     } catch {
       toast({
         title: 'Export Failed',
@@ -628,7 +680,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                   </div>
                   <div>
                     <p className="text-sm font-medium">Export All Data</p>
-                    <p className="text-xs text-muted-foreground">Download shops &amp; orderbookers as CSV</p>
+                    <p className="text-xs text-muted-foreground">Download shops &amp; orderbookers as Excel file</p>
                   </div>
                 </div>
                 <Button
