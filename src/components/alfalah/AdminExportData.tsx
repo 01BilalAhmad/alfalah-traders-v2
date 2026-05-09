@@ -243,18 +243,19 @@ export default function AdminExportData() {
         // Convert data to sheet
         let sheetData: Record<string, unknown>[];
 
+        try {
         switch (option.key) {
           case 'shops': {
             const shops = Array.isArray(rawData) ? rawData : [];
             sheetData = shops.map((s: ShopData) => ({
-              Name: s.name,
+              Name: s.name || '',
               Owner: s.ownerName || '',
               Area: s.area || '',
-              Route: s.routeDays.join(', '),
+              Route: Array.isArray(s.routeDays) ? s.routeDays.join(', ') : '',
               Orderbooker: s.orderbooker?.name || '',
-              Balance: s.balance,
-              CreditLimit: s.creditLimit,
-              Status: s.status,
+              Balance: s.balance || 0,
+              CreditLimit: s.creditLimit || 0,
+              Status: s.status || '',
             }));
             break;
           }
@@ -329,6 +330,11 @@ export default function AdminExportData() {
           }
           default:
             sheetData = [];
+        }
+        } catch (mapErr) {
+          console.error(`Error mapping ${option.label} data:`, mapErr);
+          toast({ title: 'Mapping Error', description: `Failed to process ${option.label} data: ${mapErr instanceof Error ? mapErr.message : 'Unknown error'}`, variant: 'destructive' });
+          continue;
         }
 
         if (format === 'xlsx') {
