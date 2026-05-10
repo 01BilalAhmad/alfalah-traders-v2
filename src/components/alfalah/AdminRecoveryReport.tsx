@@ -200,6 +200,7 @@ export default function AdminRecoveryReport() {
   const [selectedShopId, setSelectedShopId] = useState('');
   const [addAmount, setAddAmount] = useState('');
   const [addDescription, setAddDescription] = useState('');
+  const [addRecoveryDate, setAddRecoveryDate] = useState(getLocalDateString());
   const [addSaving, setAddSaving] = useState(false);
   const [fetchingDropdowns, setFetchingDropdowns] = useState(false);
 
@@ -386,6 +387,7 @@ export default function AdminRecoveryReport() {
     setSelectedShopId('');
     setAddAmount('');
     setAddDescription('');
+    setAddRecoveryDate(getLocalDateString());
     setAddDialogOpen(true);
     setFetchingDropdowns(true);
     try {
@@ -425,6 +427,7 @@ export default function AdminRecoveryReport() {
           amount: parseFloat(addAmount),
           description: addDescription.trim() || undefined,
           createdBy: user.id,
+          customDate: addRecoveryDate !== getLocalDateString() ? addRecoveryDate : undefined,
         }),
       });
       if (res.ok) {
@@ -1157,6 +1160,30 @@ export default function AdminRecoveryReport() {
                       placeholder="Enter recovery amount"
                       autoFocus
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="add-recovery-date" className="flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                      Recovery Date
+                      {addRecoveryDate !== getLocalDateString() && (
+                        <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0 border-amber-300 text-amber-600 dark:border-amber-700 dark:text-amber-400">
+                          Backdated
+                        </Badge>
+                      )}
+                    </Label>
+                    <Input
+                      id="add-recovery-date"
+                      type="date"
+                      value={addRecoveryDate}
+                      max={getLocalDateString()}
+                      onChange={(e) => setAddRecoveryDate(e.target.value)}
+                      className="text-sm"
+                    />
+                    {addRecoveryDate !== getLocalDateString() && (
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium animate-fade-in">
+                        Recovery will be recorded for {new Date(addRecoveryDate + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })} instead of today
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="add-description">Description (optional)</Label>

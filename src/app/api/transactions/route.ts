@@ -331,7 +331,7 @@ export async function POST(request: NextRequest) {
       if (customDateObj > now) {
         await client.query('ROLLBACK');
         await client.end();
-        return NextResponse.json({ error: 'Cannot post credit for a future date' }, { status: 400 });
+        return NextResponse.json({ error: 'Cannot post for a future date' }, { status: 400 });
       }
       // Use Pakistan timezone noon time for the custom date to ensure it falls in the correct day
       const [cYear, cMonth, cDay] = customDate.split('-').map(Number);
