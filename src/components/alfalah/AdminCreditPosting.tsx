@@ -1456,7 +1456,7 @@ export default function AdminCreditPosting() {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="creditDesc">Description <span className="text-destructive">*</span></Label>
+                <Label htmlFor="creditDesc">Description <span className="text-muted-foreground text-[10px] font-normal">(optional)</span></Label>
                 <span className={`text-[10px] font-medium ${creditDescription.length > TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH ? 'text-destructive' : 'text-muted-foreground'}`}>
                   {creditDescription.length} / {TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH}
                 </span>
@@ -1491,7 +1491,7 @@ export default function AdminCreditPosting() {
             )}
             <Button
               onClick={handlePostCredit}
-              disabled={postingCredit || !creditAmount || parseFloat(creditAmount) <= 0 || !!amountError || !creditDescription.trim()}
+              disabled={postingCredit || !creditAmount || parseFloat(creditAmount) <= 0 || !!amountError}
               className={`btn-ripple hover:opacity-90 focus-glow ${quickPostMode ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-primary hover:bg-primary/90'}`}
             >
               {postingCredit ? (
