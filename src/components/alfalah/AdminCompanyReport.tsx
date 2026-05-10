@@ -331,13 +331,13 @@ export default function AdminCompanyReport() {
       {data && data.orderbookers.length > 0 && (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs print:text-[9px]">
+            <table className="w-full border-collapse text-xs print:text-[11px]">
               {/* Header Row 1: Closing Balance above OB names */}
               <thead>
                 <tr className="bg-primary/10 border-b border-primary/20">
                   {/* Date column header */}
                   <th
-                    className="sticky left-0 z-20 bg-primary/10 border-r border-primary/20 px-2 py-1 text-center font-bold text-foreground min-w-[70px] print:min-w-[50px]"
+                    className="sticky left-0 z-20 bg-primary/10 border-r border-primary/20 px-2 py-1 text-center font-bold text-foreground min-w-[70px] print:min-w-[60px]"
                     rowSpan={3}
                   >
                     Date
@@ -346,7 +346,7 @@ export default function AdminCompanyReport() {
                   {data.orderbookers.map((ob) => (
                     <th
                       key={`bal-${ob.id}`}
-                      className="border-r border-border/50 px-1 py-1 text-center font-extrabold text-blue-800 dark:text-blue-300 text-xs print:text-[8px]"
+                      className="border-r border-border/50 px-1 py-1 text-center font-extrabold text-blue-800 dark:text-blue-300 text-xs print:text-[10px]"
                       colSpan={2}
                     >
                       Rs. {formatCurrency(data.openingBalances[ob.id] || 0)}
@@ -354,7 +354,7 @@ export default function AdminCompanyReport() {
                   ))}
                   {/* Grand total outstanding */}
                   <th
-                    className="border-l-2 border-primary/30 px-1 py-1 text-center font-extrabold text-blue-800 dark:text-blue-300 text-xs print:text-[8px] bg-primary/5"
+                    className="border-l-2 border-primary/30 px-1 py-1 text-center font-extrabold text-blue-800 dark:text-blue-300 text-xs print:text-[10px] bg-primary/5"
                     colSpan={2}
                   >
                     Rs. {formatCurrency(data.orderbookers.reduce((sum, ob) => sum + (data.openingBalances[ob.id] || 0), 0))}
@@ -382,18 +382,18 @@ export default function AdminCompanyReport() {
                 <tr className="bg-muted/50 border-b border-border">
                   {data.orderbookers.map((ob) => (
                     <>
-                      <th key={`credit-${ob.id}`} className="border-r border-border/30 px-1 py-1 text-center font-semibold text-orange-700 dark:text-orange-400 bg-orange-50/50 dark:bg-orange-900/20 min-w-[55px] print:min-w-[40px]">
+                      <th key={`credit-${ob.id}`} className="border-r border-border/30 px-1 py-1 text-center font-semibold text-orange-700 dark:text-orange-400 bg-orange-50/50 dark:bg-orange-900/20 min-w-[55px] print:min-w-[50px]">
                         Credit
                       </th>
-                      <th key={`recovery-${ob.id}`} className="border-r border-border/50 px-1 py-1 text-center font-semibold text-green-700 dark:text-green-400 bg-green-50/50 dark:bg-green-900/20 min-w-[55px] print:min-w-[40px]">
+                      <th key={`recovery-${ob.id}`} className="border-r border-border/50 px-1 py-1 text-center font-semibold text-green-700 dark:text-green-400 bg-green-50/50 dark:bg-green-900/20 min-w-[55px] print:min-w-[50px]">
                         Recovery
                       </th>
                     </>
                   ))}
-                  <th className="border-r border-border/30 px-1 py-1 text-center font-semibold text-orange-700 dark:text-orange-400 bg-orange-50/50 dark:bg-orange-900/20 min-w-[55px] print:min-w-[40px]">
+                  <th className="border-r border-border/30 px-1 py-1 text-center font-semibold text-orange-700 dark:text-orange-400 bg-orange-50/50 dark:bg-orange-900/20 min-w-[55px] print:min-w-[50px]">
                     Credit
                   </th>
-                  <th className="px-1 py-1 text-center font-semibold text-green-700 dark:text-green-400 bg-green-50/50 dark:bg-green-900/20 min-w-[55px] print:min-w-[40px]">
+                  <th className="px-1 py-1 text-center font-semibold text-green-700 dark:text-green-400 bg-green-50/50 dark:bg-green-900/20 min-w-[55px] print:min-w-[50px]">
                     Recovery
                   </th>
                 </tr>

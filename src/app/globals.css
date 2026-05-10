@@ -2071,6 +2071,42 @@ textarea:focus-visible {
     margin: 10mm 8mm;
   }
 
+  /* ====== CRITICAL: Reset dark mode CSS variables to light mode values ====== */
+  /* This is the ROOT CAUSE of light/faint prints - dark mode sets text to light colors */
+  .dark {
+    --background: #F8FAFC !important;
+    --foreground: #1E293B !important;
+    --card: #FFFFFF !important;
+    --card-foreground: #1E293B !important;
+    --popover: #FFFFFF !important;
+    --popover-foreground: #1E293B !important;
+    --primary: #1E3A8A !important;
+    --primary-foreground: #FFFFFF !important;
+    --secondary: #E2E8F0 !important;
+    --secondary-foreground: #1E293B !important;
+    --muted: #F1F5F9 !important;
+    --muted-foreground: #64748B !important;
+    --accent: #EFF6FF !important;
+    --accent-foreground: #1E3A8A !important;
+    --destructive: #DC2626 !important;
+    --border: #E2E8F0 !important;
+    --input: #CBD5E1 !important;
+    --ring: #1E3A8A !important;
+    --chart-1: #1E3A8A !important;
+    --chart-2: #3B82F6 !important;
+    --chart-3: #10B981 !important;
+    --chart-4: #F59E0B !important;
+    --chart-5: #EF4444 !important;
+    --sidebar: #FFFFFF !important;
+    --sidebar-foreground: #1E293B !important;
+    --sidebar-primary: #1E3A8A !important;
+    --sidebar-primary-foreground: #FFFFFF !important;
+    --sidebar-accent: #EFF6FF !important;
+    --sidebar-accent-foreground: #1E3A8A !important;
+    --sidebar-border: #E2E8F0 !important;
+    --sidebar-ring: #1E3A8A !important;
+  }
+
   .no-print, .bottom-nav-glass, .custom-scrollbar {
     display: none !important;
   }
@@ -2087,10 +2123,140 @@ textarea:focus-visible {
     print-color-adjust: exact !important;
   }
 
-  /* Force all text to be dark and readable in print */
+  /* Force ALL text to be dark and readable in print */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* Override dark mode Tailwind classes for print */
+  .dark\:bg-background,
+  .dark\:bg-card,
+  .dark\:bg-popover,
+  .dark\:bg-muted,
+  .dark\:bg-secondary,
+  .dark\:bg-slate-800,
+  .dark\:bg-slate-900,
+  .dark\:bg-slate-950,
+  .dark\:bg-gray-800,
+  .dark\:bg-gray-900 {
+    background: white !important;
+  }
+
+  .dark\:text-foreground,
+  .dark\:text-card-foreground,
+  .dark\:text-popover-foreground,
+  .dark\:text-slate-100,
+  .dark\:text-slate-200,
+  .dark\:text-slate-300,
+  .dark\:text-gray-100,
+  .dark\:text-gray-200,
+  .dark\:text-gray-300,
+  .dark\:text-white {
+    color: #1E293B !important;
+  }
+
+  .dark\:text-muted-foreground,
+  .dark\:text-slate-400,
+  .dark\:text-slate-500,
+  .dark\:text-gray-400,
+  .dark\:text-gray-500 {
+    color: #64748B !important;
+  }
+
+  /* Company Report: dark mode text colors override for print */
+  .dark\:text-orange-400 {
+    color: #C2410C !important;
+  }
+  .dark\:text-green-400 {
+    color: #15803D !important;
+  }
+  .dark\:text-blue-300 {
+    color: #1E3A8A !important;
+  }
+  .dark\:text-red-300 {
+    color: #DC2626 !important;
+  }
+  .dark\:text-red-400 {
+    color: #DC2626 !important;
+  }
+  .dark\:text-amber-400 {
+    color: #B45309 !important;
+  }
+
+  /* Company Report: dark mode background colors override for print */
+  .dark\:bg-orange-900\/20,
+  .dark\:bg-orange-900\/10,
+  .dark\:bg-orange-900\/30 {
+    background: #FFF7ED !important;
+  }
+  .dark\:bg-green-900\/20,
+  .dark\:bg-green-900\/30 {
+    background: #F0FDF4 !important;
+  }
+  .dark\:bg-blue-900\/40 {
+    background: #EFF6FF !important;
+  }
+  .dark\:bg-amber-900\/40 {
+    background: #FFFBEB !important;
+  }
+  .dark\:bg-red-900\/30 {
+    background: #FEF2F2 !important;
+  }
+
+  .dark\:border-slate-600,
+  .dark\:border-slate-700,
+  .dark\:border-gray-600,
+  .dark\:border-gray-700,
+  .dark\:border-green-800,
+  .dark\:border-amber-700 {
+    border-color: #E2E8F0 !important;
+  }
+
+  /* Force all common container elements to have white background and dark text */
+  div, section, main, article, aside, nav, header, footer {
+    background: white !important;
+    color: #1E293B !important;
+  }
+
+  /* But preserve intentional colored backgrounds for headers/totals */
+  .ob-header, .grand-total, .company-header, .balance-table thead tr,
+  .ob-total, .print-header, .alfalah-gradient, .bg-primary, .bg-\[\#1E3A8A\] {
+    color: white !important;
+  }
+
+  /* Force all text elements to be dark */
+  p, span, h1, h2, h3, h4, h5, h6, li, td, th, label, a, strong, b, em, i, small, dt, dd, blockquote, pre, code {
+    color: #1E293B !important;
+  }
+
+  /* Override opacity-based classes that cause faint text */
+  [class*="opacity-"] {
+    opacity: 1 !important;
+  }
+
+  /* Remove backdrop-filter/glassmorphism effects in print (they cause transparency) */
+  * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Force table cells and all content to be visible */
+  table, thead, tbody, tfoot, tr, th, td {
+    border-color: #94A3B8 !important;
+  }
+
+  /* Ensure all cards have visible borders */
+  [class*="rounded-lg"], [class*="rounded-xl"], [class*="rounded-2xl"],
+  .card, [data-slot="card"] {
+    border: 1px solid #CBD5E1 !important;
+    box-shadow: none !important;
+  }
+
+  /* Hide shadows in print (they waste ink and look bad) */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
 
   /* Balance Report Print Styles */
