@@ -155,17 +155,47 @@ export default function AdminCompanyReport() {
   }, [fetchData, selectedCompany]);
 
   const handlePrint = () => {
+    // Remove dark class from <html> before printing to ensure light mode colors
+    const html = document.documentElement;
+    const hadDark = html.classList.contains('dark');
+    if (hadDark) {
+      html.classList.remove('dark');
+      html.style.colorScheme = 'light';
+    }
+
     // Inject landscape @page rule for this print job
     const style = document.createElement('style');
     style.id = 'company-report-print-style';
     style.textContent = '@page { size: landscape; margin: 6mm; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }';
     document.head.appendChild(style);
-    window.print();
-    // Clean up after print dialog closes
+
+    // Small delay to let CSS recalculate with light mode
     setTimeout(() => {
-      const el = document.getElementById('company-report-print-style');
-      if (el) el.remove();
-    }, 1000);
+      window.print();
+
+      // Clean up injected style after print dialog closes
+      const cleanup = () => {
+        const el = document.getElementById('company-report-print-style');
+        if (el) el.remove();
+        // Restore dark mode
+        if (hadDark) {
+          html.classList.add('dark');
+          html.style.colorScheme = 'dark';
+        }
+        window.removeEventListener('afterprint', cleanup);
+      };
+      window.addEventListener('afterprint', cleanup);
+
+      // Fallback cleanup
+      setTimeout(() => {
+        const el = document.getElementById('company-report-print-style');
+        if (el) el.remove();
+        if (hadDark && !html.classList.contains('dark')) {
+          html.classList.add('dark');
+          html.style.colorScheme = 'dark';
+        }
+      }, 1000);
+    }, 100);
   };
 
   // Generate month options (current month ± 12 months)

@@ -155,7 +155,37 @@ export default function AdminBalanceReport() {
   }, [fetchData]);
 
   const handlePrint = () => {
-    window.print();
+    // Remove dark class from <html> before printing to ensure light mode colors
+    const html = document.documentElement;
+    const hadDark = html.classList.contains('dark');
+    if (hadDark) {
+      html.classList.remove('dark');
+      html.style.colorScheme = 'light';
+    }
+
+    // Small delay to let CSS recalculate with light mode
+    setTimeout(() => {
+      window.print();
+
+      // Restore dark mode after print dialog closes
+      if (hadDark) {
+        // Use onafterprint to restore dark mode
+        const restore = () => {
+          html.classList.add('dark');
+          html.style.colorScheme = 'dark';
+          window.removeEventListener('afterprint', restore);
+        };
+        window.addEventListener('afterprint', restore);
+
+        // Fallback: restore after 1 second in case afterprint doesn't fire
+        setTimeout(() => {
+          if (!html.classList.contains('dark')) {
+            html.classList.add('dark');
+            html.style.colorScheme = 'dark';
+          }
+        }, 1000);
+      }
+    }, 100);
   };
 
   if (loading && !data) {

@@ -664,7 +664,17 @@ export default function AdminCreditPosting() {
   };
 
   const handlePrintReceipt = () => {
-    window.print();
+    const html = document.documentElement;
+    const hadDark = html.classList.contains('dark');
+    if (hadDark) { html.classList.remove('dark'); html.style.colorScheme = 'light'; }
+    setTimeout(() => {
+      window.print();
+      if (hadDark) {
+        const restore = () => { html.classList.add('dark'); html.style.colorScheme = 'dark'; window.removeEventListener('afterprint', restore); };
+        window.addEventListener('afterprint', restore);
+        setTimeout(() => { if (!html.classList.contains('dark')) { html.classList.add('dark'); html.style.colorScheme = 'dark'; } }, 1000);
+      }
+    }, 100);
   };
 
   // Edit transaction handlers
