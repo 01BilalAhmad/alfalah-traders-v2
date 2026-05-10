@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, status } = body;
+    const { name, description, status, distributorPhone } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: 'Company name is required' }, { status: 400 });
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
       data: {
         name: name.trim(),
         description: description?.trim() || null,
+        distributorPhone: distributorPhone?.trim() || null,
         status: status || 'active',
       },
     });

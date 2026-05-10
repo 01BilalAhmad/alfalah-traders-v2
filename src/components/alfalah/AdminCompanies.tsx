@@ -34,6 +34,7 @@ import {
   Store,
   CheckCircle,
   XCircle,
+  Phone,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -42,6 +43,7 @@ interface Company {
   id: string;
   name: string;
   description: string | null;
+  distributorPhone: string | null;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -60,6 +62,7 @@ export default function AdminCompanies() {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
+  const [formDistributorPhone, setFormDistributorPhone] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Delete confirmation
@@ -88,6 +91,7 @@ export default function AdminCompanies() {
     setEditingCompany(null);
     setFormName('');
     setFormDescription('');
+    setFormDistributorPhone('');
     setDialogOpen(true);
   };
 
@@ -95,6 +99,7 @@ export default function AdminCompanies() {
     setEditingCompany(company);
     setFormName(company.name);
     setFormDescription(company.description || '');
+    setFormDistributorPhone(company.distributorPhone || '');
     setDialogOpen(true);
   };
 
@@ -108,6 +113,7 @@ export default function AdminCompanies() {
       const payload = {
         name: formName.trim(),
         description: formDescription.trim() || undefined,
+        distributorPhone: formDistributorPhone.trim() || undefined,
       };
 
       let res: Response;
@@ -294,6 +300,12 @@ export default function AdminCompanies() {
                     <Building2 className="h-3.5 w-3.5" />
                     <span>{company._count?.transactions || 0} transaction(s)</span>
                   </div>
+                  {company.distributorPhone && (
+                    <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+                      <Phone className="h-3.5 w-3.5" />
+                      <span>{company.distributorPhone}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2">
@@ -361,6 +373,16 @@ export default function AdminCompanies() {
                 className="input-enhanced"
               />
               <p className="text-[10px] text-muted-foreground">Optional full name or description of the company.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Distributor Phone <span className="text-muted-foreground text-[10px] font-normal">(optional)</span></Label>
+              <Input
+                value={formDistributorPhone}
+                onChange={(e) => setFormDistributorPhone(e.target.value)}
+                placeholder="e.g., 0300-1234567"
+                className="input-enhanced"
+              />
+              <p className="text-[10px] text-muted-foreground">Distributor contact number — will be shown on receipts sent to shops.</p>
             </div>
           </div>
           <DialogFooter className="gap-2">
