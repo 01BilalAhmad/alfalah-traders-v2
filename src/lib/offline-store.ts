@@ -24,6 +24,10 @@ export interface CachedShop {
   status: string;
   orderbookerId: string;
   orderbookerName: string;
+  companyId: string | null;
+  companyName: string | null;
+  distributorPhone: string | null;
+  companyBalances?: { companyId: string; companyName: string; balance: number; creditLimit: number; distributorPhone?: string | null }[];
 }
 
 export interface PendingTransaction {
@@ -39,6 +43,8 @@ export interface PendingTransaction {
   createdAt: string;    // ISO timestamp when created offline
   synced: boolean;
   syncError: string | null;
+  distributorPhone?: string | null;  // cached for receipt/SMS
+  companyName?: string | null;       // cached for receipt/SMS
 }
 
 // ─── Shop Cache ─────────────────────────────────────────────────────────────

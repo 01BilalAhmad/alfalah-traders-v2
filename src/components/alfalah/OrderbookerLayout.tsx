@@ -92,6 +92,9 @@ interface Shop {
   creditLimit: number;
   status: string;
   orderbooker: { id: string; name: string };
+  companyId?: string | null;
+  companyName?: string | null;
+  distributorPhone?: string | null;
   companyBalances?: { companyId: string; companyName: string; balance: number; creditLimit: number }[];
 }
 
@@ -747,6 +750,12 @@ function OfflineBanner({ isOnline, unsyncedCount, syncing, onSync }: { isOnline:
 function PendingSyncCard({ transactions }: { transactions: PendingTransaction[] }) {
   if (transactions.length === 0) return null;
 
+  // Get cached distributor phone for offline receipt display
+  let cachedDistPhone: string | null = null;
+  try {
+    cachedDistPhone = localStorage.getItem('alfalah-distributor-phone') || null;
+  } catch { /* storage unavailable */ }
+
   return (
     <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800">
       <CardContent className="p-3">
@@ -762,6 +771,11 @@ function PendingSyncCard({ transactions }: { transactions: PendingTransaction[] 
               <div className="flex items-center gap-1.5 min-w-0">
                 <div className={`h-2 w-2 rounded-full shrink-0 ${txn.synced ? 'bg-green-500' : txn.syncError ? 'bg-red-500' : 'bg-amber-500 animate-pulse'}`} />
                 <span className="truncate">{txn.shopName}</span>
+                {(txn.distributorPhone || cachedDistPhone) && (
+                  <span className="text-[9px] text-green-600 dark:text-green-400 shrink-0">
+                    📞 {txn.distributorPhone || cachedDistPhone}
+                  </span>
+                )}
               </div>
               <span className="font-semibold text-amber-700 dark:text-amber-400 shrink-0 ml-2">
                 Rs. {txn.amount.toLocaleString('en-PK')}
@@ -1066,7 +1080,26 @@ function OrderbookerDashboard() {
         const data = await res.json();
         setShops(data);
         setIsOfflineMode(false);
-        // Cache shops for offline use
+
+        // Fetch distributor phone for the orderbooker's company (for offline receipts)
+        let distributorPhone: string | null = null;
+        let companyName: string | null = null;
+        try {
+          const dpRes = await apiFetch(`/api/companies/distributor-phone${user.companyId ? `?companyId=${user.companyId}` : ''}`);
+          if (dpRes.ok) {
+            const dpData = await dpRes.json();
+            distributorPhone = dpData.distributorPhone || null;
+            companyName = dpData.companyName || null;
+          }
+        } catch { /* non-blocking */ }
+
+        // Cache distributor phone in localStorage for offline use
+        try {
+          localStorage.setItem('alfalah-distributor-phone', distributorPhone || '');
+          localStorage.setItem('alfalah-company-name', companyName || '');
+        } catch { /* storage unavailable */ }
+
+        // Cache shops for offline use (including company/distributor info for receipts)
         cacheShops(data.map((s: Shop) => ({
           id: s.id,
           name: s.name,
@@ -1079,12 +1112,29 @@ function OrderbookerDashboard() {
           status: s.status,
           orderbookerId: s.orderbooker?.id || '',
           orderbookerName: s.orderbooker?.name || '',
+          companyId: s.companyBalances?.[0]?.companyId || user.companyId || null,
+          companyName: s.companyBalances?.[0]?.companyName || companyName || null,
+          distributorPhone: distributorPhone,
+          companyBalances: s.companyBalances?.map(cb => ({
+            companyId: cb.companyId,
+            companyName: cb.companyName,
+            balance: cb.balance,
+            creditLimit: cb.creditLimit,
+          })),
         })));
       }
     } catch {
       // Network error — try loading from cache
       const cached = getCachedShops();
       if (cached.length > 0) {
+        // Also restore cached distributor phone
+        let cachedDistPhone: string | null = null;
+        let cachedCompanyName: string | null = null;
+        try {
+          cachedDistPhone = localStorage.getItem('alfalah-distributor-phone') || null;
+          cachedCompanyName = localStorage.getItem('alfalah-company-name') || null;
+        } catch { /* storage unavailable */ }
+
         setShops(cached.map((s: CachedShop) => ({
           id: s.id,
           name: s.name,
@@ -1096,6 +1146,10 @@ function OrderbookerDashboard() {
           creditLimit: s.creditLimit,
           status: s.status,
           orderbooker: { id: s.orderbookerId, name: s.orderbookerName },
+          companyId: s.companyId,
+          companyName: s.companyName,
+          distributorPhone: s.distributorPhone || cachedDistPhone,
+          companyBalances: s.companyBalances,
         })));
         setIsOfflineMode(true);
         toast({ title: 'Offline Mode', description: `Loaded ${cached.length} shops from cache (${getCacheAge()})` });
@@ -1261,6 +1315,14 @@ function OrderbookerDashboard() {
       setRefreshKey((k) => k + 1);
     } catch {
       // Network error — queue for offline sync
+      // Get cached distributor phone for receipt
+      let offlineDistPhone: string | null = null;
+      let offlineCompanyName: string | null = null;
+      try {
+        offlineDistPhone = localStorage.getItem('alfalah-distributor-phone') || selectedShop.distributorPhone || null;
+        offlineCompanyName = localStorage.getItem('alfalah-company-name') || selectedShop.companyName || null;
+      } catch { /* storage unavailable */ }
+
       addPendingTransaction({
         shopId: selectedShop.id,
         shopName: selectedShop.name,
@@ -1270,6 +1332,8 @@ function OrderbookerDashboard() {
         createdBy: user.id,
         gpsLat,
         gpsLng,
+        distributorPhone: offlineDistPhone,
+        companyName: offlineCompanyName,
       });
 
       setPendingTxns(getPendingTransactions());
@@ -1894,6 +1958,31 @@ function ShopDetailDialog({
                 </CardContent>
               </Card>
             </div>
+
+            {/* Distributor / Company Info */}
+            {(shop.distributorPhone || shop.companyName) && (
+              <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-800">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Phone className="h-3.5 w-3.5 text-green-600" />
+                    <span className="text-[10px] text-green-700 dark:text-green-400 font-semibold uppercase tracking-wider">
+                      {shop.companyName ? `${shop.companyName} Distributor` : 'Distributor'}
+                    </span>
+                  </div>
+                  {shop.distributorPhone && (
+                    <a
+                      href={`tel:${shop.distributorPhone}`}
+                      className="text-sm font-bold text-green-700 dark:text-green-300 hover:underline"
+                    >
+                      {shop.distributorPhone}
+                    </a>
+                  )}
+                  {!shop.distributorPhone && (
+                    <p className="text-xs text-muted-foreground">No distributor number available</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Credit Limit Utilization */}
             {shop.creditLimit > 0 && (() => {
