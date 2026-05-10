@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
@@ -19,6 +20,9 @@ import {
   RefreshCw,
   Loader2,
   Building2,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -44,12 +48,20 @@ interface CompanyGroup {
   totalBalance: number;
 }
 
+interface DayBreakdown {
+  day: string;
+  dayLabel: string;
+  shopCount: number;
+  totalBalance: number;
+}
+
 interface OrderbookerGroup {
   orderbookerId: string;
   orderbookerName: string;
   orderbookerPhone: string | null;
   companies: CompanyGroup[];
   totalBalance: number;
+  dayBreakdown: DayBreakdown[];
 }
 
 interface FilterOption {
@@ -103,6 +115,7 @@ export default function AdminBalanceReport() {
   const [loading, setLoading] = useState(false);
   const [selectedOB, setSelectedOB] = useState<string>('all');
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -131,6 +144,10 @@ export default function AdminBalanceReport() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const toggleDayExpand = (key: string) => {
+    setExpandedDays(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   if (loading && !data) {
@@ -278,6 +295,30 @@ export default function AdminBalanceReport() {
                 <div className="ob-phone">{ob.orderbookerPhone || ''}</div>
               </div>
 
+              {/* Day-wise breakdown in print */}
+              {ob.dayBreakdown && ob.dayBreakdown.length > 0 && (
+                <div style={{ marginBottom: '8px', fontSize: '11px' }}>
+                  <table className="balance-table" style={{ marginBottom: 0 }}>
+                    <thead>
+                      <tr>
+                        <th className="col-shop" style={{ fontSize: '10px', padding: '4px 8px' }}>Day</th>
+                        <th className="col-num" style={{ fontSize: '10px', padding: '4px 8px' }}>Shops</th>
+                        <th className="col-balance" style={{ fontSize: '10px', padding: '4px 8px' }}>Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ob.dayBreakdown.map((d) => (
+                        <tr key={d.day}>
+                          <td style={{ padding: '2px 8px' }}>{d.dayLabel}</td>
+                          <td className="col-num" style={{ padding: '2px 8px' }}>{d.shopCount}</td>
+                          <td className="col-balance" style={{ padding: '2px 8px' }}>{formatCurrency(d.totalBalance)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               {/* Companies within orderbooker */}
               {ob.companies.map((comp) => (
                 <div key={comp.companyId} className="company-section">
@@ -357,6 +398,49 @@ export default function AdminBalanceReport() {
                 </div>
                 <p className="text-sm font-bold text-red-600">Rs. {formatCurrency(ob.totalBalance)}</p>
               </div>
+
+              {/* Day-wise Breakdown Section */}
+              {ob.dayBreakdown && ob.dayBreakdown.length > 0 && (
+                <div className="border-b">
+                  <button
+                    className="w-full px-5 py-2.5 flex items-center justify-between hover:bg-muted/20 transition-colors"
+                    onClick={() => toggleDayExpand(ob.orderbookerId)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-semibold text-primary">Day-wise Balance Breakdown</span>
+                    </div>
+                    {expandedDays[ob.orderbookerId] ? (
+                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </button>
+
+                  {expandedDays[ob.orderbookerId] && (
+                    <div className="px-5 pb-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        {ob.dayBreakdown.map((d) => (
+                          <div
+                            key={d.day}
+                            className="rounded-lg border bg-card p-3 hover:shadow-sm transition-shadow"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold text-muted-foreground">{d.dayLabel}</span>
+                              <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                                {d.shopCount} {d.shopCount === 1 ? 'shop' : 'shops'}
+                              </Badge>
+                            </div>
+                            <p className="text-sm font-bold text-red-600 number-display">
+                              Rs. {formatCurrency(d.totalBalance)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Companies */}
               {ob.companies.map((comp) => (
