@@ -158,7 +158,7 @@ export default function AdminCompanyReport() {
     // Inject landscape @page rule for this print job
     const style = document.createElement('style');
     style.id = 'company-report-print-style';
-    style.textContent = '@page { size: landscape; margin: 6mm; }';
+    style.textContent = '@page { size: landscape; margin: 6mm; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }';
     document.head.appendChild(style);
     window.print();
     // Clean up after print dialog closes
