@@ -190,6 +190,7 @@ export default function AdminCreditPosting() {
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [creditAmount, setCreditAmount] = useState('');
   const [creditDescription, setCreditDescription] = useState('');
+  const [creditDate, setCreditDate] = useState(getTodayDateString());
 
   // Receipt state
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
@@ -459,6 +460,7 @@ export default function AdminCreditPosting() {
     setSelectedShop(shop);
     setCreditAmount('');
     setCreditDescription('');
+    setCreditDate(getTodayDateString());
     setQuickPostJustPosted(false);
     setCreditLimitWarning(null);
     setDuplicateCreditWarning(null);
@@ -512,6 +514,7 @@ export default function AdminCreditPosting() {
           description: creditDescription.trim() || 'Goods supplied',
           createdBy: user.id,
           companyId: selectedCompany || null,
+          customDate: creditDate !== getTodayDateString() ? creditDate : undefined,
         }),
       });
 
@@ -546,6 +549,7 @@ export default function AdminCreditPosting() {
         setQuickPostTotal((prev) => prev + amount);
         setCreditAmount('');
         setCreditDescription('');
+        setCreditDate(getTodayDateString());
         setAmountError('');
         setDescriptionError('');
         setQuickPostJustPosted(true);
@@ -1394,6 +1398,32 @@ export default function AdminCreditPosting() {
                 </div>
               </div>
             )}
+            {/* Date Picker */}
+            <div className="space-y-2">
+              <Label htmlFor="creditDate" className="flex items-center gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                Credit Date
+                {creditDate !== getTodayDateString() && (
+                  <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0 border-amber-300 text-amber-600 dark:border-amber-700 dark:text-amber-400">
+                    Backdated
+                  </Badge>
+                )}
+              </Label>
+              <Input
+                id="creditDate"
+                type="date"
+                value={creditDate}
+                max={getTodayDateString()}
+                onChange={(e) => setCreditDate(e.target.value)}
+                disabled={postingCredit}
+                className="text-sm"
+              />
+              {creditDate !== getTodayDateString() && (
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium animate-fade-in">
+                  Credit will be recorded for {new Date(creditDate + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })} instead of today
+                </p>
+              )}
+            </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="creditAmount">Amount (Rs.)</Label>

@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   let client;
   try {
-    const { shopId, type, amount, description, createdBy, gpsLat, gpsLng, gpsAddress, companyId, idempotencyKey } = await request.json();
+    const { shopId, type, amount, description, createdBy, gpsLat, gpsLng, gpsAddress, companyId, idempotencyKey, customDate } = await request.json();
 
     if (!shopId || !type || !amount || !createdBy) {
       return NextResponse.json({ error: 'Shop, type, amount, and creator are required' }, { status: 400 });
@@ -257,9 +257,12 @@ export async function POST(request: NextRequest) {
     // Validation 6: For credit type, check daily credit cap per shop
     const warnings: string[] = [];
     if (type === 'credit') {
-      const today = new Date();
-      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const [year, month, day] = todayStr.split('-').map(Number);
+      // Use customDate if provided (for backdated entries), otherwise use today
+      const dateToCheck = customDate || (() => {
+        const today = new Date();
+        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      })();
+      const [year, month, day] = dateToCheck.split('-').map(Number);
       const dayStart = new Date(Date.UTC(year, month - 1, day, -5, 0, 0, 0));
       const dayEnd = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
 
@@ -319,11 +322,26 @@ export async function POST(request: NextRequest) {
 
     // Create transaction record
     const txnId = `txn_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
+    // Use customDate for createdAt if provided (for backdated entries)
+    let createdAtIndex = new Date().toISOString();
+    if (customDate) {
+      // Validate: customDate must not be in the future
+      const customDateObj = new Date(customDate + 'T23:59:59');
+      const now = new Date();
+      if (customDateObj > now) {
+        await client.query('ROLLBACK');
+        await client.end();
+        return NextResponse.json({ error: 'Cannot post credit for a future date' }, { status: 400 });
+      }
+      // Use Pakistan timezone noon time for the custom date to ensure it falls in the correct day
+      const [cYear, cMonth, cDay] = customDate.split('-').map(Number);
+      createdAtIndex = new Date(Date.UTC(cYear, cMonth - 1, cDay, 12, 0, 0, 0)).toISOString();
+    }
     const txnRes = await client.query(
       `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "gpsLat", "gpsLng", "gpsAddress", "companyId", "idempotencyKey", "createdAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
-      [txnId, shopId, type, txnStatus, amount, previousBalance, Math.round(newBalance * 100) / 100, description || null, createdBy, gpsLat || null, gpsLng || null, gpsAddress || null, companyId || null, idempotencyKey || null, new Date().toISOString()]
+      [txnId, shopId, type, txnStatus, amount, previousBalance, Math.round(newBalance * 100) / 100, description || null, createdBy, gpsLat || null, gpsLng || null, gpsAddress || null, companyId || null, idempotencyKey || null, createdAtIndex]
     );
 
     const transaction = txnRes.rows[0];
