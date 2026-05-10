@@ -3,15 +3,16 @@ import { getPgClient } from '@/lib/pg';
 
 const DAYS_ORDER = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
-// GET /api/reports/balance-report?orderbookerId=xxx&companyId=xxx
+// GET /api/reports/balance-report?orderbookerId=xxx&companyId=xxx&routeDay=xxx
 // Returns shops with remaining balance > 0, grouped by orderbooker and company
-// Now includes day-wise breakdown of shops and balance per orderbooker
+// routeDay filter: when provided, only shows shops that have that route day
 export async function GET(request: NextRequest) {
   let client;
   try {
     const { searchParams } = new URL(request.url);
     const orderbookerId = searchParams.get('orderbookerId') || '';
     const companyId = searchParams.get('companyId') || '';
+    const routeDay = searchParams.get('routeDay') || '';
 
     client = getPgClient();
     await client.connect();
@@ -34,10 +35,20 @@ export async function GET(request: NextRequest) {
       paramIdx++;
     }
 
+    // Filter by route day using PostgreSQL array contains operator
+    if (routeDay) {
+      whereConditions.push(`($${paramIdx} = ANY(s."routeDays") OR EXISTS (
+        SELECT 1 FROM "ShopOrderbooker" so2
+        WHERE so2."shopId" = s.id AND $${paramIdx} = ANY(so2."routeDays")
+        ${orderbookerId ? `AND so2."orderbookerId" = $1` : ''}
+      ))`);
+      params.push(routeDay.toLowerCase());
+      paramIdx++;
+    }
+
     const whereClause = whereConditions.join(' AND ');
 
     // Fetch shop balances grouped by orderbooker and company
-    // Now also includes routeDays for day-wise breakdown
     const balanceRes = await client.query(
       `SELECT
         s.id as "shopId",
@@ -60,48 +71,6 @@ export async function GET(request: NextRequest) {
       WHERE ${whereClause}
       ORDER BY ob.name ASC, c.name ASC, s.name ASC`,
       params
-    );
-
-    // Also fetch shops assigned via ShopOrderbooker junction table
-    // for day-wise breakdown (assigned orderbookers may have different route days)
-    let junctionWhereConditions = ['scb.balance > 0', 's.status = \'active\''];
-    const junctionParams: string[] = [];
-    let jParamIdx = 1;
-
-    if (orderbookerId) {
-      junctionWhereConditions.push(`so."orderbookerId" = $${jParamIdx}`);
-      junctionParams.push(orderbookerId);
-      jParamIdx++;
-    }
-
-    if (companyId) {
-      junctionWhereConditions.push(`scb."companyId" = $${jParamIdx}`);
-      junctionParams.push(companyId);
-      jParamIdx++;
-    }
-
-    const junctionWhereClause = junctionWhereConditions.join(' AND ');
-
-    const junctionRes = await client.query(
-      `SELECT
-        s.id as "shopId",
-        s.name as "shopName",
-        s.area as "shopArea",
-        so."routeDays" as "junctionRouteDays",
-        so."orderbookerId",
-        ob.name as "orderbookerName",
-        ob.phone as "orderbookerPhone",
-        scb."companyId",
-        c.name as "companyName",
-        scb.balance as "remainingBalance"
-      FROM "ShopOrderbooker" so
-      JOIN "Shop" s ON s.id = so."shopId"
-      JOIN "ShopCompanyBalance" scb ON scb."shopId" = s.id AND scb."companyId" = so."companyId"
-      JOIN "User" ob ON ob.id = so."orderbookerId"
-      JOIN "Company" c ON c.id = scb."companyId"
-      WHERE ${junctionWhereClause}
-      ORDER BY ob.name ASC, c.name ASC, s.name ASC`,
-      junctionParams
     );
 
     // Also fetch all orderbookers for filter dropdown
@@ -130,15 +99,18 @@ export async function GET(request: NextRequest) {
           shopPhone: string | null;
           remainingBalance: number;
           creditLimit: number;
+          routeDays: string[];
         }[];
         totalBalance: number;
       }>;
       totalBalance: number;
     }> = {};
 
-    // Track day-wise data per orderbooker
-    // Key: orderbookerId, Value: { dayName: { shopIds: Set, totalBalance: number } }
+    // Track day-wise data per orderbooker (for day breakdown when no specific day is filtered)
     const dayWiseData: Record<string, Record<string, { shopIds: Set<string>; totalBalance: number }>> = {};
+
+    // Track shop total balance (sum across companies) for day-wise calculation
+    const shopBalanceMap: Record<string, number> = {};
 
     for (const row of balanceRes.rows) {
       const obId = row.orderbookerId;
@@ -174,48 +146,75 @@ export async function GET(request: NextRequest) {
         shopPhone: row.shopPhone,
         remainingBalance: Math.round(row.remainingBalance * 100) / 100,
         creditLimit: Math.round(row.creditLimit * 100) / 100,
+        routeDays: row.routeDays || [],
       });
 
       grouped[obId].companies[cId].totalBalance += row.remainingBalance;
       grouped[obId].totalBalance += row.remainingBalance;
 
-      // Add to day-wise breakdown using shop's routeDays
-      const routeDays: string[] = row.routeDays || [];
-      for (const day of routeDays) {
-        const dayLower = day.toLowerCase();
-        if (dayWiseData[obId][dayLower]) {
-          dayWiseData[obId][dayLower].shopIds.add(row.shopId);
-          // Only add balance once per shop (not per company)
-          // We'll calculate balance separately below
-        }
-      }
-    }
-
-    // Process junction table results for day-wise breakdown
-    for (const row of junctionRes.rows) {
-      const obId = row.orderbookerId;
-      if (!dayWiseData[obId]) {
-        dayWiseData[obId] = {};
-        for (const day of DAYS_ORDER) {
-          dayWiseData[obId][day] = { shopIds: new Set<string>(), totalBalance: 0 };
-        }
-      }
-
-      const junctionRouteDays: string[] = row.junctionRouteDays || [];
-      for (const day of junctionRouteDays) {
-        const dayLower = day.toLowerCase();
-        if (dayWiseData[obId][dayLower]) {
-          dayWiseData[obId][dayLower].shopIds.add(row.shopId);
-        }
-      }
-    }
-
-    // Now calculate day-wise balance for each orderbooker
-    // We need to fetch the shop's total balance (sum across all companies) per shop per day
-    const shopBalanceMap: Record<string, number> = {};
-    for (const row of balanceRes.rows) {
+      // Track shop total balance
       if (!shopBalanceMap[row.shopId]) shopBalanceMap[row.shopId] = 0;
       shopBalanceMap[row.shopId] += row.remainingBalance;
+
+      // Add to day-wise breakdown using shop's routeDays
+      const rDays: string[] = row.routeDays || [];
+      for (const day of rDays) {
+        const dayLower = day.toLowerCase();
+        if (dayWiseData[obId]?.[dayLower]) {
+          dayWiseData[obId][dayLower].shopIds.add(row.shopId);
+        }
+      }
+    }
+
+    // Also fetch junction table data for day-wise breakdown (when no specific routeDay filter)
+    if (!routeDay) {
+      let junctionWhereConditions = ['scb.balance > 0', 's.status = \'active\''];
+      const junctionParams: string[] = [];
+      let jParamIdx = 1;
+
+      if (orderbookerId) {
+        junctionWhereConditions.push(`so."orderbookerId" = $${jParamIdx}`);
+        junctionParams.push(orderbookerId);
+        jParamIdx++;
+      }
+
+      if (companyId) {
+        junctionWhereConditions.push(`scb."companyId" = $${jParamIdx}`);
+        junctionParams.push(companyId);
+        jParamIdx++;
+      }
+
+      const junctionWhereClause = junctionWhereConditions.join(' AND ');
+
+      const junctionRes = await client.query(
+        `SELECT
+          s.id as "shopId",
+          so."routeDays" as "junctionRouteDays",
+          so."orderbookerId"
+        FROM "ShopOrderbooker" so
+        JOIN "Shop" s ON s.id = so."shopId"
+        JOIN "ShopCompanyBalance" scb ON scb."shopId" = s.id AND scb."companyId" = so."companyId"
+        WHERE ${junctionWhereClause}`,
+        junctionParams
+      );
+
+      for (const row of junctionRes.rows) {
+        const obId = row.orderbookerId;
+        if (!dayWiseData[obId]) {
+          dayWiseData[obId] = {};
+          for (const day of DAYS_ORDER) {
+            dayWiseData[obId][day] = { shopIds: new Set<string>(), totalBalance: 0 };
+          }
+        }
+
+        const junctionRouteDays: string[] = row.junctionRouteDays || [];
+        for (const day of junctionRouteDays) {
+          const dayLower = day.toLowerCase();
+          if (dayWiseData[obId][dayLower]) {
+            dayWiseData[obId][dayLower].shopIds.add(row.shopId);
+          }
+        }
+      }
     }
 
     // Calculate day-wise totals using shop total balance
@@ -236,7 +235,7 @@ export async function GET(request: NextRequest) {
         dayLabel: day.charAt(0).toUpperCase() + day.slice(1),
         shopCount: dayWiseData[ob.orderbookerId]?.[day]?.shopIds?.size || 0,
         totalBalance: dayWiseData[ob.orderbookerId]?.[day]?.totalBalance || 0,
-      })).filter(d => d.shopCount > 0); // Only include days that have shops
+      })).filter(d => d.shopCount > 0);
 
       return {
         ...ob,
@@ -258,6 +257,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       orderbookers,
       grandTotal,
+      selectedDay: routeDay || null,
       filterOptions: {
         orderbookers: obRes.rows.map((r: { id: string; name: string }) => ({ id: r.id, name: r.name })),
         companies: compRes.rows.map((r: { id: string; name: string }) => ({ id: r.id, name: r.name })),

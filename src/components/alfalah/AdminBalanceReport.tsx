@@ -21,8 +21,6 @@ import {
   Loader2,
   Building2,
   Calendar,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -30,6 +28,16 @@ import { apiFetch } from '@/lib/api';
 function formatCurrency(amount: number): string {
   return `${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
+
+const ROUTE_DAYS = [
+  { value: 'sunday', label: 'Sunday' },
+  { value: 'monday', label: 'Monday' },
+  { value: 'tuesday', label: 'Tuesday' },
+  { value: 'wednesday', label: 'Wednesday' },
+  { value: 'thursday', label: 'Thursday' },
+  { value: 'friday', label: 'Friday' },
+  { value: 'saturday', label: 'Saturday' },
+];
 
 interface ShopBalance {
   shopId: string;
@@ -39,6 +47,7 @@ interface ShopBalance {
   shopPhone: string | null;
   remainingBalance: number;
   creditLimit: number;
+  routeDays: string[];
 }
 
 interface CompanyGroup {
@@ -72,6 +81,7 @@ interface FilterOption {
 interface BalanceReportData {
   orderbookers: OrderbookerGroup[];
   grandTotal: number;
+  selectedDay: string | null;
   filterOptions: {
     orderbookers: FilterOption[];
     companies: FilterOption[];
@@ -82,6 +92,7 @@ function BalanceSkeleton() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-4">
+        <Skeleton className="h-9 w-48" />
         <Skeleton className="h-9 w-48" />
         <Skeleton className="h-9 w-48" />
         <Skeleton className="h-9 w-24" />
@@ -115,7 +126,7 @@ export default function AdminBalanceReport() {
   const [loading, setLoading] = useState(false);
   const [selectedOB, setSelectedOB] = useState<string>('all');
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
-  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+  const [selectedDay, setSelectedDay] = useState<string>('all');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -123,6 +134,7 @@ export default function AdminBalanceReport() {
       const params = new URLSearchParams();
       if (selectedOB && selectedOB !== 'all') params.set('orderbookerId', selectedOB);
       if (selectedCompany && selectedCompany !== 'all') params.set('companyId', selectedCompany);
+      if (selectedDay && selectedDay !== 'all') params.set('routeDay', selectedDay);
 
       const res = await apiFetch(`/api/reports/balance-report?${params.toString()}`);
       if (res.ok) {
@@ -136,7 +148,7 @@ export default function AdminBalanceReport() {
     } finally {
       setLoading(false);
     }
-  }, [selectedOB, selectedCompany]);
+  }, [selectedOB, selectedCompany, selectedDay]);
 
   useEffect(() => {
     fetchData();
@@ -144,10 +156,6 @@ export default function AdminBalanceReport() {
 
   const handlePrint = () => {
     window.print();
-  };
-
-  const toggleDayExpand = (key: string) => {
-    setExpandedDays(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   if (loading && !data) {
@@ -158,6 +166,8 @@ export default function AdminBalanceReport() {
     (s, ob) => s + ob.companies.reduce((cs, comp) => cs + comp.shops.length, 0), 0
   ) || 0;
 
+  const selectedDayLabel = ROUTE_DAYS.find(d => d.value === selectedDay)?.label || '';
+
   return (
     <div className="space-y-5">
       {/* Screen-only header */}
@@ -166,9 +176,14 @@ export default function AdminBalanceReport() {
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
             <Banknote className="h-5 w-5 text-primary" />
             Remaining Balance Report
+            {selectedDay !== 'all' && data && (
+              <Badge className="ml-2 bg-primary/10 text-primary hover:bg-primary/20 border-primary/20">
+                {selectedDayLabel}
+              </Badge>
+            )}
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Shops with outstanding balance — print by orderbooker &amp; company
+            Shops with outstanding balance — filter by day, orderbooker &amp; company
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -190,6 +205,22 @@ export default function AdminBalanceReport() {
 
       {/* Filters - screen only */}
       <div className="flex flex-wrap items-center gap-3 print-hidden">
+        {/* Day Filter */}
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Select value={selectedDay} onValueChange={setSelectedDay}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="All Days" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Days</SelectItem>
+              {ROUTE_DAYS.map((d) => (
+                <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" />
           <Select value={selectedOB} onValueChange={setSelectedOB}>
@@ -230,7 +261,9 @@ export default function AdminBalanceReport() {
                 <Banknote className="h-5 w-5 text-red-600" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
+                <p className="text-xs text-muted-foreground font-medium">
+                  {selectedDay !== 'all' ? `${selectedDayLabel} Outstanding` : 'Total Outstanding'}
+                </p>
                 <p className="text-xl font-bold text-red-600 number-display">Rs. {formatCurrency(data.grandTotal)}</p>
               </div>
             </CardContent>
@@ -241,7 +274,9 @@ export default function AdminBalanceReport() {
                 <Store className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium">Shops with Balance</p>
+                <p className="text-xs text-muted-foreground font-medium">
+                  {selectedDay !== 'all' ? `${selectedDayLabel} Shops` : 'Shops with Balance'}
+                </p>
                 <p className="text-xl font-bold text-foreground">{totalShops}</p>
               </div>
             </CardContent>
@@ -269,9 +304,15 @@ export default function AdminBalanceReport() {
                 <Banknote className="h-9 w-9 text-green-500/50 animate-gentle-float" />
               </div>
             </div>
-            <p className="font-semibold text-muted-foreground text-sm">No outstanding balances found</p>
+            <p className="font-semibold text-muted-foreground text-sm">
+              {selectedDay !== 'all'
+                ? `No outstanding balances for ${selectedDayLabel}`
+                : 'No outstanding balances found'}
+            </p>
             <p className="text-xs text-muted-foreground/70 mt-1.5 max-w-xs mx-auto leading-relaxed">
-              All shops are settled! Outstanding balances will appear here when shops have credit.
+              {selectedDay !== 'all'
+                ? `No shops with balance found for ${selectedDayLabel}. Try selecting a different day.`
+                : 'All shops are settled! Outstanding balances will appear here when shops have credit.'}
             </p>
           </CardContent>
         </Card>
@@ -283,9 +324,42 @@ export default function AdminBalanceReport() {
           {/* Print Header */}
           <div className="print-header print-only">
             <div className="print-header-title">Al-Falah Traders</div>
-            <div className="print-header-subtitle">Remaining Balance Report</div>
+            <div className="print-header-subtitle">
+              Remaining Balance Report
+              {selectedDay !== 'all' && ` — ${selectedDayLabel}`}
+            </div>
             <div className="print-header-date">{new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
           </div>
+
+          {/* Day-wise summary in print (only when showing all days) */}
+          {selectedDay === 'all' && data.orderbookers.some(ob => ob.dayBreakdown.length > 0) && (
+            <div className="print-only" style={{ marginBottom: '12px' }}>
+              <table className="balance-table" style={{ marginBottom: 0, fontSize: '11px' }}>
+                <thead>
+                  <tr>
+                    <th className="col-shop" style={{ fontSize: '10px', padding: '4px 8px' }}>Orderbooker</th>
+                    <th className="col-area" style={{ fontSize: '10px', padding: '4px 8px' }}>Day</th>
+                    <th className="col-num" style={{ fontSize: '10px', padding: '4px 8px' }}>Shops</th>
+                    <th className="col-balance" style={{ fontSize: '10px', padding: '4px 8px' }}>Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.orderbookers.map(ob =>
+                    ob.dayBreakdown.map((d, dIdx) => (
+                      <tr key={`${ob.orderbookerId}-${d.day}`}>
+                        <td style={{ padding: '2px 8px', fontWeight: dIdx === 0 ? '600' : 'normal' }}>
+                          {dIdx === 0 ? ob.orderbookerName : ''}
+                        </td>
+                        <td style={{ padding: '2px 8px' }}>{d.dayLabel}</td>
+                        <td className="col-num" style={{ padding: '2px 8px' }}>{d.shopCount}</td>
+                        <td className="col-balance" style={{ padding: '2px 8px' }}>{formatCurrency(d.totalBalance)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {data.orderbookers.map((ob) => (
             <div key={ob.orderbookerId} className="balance-section">
@@ -294,30 +368,6 @@ export default function AdminBalanceReport() {
                 <div className="ob-name">{ob.orderbookerName}</div>
                 <div className="ob-phone">{ob.orderbookerPhone || ''}</div>
               </div>
-
-              {/* Day-wise breakdown in print */}
-              {ob.dayBreakdown && ob.dayBreakdown.length > 0 && (
-                <div style={{ marginBottom: '8px', fontSize: '11px' }}>
-                  <table className="balance-table" style={{ marginBottom: 0 }}>
-                    <thead>
-                      <tr>
-                        <th className="col-shop" style={{ fontSize: '10px', padding: '4px 8px' }}>Day</th>
-                        <th className="col-num" style={{ fontSize: '10px', padding: '4px 8px' }}>Shops</th>
-                        <th className="col-balance" style={{ fontSize: '10px', padding: '4px 8px' }}>Balance</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ob.dayBreakdown.map((d) => (
-                        <tr key={d.day}>
-                          <td style={{ padding: '2px 8px' }}>{d.dayLabel}</td>
-                          <td className="col-num" style={{ padding: '2px 8px' }}>{d.shopCount}</td>
-                          <td className="col-balance" style={{ padding: '2px 8px' }}>{formatCurrency(d.totalBalance)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
 
               {/* Companies within orderbooker */}
               {ob.companies.map((comp) => (
@@ -336,6 +386,9 @@ export default function AdminBalanceReport() {
                         <th className="col-num">#</th>
                         <th className="col-shop">Shop Name</th>
                         <th className="col-area">Area</th>
+                        {selectedDay === 'all' && (
+                          <th className="col-area">Route Days</th>
+                        )}
                         <th className="col-balance">Balance</th>
                       </tr>
                     </thead>
@@ -345,6 +398,9 @@ export default function AdminBalanceReport() {
                           <td className="col-num">{idx + 1}</td>
                           <td className="col-shop">{shop.shopName}</td>
                           <td className="col-area">{shop.shopArea || '—'}</td>
+                          {selectedDay === 'all' && (
+                            <td className="col-area">{(shop.routeDays || []).map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}</td>
+                          )}
                           <td className="col-balance">{formatCurrency(shop.remainingBalance)}</td>
                         </tr>
                       ))}
@@ -353,7 +409,7 @@ export default function AdminBalanceReport() {
                       {/* Show company total only when multiple companies */}
                       {ob.companies.length > 1 && (
                         <tr className="total-row">
-                          <td colSpan={3} className="total-label">Total {comp.companyName}</td>
+                          <td colSpan={selectedDay === 'all' ? 4 : 3} className="total-label">Total {comp.companyName}</td>
                           <td className="total-value">{formatCurrency(comp.totalBalance)}</td>
                         </tr>
                       )}
@@ -364,7 +420,10 @@ export default function AdminBalanceReport() {
 
               {/* Orderbooker Total */}
               <div className="ob-total">
-                <span className="ob-total-label">Total {ob.orderbookerName}</span>
+                <span className="ob-total-label">
+                  Total {ob.orderbookerName}
+                  {selectedDay !== 'all' && ` (${selectedDayLabel})`}
+                </span>
                 <span className="ob-total-value">Rs. {formatCurrency(ob.totalBalance)}</span>
               </div>
             </div>
@@ -372,7 +431,10 @@ export default function AdminBalanceReport() {
 
           {/* Grand Total - print only */}
           <div className="grand-total print-only">
-            <span className="grand-total-label">Grand Total</span>
+            <span className="grand-total-label">
+              Grand Total
+              {selectedDay !== 'all' && ` — ${selectedDayLabel}`}
+            </span>
             <span className="grand-total-value">Rs. {formatCurrency(data.grandTotal)}</span>
           </div>
         </div>
@@ -396,49 +458,33 @@ export default function AdminBalanceReport() {
                     )}
                   </div>
                 </div>
-                <p className="text-sm font-bold text-red-600">Rs. {formatCurrency(ob.totalBalance)}</p>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-red-600">Rs. {formatCurrency(ob.totalBalance)}</p>
+                  {selectedDay !== 'all' && (
+                    <p className="text-[10px] text-muted-foreground">{selectedDayLabel} routes only</p>
+                  )}
+                </div>
               </div>
 
-              {/* Day-wise Breakdown Section */}
-              {ob.dayBreakdown && ob.dayBreakdown.length > 0 && (
-                <div className="border-b">
-                  <button
-                    className="w-full px-5 py-2.5 flex items-center justify-between hover:bg-muted/20 transition-colors"
-                    onClick={() => toggleDayExpand(ob.orderbookerId)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-primary" />
-                      <span className="text-xs font-semibold text-primary">Day-wise Balance Breakdown</span>
-                    </div>
-                    {expandedDays[ob.orderbookerId] ? (
-                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </button>
-
-                  {expandedDays[ob.orderbookerId] && (
-                    <div className="px-5 pb-3">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                        {ob.dayBreakdown.map((d) => (
-                          <div
-                            key={d.day}
-                            className="rounded-lg border bg-card p-3 hover:shadow-sm transition-shadow"
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-semibold text-muted-foreground">{d.dayLabel}</span>
-                              <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
-                                {d.shopCount} {d.shopCount === 1 ? 'shop' : 'shops'}
-                              </Badge>
-                            </div>
-                            <p className="text-sm font-bold text-red-600 number-display">
-                              Rs. {formatCurrency(d.totalBalance)}
-                            </p>
-                          </div>
-                        ))}
+              {/* Day-wise mini summary (when all days selected) */}
+              {selectedDay === 'all' && ob.dayBreakdown.length > 0 && (
+                <div className="px-5 py-2 bg-muted/20 border-b">
+                  <div className="flex flex-wrap gap-2">
+                    {ob.dayBreakdown.map((d) => (
+                      <div
+                        key={d.day}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-card border text-[11px] cursor-pointer hover:bg-primary/5 hover:border-primary/30 transition-colors"
+                        onClick={() => setSelectedDay(d.day)}
+                        title={`Click to filter ${d.dayLabel} only`}
+                      >
+                        <span className="font-medium text-muted-foreground">{d.dayLabel.slice(0, 3)}</span>
+                        <Badge variant="secondary" className="text-[9px] h-4 px-1">
+                          {d.shopCount}
+                        </Badge>
+                        <span className="font-semibold text-red-600">{formatCurrency(d.totalBalance)}</span>
                       </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -459,9 +505,16 @@ export default function AdminBalanceReport() {
                           <span className="text-[11px] text-muted-foreground w-6">{idx + 1}</span>
                           <div>
                             <p className="text-sm font-medium">{shop.shopName}</p>
-                            {shop.shopArea && (
-                              <p className="text-[11px] text-muted-foreground">{shop.shopArea}</p>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {shop.shopArea && (
+                                <p className="text-[11px] text-muted-foreground">{shop.shopArea}</p>
+                              )}
+                              {selectedDay === 'all' && (shop.routeDays || []).length > 0 && (
+                                <span className="text-[10px] text-muted-foreground/60">
+                                  ({(shop.routeDays || []).map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')})
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <p className="text-sm font-bold">Rs. {formatCurrency(shop.remainingBalance)}</p>
