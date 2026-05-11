@@ -223,6 +223,10 @@ export default function AdminCreditPosting() {
   const [quickPostCompany, setQuickPostCompany] = useState<string>('');
   const [quickPostOrderbooker, setQuickPostOrderbooker] = useState<string>('');
 
+  // Quick Post - All shops (unfiltered, for search across all orderbookers)
+  const [quickPostAllShops, setQuickPostAllShops] = useState<Shop[]>([]);
+  const [quickPostAllShopsLoading, setQuickPostAllShopsLoading] = useState(false);
+
   // Inline shop creation in Quick Post
   const [showCreateShop, setShowCreateShop] = useState(false);
   const [newShopName, setNewShopName] = useState('');
@@ -704,6 +708,8 @@ export default function AdminCreditPosting() {
     setQuickPostAmountError('');
     setQuickPostCompany('');
     setQuickPostOrderbooker('');
+    setQuickPostAllShops([]);
+    setQuickPostAllShopsLoading(false);
     setShowCreateShop(false);
     setNewShopName('');
     setNewShopArea('');
@@ -712,6 +718,25 @@ export default function AdminCreditPosting() {
     setCreatingShop(false);
     setCreditDialogOpen(false);
   };
+
+  // Quick Post: Fetch ALL shops for selected orderbooker (no day filter)
+  const fetchQuickPostShops = useCallback(async (orderbookerId: string) => {
+    setQuickPostAllShopsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('orderbookerId', orderbookerId);
+      params.set('balanceOnly', 'false');
+      const res = await apiFetch(`/api/shops?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setQuickPostAllShops(data);
+      }
+    } catch {
+      // silent
+    } finally {
+      setQuickPostAllShopsLoading(false);
+    }
+  }, []);
 
   // Quick Post: submit credit for the selected shop
   const handleQuickPostSubmit = async () => {
@@ -1609,6 +1634,8 @@ export default function AdminCreditPosting() {
                       setSelectedCompany(quickPostCompany);
                       setSelectedOrderbooker(quickPostOrderbooker);
                       setQuickPostStep('search');
+                      // Fetch ALL shops for this orderbooker (no day filter)
+                      fetchQuickPostShops(quickPostOrderbooker);
                     }}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold"
                   >
@@ -1674,7 +1701,13 @@ export default function AdminCreditPosting() {
                   {!showCreateShop ? (
                     <>
                       <div className="max-h-[280px] overflow-y-auto space-y-1">
-                        {shops
+                        {quickPostAllShopsLoading && (
+                          <div className="flex items-center justify-center py-6 gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">Loading shops...</span>
+                          </div>
+                        )}
+                        {!quickPostAllShopsLoading && quickPostAllShops
                           .filter((s) => {
                             if (!quickPostSearch.trim()) return true;
                             const q = quickPostSearch.toLowerCase();
@@ -1698,7 +1731,7 @@ export default function AdminCreditPosting() {
                               </span>
                             </button>
                           ))}
-                        {quickPostSearch.trim() && shops.filter((s) => {
+                        {!quickPostAllShopsLoading && quickPostSearch.trim() && quickPostAllShops.filter((s) => {
                           const q = quickPostSearch.toLowerCase();
                           return s.name.toLowerCase().includes(q) || (s.area || '').toLowerCase().includes(q);
                         }).length === 0 && (
@@ -1722,7 +1755,7 @@ export default function AdminCreditPosting() {
                             </Button>
                           </div>
                         )}
-                        {!quickPostSearch.trim() && shops.length === 0 && (
+                        {!quickPostAllShopsLoading && !quickPostSearch.trim() && quickPostAllShops.length === 0 && (
                           <div className="text-center py-4 space-y-3">
                             <p className="text-xs text-muted-foreground">No shops available for this orderbooker</p>
                             <Button
@@ -1742,7 +1775,7 @@ export default function AdminCreditPosting() {
                         )}
                       </div>
                       {/* Always show Create New Shop button at bottom */}
-                      {shops.length > 0 && !quickPostSearch.trim() && (
+                      {!quickPostAllShopsLoading && quickPostAllShops.length > 0 && !quickPostSearch.trim() && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1905,6 +1938,7 @@ export default function AdminCreditPosting() {
 
                             // Refresh shops list in background
                             fetchShops();
+                            fetchQuickPostShops(quickPostOrderbooker);
                           } catch {
                             toast({ title: 'Error', description: 'Failed to create shop', variant: 'destructive' });
                           } finally {
