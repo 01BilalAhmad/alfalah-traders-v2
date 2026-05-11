@@ -351,7 +351,7 @@ export default function AdminBalanceReport() {
       {/* ─── PRINT AREA ─── */}
       {data && data.orderbookers.length > 0 && (
         <div className="print-area">
-          {/* Print Header — Full Page */}
+          {/* Print Header — Compact top header */}
           <div className="print-header print-only">
             <div className="print-header-inner">
               <div className="print-header-logo">Al-Falah Traders</div>
@@ -479,7 +479,7 @@ export default function AdminBalanceReport() {
           ))}
           </div>{/* end print-details */}
 
-          {/* Grand Total — Full Page Footer */}
+          {/* Grand Total — Footer section */}
           <div className="grand-total-page print-only">
             <div className="grand-total-inner">
               <div className="grand-total-title">Grand Total</div>
