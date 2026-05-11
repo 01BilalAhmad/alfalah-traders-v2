@@ -219,6 +219,18 @@ export default function AdminCreditPosting() {
   const [quickPostAmount, setQuickPostAmount] = useState('');
   const [quickPostAmountError, setQuickPostAmountError] = useState('');
 
+  // Quick Post - Company & Orderbooker (session locked)
+  const [quickPostCompany, setQuickPostCompany] = useState<string>('');
+  const [quickPostOrderbooker, setQuickPostOrderbooker] = useState<string>('');
+
+  // Inline shop creation in Quick Post
+  const [showCreateShop, setShowCreateShop] = useState(false);
+  const [newShopName, setNewShopName] = useState('');
+  const [newShopArea, setNewShopArea] = useState('');
+  const [newShopPhone, setNewShopPhone] = useState('');
+  const [newShopRouteDays, setNewShopRouteDays] = useState<string[]>([]);
+  const [creatingShop, setCreatingShop] = useState(false);
+
   // Credit limit warning state
   const [creditLimitWarning, setCreditLimitWarning] = useState<CreditLimitWarning | null>(null);
 
@@ -690,6 +702,14 @@ export default function AdminCreditPosting() {
     setQuickPostSelectedShop(null);
     setQuickPostAmount('');
     setQuickPostAmountError('');
+    setQuickPostCompany('');
+    setQuickPostOrderbooker('');
+    setShowCreateShop(false);
+    setNewShopName('');
+    setNewShopArea('');
+    setNewShopPhone('');
+    setNewShopRouteDays([]);
+    setCreatingShop(false);
     setCreditDialogOpen(false);
   };
 
@@ -702,8 +722,9 @@ export default function AdminCreditPosting() {
     if (!user) return;
 
     // Require company selection when companies exist
-    if (companies.length > 0 && !selectedCompany) {
-      toast({ title: 'Company Required', description: 'Please select a company at the top before posting credit', variant: 'destructive' });
+    const companyToUse = quickPostCompany || selectedCompany;
+    if (companies.length > 0 && !companyToUse) {
+      toast({ title: 'Company Required', description: 'Please select a company before posting credit', variant: 'destructive' });
       return;
     }
 
@@ -728,7 +749,7 @@ export default function AdminCreditPosting() {
           amount,
           description: 'Goods supplied',
           createdBy: user.id,
-          companyId: selectedCompany || null,
+          companyId: companyToUse || null,
           customDate: quickPostDate !== getTodayDateString() ? quickPostDate : undefined,
         }),
       });
@@ -772,6 +793,7 @@ export default function AdminCreditPosting() {
         setQuickPostAmount('');
         setQuickPostAmountError('');
         setQuickPostSearch('');
+        setShowCreateShop(false);
       }, 1200);
 
       // Refresh data in background
@@ -1018,6 +1040,15 @@ export default function AdminCreditPosting() {
                     setQuickPostSelectedShop(null);
                     setQuickPostAmount('');
                     setQuickPostAmountError('');
+                    // Initialize company & orderbooker from main page selections
+                    setQuickPostCompany(selectedCompany);
+                    setQuickPostOrderbooker(selectedOrderbooker !== 'all' ? selectedOrderbooker : '');
+                    setShowCreateShop(false);
+                    setNewShopName('');
+                    setNewShopArea('');
+                    setNewShopPhone('');
+                    setNewShopRouteDays(todayDay ? [todayDay] : []);
+                    setCreatingShop(false);
                     setCreditDialogOpen(true);
                   } else {
                     handleExitQuickPost();
@@ -1448,7 +1479,7 @@ export default function AdminCreditPosting() {
                   </Badge>
                 </DialogTitle>
                 <DialogDescription>
-                  {quickPostStep === 'date' && 'Select the date for credit posting'}
+                  {quickPostStep === 'date' && 'Set date, company & orderbooker for this session'}
                   {quickPostStep === 'search' && 'Search and select a shop to post credit'}
                   {quickPostStep === 'amount' && `Enter amount for ${quickPostSelectedShop?.name}`}
                 </DialogDescription>
@@ -1493,13 +1524,14 @@ export default function AdminCreditPosting() {
                 </div>
               )}
 
-              {/* === STEP 1: Date Selection === */}
+              {/* === STEP 1: Setup — Date + Company + Orderbooker === */}
               {quickPostStep === 'date' && (
                 <div className="space-y-4 py-2">
+                  {/* Date Selection */}
                   <div className="space-y-2">
                     <Label htmlFor="quickPostDate" className="flex items-center gap-1.5 text-sm font-semibold">
                       <CalendarDays className="h-4 w-4 text-primary" />
-                      Select Credit Date
+                      Credit Date
                     </Label>
                     <Input
                       id="quickPostDate"
@@ -1516,8 +1548,68 @@ export default function AdminCreditPosting() {
                       }
                     </p>
                   </div>
+
+                  {/* Company Selection (if companies exist) */}
+                  {companies.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1.5 text-sm font-semibold">
+                        <Building2 className="h-4 w-4 text-primary" />
+                        Company
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {companies.map((company) => (
+                          <button
+                            key={company.id}
+                            onClick={() => setQuickPostCompany(company.id)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              quickPostCompany === company.id
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                            }`}
+                          >
+                            {company.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Orderbooker Selection */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5 text-sm font-semibold">
+                      <Users className="h-4 w-4 text-primary" />
+                      Orderbooker <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={quickPostOrderbooker} onValueChange={setQuickPostOrderbooker}>
+                      <SelectTrigger className="w-full h-10">
+                        <SelectValue placeholder="Select orderbooker..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orderbookers.filter(ob => ob.status === 'active').map((ob) => (
+                          <SelectItem key={ob.id} value={ob.id}>{ob.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!quickPostOrderbooker && (
+                      <p className="text-xs text-destructive">Orderbooker is required to continue</p>
+                    )}
+                  </div>
+
                   <Button
-                    onClick={() => setQuickPostStep('search')}
+                    onClick={() => {
+                      if (!quickPostOrderbooker) {
+                        toast({ title: 'Orderbooker Required', description: 'Please select an orderbooker first', variant: 'destructive' });
+                        return;
+                      }
+                      if (companies.length > 0 && !quickPostCompany) {
+                        toast({ title: 'Company Required', description: 'Please select a company first', variant: 'destructive' });
+                        return;
+                      }
+                      // Sync to main page selections too
+                      setSelectedCompany(quickPostCompany);
+                      setSelectedOrderbooker(quickPostOrderbooker);
+                      setQuickPostStep('search');
+                    }}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold"
                   >
                     Next: Select Shop →
@@ -1528,17 +1620,31 @@ export default function AdminCreditPosting() {
               {/* === STEP 2: Shop Search & Select === */}
               {quickPostStep === 'search' && (
                 <div className="space-y-3 py-2">
-                  {/* Change Date button */}
-                  <button
-                    onClick={() => setQuickPostStep('date')}
-                    className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium transition-colors"
-                  >
-                    <CalendarDays className="h-3 w-3" />
-                    Date: {quickPostDate === getTodayDateString()
-                      ? 'Today'
-                      : new Date(quickPostDate + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })
-                    } — Click to change
-                  </button>
+                  {/* Session Info Bar */}
+                  <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                    <button
+                      onClick={() => setQuickPostStep('date')}
+                      className="flex items-center gap-1 text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium transition-colors"
+                    >
+                      <CalendarDays className="h-3 w-3" />
+                      {quickPostDate === getTodayDateString()
+                        ? 'Today'
+                        : new Date(quickPostDate + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'short' })
+                      }
+                    </button>
+                    {quickPostCompany && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-0.5">
+                        <Building2 className="h-2.5 w-2.5" />
+                        {companies.find(c => c.id === quickPostCompany)?.name}
+                      </Badge>
+                    )}
+                    {quickPostOrderbooker && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-0.5">
+                        <Users className="h-2.5 w-2.5" />
+                        {orderbookers.find(ob => ob.id === quickPostOrderbooker)?.name}
+                      </Badge>
+                    )}
+                  </div>
 
                   {/* Search Input */}
                   <div className="relative">
@@ -1546,14 +1652,17 @@ export default function AdminCreditPosting() {
                     <Input
                       placeholder="Search shop by name or area..."
                       value={quickPostSearch}
-                      onChange={(e) => setQuickPostSearch(e.target.value)}
+                      onChange={(e) => {
+                        setQuickPostSearch(e.target.value);
+                        setShowCreateShop(false);
+                      }}
                       className="pl-9 h-10 text-sm"
                       autoFocus
                     />
                     {quickPostSearch && (
                       <button
                         type="button"
-                        onClick={() => setQuickPostSearch('')}
+                        onClick={() => { setQuickPostSearch(''); setShowCreateShop(false); }}
                         className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                       >
                         <X className="h-3.5 w-3.5" />
@@ -1561,40 +1670,259 @@ export default function AdminCreditPosting() {
                     )}
                   </div>
 
-                  {/* Shop List */}
-                  <div className="max-h-[280px] overflow-y-auto space-y-1">
-                    {shops
-                      .filter((s) => {
-                        if (!quickPostSearch.trim()) return true;
-                        const q = quickPostSearch.toLowerCase();
-                        return (
-                          s.name.toLowerCase().includes(q) ||
-                          (s.area || '').toLowerCase().includes(q)
-                        );
-                      })
-                      .map((shop) => (
-                        <button
-                          key={shop.id}
-                          onClick={() => handleOpenCreditDialog(shop)}
-                          className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-accent/50 transition-colors text-left border border-transparent hover:border-border/50"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">{shop.name}</p>
-                            {shop.area && <p className="text-[10px] text-muted-foreground">{shop.area}</p>}
+                  {/* Shop List OR Create Shop Form */}
+                  {!showCreateShop ? (
+                    <>
+                      <div className="max-h-[280px] overflow-y-auto space-y-1">
+                        {shops
+                          .filter((s) => {
+                            if (!quickPostSearch.trim()) return true;
+                            const q = quickPostSearch.toLowerCase();
+                            return (
+                              s.name.toLowerCase().includes(q) ||
+                              (s.area || '').toLowerCase().includes(q)
+                            );
+                          })
+                          .map((shop) => (
+                            <button
+                              key={shop.id}
+                              onClick={() => handleOpenCreditDialog(shop)}
+                              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-accent/50 transition-colors text-left border border-transparent hover:border-border/50"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">{shop.name}</p>
+                                {shop.area && <p className="text-[10px] text-muted-foreground">{shop.area}</p>}
+                              </div>
+                              <span className="text-sm font-bold text-red-600 dark:text-red-400 shrink-0 ml-2">
+                                {formatCurrency(shop.balance)}
+                              </span>
+                            </button>
+                          ))}
+                        {quickPostSearch.trim() && shops.filter((s) => {
+                          const q = quickPostSearch.toLowerCase();
+                          return s.name.toLowerCase().includes(q) || (s.area || '').toLowerCase().includes(q);
+                        }).length === 0 && (
+                          <div className="text-center py-4 space-y-3">
+                            <div>
+                              <p className="text-xs text-muted-foreground">No shop found matching</p>
+                              <p className="text-sm font-semibold text-foreground">&ldquo;{quickPostSearch.trim()}&rdquo;</p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setNewShopName(quickPostSearch.trim());
+                                setNewShopRouteDays(todayDay ? [todayDay] : []);
+                                setShowCreateShop(true);
+                              }}
+                              className="gap-1.5 text-xs"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Create &ldquo;{quickPostSearch.trim()}&rdquo; as New Shop
+                            </Button>
                           </div>
-                          <span className="text-sm font-bold text-red-600 dark:text-red-400 shrink-0 ml-2">
-                            {formatCurrency(shop.balance)}
-                          </span>
+                        )}
+                        {!quickPostSearch.trim() && shops.length === 0 && (
+                          <div className="text-center py-4 space-y-3">
+                            <p className="text-xs text-muted-foreground">No shops available for this orderbooker</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setNewShopName('');
+                                setNewShopRouteDays(todayDay ? [todayDay] : []);
+                                setShowCreateShop(true);
+                              }}
+                              className="gap-1.5 text-xs"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Create New Shop
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      {/* Always show Create New Shop button at bottom */}
+                      {shops.length > 0 && !quickPostSearch.trim() && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setNewShopName('');
+                            setNewShopRouteDays(todayDay ? [todayDay] : []);
+                            setShowCreateShop(true);
+                          }}
+                          className="w-full gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Create New Shop
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    /* === Inline Create Shop Form === */
+                    <div className="space-y-3 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/[0.02]">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                          <Plus className="h-4 w-4 text-primary" />
+                          Create New Shop
+                        </p>
+                        <button
+                          onClick={() => setShowCreateShop(false)}
+                          className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
                         </button>
-                      ))}
-                    {shops.filter((s) => {
-                      if (!quickPostSearch.trim()) return true;
-                      const q = quickPostSearch.toLowerCase();
-                      return s.name.toLowerCase().includes(q) || (s.area || '').toLowerCase().includes(q);
-                    }).length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-4">No shops found</p>
-                    )}
-                  </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-xs font-medium">Shop Name <span className="text-destructive">*</span></Label>
+                          <Input
+                            value={newShopName}
+                            onChange={(e) => setNewShopName(e.target.value)}
+                            placeholder="Enter shop name"
+                            className="h-9 text-sm"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs font-medium">Area</Label>
+                            <Input
+                              value={newShopArea}
+                              onChange={(e) => setNewShopArea(e.target.value)}
+                              placeholder="Area"
+                              className="h-9 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium">Phone</Label>
+                            <Input
+                              value={newShopPhone}
+                              onChange={(e) => setNewShopPhone(e.target.value)}
+                              placeholder="Phone"
+                              className="h-9 text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs font-medium">Route Days</Label>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {ROUTE_DAYS.map((day) => (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => {
+                                  setNewShopRouteDays((prev) =>
+                                    prev.includes(day)
+                                      ? prev.filter((d) => d !== day)
+                                      : [...prev, day]
+                                  );
+                                }}
+                                className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-all ${
+                                  newShopRouteDays.includes(day)
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-muted-foreground hover:bg-accent'
+                                }`}
+                              >
+                                {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          Orderbooker: <span className="font-semibold text-foreground">{orderbookers.find(ob => ob.id === quickPostOrderbooker)?.name || 'Not selected'}</span>
+                        </div>
+                      </div>
+
+                      <Button
+                        onClick={async () => {
+                          if (!newShopName.trim()) {
+                            toast({ title: 'Error', description: 'Shop name is required', variant: 'destructive' });
+                            return;
+                          }
+                          if (!quickPostOrderbooker) {
+                            toast({ title: 'Error', description: 'Select an orderbooker first', variant: 'destructive' });
+                            return;
+                          }
+                          if (newShopRouteDays.length === 0) {
+                            toast({ title: 'Error', description: 'Select at least one route day', variant: 'destructive' });
+                            return;
+                          }
+
+                          setCreatingShop(true);
+                          try {
+                            const res = await apiFetch('/api/shops', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                name: newShopName.trim(),
+                                area: newShopArea.trim() || undefined,
+                                phone: newShopPhone.trim() || undefined,
+                                routeDays: newShopRouteDays,
+                                orderbookerId: quickPostOrderbooker,
+                              }),
+                            });
+
+                            if (!res.ok) {
+                              const data = await res.json();
+                              toast({ title: 'Error', description: data.error || 'Failed to create shop', variant: 'destructive' });
+                              return;
+                            }
+
+                            const newShop = await res.json();
+                            toast({ title: 'Shop Created', description: `${newShopName.trim()} created successfully` });
+
+                            // Build the Shop object for selection
+                            const createdShop: Shop = {
+                              id: newShop.id,
+                              name: newShop.name,
+                              ownerName: newShop.ownerName,
+                              area: newShop.area,
+                              routeDays: newShop.routeDays,
+                              balance: 0,
+                              creditLimit: newShop.creditLimit || 0,
+                              status: 'active',
+                              orderbooker: {
+                                id: quickPostOrderbooker,
+                                name: orderbookers.find(ob => ob.id === quickPostOrderbooker)?.name || '',
+                              },
+                            };
+
+                            // Auto-select the new shop and go to amount step
+                            setQuickPostSelectedShop(createdShop);
+                            setQuickPostStep('amount');
+                            setQuickPostAmount('');
+                            setQuickPostAmountError('');
+                            setQuickPostJustPosted(false);
+
+                            // Reset creation form
+                            setShowCreateShop(false);
+                            setNewShopName('');
+                            setNewShopArea('');
+                            setNewShopPhone('');
+                            setNewShopRouteDays(todayDay ? [todayDay] : []);
+
+                            // Refresh shops list in background
+                            fetchShops();
+                          } catch {
+                            toast({ title: 'Error', description: 'Failed to create shop', variant: 'destructive' });
+                          } finally {
+                            setCreatingShop(false);
+                          }
+                        }}
+                        disabled={creatingShop || !newShopName.trim()}
+                        className="w-full bg-primary hover:bg-primary/90 text-white h-9 text-sm font-semibold"
+                      >
+                        {creatingShop ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Plus className="h-4 w-4 mr-2" />
+                        )}
+                        {creatingShop ? 'Creating...' : 'Create & Post Credit'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
