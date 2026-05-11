@@ -430,22 +430,22 @@ export default function AdminCreditPosting() {
   const totalOutstanding = shops.reduce((sum, s) => sum + s.balance, 0);
   const averageBalance = shops.length > 0 ? totalOutstanding / shops.length : 0;
 
-  const checkDuplicateCreditToday = useCallback(async (shop: Shop) => {
+  const checkDuplicateCreditToday = useCallback(async (shop: Shop, date?: string) => {
     try {
-      const todayDate = getTodayDateString();
+      const dateToCheck = date || creditDate || getTodayDateString();
       const params = new URLSearchParams();
       params.set('shopId', shop.id);
-      params.set('date', todayDate);
+      params.set('date', dateToCheck);
       params.set('type', 'credit');
       params.set('limit', '100');
       const res = await apiFetch(`/api/transactions?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         const txns = data.transactions || [];
-        const totalToday = txns.reduce((s: number, t: { amount: number }) => s + t.amount, 0);
-        setShopTodayCredits(totalToday);
+        const totalForDate = txns.reduce((s: number, t: { amount: number }) => s + t.amount, 0);
+        setShopTodayCredits(totalForDate);
         if (txns.length > 0) {
-          setDuplicateCreditWarning({ shopName: shop.name, todayTotal: totalToday });
+          setDuplicateCreditWarning({ shopName: shop.name, todayTotal: totalForDate });
         } else {
           setDuplicateCreditWarning(null);
         }
@@ -454,7 +454,7 @@ export default function AdminCreditPosting() {
       setDuplicateCreditWarning(null);
       setShopTodayCredits(0);
     }
-  }, []);
+  }, [creditDate]);
 
   const handleOpenCreditDialog = (shop: Shop) => {
     setSelectedShop(shop);
@@ -470,6 +470,13 @@ export default function AdminCreditPosting() {
     setCreditDialogOpen(true);
     checkDuplicateCreditToday(shop);
   };
+
+  // Re-check duplicate credits when date changes
+  useEffect(() => {
+    if (selectedShop && creditDialogOpen) {
+      checkDuplicateCreditToday(selectedShop, creditDate);
+    }
+  }, [creditDate, selectedShop, creditDialogOpen, checkDuplicateCreditToday]);
 
   // Format amount as currency string while typing
   const formatAmountDisplay = (value: string): string => {
@@ -549,7 +556,7 @@ export default function AdminCreditPosting() {
         setQuickPostTotal((prev) => prev + amount);
         setCreditAmount('');
         setCreditDescription('');
-        setCreditDate(getTodayDateString());
+        // Don't reset creditDate in quick post — keep the selected date for next entry
         setAmountError('');
         setDescriptionError('');
         setQuickPostJustPosted(true);
