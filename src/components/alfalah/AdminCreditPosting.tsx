@@ -211,6 +211,14 @@ export default function AdminCreditPosting() {
   const [quickPostTotal, setQuickPostTotal] = useState(0);
   const [quickPostJustPosted, setQuickPostJustPosted] = useState(false);
 
+  // New Quick Post Flow states
+  const [quickPostDate, setQuickPostDate] = useState(getTodayDateString());
+  const [quickPostStep, setQuickPostStep] = useState<'date' | 'search' | 'amount'>('date');
+  const [quickPostSearch, setQuickPostSearch] = useState('');
+  const [quickPostSelectedShop, setQuickPostSelectedShop] = useState<Shop | null>(null);
+  const [quickPostAmount, setQuickPostAmount] = useState('');
+  const [quickPostAmountError, setQuickPostAmountError] = useState('');
+
   // Credit limit warning state
   const [creditLimitWarning, setCreditLimitWarning] = useState<CreditLimitWarning | null>(null);
 
@@ -457,6 +465,15 @@ export default function AdminCreditPosting() {
   }, [creditDate]);
 
   const handleOpenCreditDialog = (shop: Shop) => {
+    if (quickPostMode) {
+      // In quick post mode, clicking a shop selects it for quick entry
+      setQuickPostSelectedShop(shop);
+      setQuickPostStep('amount');
+      setQuickPostAmount('');
+      setQuickPostAmountError('');
+      setQuickPostJustPosted(false);
+      return;
+    }
     setSelectedShop(shop);
     setCreditAmount('');
     setCreditDescription('');
@@ -667,7 +684,104 @@ export default function AdminCreditPosting() {
     setQuickPostShops(0);
     setQuickPostTotal(0);
     setQuickPostJustPosted(false);
+    setQuickPostStep('date');
+    setQuickPostDate(getTodayDateString());
+    setQuickPostSearch('');
+    setQuickPostSelectedShop(null);
+    setQuickPostAmount('');
+    setQuickPostAmountError('');
     setCreditDialogOpen(false);
+  };
+
+  // Quick Post: submit credit for the selected shop
+  const handleQuickPostSubmit = async () => {
+    if (!quickPostSelectedShop || !quickPostAmount || parseFloat(quickPostAmount) <= 0) {
+      toast({ title: 'Error', description: 'Please enter a valid amount', variant: 'destructive' });
+      return;
+    }
+    if (!user) return;
+
+    // Require company selection when companies exist
+    if (companies.length > 0 && !selectedCompany) {
+      toast({ title: 'Company Required', description: 'Please select a company at the top before posting credit', variant: 'destructive' });
+      return;
+    }
+
+    const amount = parseFloat(quickPostAmount);
+
+    // Validate amount
+    const amtError = validateAmountInput(quickPostAmount);
+    if (amtError) {
+      setQuickPostAmountError(amtError);
+      toast({ title: 'Validation Error', description: amtError, variant: 'destructive' });
+      return;
+    }
+
+    setPostingCredit(true);
+    try {
+      const res = await apiFetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopId: quickPostSelectedShop.id,
+          type: 'credit',
+          amount,
+          description: 'Goods supplied',
+          createdBy: user.id,
+          companyId: selectedCompany || null,
+          customDate: quickPostDate !== getTodayDateString() ? quickPostDate : undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast({ title: 'Error', description: data.error || 'Failed to post credit', variant: 'destructive' });
+        return;
+      }
+
+      const txn = await res.json();
+
+      // Handle warnings
+      if (txn.warnings && Array.isArray(txn.warnings)) {
+        txn.warnings.forEach((w: string) => {
+          toast({ title: 'Warning', description: w });
+        });
+      }
+
+      // Handle credit limit warning
+      if (txn.creditLimitWarning) {
+        setCreditLimitWarning(txn.creditLimitWarning);
+      } else {
+        setCreditLimitWarning(null);
+      }
+
+      incrementCreditSessionCount();
+
+      // Update quick post stats
+      setQuickPostShops((prev) => prev + 1);
+      setQuickPostTotal((prev) => prev + amount);
+      setQuickPostJustPosted(true);
+
+      // Clear checkmark after 1.5s and go back to search
+      if (quickPostTimerRef.current) clearTimeout(quickPostTimerRef.current);
+      quickPostTimerRef.current = setTimeout(() => {
+        setQuickPostJustPosted(false);
+        // Go back to search step for next shop
+        setQuickPostStep('search');
+        setQuickPostSelectedShop(null);
+        setQuickPostAmount('');
+        setQuickPostAmountError('');
+        setQuickPostSearch('');
+      }, 1200);
+
+      // Refresh data in background
+      fetchShops();
+      fetchTodaySummary();
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setPostingCredit(false);
+    }
   };
 
   const handlePrintReceipt = () => {
@@ -892,11 +1006,21 @@ export default function AdminCreditPosting() {
                 id="quickPostToggle"
                 checked={quickPostMode}
                 onCheckedChange={(checked) => {
-                  setQuickPostMode(checked);
-                  if (!checked) {
+                  if (checked) {
+                    // Starting Quick Post mode: open dialog with date step
+                    setQuickPostMode(true);
+                    setQuickPostStep('date');
+                    setQuickPostDate(getTodayDateString());
                     setQuickPostShops(0);
                     setQuickPostTotal(0);
                     setQuickPostJustPosted(false);
+                    setQuickPostSearch('');
+                    setQuickPostSelectedShop(null);
+                    setQuickPostAmount('');
+                    setQuickPostAmountError('');
+                    setCreditDialogOpen(true);
+                  } else {
+                    handleExitQuickPost();
                   }
                 }}
                 className="data-[state=checked]:bg-emerald-500"
@@ -1312,215 +1436,443 @@ export default function AdminCreditPosting() {
         <DialogContent className="sm:max-w-md no-print" onInteractOutside={(e) => {
           if (quickPostMode) e.preventDefault(); // Prevent closing in quick post mode
         }}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-primary" />
-              {quickPostMode ? 'Quick Post Credit' : 'Post Credit'}
-              {quickPostMode && (
-                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] ml-1">
-                  <Zap className="h-2.5 w-2.5 mr-0.5" />
-                  Quick Mode
-                </Badge>
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              Add credit entry for <span className="font-semibold text-foreground">{selectedShop?.name}</span>
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Quick Post Success Indicator */}
-          {quickPostJustPosted && (
-            <div className="flex items-center gap-2.5 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-800/30 animate-fade-in">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Credit Posted!</p>
-                <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70">Enter next amount or close to pick another shop</p>
-              </div>
-            </div>
-          )}
-
-          {/* Duplicate Credit Warning Banner */}
-          {duplicateCreditWarning && !quickPostJustPosted && (
-            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 animate-fade-in">
-              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-                  ⚠ Credit already posted to {duplicateCreditWarning.shopName} today
-                </p>
-                <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
-                  Total today: {formatCurrency(duplicateCreditWarning.todayTotal)}. You can still proceed with posting.
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-4 py-3">
-            {selectedShop && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                  <span className="text-sm text-muted-foreground">Current Balance</span>
-                  <span className="font-bold text-sm">{formatCurrency(selectedShop.balance)}</span>
-                </div>
-                {selectedShop.creditLimit > 0 && (() => {
-                  const limitStatus = getCreditLimitStatus(selectedShop.balance, selectedShop.creditLimit);
-                  const projectedBalance = selectedShop.balance + (parseFloat(creditAmount) || 0);
-                  const projectedStatus = getCreditLimitStatus(projectedBalance, selectedShop.creditLimit);
-                  return (
-                    <div className="p-3 rounded-lg border border-border/60 space-y-2 animate-fade-in">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground">Credit Limit Usage</span>
-                        <span className={`text-xs font-bold ${limitStatus.className}`}>
-                          {limitStatus.percentage}% — {limitStatus.label}
-                        </span>
-                      </div>
-                      <div className="credit-limit-bar">
-                        <div
-                          className="credit-limit-bar-fill"
-                          style={{
-                            width: `${Math.min(limitStatus.percentage, 100)}%`,
-                            backgroundColor: limitStatus.color,
-                          }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                        <span>{formatCurrency(selectedShop.balance)} of {formatCurrency(selectedShop.creditLimit)}</span>
-                        {creditAmount && !amountError && (
-                          <span className="text-foreground/60">
-                            → {formatCurrency(projectedBalance)} ({projectedStatus.percentage}%)
-                          </span>
-                        )}
-                      </div>
-                      {creditAmount && !amountError && projectedStatus.status === 'exceeded' && (
-                        <p className="text-[10px] text-destructive font-medium flex items-center gap-1 animate-fade-in">
-                          <AlertTriangle className="h-3 w-3" />
-                          This credit will exceed the limit by {formatCurrency(projectedBalance - selectedShop.creditLimit)}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-            {/* Credit Limit Warning Banner */}
-            {creditLimitWarning && creditLimitWarning.exceeded && (
-              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 animate-fade-in">
-                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-                    Credit Limit Exceeded!
-                  </p>
-                  <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
-                    This shop&apos;s balance ({formatCurrency(creditLimitWarning.currentBalance)}) exceeds its credit limit ({formatCurrency(creditLimitWarning.limit)}). The credit has been posted.
-                  </p>
-                </div>
-              </div>
-            )}
-            {/* Date Picker */}
-            <div className="space-y-2">
-              <Label htmlFor="creditDate" className="flex items-center gap-1.5">
-                <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-                Credit Date
-                {creditDate !== getTodayDateString() && (
-                  <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0 border-amber-300 text-amber-600 dark:border-amber-700 dark:text-amber-400">
-                    Backdated
+          {/* ========== QUICK POST MODE - NEW 3-STEP FLOW ========== */}
+          {quickPostMode ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-emerald-500" />
+                  Quick Post Credit
+                  <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] ml-1">
+                    Quick Mode
                   </Badge>
+                </DialogTitle>
+                <DialogDescription>
+                  {quickPostStep === 'date' && 'Select the date for credit posting'}
+                  {quickPostStep === 'search' && 'Search and select a shop to post credit'}
+                  {quickPostStep === 'amount' && `Enter amount for ${quickPostSelectedShop?.name}`}
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Quick Post Session Stats Bar */}
+              {quickPostShops > 0 && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-800/30">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                    {quickPostShops} shop{quickPostShops > 1 ? 's' : ''} posted — Total: {formatCurrency(quickPostTotal)}
+                  </span>
+                  <Badge variant="outline" className="ml-auto text-[9px] px-1.5 py-0 border-emerald-300 text-emerald-600 dark:border-emerald-700 dark:text-emerald-400">
+                    {quickPostDate !== getTodayDateString()
+                      ? new Date(quickPostDate + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'short' })
+                      : 'Today'}
+                  </Badge>
+                </div>
+              )}
+
+              {/* Quick Post Success Indicator */}
+              {quickPostJustPosted && (
+                <div className="flex items-center gap-2.5 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-800/30 animate-fade-in">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Credit Posted!</p>
+                    <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70">Loading next shop...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Credit Limit Warning */}
+              {creditLimitWarning && creditLimitWarning.exceeded && (
+                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 animate-fade-in">
+                  <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Credit Limit Exceeded!</p>
+                    <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+                      Balance ({formatCurrency(creditLimitWarning.currentBalance)}) exceeds limit ({formatCurrency(creditLimitWarning.limit)}). Credit posted.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* === STEP 1: Date Selection === */}
+              {quickPostStep === 'date' && (
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="quickPostDate" className="flex items-center gap-1.5 text-sm font-semibold">
+                      <CalendarDays className="h-4 w-4 text-primary" />
+                      Select Credit Date
+                    </Label>
+                    <Input
+                      id="quickPostDate"
+                      type="date"
+                      value={quickPostDate}
+                      max={getTodayDateString()}
+                      onChange={(e) => setQuickPostDate(e.target.value)}
+                      className="text-base h-11"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {quickPostDate === getTodayDateString()
+                        ? 'Credits will be posted for today'
+                        : `Credits will be recorded for ${new Date(quickPostDate + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })}`
+                      }
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setQuickPostStep('search')}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold"
+                  >
+                    Next: Select Shop →
+                  </Button>
+                </div>
+              )}
+
+              {/* === STEP 2: Shop Search & Select === */}
+              {quickPostStep === 'search' && (
+                <div className="space-y-3 py-2">
+                  {/* Change Date button */}
+                  <button
+                    onClick={() => setQuickPostStep('date')}
+                    className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium transition-colors"
+                  >
+                    <CalendarDays className="h-3 w-3" />
+                    Date: {quickPostDate === getTodayDateString()
+                      ? 'Today'
+                      : new Date(quickPostDate + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })
+                    } — Click to change
+                  </button>
+
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="Search shop by name or area..."
+                      value={quickPostSearch}
+                      onChange={(e) => setQuickPostSearch(e.target.value)}
+                      className="pl-9 h-10 text-sm"
+                      autoFocus
+                    />
+                    {quickPostSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setQuickPostSearch('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Shop List */}
+                  <div className="max-h-[280px] overflow-y-auto space-y-1">
+                    {shops
+                      .filter((s) => {
+                        if (!quickPostSearch.trim()) return true;
+                        const q = quickPostSearch.toLowerCase();
+                        return (
+                          s.name.toLowerCase().includes(q) ||
+                          (s.area || '').toLowerCase().includes(q)
+                        );
+                      })
+                      .map((shop) => (
+                        <button
+                          key={shop.id}
+                          onClick={() => handleOpenCreditDialog(shop)}
+                          className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-accent/50 transition-colors text-left border border-transparent hover:border-border/50"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">{shop.name}</p>
+                            {shop.area && <p className="text-[10px] text-muted-foreground">{shop.area}</p>}
+                          </div>
+                          <span className="text-sm font-bold text-red-600 dark:text-red-400 shrink-0 ml-2">
+                            {formatCurrency(shop.balance)}
+                          </span>
+                        </button>
+                      ))}
+                    {shops.filter((s) => {
+                      if (!quickPostSearch.trim()) return true;
+                      const q = quickPostSearch.toLowerCase();
+                      return s.name.toLowerCase().includes(q) || (s.area || '').toLowerCase().includes(q);
+                    }).length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-4">No shops found</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* === STEP 3: Amount Entry === */}
+              {quickPostStep === 'amount' && quickPostSelectedShop && (
+                <div className="space-y-3 py-2">
+                  {/* Selected Shop Card */}
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-foreground">{quickPostSelectedShop.name}</p>
+                        {quickPostSelectedShop.area && <p className="text-[10px] text-muted-foreground">{quickPostSelectedShop.area}</p>}
+                      </div>
+                      <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                        Bal: {formatCurrency(quickPostSelectedShop.balance)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Change Shop button */}
+                  <button
+                    onClick={() => {
+                      setQuickPostStep('search');
+                      setQuickPostSelectedShop(null);
+                      setQuickPostAmount('');
+                      setQuickPostAmountError('');
+                    }}
+                    className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                  >
+                    <Search className="h-3 w-3" />
+                    Change shop
+                  </button>
+
+                  {/* Amount Input */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="quickPostAmount" className="text-sm font-semibold">Amount (Rs.)</Label>
+                    <Input
+                      id="quickPostAmount"
+                      type="number"
+                      placeholder={`Min: ${TRANSACTION_RULES.MIN_AMOUNT.toLocaleString()} — Max: ${TRANSACTION_RULES.MAX_AMOUNT.toLocaleString()}`}
+                      value={quickPostAmount}
+                      onChange={(e) => {
+                        setQuickPostAmount(e.target.value);
+                        setQuickPostAmountError(validateAmountInput(e.target.value));
+                      }}
+                      min={TRANSACTION_RULES.MIN_AMOUNT}
+                      max={TRANSACTION_RULES.MAX_AMOUNT}
+                      step="1"
+                      autoFocus
+                      disabled={postingCredit}
+                      className={`text-base h-11 ${quickPostAmountError ? 'border-destructive focus-visible:ring-destructive/30' : ''}`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !postingCredit && quickPostAmount && parseFloat(quickPostAmount) > 0 && !quickPostAmountError) {
+                          handleQuickPostSubmit();
+                        }
+                      }}
+                    />
+                    {quickPostAmountError ? (
+                      <p className="text-xs text-destructive font-medium">{quickPostAmountError}</p>
+                    ) : quickPostAmount ? (
+                      <p className="text-xs text-primary font-medium">{formatAmountDisplay(quickPostAmount)}</p>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground">
+                        Allowed: Rs. {TRANSACTION_RULES.MIN_AMOUNT.toLocaleString()} — Rs. {TRANSACTION_RULES.MAX_AMOUNT.toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Quick Post Button */}
+                  <Button
+                    onClick={handleQuickPostSubmit}
+                    disabled={postingCredit || !quickPostAmount || parseFloat(quickPostAmount) <= 0 || !!quickPostAmountError}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold btn-ripple"
+                  >
+                    {postingCredit ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Zap className="h-4 w-4 mr-2" />
+                    )}
+                    {postingCredit ? 'Posting...' : 'Quick Post'}
+                  </Button>
+                </div>
+              )}
+
+              <DialogFooter className="gap-2 no-print">
+                <Button variant="outline" onClick={handleExitQuickPost} className="gap-1.5">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Done
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            /* ========== NORMAL MODE - ORIGINAL DIALOG ========== */
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-primary" />
+                  Post Credit
+                </DialogTitle>
+                <DialogDescription>
+                  Add credit entry for <span className="font-semibold text-foreground">{selectedShop?.name}</span>
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Duplicate Credit Warning Banner */}
+              {duplicateCreditWarning && (
+                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 animate-fade-in">
+                  <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                      ⚠ Credit already posted to {duplicateCreditWarning.shopName} today
+                    </p>
+                    <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+                      Total today: {formatCurrency(duplicateCreditWarning.todayTotal)}. You can still proceed with posting.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4 py-3">
+                {selectedShop && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <span className="text-sm text-muted-foreground">Current Balance</span>
+                      <span className="font-bold text-sm">{formatCurrency(selectedShop.balance)}</span>
+                    </div>
+                    {selectedShop.creditLimit > 0 && (() => {
+                      const limitStatus = getCreditLimitStatus(selectedShop.balance, selectedShop.creditLimit);
+                      const projectedBalance = selectedShop.balance + (parseFloat(creditAmount) || 0);
+                      const projectedStatus = getCreditLimitStatus(projectedBalance, selectedShop.creditLimit);
+                      return (
+                        <div className="p-3 rounded-lg border border-border/60 space-y-2 animate-fade-in">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-muted-foreground">Credit Limit Usage</span>
+                            <span className={`text-xs font-bold ${limitStatus.className}`}>
+                              {limitStatus.percentage}% — {limitStatus.label}
+                            </span>
+                          </div>
+                          <div className="credit-limit-bar">
+                            <div
+                              className="credit-limit-bar-fill"
+                              style={{
+                                width: `${Math.min(limitStatus.percentage, 100)}%`,
+                                backgroundColor: limitStatus.color,
+                              }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span>{formatCurrency(selectedShop.balance)} of {formatCurrency(selectedShop.creditLimit)}</span>
+                            {creditAmount && !amountError && (
+                              <span className="text-foreground/60">
+                                → {formatCurrency(projectedBalance)} ({projectedStatus.percentage}%)
+                              </span>
+                            )}
+                          </div>
+                          {creditAmount && !amountError && projectedStatus.status === 'exceeded' && (
+                            <p className="text-[10px] text-destructive font-medium flex items-center gap-1 animate-fade-in">
+                              <AlertTriangle className="h-3 w-3" />
+                              This credit will exceed the limit by {formatCurrency(projectedBalance - selectedShop.creditLimit)}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 )}
-              </Label>
-              <Input
-                id="creditDate"
-                type="date"
-                value={creditDate}
-                max={getTodayDateString()}
-                onChange={(e) => setCreditDate(e.target.value)}
-                disabled={postingCredit}
-                className="text-sm"
-              />
-              {creditDate !== getTodayDateString() && (
-                <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium animate-fade-in">
-                  Credit will be recorded for {new Date(creditDate + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })} instead of today
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="creditAmount">Amount (Rs.)</Label>
-                {creditAmount && !amountError && (
-                  <span className="text-xs font-medium text-primary">{formatAmountDisplay(creditAmount)}</span>
+                {/* Credit Limit Warning Banner */}
+                {creditLimitWarning && creditLimitWarning.exceeded && (
+                  <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 animate-fade-in">
+                    <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                        Credit Limit Exceeded!
+                      </p>
+                      <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+                        This shop&apos;s balance ({formatCurrency(creditLimitWarning.currentBalance)}) exceeds its credit limit ({formatCurrency(creditLimitWarning.limit)}). The credit has been posted.
+                      </p>
+                    </div>
+                  </div>
                 )}
+                {/* Date Picker */}
+                <div className="space-y-2">
+                  <Label htmlFor="creditDate" className="flex items-center gap-1.5">
+                    <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                    Credit Date
+                    {creditDate !== getTodayDateString() && (
+                      <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0 border-amber-300 text-amber-600 dark:border-amber-700 dark:text-amber-400">
+                        Backdated
+                      </Badge>
+                    )}
+                  </Label>
+                  <Input
+                    id="creditDate"
+                    type="date"
+                    value={creditDate}
+                    max={getTodayDateString()}
+                    onChange={(e) => setCreditDate(e.target.value)}
+                    disabled={postingCredit}
+                    className="text-sm"
+                  />
+                  {creditDate !== getTodayDateString() && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium animate-fade-in">
+                      Credit will be recorded for {new Date(creditDate + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })} instead of today
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="creditAmount">Amount (Rs.)</Label>
+                    {creditAmount && !amountError && (
+                      <span className="text-xs font-medium text-primary">{formatAmountDisplay(creditAmount)}</span>
+                    )}
+                  </div>
+                  <Input
+                    id="creditAmount"
+                    type="number"
+                    placeholder={`Min: ${TRANSACTION_RULES.MIN_AMOUNT.toLocaleString()} — Max: ${TRANSACTION_RULES.MAX_AMOUNT.toLocaleString()}`}
+                    value={creditAmount}
+                    onChange={(e) => {
+                      setCreditAmount(e.target.value);
+                      setAmountError(validateAmountInput(e.target.value));
+                    }}
+                    min={TRANSACTION_RULES.MIN_AMOUNT}
+                    max={TRANSACTION_RULES.MAX_AMOUNT}
+                    step="1"
+                    autoFocus
+                    disabled={postingCredit}
+                    className={amountError ? 'border-destructive focus-visible:ring-destructive/30' : ''}
+                  />
+                  {amountError && (
+                    <p className="text-xs text-destructive font-medium animate-fade-in">{amountError}</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">
+                    Allowed range: Rs. {TRANSACTION_RULES.MIN_AMOUNT.toLocaleString()} — Rs. {TRANSACTION_RULES.MAX_AMOUNT.toLocaleString()}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="creditDesc">Description <span className="text-muted-foreground text-[10px] font-normal">(optional)</span></Label>
+                    <span className={`text-[10px] font-medium ${creditDescription.length > TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      {creditDescription.length} / {TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH}
+                    </span>
+                  </div>
+                  <Textarea
+                    id="creditDesc"
+                    placeholder="e.g., Goods supplied - Rice 10kg x 5"
+                    value={creditDescription}
+                    onChange={(e) => {
+                      setCreditDescription(e.target.value);
+                      setDescriptionError('');
+                    }}
+                    maxLength={TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH}
+                    rows={2}
+                    disabled={postingCredit}
+                    className={descriptionError ? 'border-destructive focus-visible:ring-destructive/30' : ''}
+                  />
+                  {descriptionError && (
+                    <p className="text-xs text-destructive font-medium animate-fade-in">{descriptionError}</p>
+                  )}
+                </div>
               </div>
-              <Input
-                id="creditAmount"
-                type="number"
-                placeholder={`Min: ${TRANSACTION_RULES.MIN_AMOUNT.toLocaleString()} — Max: ${TRANSACTION_RULES.MAX_AMOUNT.toLocaleString()}`}
-                value={creditAmount}
-                onChange={(e) => {
-                  setCreditAmount(e.target.value);
-                  setAmountError(validateAmountInput(e.target.value));
-                }}
-                min={TRANSACTION_RULES.MIN_AMOUNT}
-                max={TRANSACTION_RULES.MAX_AMOUNT}
-                step="1"
-                autoFocus={!quickPostJustPosted}
-                disabled={postingCredit}
-                className={amountError ? 'border-destructive focus-visible:ring-destructive/30' : ''}
-              />
-              {amountError && (
-                <p className="text-xs text-destructive font-medium animate-fade-in">{amountError}</p>
-              )}
-              <p className="text-[10px] text-muted-foreground">
-                Allowed range: Rs. {TRANSACTION_RULES.MIN_AMOUNT.toLocaleString()} — Rs. {TRANSACTION_RULES.MAX_AMOUNT.toLocaleString()}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="creditDesc">Description <span className="text-muted-foreground text-[10px] font-normal">(optional)</span></Label>
-                <span className={`text-[10px] font-medium ${creditDescription.length > TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH ? 'text-destructive' : 'text-muted-foreground'}`}>
-                  {creditDescription.length} / {TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH}
-                </span>
-              </div>
-              <Textarea
-                id="creditDesc"
-                placeholder="e.g., Goods supplied - Rice 10kg x 5"
-                value={creditDescription}
-                onChange={(e) => {
-                  setCreditDescription(e.target.value);
-                  setDescriptionError('');
-                }}
-                maxLength={TRANSACTION_RULES.MAX_DESCRIPTION_LENGTH}
-                rows={2}
-                disabled={postingCredit}
-                className={descriptionError ? 'border-destructive focus-visible:ring-destructive/30' : ''}
-              />
-              {descriptionError && (
-                <p className="text-xs text-destructive font-medium animate-fade-in">{descriptionError}</p>
-              )}
-            </div>
-          </div>
-          <DialogFooter className="gap-2 no-print">
-            {!quickPostMode && (
-              <Button variant="outline" onClick={() => setCreditDialogOpen(false)}>Cancel</Button>
-            )}
-            {quickPostMode && (
-              <Button variant="outline" onClick={handleExitQuickPost} className="gap-1.5">
-                <CheckCircle2 className="h-4 w-4" />
-                Done
-              </Button>
-            )}
-            <Button
-              onClick={handlePostCredit}
-              disabled={postingCredit || !creditAmount || parseFloat(creditAmount) <= 0 || !!amountError}
-              className={`btn-ripple hover:opacity-90 focus-glow ${quickPostMode ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-primary hover:bg-primary/90'}`}
-            >
-              {postingCredit ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : quickPostMode ? (
-                <Zap className="h-4 w-4 mr-2" />
-              ) : (
-                <Plus className="h-4 w-4 mr-2" />
-              )}
-              {postingCredit ? 'Posting...' : quickPostMode ? 'Quick Post' : 'Post Credit'}
-            </Button>
-          </DialogFooter>
+              <DialogFooter className="gap-2 no-print">
+                <Button variant="outline" onClick={() => setCreditDialogOpen(false)}>Cancel</Button>
+                <Button
+                  onClick={handlePostCredit}
+                  disabled={postingCredit || !creditAmount || parseFloat(creditAmount) <= 0 || !!amountError}
+                  className="btn-ripple hover:opacity-90 focus-glow bg-primary hover:bg-primary/90"
+                >
+                  {postingCredit ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4 mr-2" />
+                  )}
+                  {postingCredit ? 'Posting...' : 'Post Credit'}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
