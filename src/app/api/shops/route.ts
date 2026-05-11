@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-// GET /api/shops?orderbookerId=xxx&routeDay=xxx&search=xxx&balanceOnly=true
+// GET /api/shops?orderbookerId=xxx&routeDay=xxx&search=xxx&balanceOnly=true&showZeroBalance=true
+// When orderbookerId is present, zero-balance shops are hidden by default
+// (only shown if they had a transaction today, meaning the orderbooker visited them)
+// Use showZeroBalance=true to override and show all shops (for admin views)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -10,7 +13,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const includeInactive = searchParams.get('includeInactive') === 'true';
     const balanceOnly = searchParams.get('balanceOnly') === 'true';
-    const hideZeroBalance = searchParams.get('hideZeroBalance') === 'true';
+    const showZeroBalance = searchParams.get('showZeroBalance') === 'true';
+
+    // When orderbookerId is present (orderbooker view), hide zero-balance shops
+    // unless showZeroBalance=true is explicitly passed (admin might need all shops)
+    const shouldHideZero = !!orderbookerId && !showZeroBalance && !balanceOnly;
 
     // Build base where clause for primary shops (where orderbookerId matches Shop.orderbookerId)
     const baseWhere: any = {};
@@ -78,24 +85,19 @@ export async function GET(request: NextRequest) {
       })),
     });
 
-    // Helper: get today's Pakistan timezone day boundaries
-    function getPakistanTodayRange(): { start: Date; end: Date } {
+    // If hiding zero-balance shops, get shop IDs that had transactions today (so we keep them visible)
+    let todaysActiveShopIds: string[] = [];
+    if (shouldHideZero) {
+      // Helper: get today's Pakistan timezone day boundaries
       const now = new Date();
       const pktMs = now.getTime() + 5 * 60 * 60 * 1000; // UTC+5
       const pktNow = new Date(pktMs);
       const y = pktNow.getUTCFullYear();
       const m = pktNow.getUTCMonth();
       const d = pktNow.getUTCDate();
-      // Pakistan midnight = UTC 7PM previous day, Pakistan 11:59PM = UTC 6:59PM
       const start = new Date(Date.UTC(y, m, d, -5, 0, 0, 0));
       const end = new Date(Date.UTC(y, m, d, 18, 59, 59, 999));
-      return { start, end };
-    }
 
-    // If hideZeroBalance, get shop IDs that had transactions today (so we can keep them visible)
-    let todaysActiveShopIds: string[] = [];
-    if (hideZeroBalance) {
-      const { start, end } = getPakistanTodayRange();
       const activeTxns = await db.transaction.findMany({
         where: {
           createdAt: { gte: start, lte: end },
@@ -111,7 +113,7 @@ export async function GET(request: NextRequest) {
       const primaryWhere: any = { ...baseWhere, orderbookerId };
 
       // Apply zero-balance filter: show if balance > 0 OR had transaction today
-      if (hideZeroBalance) {
+      if (shouldHideZero) {
         primaryWhere.OR = [
           { balance: { gt: 0 } },
           ...(todaysActiveShopIds.length > 0 ? [{ id: { in: todaysActiveShopIds } }] : []),
@@ -149,7 +151,7 @@ export async function GET(request: NextRequest) {
           if (!includeInactive && shop.status !== 'active') return false;
           if (balanceOnly && shop.balance <= 0) return false;
           // hideZeroBalance: hide shops with permanently zero balance (no transactions today)
-          if (hideZeroBalance && shop.balance <= 0 && !todaysActiveShopIds.includes(shop.id)) return false;
+          if (shouldHideZero && shop.balance <= 0 && !todaysActiveShopIds.includes(shop.id)) return false;
           if (search) {
             const q = search.toLowerCase();
             return (
