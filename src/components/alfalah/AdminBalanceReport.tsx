@@ -351,19 +351,36 @@ export default function AdminBalanceReport() {
       {/* ─── PRINT AREA ─── */}
       {data && data.orderbookers.length > 0 && (
         <div className="print-area">
-          {/* Print Header */}
+          {/* Print Header — Full Page */}
           <div className="print-header print-only">
-            <div className="print-header-title">Al-Falah Traders</div>
-            <div className="print-header-subtitle">
-              Remaining Balance Report
-              {selectedDay !== 'all' && ` — ${selectedDayLabel}`}
+            <div className="print-header-inner">
+              <div className="print-header-logo">Al-Falah Traders</div>
+              <div className="print-header-divider"></div>
+              <div className="print-header-subtitle">
+                Remaining Balance Report
+                {selectedDay !== 'all' && ` — ${selectedDayLabel}`}
+              </div>
+              <div className="print-header-date">{new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+              <div className="print-header-stats">
+                <div className="print-stat">
+                  <span className="print-stat-value">{data.orderbookers.length}</span>
+                  <span className="print-stat-label">Orderbookers</span>
+                </div>
+                <div className="print-stat">
+                  <span className="print-stat-value">{data.orderbookers.reduce((sum, ob) => sum + ob.companies.reduce((s, c) => s + c.shops.length, 0), 0)}</span>
+                  <span className="print-stat-label">Total Shops</span>
+                </div>
+                <div className="print-stat">
+                  <span className="print-stat-value">Rs. {formatCurrency(data.grandTotal)}</span>
+                  <span className="print-stat-label">Total Outstanding</span>
+                </div>
+              </div>
             </div>
-            <div className="print-header-date">{new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
           </div>
 
           {/* Day-wise summary in print (only when showing all days) */}
           {selectedDay === 'all' && data.orderbookers.some(ob => ob.dayBreakdown.length > 0) && (
-            <div className="print-only" style={{ marginBottom: '12px' }}>
+            <div className="print-only print-day-summary" style={{ marginBottom: '12px' }}>
               <table className="balance-table" style={{ marginBottom: 0, fontSize: '11px' }}>
                 <thead>
                   <tr>
@@ -391,6 +408,8 @@ export default function AdminBalanceReport() {
             </div>
           )}
 
+          {/* Print Details Section */}
+          <div className="print-details">
           {data.orderbookers.map((ob) => (
             <div key={ob.orderbookerId} className="balance-section">
               {/* Orderbooker Header */}
@@ -458,14 +477,25 @@ export default function AdminBalanceReport() {
               </div>
             </div>
           ))}
+          </div>{/* end print-details */}
 
-          {/* Grand Total - print only */}
-          <div className="grand-total print-only">
-            <span className="grand-total-label">
-              Grand Total
-              {selectedDay !== 'all' && ` — ${selectedDayLabel}`}
-            </span>
-            <span className="grand-total-value">Rs. {formatCurrency(data.grandTotal)}</span>
+          {/* Grand Total — Full Page Footer */}
+          <div className="grand-total-page print-only">
+            <div className="grand-total-inner">
+              <div className="grand-total-title">Grand Total</div>
+              {selectedDay !== 'all' && (
+                <div className="grand-total-day">{selectedDayLabel}</div>
+              )}
+              <div className="grand-total-amount">Rs. {formatCurrency(data.grandTotal)}</div>
+              <div className="grand-total-breakdown">
+                {data.orderbookers.map(ob => (
+                  <div key={ob.orderbookerId} className="grand-total-row">
+                    <span>{ob.orderbookerName}</span>
+                    <span>Rs. {formatCurrency(ob.totalBalance)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

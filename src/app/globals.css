@@ -2157,9 +2157,12 @@ textarea:focus-visible {
   }
 
   /* Preserve intentional colored text */
-  .ob-header, .ob-header *, .grand-total, .grand-total *,
-  .ob-phone, .alfalah-gradient, .bg-primary, .bg-\[\#1E3A8A\] {
+  .ob-header, .ob-header * {
     color: white !important;
+  }
+  .print-header-logo, .print-stat-value, .grand-total-title, .grand-total-amount,
+  .grand-total-row span:last-child, .total-label, .total-value, .ob-total-label, .ob-total-value {
+    color: #1E3A8A !important;
   }
 
   /* ====== STEP 7: Backgrounds — only set where needed ====== */
@@ -2171,7 +2174,7 @@ textarea:focus-visible {
   /* Specific colored backgrounds for print elements */
   .ob-header { background: #1E3A8A !important; }
   .ob-total { background: #F1F5F9 !important; }
-  .grand-total { background: #1E3A8A !important; }
+  .grand-total-page { background: transparent !important; }
   .company-header { background: #EFF6FF !important; }
   .balance-table thead tr { background: #F1F5F9 !important; }
   .balance-table th { background: #E2E8F0 !important; }
@@ -2290,11 +2293,33 @@ textarea:focus-visible {
   .print-area {
     display: block !important;
   }
+
+  /* === HEADER PAGE === */
   .print-header {
+    min-height: 100vh;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    page-break-after: always;
+    break-after: page;
+  }
+  .print-header-inner {
     text-align: center;
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 2px solid #1E3A8A;
+    width: 80%;
+  }
+  .print-header-logo {
+    font-size: 36px;
+    font-weight: 900;
+    color: #1E3A8A;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+  .print-header-divider {
+    width: 60px;
+    height: 4px;
+    background: #1E3A8A;
+    margin: 16px auto;
+    border-radius: 2px;
   }
   .print-header-title {
     font-size: 20px;
@@ -2302,16 +2327,50 @@ textarea:focus-visible {
     color: #1E3A8A;
   }
   .print-header-subtitle {
-    font-size: 14px;
+    font-size: 20px;
     font-weight: 700;
     color: #1E293B;
-    margin-top: 2px;
+    margin-top: 8px;
   }
   .print-header-date {
+    font-size: 14px;
+    color: #64748B;
+    margin-top: 8px;
+  }
+  .print-header-stats {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 40px;
+  }
+  .print-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .print-stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #1E3A8A;
+  }
+  .print-stat-label {
     font-size: 12px;
-    color: #1E293B;
+    color: #64748B;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     margin-top: 2px;
   }
+
+  /* === DETAILS SECTION === */
+  .print-details {
+    /* No special break — content flows naturally across pages */
+  }
+  .print-day-summary {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
   .balance-section {
     page-break-inside: auto;
     break-inside: auto;
@@ -2461,16 +2520,57 @@ textarea:focus-visible {
     color: #1E3A8A;
     font-variant-numeric: tabular-nums;
   }
-  .grand-total {
+  .grand-total-page {
+    min-height: 100vh;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    page-break-before: always;
+    break-before: page;
+  }
+  .grand-total-inner {
+    text-align: center;
+    width: 70%;
+  }
+  .grand-total-title {
+    font-size: 28px;
+    font-weight: 900;
+    color: #1E3A8A;
+    letter-spacing: 1px;
+  }
+  .grand-total-day {
+    font-size: 16px;
+    color: #64748B;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .grand-total-amount {
+    font-size: 42px;
+    font-weight: 900;
+    color: #1E3A8A;
+    margin-top: 20px;
+    margin-bottom: 30px;
+  }
+  .grand-total-breakdown {
+    border-top: 2px solid #1E3A8A;
+    padding-top: 16px;
+    margin-top: 16px;
+  }
+  .grand-total-row {
     display: flex;
     justify-content: space-between;
-    padding: 10px 14px;
-    background: #1E3A8A !important;
-    color: white !important;
-    border-radius: 6px;
-    margin-top: 12px;
-    break-inside: avoid;
-    page-break-inside: avoid;
+    padding: 8px 0;
+    border-bottom: 1px solid #E2E8F0;
+    font-size: 14px;
+  }
+  .grand-total-row span:first-child {
+    font-weight: 600;
+    color: #1E293B;
+  }
+  .grand-total-row span:last-child {
+    font-weight: 800;
+    color: #1E3A8A;
+    font-variant-numeric: tabular-nums;
   }
   .grand-total-label {
     font-weight: 700;
