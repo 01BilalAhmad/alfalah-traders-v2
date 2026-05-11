@@ -325,10 +325,11 @@ export async function POST(request: NextRequest) {
     // Use customDate for createdAt if provided (for backdated entries)
     let createdAtIndex = new Date().toISOString();
     if (customDate) {
-      // Validate: customDate must not be in the future
-      const customDateObj = new Date(customDate + 'T23:59:59');
+      // Validate: customDate must not be in the future (using Pakistan timezone)
+      // Compare using Pakistan timezone boundaries to avoid UTC vs PKT mismatch
+      const { end: customDayEnd } = getPakistanDayRange(customDate);
       const now = new Date();
-      if (customDateObj > now) {
+      if (customDayEnd > now) {
         await client.query('ROLLBACK');
         await client.end();
         return NextResponse.json({ error: 'Cannot post for a future date' }, { status: 400 });
