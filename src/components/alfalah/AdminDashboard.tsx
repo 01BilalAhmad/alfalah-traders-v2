@@ -650,7 +650,7 @@ export default function AdminDashboard() {
             <Home className="h-5 w-5 text-blue-200" />
             <h2 className="text-lg font-bold">Welcome back, {user?.name?.split(' ')[0] || 'Admin'}</h2>
           </div>
-          <p className="text-sm text-blue-100">
+          <p className="text-sm text-white/90">
             {new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             {' · '}
             {data.totalShops} shops across {data.orderbookers.length} orderbookers
@@ -667,9 +667,9 @@ export default function AdminDashboard() {
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center shadow-sm">
                   <ArrowUpRight className="h-5 w-5 text-amber-600" />
                 </div>
-                <span className="text-[10px] text-amber-700 font-semibold bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300 px-2 py-0.5 rounded-full">Today</span>
+                <span className="text-[11px] text-amber-800 font-bold bg-amber-200 dark:bg-amber-800/60 dark:text-amber-200 px-2.5 py-0.5 rounded-full">Today</span>
               </div>
-              <p className="text-xs text-foreground/70 font-medium mb-0.5">Today&apos;s Credit</p>
+              <p className="text-sm text-foreground font-semibold mb-0.5">Today&apos;s Credit</p>
               <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
             </CardContent>
           </Card>
@@ -679,9 +679,9 @@ export default function AdminDashboard() {
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 flex items-center justify-center shadow-sm">
                   <ArrowDownRight className="h-5 w-5 text-green-600" />
                 </div>
-                <span className="text-[10px] text-green-700 font-semibold bg-green-100 dark:bg-green-900/40 dark:text-green-300 px-2 py-0.5 rounded-full">Today</span>
+                <span className="text-[11px] text-green-800 font-bold bg-green-200 dark:bg-green-800/60 dark:text-green-200 px-2.5 py-0.5 rounded-full">Today</span>
               </div>
-              <p className="text-xs text-foreground/70 font-medium mb-0.5">Today&apos;s Recovery</p>
+              <p className="text-sm text-foreground font-semibold mb-0.5">Today&apos;s Recovery</p>
               <p className="text-2xl font-bold text-green-600 tabular-nums number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
             </CardContent>
           </Card>
@@ -691,9 +691,9 @@ export default function AdminDashboard() {
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-100 to-red-50 flex items-center justify-center shadow-sm">
                   <Wallet className="h-5 w-5 text-red-600" />
                 </div>
-                <span className="text-[10px] text-red-700 font-semibold bg-red-100 dark:bg-red-900/40 dark:text-red-300 px-2 py-0.5 rounded-full">Alert</span>
+                <span className="text-[11px] text-red-800 font-bold bg-red-200 dark:bg-red-800/60 dark:text-red-200 px-2.5 py-0.5 rounded-full">Alert</span>
               </div>
-              <p className="text-xs text-foreground/70 font-medium mb-0.5">Total Outstanding</p>
+              <p className="text-sm text-foreground font-semibold mb-0.5">Total Outstanding</p>
               <p className="text-2xl font-bold text-red-600 tabular-nums number-animate number-display">{formatPKR(animatedOutstanding)}</p>
             </CardContent>
           </Card>
@@ -703,9 +703,9 @@ export default function AdminDashboard() {
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center shadow-sm">
                   <Store className="h-5 w-5 text-blue-600" />
                 </div>
-                <span className="text-[10px] text-blue-700 font-semibold bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300 px-2 py-0.5 rounded-full">All</span>
+                <span className="text-[11px] text-blue-800 font-bold bg-blue-200 dark:bg-blue-800/60 dark:text-blue-200 px-2.5 py-0.5 rounded-full">All</span>
               </div>
-              <p className="text-xs text-foreground/70 font-medium mb-0.5">Total Active Shops</p>
+              <p className="text-sm text-foreground font-semibold mb-0.5">Total Active Shops</p>
               <p className="text-2xl font-bold tabular-nums number-animate number-display">{animatedTotalShops}</p>
             </CardContent>
           </Card>
@@ -715,9 +715,9 @@ export default function AdminDashboard() {
       {/* Monthly Overview Badge */}
       <Card className="animate-fade-in overflow-hidden">
         <CardContent className="p-0">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary/5 to-primary/[0.02] border-b border-border/40">
-            <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="text-xs font-semibold text-foreground">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 border-b border-border/60">
+            <Calendar className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-bold text-primary">
               Monthly Overview — {monthSummary?.monthLabel || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </span>
           </div>
