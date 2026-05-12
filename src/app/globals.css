@@ -519,3 +519,268 @@ textarea:focus-visible {
 .dark .login-btn:hover:not(:disabled) {
   box-shadow: rgba(129, 140, 248, 0.35) 0px 18px 18px -8px;
 }
+
+/* ====== Finexa Toggle — Uiverse-inspired cyber toggle ====== */
+
+/* Toggle container */
+.finexa-toggle {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  cursor: pointer;
+}
+
+/* Track — the background rail */
+.finexa-toggle-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #E2E8F0;
+  border-radius: 13px;
+  overflow: hidden;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: all 0.4s cubic-bezier(0.3, 1.5, 0.7, 1);
+}
+
+.finexa-toggle-track::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 11px;
+  background: #F1F5F9;
+  box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.04);
+  z-index: 0;
+  transition: all 0.4s ease;
+}
+
+/* Track glow — appears when checked */
+.finexa-toggle-track-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #4F46E5, #7C3AED);
+  opacity: 0;
+  border-radius: 13px;
+  z-index: 1;
+  transition: all 0.4s ease;
+}
+
+/* Track dots — decorative dots on the track */
+.finexa-toggle-track-dots {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding-right: 7px;
+  z-index: 1;
+}
+
+.finexa-toggle-track-dot {
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: #CBD5E1;
+  margin-left: 2px;
+  opacity: 0.6;
+  transition: all 0.4s ease;
+}
+
+/* Thumb — the sliding circle */
+.finexa-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #FFFFFF;
+  border-radius: 50%;
+  z-index: 2;
+  transition: all 0.4s cubic-bezier(0.3, 1.5, 0.7, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.finexa-toggle-thumb-shadow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, 0.8),
+    transparent 70%
+  );
+  z-index: 1;
+}
+
+.finexa-toggle-thumb-highlight {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 70% 70%,
+    rgba(0, 0, 0, 0.06),
+    transparent 70%
+  );
+  z-index: 1;
+}
+
+/* Particles — animated dots on check */
+.finexa-toggle-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.finexa-toggle-particle {
+  position: absolute;
+  width: 2.5px;
+  height: 2.5px;
+  background: #818CF8;
+  border-radius: 50%;
+  opacity: 0;
+  filter: blur(0.5px);
+  transition: all 0.3s ease;
+  box-shadow: 0 0 4px rgba(79, 70, 229, 0.6);
+}
+
+.finexa-toggle-particle:nth-child(1) { top: 15%; right: 20%; }
+.finexa-toggle-particle:nth-child(2) { top: 45%; right: 30%; }
+.finexa-toggle-particle:nth-child(3) { top: 25%; right: 40%; }
+.finexa-toggle-particle:nth-child(4) { top: 60%; right: 15%; }
+
+/* ====== Checked State ====== */
+.finexa-toggle[data-state="checked"] .finexa-toggle-track-glow {
+  opacity: 1;
+}
+
+.finexa-toggle[data-state="checked"] .finexa-toggle-track::before {
+  background: rgba(79, 70, 229, 0.15);
+}
+
+.finexa-toggle[data-state="checked"] .finexa-toggle-thumb {
+  left: calc(100% - 23px);
+  background: #FFFFFF;
+  box-shadow: 0 1px 4px rgba(79, 70, 229, 0.3), 0 0 8px rgba(79, 70, 229, 0.15);
+}
+
+.finexa-toggle[data-state="checked"] .finexa-toggle-track-dot {
+  background: #FFFFFF;
+  box-shadow: 0 0 3px rgba(255, 255, 255, 0.5);
+  opacity: 0.8;
+}
+
+.finexa-toggle[data-state="checked"] .finexa-toggle-particle {
+  opacity: 1;
+  animation: finexa-toggle-float 2.5s infinite alternate;
+}
+
+.finexa-toggle[data-state="checked"] .finexa-toggle-particle:nth-child(1) { animation-delay: 0s; }
+.finexa-toggle[data-state="checked"] .finexa-toggle-particle:nth-child(2) { animation-delay: 0.4s; }
+.finexa-toggle[data-state="checked"] .finexa-toggle-particle:nth-child(3) { animation-delay: 0.8s; }
+.finexa-toggle[data-state="checked"] .finexa-toggle-particle:nth-child(4) { animation-delay: 1.2s; }
+
+/* ====== Hover State ====== */
+.finexa-toggle:hover .finexa-toggle-track::before {
+  background: #E8ECF1;
+}
+
+.finexa-toggle[data-state="checked"]:hover .finexa-toggle-track-glow {
+  opacity: 0.9;
+}
+
+.finexa-toggle[data-state="checked"]:hover .finexa-toggle-thumb {
+  box-shadow: 0 1px 6px rgba(79, 70, 229, 0.4), 0 0 12px rgba(79, 70, 229, 0.2);
+}
+
+/* ====== Focus State ====== */
+.finexa-toggle:focus-visible {
+  outline: none;
+}
+
+.finexa-toggle:focus-visible::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 16px;
+  border: 2px solid rgba(79, 70, 229, 0.4);
+  opacity: 0.6;
+}
+
+/* ====== Float Animation ====== */
+@keyframes finexa-toggle-float {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
+}
+
+/* ====== Dark Mode ====== */
+.dark .finexa-toggle-track {
+  background: #334155;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.dark .finexa-toggle-track::before {
+  background: #1E293B;
+  box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.3);
+}
+
+.dark .finexa-toggle-track-glow {
+  background: linear-gradient(90deg, #818CF8, #A78BFA);
+}
+
+.dark .finexa-toggle-thumb {
+  background: #475569;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.dark .finexa-toggle-thumb-shadow {
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, 0.12),
+    transparent 70%
+  );
+}
+
+.dark .finexa-toggle-track-dot {
+  background: #475569;
+}
+
+.dark .finexa-toggle[data-state="checked"] .finexa-toggle-track::before {
+  background: rgba(129, 140, 248, 0.15);
+}
+
+.dark .finexa-toggle[data-state="checked"] .finexa-toggle-thumb {
+  background: #FFFFFF;
+  box-shadow: 0 1px 4px rgba(129, 140, 248, 0.4), 0 0 8px rgba(129, 140, 248, 0.15);
+}
+
+.dark .finexa-toggle[data-state="checked"] .finexa-toggle-track-dot {
+  background: #FFFFFF;
+  box-shadow: 0 0 3px rgba(255, 255, 255, 0.4);
+}
+
+.dark .finexa-toggle-particle {
+  background: #A78BFA;
+  box-shadow: 0 0 4px rgba(167, 139, 250, 0.6);
+}
+
+.dark .finexa-toggle:hover .finexa-toggle-track::before {
+  background: #263548;
+}
+
+.dark .finexa-toggle:focus-visible::after {
+  border-color: rgba(129, 140, 248, 0.4);
+}
