@@ -193,7 +193,7 @@ export default function LoginView() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30 px-4">
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30 px-4">
       <div className="w-full max-w-[380px]">
         {/* LOGIN VIEW */}
         {viewMode === 'login' && (

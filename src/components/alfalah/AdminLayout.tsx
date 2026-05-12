@@ -175,7 +175,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-dvh flex flex-col bg-background">
       {/* Top Header — Clean, flat, Mosaic-style */}
       <header className="sticky top-0 z-50 h-14 flex items-center justify-between px-4 lg:px-6 bg-white dark:bg-slate-900 border-b border-border print:hidden">
         <div className="flex items-center gap-3">
@@ -268,11 +268,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
         {/* Sidebar — Clean white, Mosaic-style */}
         <aside
-          className={`fixed lg:static inset-y-0 left-0 z-40 w-60 bg-white dark:bg-slate-900 border-r border-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:top-14 pt-14 lg:pt-0 print:hidden ${
+          className={`fixed lg:static inset-y-0 left-0 z-40 w-60 bg-white dark:bg-slate-900 border-r border-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:top-14 pt-14 lg:pt-0 print:hidden overflow-hidden ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <ScrollArea className="h-[calc(100vh-3.5rem)] sidebar-scroll">
+          <ScrollArea className="h-[calc(100dvh-3.5rem)] sidebar-scroll">
             {/* Logo section in sidebar */}
             <div className="px-4 pt-5 pb-3">
               <div className="flex items-center gap-2.5 px-1">

@@ -634,7 +634,7 @@ function RecoveryHistory() {
           </CardContent>
         </Card>
       ) : (
-        <ScrollArea className="max-h-[calc(100vh-18rem)]">
+        <ScrollArea className="max-h-[calc(100dvh-18rem)]">
           <div className="space-y-4 pb-4">
             {dateKeys.map((dateKey) => {
               const items = grouped[dateKey];
@@ -807,7 +807,7 @@ export default function OrderbookerLayout() {
   const showBottomNav = isDashboard || isHistory || isLedger || isProfile;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-dvh flex flex-col bg-background">
       {/* Offline Banner */}
       <OfflineBanner
         isOnline={onlineStatus.isOnline}
@@ -1896,7 +1896,7 @@ function ShopDetailDialog({
   return (
     <div className="fixed inset-0 z-50 block">
       <div className="fixed inset-0 bg-black/40" onClick={() => onOpenChange(false)} />
-      <div className="fixed inset-x-0 bottom-0 top-12 bg-card rounded-t-2xl shadow-xl animate-in slide-in-from-bottom duration-200 flex flex-col max-h-[calc(100vh-3rem)]">
+      <div className="fixed inset-x-0 bottom-0 top-12 bg-card rounded-t-2xl shadow-xl animate-in slide-in-from-bottom duration-200 flex flex-col max-h-[calc(100dvh-3rem)]">
         {/* Header */}
         <div className="flex items-center justify-between p-4 pb-2 shrink-0">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)}>
