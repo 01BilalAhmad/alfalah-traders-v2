@@ -667,9 +667,9 @@ export default function AdminDashboard() {
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center shadow-sm">
                   <ArrowUpRight className="h-5 w-5 text-amber-600" />
                 </div>
-                <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
+                <span className="text-[10px] text-amber-700 font-semibold bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300 px-2 py-0.5 rounded-full">Today</span>
               </div>
-              <p className="text-xs text-muted-foreground font-medium mb-0.5">Today&apos;s Credit</p>
+              <p className="text-xs text-foreground/70 font-medium mb-0.5">Today&apos;s Credit</p>
               <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
             </CardContent>
           </Card>
@@ -679,9 +679,9 @@ export default function AdminDashboard() {
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 flex items-center justify-center shadow-sm">
                   <ArrowDownRight className="h-5 w-5 text-green-600" />
                 </div>
-                <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
+                <span className="text-[10px] text-green-700 font-semibold bg-green-100 dark:bg-green-900/40 dark:text-green-300 px-2 py-0.5 rounded-full">Today</span>
               </div>
-              <p className="text-xs text-muted-foreground font-medium mb-0.5">Today&apos;s Recovery</p>
+              <p className="text-xs text-foreground/70 font-medium mb-0.5">Today&apos;s Recovery</p>
               <p className="text-2xl font-bold text-green-600 tabular-nums number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
             </CardContent>
           </Card>
@@ -691,9 +691,9 @@ export default function AdminDashboard() {
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-100 to-red-50 flex items-center justify-center shadow-sm">
                   <Wallet className="h-5 w-5 text-red-600" />
                 </div>
-                <span className="text-[10px] text-red-500 font-medium bg-red-50 px-2 py-0.5 rounded-full">Alert</span>
+                <span className="text-[10px] text-red-700 font-semibold bg-red-100 dark:bg-red-900/40 dark:text-red-300 px-2 py-0.5 rounded-full">Alert</span>
               </div>
-              <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Outstanding</p>
+              <p className="text-xs text-foreground/70 font-medium mb-0.5">Total Outstanding</p>
               <p className="text-2xl font-bold text-red-600 tabular-nums number-animate number-display">{formatPKR(animatedOutstanding)}</p>
             </CardContent>
           </Card>
@@ -703,9 +703,9 @@ export default function AdminDashboard() {
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center shadow-sm">
                   <Store className="h-5 w-5 text-blue-600" />
                 </div>
-                <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">All</span>
+                <span className="text-[10px] text-blue-700 font-semibold bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300 px-2 py-0.5 rounded-full">All</span>
               </div>
-              <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Active Shops</p>
+              <p className="text-xs text-foreground/70 font-medium mb-0.5">Total Active Shops</p>
               <p className="text-2xl font-bold tabular-nums number-animate number-display">{animatedTotalShops}</p>
             </CardContent>
           </Card>
@@ -725,7 +725,7 @@ export default function AdminDashboard() {
             <div className="flex gap-2 px-4 py-3 min-w-max">
               {/* Credit */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Credit:</span>
+                <span className="text-xs text-foreground/70 font-medium">Credit:</span>
                 <span className="text-xs font-bold text-amber-600 tabular-nums">{formatPKR(monthSummary?.totalCredit ?? 0)}</span>
                 {monthSummary && monthSummary.prevTotalCredit > 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
@@ -743,7 +743,7 @@ export default function AdminDashboard() {
               <span className="text-border">|</span>
               {/* Recovery */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Recovery:</span>
+                <span className="text-xs text-foreground/70 font-medium">Recovery:</span>
                 <span className="text-xs font-bold text-green-600 tabular-nums">{formatPKR(monthSummary?.totalRecovery ?? 0)}</span>
                 {monthSummary && monthSummary.prevTotalRecovery > 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
@@ -761,7 +761,7 @@ export default function AdminDashboard() {
               <span className="text-border">|</span>
               {/* Net */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Net:</span>
+                <span className="text-xs text-foreground/70 font-medium">Net:</span>
                 <span className={`text-xs font-bold tabular-nums ${(monthSummary?.netPosition ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {formatPKR(monthSummary?.netPosition ?? 0)}
                 </span>
@@ -980,7 +980,7 @@ export default function AdminDashboard() {
               return (
                 <div className="text-center py-6">
                   <p className="text-sm text-muted-foreground">No recovery entries today</p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">Recovery from orderbookers will appear here in real-time</p>
+                  <p className="text-xs text-foreground/50 mt-1">Recovery from orderbookers will appear here in real-time</p>
                 </div>
               );
             }
@@ -1293,7 +1293,7 @@ export default function AdminDashboard() {
                 <Sparkles className="h-3 w-3 text-primary/50" />
                 7d Recovery Trend
               </span>
-              <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] text-foreground/60 font-medium bg-foreground/5 px-2 py-0.5 rounded-full">
                 {data.orderbookers.length} orderbookers
               </span>
             </div>
@@ -1353,8 +1353,8 @@ export default function AdminDashboard() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <div className="h-6 w-16 flex items-center justify-center text-[10px] text-muted-foreground/50">No data</div>
-                        <span className="text-[9px] text-muted-foreground/50">No recovery in 7 days</span>
+                        <div className="h-6 w-16 flex items-center justify-center text-[10px] text-foreground/40">No data</div>
+                        <span className="text-[9px] text-foreground/40">No recovery in 7 days</span>
                       </div>
                     )}
                   </div>
