@@ -42,6 +42,9 @@ import {
   Target,
   Flame,
   Building2,
+  TrendingUp,
+  Shield,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
@@ -453,97 +456,123 @@ export default function AdminOrderbookers() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 stagger-children">
-          {orderbookers.map((ob) => (
-            <Card key={ob.id} className={`card-hover ${ob.status === 'inactive' ? 'opacity-60' : ''} `}>
-              <CardContent className="p-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-children">
+          {orderbookers.map((ob) => {
+            const targetPct = monthlyTargets[ob.id]?.target
+              ? Math.min((monthlyTargets[ob.id].achieved / monthlyTargets[ob.id].target) * 100, 100)
+              : 0;
+            const targetMet = monthlyTargets[ob.id]?.target && monthlyTargets[ob.id].achieved >= monthlyTargets[ob.id].target;
+
+            return (
+            <Card key={ob.id} className={`group relative overflow-hidden card-hover ${ob.status === 'inactive' ? 'opacity-60 grayscale-[30%]' : ''}`}>
+              {/* Top accent gradient bar */}
+              <div className={`h-1.5 w-full ${ob.status === 'active' ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500' : 'bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700'}`} />
+
+              <CardContent className="p-5 pt-4">
+                {/* Header: Avatar + Name + Status */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className={`h-11 w-11 rounded-full flex items-center justify-center ${ob.status === 'active' ? 'bg-primary/10' : 'bg-muted'}`}>
-                      <span className={`text-sm font-bold ${ob.status === 'active' ? 'text-primary' : 'text-muted-foreground'}`}>
-                        {ob.name.charAt(0)}
+                    <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center shadow-sm ${ob.status === 'active' ? 'bg-gradient-to-br from-indigo-500/20 to-purple-500/20 dark:from-indigo-500/30 dark:to-purple-500/30' : 'bg-muted'}`}>
+                      <span className={`text-base font-bold ${ob.status === 'active' ? 'bg-gradient-to-br from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent' : 'text-muted-foreground'}`}>
+                        {ob.name.charAt(0).toUpperCase()}
                       </span>
+                      {ob.status === 'active' && (
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-white dark:border-gray-900" />
+                      )}
                     </div>
                     <div>
-                      <p className="font-semibold text-sm">{ob.name}</p>
-                      <p className="text-xs text-muted-foreground">@{ob.username}</p>
+                      <p className="font-semibold text-sm leading-tight">{ob.name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">@{ob.username}</p>
                     </div>
                   </div>
-                  <Badge className={`text-[10px] animate-badge-pop ${ob.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
+                  <Badge className={`text-[10px] font-semibold animate-badge-pop shadow-sm ${ob.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
                     {ob.status === 'active' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                     {ob.status.charAt(0).toUpperCase() + ob.status.slice(1)}
                   </Badge>
                 </div>
 
-                <div className="space-y-2 mb-4">
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div className="rounded-xl bg-muted/60 dark:bg-muted/30 border border-border/50 p-2.5 hover:bg-muted/80 transition-colors">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Store className="h-3 w-3 text-indigo-500" />
+                      <span className="text-[10px] text-muted-foreground font-medium">Shops</span>
+                    </div>
+                    <p className="text-sm font-bold tabular-nums">{ob.totalShops}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/60 dark:bg-muted/30 border border-border/50 p-2.5 hover:bg-muted/80 transition-colors">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Wallet className="h-3 w-3 text-red-500" />
+                      <span className="text-[10px] text-muted-foreground font-medium">Outstanding</span>
+                    </div>
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400 tabular-nums">{formatPKR(ob.totalOutstanding)}</p>
+                  </div>
+                </div>
+
+                {/* Detail Row */}
+                <div className="space-y-2 mb-3">
                   {ob.phone && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Phone className="h-3.5 w-3.5" />
+                      <Phone className="h-3.5 w-3.5 text-indigo-400" />
                       <span>{ob.phone}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Store className="h-3.5 w-3.5" />
-                    <span>{ob.totalShops} active shops</span>
-                  </div>
                   {ob.companyName && (
                     <div className="flex items-center gap-2 text-xs">
-                      <Building2 className="h-3.5 w-3.5 text-primary" />
-                      <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-medium gap-1">
+                      <Building2 className="h-3.5 w-3.5 text-purple-500" />
+                      <Badge className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800 text-[10px] font-semibold gap-1">
+                        <Shield className="h-2.5 w-2.5" />
                         {ob.companyName}
                       </Badge>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Wallet className="h-3.5 w-3.5" />
-                    <span className="font-semibold text-red-600">{formatPKR(ob.totalOutstanding)}</span>
-                    <span>outstanding</span>
-                  </div>
-                  {/* Visit Streak Badge */}
-                  <div className="flex items-center gap-2">
-                    {streaksLoading ? (
-                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                    ) : visitStreaks[ob.id] && visitStreaks[ob.id].currentStreak > 0 ? (
-                      <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border-orange-200 dark:border-orange-800 text-[10px] font-bold gap-1">
-                        <Flame className="h-3 w-3" />
-                        {visitStreaks[ob.id].currentStreak} Day Streak
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-[10px] font-medium">
-                        No Streak
-                      </Badge>
-                    )}
-                  </div>
+                </div>
+
+                {/* Visit Streak Badge */}
+                <div className="flex items-center gap-2 mb-3">
+                  {streaksLoading ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                  ) : visitStreaks[ob.id] && visitStreaks[ob.id].currentStreak > 0 ? (
+                    <Badge className="bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border-orange-200 dark:from-orange-900/30 dark:to-amber-900/30 dark:text-orange-400 dark:border-orange-800 text-[10px] font-bold gap-1 shadow-sm">
+                      <Flame className="h-3 w-3" />
+                      {visitStreaks[ob.id].currentStreak} Day Streak
+                      {visitStreaks[ob.id].currentStreak >= 7 && <Sparkles className="h-2.5 w-2.5 text-amber-500" />}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-[10px] font-medium">
+                      No Streak
+                    </Badge>
+                  )}
                 </div>
 
                 {/* Monthly Recovery Target Progress */}
                 {monthlyTargets[ob.id] && monthlyTargets[ob.id].target > 0 && (
-                  <div className="mb-4 p-2.5 rounded-lg bg-muted/50 border">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                        <Target className="h-3 w-3" /> Monthly Target
+                  <div className={`mb-3 p-3 rounded-xl border transition-colors ${targetMet ? 'bg-green-50/80 border-green-200 dark:bg-green-900/20 dark:border-green-800' : 'bg-muted/50 border-border/50'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3" /> Monthly Target
                       </span>
                       <span className="text-[10px] font-bold tabular-nums">
                         {formatPKR(monthlyTargets[ob.id].achieved)} / {formatPKR(monthlyTargets[ob.id].target)}
                       </span>
                     </div>
                     <Progress
-                      value={Math.min((monthlyTargets[ob.id].achieved / monthlyTargets[ob.id].target) * 100, 100)}
-                      className="h-2"
+                      value={targetPct}
+                      className={`h-2 ${targetMet ? '[&>div]:bg-green-500' : ''}`}
                     />
-                    <div className="flex items-center justify-between mt-1">
+                    <div className="flex items-center justify-between mt-1.5">
                       <span className="text-[9px] text-muted-foreground">
-                        {Math.round((monthlyTargets[ob.id].achieved / monthlyTargets[ob.id].target) * 100)}% achieved
+                        {Math.round(targetPct)}% achieved
                       </span>
-                      <span className={`text-[9px] font-medium ${
-                        monthlyTargets[ob.id].achieved >= monthlyTargets[ob.id].target
-                          ? 'text-green-600'
+                      <span className={`text-[9px] font-semibold ${
+                        targetMet
+                          ? 'text-green-600 dark:text-green-400'
                           : monthlyTargets[ob.id].achieved >= monthlyTargets[ob.id].target * 0.7
                             ? 'text-amber-600'
                             : 'text-red-600'
                       }`}>
-                        {monthlyTargets[ob.id].achieved >= monthlyTargets[ob.id].target
-                          ? '✓ Target met!'
+                        {targetMet
+                          ? 'Target met!'
                           : `${formatPKR(monthlyTargets[ob.id].target - monthlyTargets[ob.id].achieved)} remaining`}
                       </span>
                     </div>
@@ -551,9 +580,11 @@ export default function AdminOrderbookers() {
                 )}
 
                 {/* All Routes Toggle */}
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50 border">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border/50 mb-3">
                   <div className="flex items-center gap-2">
-                    <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                    <div className="h-7 w-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                      <Layers className="h-3.5 w-3.5 text-indigo-500" />
+                    </div>
                     <div>
                       <span className="text-xs font-medium">All Routes Access</span>
                       <p className="text-[10px] text-muted-foreground">Show all days&apos; shops at once</p>
@@ -565,22 +596,24 @@ export default function AdminOrderbookers() {
                   />
                 </div>
 
+                {/* Action Buttons */}
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1 text-xs " onClick={() => openEditDialog(ob)}>
+                  <Button variant="outline" size="sm" className="flex-1 text-xs hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400 dark:hover:border-indigo-800 transition-colors" onClick={() => openEditDialog(ob)}>
                     <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1 text-xs " onClick={() => openTargetDialog(ob)}>
-                    <Target className="h-3.5 w-3.5 mr-1" /> Set Target
+                  <Button variant="outline" size="sm" className="flex-1 text-xs hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 dark:hover:bg-purple-900/20 dark:hover:text-purple-400 dark:hover:border-purple-800 transition-colors" onClick={() => openTargetDialog(ob)}>
+                    <Target className="h-3.5 w-3.5 mr-1" /> Target
                   </Button>
                   {ob.status === 'active' && (
-                    <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive " onClick={() => setConfirmDeactivate(ob)}>
-                      <UserMinus className="h-3.5 w-3.5 mr-1" /> Deactivate
+                    <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" onClick={() => setConfirmDeactivate(ob)}>
+                      <UserMinus className="h-3.5 w-3.5 mr-1" />
                     </Button>
                   )}
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
