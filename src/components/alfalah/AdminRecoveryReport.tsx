@@ -62,6 +62,9 @@ import {
   Trash2,
   Plus,
   RefreshCw,
+  Store,
+  Search,
+  X,
 } from 'lucide-react';
 import { exportToCSV } from '@/lib/csv-export';
 import { toast } from '@/hooks/use-toast';
@@ -114,7 +117,8 @@ interface ShopOption {
   id: string;
   name: string;
   area: string;
-  orderbooker: { id: string; name: string };
+  balance: number;
+  orderbooker: { id: string; name: string } | null;
 }
 
 function RecoverySkeleton() {
@@ -199,6 +203,7 @@ export default function AdminRecoveryReport() {
   const [addRecoveryDate, setAddRecoveryDate] = useState(getLocalDateString());
   const [addSaving, setAddSaving] = useState(false);
   const [fetchingDropdowns, setFetchingDropdowns] = useState(false);
+  const [shopSearch, setShopSearch] = useState('');
 
   const fetchSummary = useCallback(async () => {
     setLoading(true);
@@ -384,6 +389,7 @@ export default function AdminRecoveryReport() {
     setAddAmount('');
     setAddDescription('');
     setAddRecoveryDate(getLocalDateString());
+    setShopSearch('');
     setAddDialogOpen(true);
     setFetchingDropdowns(true);
     try {
@@ -407,8 +413,18 @@ export default function AdminRecoveryReport() {
   };
 
   const filteredShops = selectedOBId
-    ? shops.filter((s) => s.orderbooker?.id === selectedOBId)
+    ? shops.filter((s) => {
+        if (s.orderbooker?.id !== selectedOBId) return false;
+        if (shopSearch.trim()) {
+          const q = shopSearch.trim().toLowerCase();
+          return s.name.toLowerCase().includes(q) || (s.area && s.area.toLowerCase().includes(q));
+        }
+        return true;
+      })
     : shops;
+
+  // Selected shop details
+  const selectedShopDetails = selectedShopId ? filteredShops.find((s) => s.id === selectedShopId) : null;
 
   const handleAddSubmit = async () => {
     if (!selectedShopId || !addAmount || !user) return;
@@ -1057,7 +1073,7 @@ export default function AdminRecoveryReport() {
       <Dialog open={addDialogOpen} onOpenChange={(open) => {
         if (!open) { setAddDialogOpen(false); setAddStep(1); }
       }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Add Recovery</DialogTitle>
             <DialogDescription>
@@ -1115,35 +1131,142 @@ export default function AdminRecoveryReport() {
 
               {/* Step 2: Select Shop */}
               {addStep === 2 && (
-                <div className="space-y-4 py-2">
-                  <div className="space-y-2">
-                    <Label>Select Shop</Label>
-                    <Select value={selectedShopId} onValueChange={setSelectedShopId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a shop" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredShops.map((shop) => (
-                          <SelectItem key={shop.id} value={shop.id}>
-                            {shop.name}{shop.area ? ` — ${shop.area}` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {filteredShops.length === 0 && (
-                      <p className="text-xs text-muted-foreground">No shops found for this orderbooker.</p>
-                    )}
-                  </div>
+                <div className="space-y-3 py-2">
+                  {/* Selected shop card */}
+                  {selectedShopDetails && !shopSearch ? (
+                    <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Store className="h-4 w-4 text-primary shrink-0" />
+                          <div>
+                            <p className="font-semibold text-sm">{selectedShopDetails.name}</p>
+                            {selectedShopDetails.area && (
+                              <p className="text-xs text-muted-foreground">{selectedShopDetails.area}</p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            setSelectedShopId('');
+                            setShopSearch('');
+                          }}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <Banknote className="h-3 w-3 text-amber-500" />
+                        Balance: <span className="font-bold text-amber-600 dark:text-amber-400">{formatPKR(selectedShopDetails.balance)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Label>Search & Select Shop</Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Type shop name or area..."
+                          value={shopSearch}
+                          onChange={(e) => {
+                            setShopSearch(e.target.value);
+                            if (selectedShopId) setSelectedShopId('');
+                          }}
+                          className="pl-9"
+                          autoFocus
+                        />
+                        {shopSearch && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                            onClick={() => { setShopSearch(''); setSelectedShopId(''); }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      <ScrollArea className="max-h-52 border rounded-lg">
+                        <div className="p-1">
+                          {filteredShops.length === 0 ? (
+                            <p className="text-xs text-muted-foreground p-3 text-center">No shops found</p>
+                          ) : (
+                            filteredShops.slice(0, 20).map((shop) => (
+                              <button
+                                key={shop.id}
+                                onClick={() => {
+                                  setSelectedShopId(shop.id);
+                                  setShopSearch('');
+                                }}
+                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm transition-colors ${
+                                  selectedShopId === shop.id
+                                    ? 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400'
+                                    : 'hover:bg-muted'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <Store className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                  <div className="text-left min-w-0">
+                                    <p className="font-medium truncate">{shop.name}</p>
+                                    {shop.area && (
+                                      <p className="text-[10px] text-muted-foreground">{shop.area}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <span className={`text-xs font-bold tabular-nums shrink-0 ${shop.balance > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                                  {formatPKR(shop.balance)}
+                                </span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </ScrollArea>
+                      {filteredShops.length > 20 && (
+                        <p className="text-[10px] text-muted-foreground text-center">
+                          Showing 20 of {filteredShops.length} — type to narrow results
+                        </p>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
 
               {/* Step 3: Enter Amount & Description */}
-              {addStep === 3 && (
+              {addStep === 3 && selectedShopDetails && (
                 <div className="space-y-4 py-2">
-                  <div className="rounded-lg bg-muted/50 p-3 text-xs">
-                    <span className="font-medium text-muted-foreground">Shop: </span>
-                    <span className="text-foreground">{filteredShops.find((s) => s.id === selectedShopId)?.name}</span>
+                  {/* Shop info card */}
+                  <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Store className="h-4 w-4 text-primary shrink-0" />
+                        <span className="font-medium text-sm">{selectedShopDetails.name}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-[10px] px-2"
+                        onClick={() => { setAddStep(2); setSelectedShopId(''); setShopSearch(''); }}
+                      >
+                        Change
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <Banknote className="h-3 w-3 text-amber-500" />
+                      Outstanding Balance: <span className="font-bold text-amber-600 dark:text-amber-400">{formatPKR(selectedShopDetails.balance)}</span>
+                    </div>
+                    {selectedShopDetails.area && (
+                      <p className="text-[10px] text-muted-foreground">{selectedShopDetails.area}</p>
+                    )}
                   </div>
+                  {/* Recovery balance warning */}
+                  {addAmount && parseFloat(addAmount) > selectedShopDetails.balance && (
+                    <div className="flex items-center gap-1.5 p-2 rounded-md bg-destructive/10 text-destructive text-xs font-medium">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      Recovery amount ({formatPKR(parseFloat(addAmount))}) exceeds shop balance ({formatPKR(selectedShopDetails.balance)}). Server will reject this.
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="add-amount">Amount (Rs.)</Label>
                     <Input
