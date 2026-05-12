@@ -44,6 +44,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { Switch } from '@/components/ui/switch';
 import { apiFetch } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { formatPKR } from '@/lib/utils';
@@ -558,21 +559,10 @@ export default function AdminOrderbookers() {
                       <p className="text-[10px] text-muted-foreground">Show all days&apos; shops at once</p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={ob.allRoutesEnabled}
-                    onClick={() => handleToggleAllRoutes(ob)}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                      ob.allRoutesEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        ob.allRoutesEnabled ? 'translate-x-4' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
+                  <Switch
+                    checked={ob.allRoutesEnabled}
+                    onCheckedChange={() => handleToggleAllRoutes(ob)}
+                  />
                 </div>
 
                 <div className="flex gap-2">
@@ -691,21 +681,10 @@ export default function AdminOrderbookers() {
                   <p className="text-[10px] text-muted-foreground">Show all days&apos; shops at once</p>
                 </div>
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={formAllRoutesEnabled}
-                onClick={() => setFormAllRoutesEnabled(!formAllRoutesEnabled)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                  formAllRoutesEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    formAllRoutesEnabled ? 'translate-x-4' : 'translate-x-0'
-                  }`}
-                />
-              </button>
+              <Switch
+                checked={formAllRoutesEnabled}
+                onCheckedChange={() => setFormAllRoutesEnabled(!formAllRoutesEnabled)}
+              />
             </div>
           </div>
           <DialogFooter className="gap-2">
