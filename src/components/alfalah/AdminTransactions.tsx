@@ -191,6 +191,14 @@ export default function AdminTransactions() {
   const [orderbookers, setOrderbookers] = useState<OrderbookerOption[]>([]);
   const [shops, setShops] = useState<ShopOption[]>([]);
 
+  // Companies for add dialog
+  interface CompanyOption {
+    id: string;
+    name: string;
+    status: string;
+  }
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+
   // Edit dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | null>(null);
@@ -206,11 +214,14 @@ export default function AdminTransactions() {
   // Add transaction dialog
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addTab, setAddTab] = useState<'recovery' | 'credit'>('recovery');
+  const [addOrderbookerId, setAddOrderbookerId] = useState('');
   const [addShopId, setAddShopId] = useState('');
+  const [addCompanyId, setAddCompanyId] = useState('');
   const [addAmount, setAddAmount] = useState('');
   const [addDescription, setAddDescription] = useState('');
   const [addSaving, setAddSaving] = useState(false);
   const [addShopSearch, setAddShopSearch] = useState('');
+  const [addShopsLoading, setAddShopsLoading] = useState(false);
 
   const limit = 50;
 
@@ -233,6 +244,35 @@ export default function AdminTransactions() {
         setShops(Array.isArray(data) ? data : []);
       }
     } catch { /* silent */ }
+  }, []);
+
+  const fetchCompanies = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/companies?status=active');
+      if (res.ok) {
+        const data = await res.json();
+        setCompanies(Array.isArray(data.companies) ? data.companies : []);
+      }
+    } catch { /* silent */ }
+  }, []);
+
+  // Fetch shops for a specific orderbooker in the add dialog
+  const fetchAddDialogShops = useCallback(async (obId: string) => {
+    if (!obId) return;
+    setAddShopsLoading(true);
+    setAddShopId('');
+    setAddShopSearch('');
+    setAddCompanyId('');
+    try {
+      const res = await apiFetch(`/api/shops?orderbookerId=${obId}&showZeroBalance=true&includeInactive=true`);
+      if (res.ok) {
+        const data = await res.json();
+        setShops(Array.isArray(data) ? data : []);
+      }
+    } catch { /* silent */ }
+    finally {
+      setAddShopsLoading(false);
+    }
   }, []);
 
   const fetchTransactions = useCallback(async () => {
@@ -289,7 +329,7 @@ export default function AdminTransactions() {
       )
     : transactions;
 
-  useEffect(() => { fetchOrderbookers(); fetchShops(); }, [fetchOrderbookers, fetchShops]);
+  useEffect(() => { fetchOrderbookers(); fetchCompanies(); }, [fetchOrderbookers, fetchCompanies]);
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
 
   // Reset page when filters change
@@ -386,10 +426,13 @@ export default function AdminTransactions() {
   // ─── Add Transaction Handlers ───
   const openAddDialog = () => {
     setAddTab('recovery');
+    setAddOrderbookerId('');
     setAddShopId('');
+    setAddCompanyId('');
     setAddAmount('');
     setAddDescription('');
     setAddShopSearch('');
+    setShops([]); // Clear shops until orderbooker is selected
     setAddDialogOpen(true);
   };
 
@@ -411,6 +454,7 @@ export default function AdminTransactions() {
           amount,
           description: addDescription.trim() || undefined,
           createdBy: user.id,
+          companyId: addCompanyId || undefined,
         }),
       });
       if (res.ok) {
@@ -1078,10 +1122,43 @@ export default function AdminTransactions() {
           </div>
 
           <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
-            {/* Shop search/select */}
+            {/* Step 1: Orderbooker Selection */}
+            <div className="space-y-1.5">
+              <Label>Orderbooker <span className="text-destructive">*</span></Label>
+              <Select
+                value={addOrderbookerId}
+                onValueChange={(v) => {
+                  setAddOrderbookerId(v);
+                  if (v) {
+                    fetchAddDialogShops(v);
+                  } else {
+                    setShops([]);
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select orderbooker first..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {orderbookers.filter((ob) => ob.status === 'active').map((ob) => (
+                    <SelectItem key={ob.id} value={ob.id}>{ob.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Step 2: Shop Selection (only after orderbooker is selected) */}
+            {addOrderbookerId && (
             <div className="space-y-1.5">
               <Label htmlFor="add-shop">Shop <span className="text-destructive">*</span></Label>
 
+              {addShopsLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-sm text-muted-foreground">Loading shops...</span>
+                </div>
+              ) : (
+              <>
               {/* Selected shop card */}
               {selectedShopDetails && !addShopSearch ? (
                 <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
@@ -1102,6 +1179,7 @@ export default function AdminTransactions() {
                       onClick={() => {
                         setAddShopId('');
                         setAddShopSearch('');
+                        setAddCompanyId('');
                       }}
                     >
                       <X className="h-3.5 w-3.5" />
@@ -1118,6 +1196,19 @@ export default function AdminTransactions() {
                       </span>
                     )}
                   </div>
+                  {/* Company balances for this shop */}
+                  {selectedShopDetails.companyBalances && selectedShopDetails.companyBalances.length > 0 && (
+                    <div className="mt-1 pt-1 border-t border-border/50">
+                      <p className="text-[10px] text-muted-foreground font-medium mb-1">Company Balances:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedShopDetails.companyBalances.map((cb) => (
+                          <span key={cb.companyId} className="inline-flex items-center gap-1 text-[10px] bg-muted px-1.5 py-0.5 rounded">
+                            {cb.companyName}: <span className="font-bold text-amber-600">{formatPKR(cb.balance)}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {/* Recovery warning: if amount > balance */}
                   {addTab === 'recovery' && addAmount && parseFloat(addAmount) > selectedShopDetails.balance && (
                     <div className="flex items-center gap-1.5 text-xs text-destructive font-medium">
@@ -1163,6 +1254,12 @@ export default function AdminTransactions() {
                             onClick={() => {
                               setAddShopId(shop.id);
                               setAddShopSearch(''); // Clear search to show selected card
+                              // Auto-select company if shop has only one company balance
+                              if (shop.companyBalances && shop.companyBalances.length === 1) {
+                                setAddCompanyId(shop.companyBalances[0].companyId);
+                              } else {
+                                setAddCompanyId('');
+                              }
                             }}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm transition-colors ${
                               addShopId === shop.id
@@ -1193,11 +1290,40 @@ export default function AdminTransactions() {
                       Showing 20 of {filteredShopOptions.length} shops — type to narrow results
                     </p>
                   )}
+                  {filteredShopOptions.length > 0 && (
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      {filteredShopOptions.length} shop{filteredShopOptions.length !== 1 ? 's' : ''} found
+                    </p>
+                  )}
                 </>
               )}
+              </>
+              )}
             </div>
+            )}
 
-            {/* Amount - only show when shop is selected */}
+            {/* Step 3: Company Selection (only for credit, when shop is selected) */}
+            {addShopId && addTab === 'credit' && companies.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Company</Label>
+              <Select
+                value={addCompanyId}
+                onValueChange={(v) => setAddCompanyId(v === '__none__' ? '' : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select company (optional)..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No Company</SelectItem>
+                  {companies.map((co) => (
+                    <SelectItem key={co.id} value={co.id}>{co.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            )}
+
+            {/* Step 4: Amount - only show when shop is selected */}
             {addShopId && (
             <>
             <div className="space-y-1.5">
@@ -1253,7 +1379,7 @@ export default function AdminTransactions() {
             </Button>
             <Button
               onClick={handleAddSubmit}
-              disabled={addSaving || !addShopId || !addAmount || parseFloat(addAmount) <= 0}
+              disabled={addSaving || !addOrderbookerId || !addShopId || !addAmount || parseFloat(addAmount) <= 0}
               className={addTab === 'credit' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}
             >
               {addSaving ? (
