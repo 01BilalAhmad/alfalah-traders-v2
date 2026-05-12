@@ -36,6 +36,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Table,
   TableBody,
   TableCell,
@@ -77,6 +83,8 @@ import {
   Trash2,
   MessageSquare,
   CalendarDays,
+  MoreHorizontal,
+  ChevronDown,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -1001,31 +1009,45 @@ export default function AdminShops() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-primary hover:bg-transparent">
-                    <TableHead className="text-white font-semibold text-xs w-10">
+                  <TableRow className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:bg-gradient-to-r hover:from-indigo-600 hover:via-purple-600 hover:to-indigo-700 sticky top-0 z-10 shadow-md">
+                    <TableHead className="text-white/90 font-semibold text-xs w-10">
                       <Checkbox
                         checked={allSelected}
                         ref={(el) => { if (el) { (el as unknown as HTMLInputElement).indeterminate = someSelected && !allSelected; } }}
                         onCheckedChange={toggleSelectAll}
-                        className="border-white/40 data-[state=checked]:bg-white data-[state=checked]:text-primary data-[state=checked]:border-white"
+                        className="border-white/40 data-[state=checked]:bg-white data-[state=checked]:text-indigo-600 data-[state=checked]:border-white"
                       />
                     </TableHead>
-                    <TableHead className="text-white font-semibold text-xs">Name</TableHead>
-                    <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Owner</TableHead>
-                    <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Area</TableHead>
-                    <TableHead className="text-white font-semibold text-xs hidden lg:table-cell">Route</TableHead>
-                    <TableHead className="text-white font-semibold text-xs hidden lg:table-cell">Orderbooker</TableHead>
-                    <TableHead className="text-white font-semibold text-xs text-right">Balance</TableHead>
-                    <TableHead className="text-white font-semibold text-xs">Credit Limit</TableHead>
-                    <TableHead className="text-white font-semibold text-xs">Status</TableHead>
-                    <TableHead className="text-white font-semibold text-xs text-center">Actions</TableHead>
+                    <TableHead className="text-white/90 font-semibold text-xs">Shop</TableHead>
+                    <TableHead className="text-white/90 font-semibold text-xs hidden lg:table-cell">Route Days</TableHead>
+                    <TableHead className="text-white/90 font-semibold text-xs hidden lg:table-cell">Orderbooker</TableHead>
+                    <TableHead className="text-white/90 font-semibold text-xs text-right">Balance</TableHead>
+                    <TableHead className="text-white/90 font-semibold text-xs">Credit Usage</TableHead>
+                    <TableHead className="text-white/90 font-semibold text-xs">Status</TableHead>
+                    <TableHead className="text-white/90 font-semibold text-xs text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredShops.map((shop, idx) => {
                     const isSelected = selectedShopIds.has(shop.id);
+                    const creditPct = shop.creditLimit > 0 ? Math.min((shop.balance / shop.creditLimit) * 100, 100) : 0;
+                    const isOverLimit = shop.creditLimit > 0 && shop.balance > shop.creditLimit;
+                    const isNearLimit = shop.creditLimit > 0 && !isOverLimit && shop.balance > shop.creditLimit * 0.8;
+                    const progressColor = isOverLimit ? 'bg-red-500' : isNearLimit ? 'bg-amber-500' : 'bg-emerald-500';
+
+                    const dayColorMap: Record<string, string> = {
+                      monday: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+                      tuesday: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+                      wednesday: 'bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400 border-orange-200 dark:border-orange-800',
+                      thursday: 'bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400 border-purple-200 dark:border-purple-800',
+                      friday: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+                      saturday: 'bg-pink-100 text-pink-700 dark:bg-pink-950/50 dark:text-pink-400 border-pink-200 dark:border-pink-800',
+                    };
+
+                    const initial = shop.name.charAt(0).toUpperCase();
+
                     return (
-                    <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} ${shop.status === 'inactive' ? 'opacity-60' : ''} ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''} ${shop.creditLimit > 0 && shop.balance > shop.creditLimit ? 'border-l-2 border-l-red-500 bg-red-50/50 dark:bg-red-950/20' : ''} hover-scale-102 transition-colors`}>
+                    <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} ${shop.status === 'inactive' ? 'opacity-60' : ''} ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''} ${isOverLimit ? 'border-l-2 border-l-red-500 bg-red-50/30 dark:bg-red-950/10' : ''} hover-scale-102 transition-colors`}>
                       <TableCell>
                         <Checkbox
                           checked={isSelected}
@@ -1033,22 +1055,44 @@ export default function AdminShops() {
                         />
                       </TableCell>
                       <TableCell>
-                        <p className="font-medium text-sm">{shop.name}</p>
-                        {shop.creditLimit > 0 && shop.balance > shop.creditLimit && (
-                          <p className="text-[10px] text-red-600 dark:text-red-400 font-medium leading-tight">
-                            Over limit ({formatPKR(shop.balance)} / {formatPKR(shop.creditLimit)})
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground sm:hidden">{shop.ownerName || ''} &bull; {shop.area || ''}</p>
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                            <span className="text-white font-bold text-sm">{initial}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent truncate">{shop.name}</p>
+                            {shop.ownerName && (
+                              <p className="text-[11px] text-muted-foreground truncate">{shop.ownerName}</p>
+                            )}
+                            {shop.area && (
+                              <div className="flex items-center gap-0.5 mt-0.5">
+                                <MapPin className="h-2.5 w-2.5 text-muted-foreground/60" />
+                                <span className="text-[10px] text-muted-foreground/80 truncate">{shop.area}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{shop.ownerName || '—'}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{shop.area || '—'}</TableCell>
                       <TableCell className="hidden lg:table-cell">
-                        <Badge variant="outline" className="text-[10px]">{formatRouteDays(shop.routeDays)}</Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {shop.routeDays.map(day => {
+                            const isToday = day === todayDay;
+                            const colors = dayColorMap[day] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700';
+                            return (
+                              <span key={day} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium border ${colors}`}>
+                                {isToday && <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />}
+                                {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-sm">{shop.orderbooker.name}</span>
+                          <div className="h-5 w-5 rounded-md bg-purple-100 dark:bg-purple-950/50 flex items-center justify-center flex-shrink-0">
+                            <User className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                          </div>
+                          <span className="text-sm truncate">{shop.orderbooker.name}</span>
                           {shop.assignedOrderbookers && shop.assignedOrderbookers.length > 0 && (
                             <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 text-[9px] h-4 px-1" title={`${shop.assignedOrderbookers.length} additional orderbooker(s)`}>
                               +{shop.assignedOrderbookers.length}
@@ -1064,68 +1108,66 @@ export default function AdminShops() {
                           if (!shop.creditLimit || shop.creditLimit <= 0) {
                             return <span className="text-xs text-muted-foreground">—</span>;
                           }
-                          if (shop.balance > shop.creditLimit) {
-                            return (
-                              <div className="flex flex-col gap-0.5">
-                                <Badge className="bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 text-[10px] font-bold animate-pulse">
-                                  ⚠ Over Limit
-                                </Badge>
-                                <span className="text-[9px] text-red-600 dark:text-red-400 font-medium">Limit: {formatPKR(shop.creditLimit)}</span>
-                              </div>
-                            );
-                          }
-                          if (shop.balance > shop.creditLimit * 0.8) {
-                            return (
-                              <div className="flex flex-col gap-0.5">
-                                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border-amber-200 dark:border-amber-800 text-[10px] font-bold">
-                                  Near Limit
-                                </Badge>
-                                <span className="text-[9px] text-muted-foreground">Limit: {formatPKR(shop.creditLimit)}</span>
-                              </div>
-                            );
-                          }
                           return (
-                            <div className="flex flex-col gap-0.5">
-                              <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 text-[10px] font-bold">
-                                Within Limit
-                              </Badge>
-                              <span className="text-[9px] text-muted-foreground">Limit: {formatPKR(shop.creditLimit)}</span>
+                            <div className="flex flex-col gap-1 min-w-[100px]">
+                              {isOverLimit ? (
+                                <span className="text-[10px] font-bold text-red-600 dark:text-red-400 animate-pulse">⚠ OVER LIMIT</span>
+                              ) : isNearLimit ? (
+                                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">Near Limit</span>
+                              ) : (
+                                <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">Within Limit</span>
+                              )}
+                              <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full transition-all duration-300 ${progressColor}`} style={{ width: `${isOverLimit ? 100 : creditPct}%` }} />
+                              </div>
+                              <span className="text-[9px] text-muted-foreground">{formatPKR(shop.balance)} / {formatPKR(shop.creditLimit)}</span>
                             </div>
                           );
                         })()}
                       </TableCell>
                       <TableCell>
-                        <Badge className={`text-[10px] ${shop.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
-                          {shop.status === 'active' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
-                          {shop.status.charAt(0).toUpperCase() + shop.status.slice(1)}
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`h-2 w-2 rounded-full flex-shrink-0 ${shop.status === 'active' ? 'bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]' : 'bg-gray-400'}`} />
+                          <Badge className={`text-[10px] ${shop.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
+                            {shop.status.charAt(0).toUpperCase() + shop.status.slice(1)}
+                          </Badge>
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-center gap-1 action-btn-group">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 " onClick={() => openShopDetail(shop)} title="View Details">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30" onClick={() => openShopDetail(shop)} title="View Details">
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 " onClick={() => openEditDialog(shop)} title="Edit">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 " onClick={() => openLedger(shop)} title="View Ledger">
-                            <BookOpen className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8  text-primary" onClick={() => {
-                            setSelectedShopId(shop.id);
-                            setSelectedShopName(shop.name);
-                            setCurrentView('admin-shop-detail');
-                          }} title="View Analytics">
-                            <TrendingUp className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8  text-amber-600 hover:text-amber-700" onClick={() => openNotesDialog(shop)} title="Shop Notes">
-                            <StickyNote className="h-3.5 w-3.5" />
-                          </Button>
-                          {shop.status === 'active' && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive " onClick={() => setConfirmDeactivate(shop)} title="Deactivate">
-                              <UserMinus className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem onClick={() => openEditDialog(shop)} className="gap-2 text-xs">
+                                <Pencil className="h-3.5 w-3.5" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openLedger(shop)} className="gap-2 text-xs">
+                                <BookOpen className="h-3.5 w-3.5" /> Ledger
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedShopId(shop.id);
+                                setSelectedShopName(shop.name);
+                                setCurrentView('admin-shop-detail');
+                              }} className="gap-2 text-xs">
+                                <TrendingUp className="h-3.5 w-3.5" /> Analytics
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openNotesDialog(shop)} className="gap-2 text-xs">
+                                <StickyNote className="h-3.5 w-3.5" /> Notes
+                              </DropdownMenuItem>
+                              {shop.status === 'active' && (
+                                <DropdownMenuItem onClick={() => setConfirmDeactivate(shop)} className="gap-2 text-xs text-destructive focus:text-destructive">
+                                  <UserMinus className="h-3.5 w-3.5" /> Deactivate
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>
