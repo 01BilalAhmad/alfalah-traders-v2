@@ -487,7 +487,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
           {user && (
             <Card className="overflow-hidden border-0 shadow-md">
               <CardContent className="p-0">
-                <div className="bg-gradient-to-br from-primary/90 to-primary relative overflow-hidden px-4 py-6">
+                <div className="bg-slate-800 dark:bg-slate-900 relative overflow-hidden px-4 py-6">
                   {/* Decorative circles */}
                   <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
                   <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-white/5" />
@@ -500,9 +500,9 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
                     {/* User Info */}
                     <div className="flex-1 min-w-0">
                       <h3 className="text-base font-bold text-white truncate">{user.name}</h3>
-                      <p className="text-xs text-blue-200 mt-0.5 flex items-center gap-1.5">
+                      <p className="text-xs text-slate-300 mt-0.5 flex items-center gap-1.5">
                         <span>@{user.username}</span>
-                        <span className="text-blue-300">·</span>
+                        <span className="text-slate-400">·</span>
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/15 backdrop-blur-sm">
                           {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                         </span>
@@ -524,14 +524,14 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
           {/* Google Drive Instructions Card */}
           <Card className="overflow-hidden border-0 shadow-md">
             <CardContent className="p-0">
-              <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 p-4">
+              <div className="bg-slate-800 dark:bg-slate-900 p-4">
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className="h-8 w-8 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
                     <Cloud className="h-4 w-4 text-white" />
                   </div>
                   <h3 className="text-sm font-bold text-white">Save to Google Drive</h3>
                 </div>
-                <ol className="space-y-1.5 text-emerald-50 text-xs leading-relaxed">
+                <ol className="space-y-1.5 text-slate-100 text-xs leading-relaxed">
                   <li className="flex items-start gap-2">
                     <span className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold text-white shrink-0 mt-0.5">
                       1
@@ -551,7 +551,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
                     <span>Upload the downloaded file to keep it safe</span>
                   </li>
                 </ol>
-                <p className="text-[10px] text-emerald-200/70 mt-3 leading-relaxed">
+                <p className="text-[10px] text-slate-300 mt-3 leading-relaxed">
                   Your backup file contains all shops, transactions, and account data
                 </p>
               </div>
@@ -622,7 +622,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
             <Button
               onClick={handleExport}
               disabled={exporting}
-              className="w-full h-12 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-xl font-semibold text-sm shadow-md shadow-emerald-600/20 transition-all duration-200 disabled:opacity-60"
+              className="w-full h-12 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-semibold text-sm shadow-md transition-all duration-200 disabled:opacity-60"
             >
               {exporting ? (
                 <>

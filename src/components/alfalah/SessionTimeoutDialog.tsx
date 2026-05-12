@@ -29,8 +29,8 @@ export default function SessionTimeoutDialog() {
     countdownSeconds <= 60
       ? 'text-red-600 dark:text-red-400'
       : countdownSeconds <= 120
-        ? 'text-amber-600 dark:text-amber-400'
-        : 'text-amber-500 dark:text-amber-300';
+        ? 'text-foreground'
+        : 'text-foreground';
 
   return (
     <Dialog open={showWarning} onOpenChange={(open) => !open && resetTimer()}>
@@ -48,7 +48,7 @@ export default function SessionTimeoutDialog() {
         }}
       >
         {/* Amber gradient header */}
-        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-5">
+        <div className="bg-slate-800 dark:bg-slate-900 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm border border-white/30">
               <AlertTriangle className="h-6 w-6 text-white" />
@@ -57,7 +57,7 @@ export default function SessionTimeoutDialog() {
               <DialogTitle className="text-base font-bold text-white">
                 Session Timeout Warning
               </DialogTitle>
-              <DialogDescription className="text-xs text-amber-100 mt-0.5">
+              <DialogDescription className="text-xs text-slate-300 mt-0.5">
                 Your session will expire due to inactivity
               </DialogDescription>
             </div>

@@ -618,10 +618,8 @@ export default function ShopDetailAnalytics() {
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
                   data.stats.creditLimitUsage >= 1
-                    ? 'bg-gradient-to-r from-red-500 to-red-600'
-                    : data.stats.creditLimitUsage >= 0.8
-                      ? 'bg-gradient-to-r from-amber-400 to-amber-500'
-                      : 'bg-gradient-to-r from-green-400 to-green-500'
+                    ? 'bg-red-500'
+                    : 'bg-slate-300'
                 }`}
                 style={{ width: `${Math.min(data.stats.creditLimitUsage * 100, 100)}%` }}
               />
@@ -725,13 +723,13 @@ export default function ShopDetailAnalytics() {
         <Card className="card-elevated stat-card-amber hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/40 dark:to-amber-950/40 flex items-center justify-center shadow-sm">
-                <TrendingUp className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Total</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Credit</p>
-            <p className="text-xl font-bold text-amber-700 dark:text-amber-400 tabular-nums number-animate">{formatPKR(data.stats.totalCredit)}</p>
+            <p className="text-xl font-bold text-foreground tabular-nums number-animate">{formatPKR(data.stats.totalCredit)}</p>
           </CardContent>
         </Card>
 
@@ -739,13 +737,13 @@ export default function ShopDetailAnalytics() {
         <Card className="card-elevated stat-card-green hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/40 dark:to-green-950/40 flex items-center justify-center shadow-sm">
-                <TrendingDown className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <TrendingDown className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Total</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Recovery</p>
-            <p className="text-xl font-bold text-green-700 dark:text-green-400 tabular-nums number-animate">{formatPKR(data.stats.totalRecovery)}</p>
+            <p className="text-xl font-bold text-foreground tabular-nums number-animate">{formatPKR(data.stats.totalRecovery)}</p>
           </CardContent>
         </Card>
 
@@ -753,17 +751,13 @@ export default function ShopDetailAnalytics() {
         <Card className={`card-elevated ${data.stats.netBalance > 0 ? 'stat-card-red' : 'stat-card-green'} hover-scale-102`}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className={`h-10 w-10 rounded-xl flex items-center justify-center shadow-sm ${
-                data.stats.netBalance > 0
-                  ? 'bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/40 dark:to-red-950/40'
-                  : 'bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/40 dark:to-green-950/40'
-              }`}>
-                <Wallet className={`h-5 w-5 ${data.stats.netBalance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`} />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Wallet className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Current</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Net Balance</p>
-            <p className={`text-xl font-bold tabular-nums number-animate ${data.stats.netBalance > 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
+            <p className="text-xl font-bold tabular-nums number-animate text-foreground">
               {formatPKR(data.stats.netBalance)}
             </p>
           </CardContent>
@@ -773,13 +767,13 @@ export default function ShopDetailAnalytics() {
         <Card className="card-elevated stat-card-blue hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-950/40 flex items-center justify-center shadow-sm">
-                <CreditCard className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <CreditCard className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Avg</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Avg Credit / Txn</p>
-            <p className="text-xl font-bold text-blue-700 dark:text-blue-400 tabular-nums number-animate">{formatPKR(data.stats.avgCreditPerTransaction)}</p>
+            <p className="text-xl font-bold text-foreground tabular-nums number-animate">{formatPKR(data.stats.avgCreditPerTransaction)}</p>
           </CardContent>
         </Card>
 
@@ -789,8 +783,8 @@ export default function ShopDetailAnalytics() {
         }}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/40 dark:to-emerald-950/40 flex items-center justify-center shadow-sm">
-                <Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Activity className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Rate</Badge>
             </div>
@@ -803,12 +797,8 @@ export default function ShopDetailAnalytics() {
         <Card className={`card-elevated ${data.stats.daysSinceLastTransaction > 7 ? 'stat-card-red' : 'stat-card-green'} hover-scale-102`}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className={`h-10 w-10 rounded-xl flex items-center justify-center shadow-sm ${
-                data.stats.daysSinceLastTransaction > 7
-                  ? 'bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/40 dark:to-red-950/40'
-                  : 'bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/40 dark:to-green-950/40'
-              }`}>
-                <Clock className={`h-5 w-5 ${data.stats.daysSinceLastTransaction > 7 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`} />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Clock className={`h-5 w-5 ${data.stats.daysSinceLastTransaction > 7 ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}`} />
               </div>
               {data.stats.daysSinceLastTransaction > 7 && (
                 <Badge className="bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 text-[10px] font-bold">
@@ -818,7 +808,7 @@ export default function ShopDetailAnalytics() {
               )}
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Days Since Last Txn</p>
-            <p className={`text-xl font-bold tabular-nums number-animate ${data.stats.daysSinceLastTransaction > 7 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
+            <p className={`text-xl font-bold tabular-nums number-animate ${data.stats.daysSinceLastTransaction > 7 ? 'text-red-700 dark:text-red-400' : 'text-foreground'}`}>
               {data.stats.lastTransactionDate ? data.stats.daysSinceLastTransaction : '—'}
             </p>
             {data.stats.lastTransactionDate && (

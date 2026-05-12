@@ -504,8 +504,8 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                 </div>
               )}
               {totalCredit > 0 && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-200 dark:border-amber-800">
-                  <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted border border-border">
+                  <span className="text-sm font-semibold text-foreground">
                     Total Credit: {formatPKR(totalCredit)}
                   </span>
                 </div>
@@ -516,9 +516,9 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                 </span>
               </div>
               {selectedCompany && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-200 dark:border-blue-800">
-                  <Building2 className="h-3.5 w-3.5 text-blue-600" />
-                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">{selectedCompany.name}</span>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted border border-border">
+                  <Building2 className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
+                  <span className="text-sm font-semibold text-foreground">{selectedCompany.name}</span>
                 </div>
               )}
             </div>
@@ -562,14 +562,14 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                       </TableCell>
                       <TableCell className="text-right">
                         {shop.creditAmount > 0 ? (
-                          <span className="font-semibold text-sm text-amber-600">{formatPKR(shop.creditAmount)}</span>
+                          <span className="font-semibold text-sm text-slate-600 dark:text-slate-300">{formatPKR(shop.creditAmount)}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
                         {shop.creditLimit > 0 ? (
-                          <span className="font-semibold text-sm text-blue-600">{formatPKR(shop.creditLimit)}</span>
+                          <span className="font-semibold text-sm text-slate-600 dark:text-slate-300">{formatPKR(shop.creditLimit)}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
@@ -617,7 +617,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                   <p className="text-xs text-muted-foreground">Failed</p>
                 </div>
                 <div className="rounded-lg bg-white dark:bg-black/20 p-3 text-center border border-green-200 dark:border-green-800">
-                  <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{formatPKR(importResult.totalCredit)}</p>
+                  <p className="text-2xl font-bold text-foreground">{formatPKR(importResult.totalCredit)}</p>
                   <p className="text-xs text-muted-foreground">Total Credit</p>
                 </div>
               </div>
@@ -653,7 +653,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                           <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
                           <TableCell className="font-medium text-sm">{shop.name}</TableCell>
                           <TableCell className="text-right">
-                            <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                            <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
                               {formatPKR(shop.balance)}
                             </span>
                           </TableCell>

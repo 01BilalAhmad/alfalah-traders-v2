@@ -981,7 +981,7 @@ export default function AdminShops() {
           ) : filteredShops.length === 0 ? (
             <div className="text-center py-14 text-muted-foreground">
               <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
-                <div className="relative z-10 h-20 w-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-100 dark:from-primary/20 dark:to-blue-900/30 flex items-center justify-center">
+                <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                   <Store className="h-9 w-9 text-primary/50 animate-gentle-float" />
                 </div>
               </div>

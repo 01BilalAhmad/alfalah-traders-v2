@@ -48,9 +48,9 @@ type FilterType = 'all' | 'credit' | 'recovery' | 'edit';
 
 const filterConfig: { key: FilterType; label: string; icon: React.ReactNode; dotColor: string; badgeClass: string }[] = [
   { key: 'all', label: 'All', icon: <Activity className="h-3 w-3" />, dotColor: 'bg-primary', badgeClass: 'bg-primary/10 text-primary' },
-  { key: 'credit', label: 'Credit', icon: <CreditCard className="h-3 w-3" />, dotColor: 'bg-amber-500', badgeClass: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300' },
+  { key: 'credit', label: 'Credit', icon: <CreditCard className="h-3 w-3" />, dotColor: 'bg-slate-500', badgeClass: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' },
   { key: 'recovery', label: 'Recovery', icon: <TrendingDown className="h-3 w-3" />, dotColor: 'bg-green-500', badgeClass: 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300' },
-  { key: 'edit', label: 'Edits', icon: <Edit3 className="h-3 w-3" />, dotColor: 'bg-blue-500', badgeClass: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' },
+  { key: 'edit', label: 'Edits', icon: <Edit3 className="h-3 w-3" />, dotColor: 'bg-slate-400', badgeClass: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' },
 ];
 
 function getDotColor(type: string): string {
@@ -65,11 +65,11 @@ function getDotColor(type: string): string {
 function getTypeBadge(type: string): { label: string; className: string; icon: React.ReactNode } {
   switch (type) {
     case 'credit':
-      return { label: 'Credit', className: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300', icon: <ArrowUpRight className="h-3 w-3" /> };
+      return { label: 'Credit', className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300', icon: <ArrowUpRight className="h-3 w-3" /> };
     case 'recovery':
       return { label: 'Recovery', className: 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300', icon: <ArrowDownRight className="h-3 w-3" /> };
     case 'edit':
-      return { label: 'Edit', className: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300', icon: <Edit3 className="h-3 w-3" /> };
+      return { label: 'Edit', className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300', icon: <Edit3 className="h-3 w-3" /> };
     default:
       return { label: 'Activity', className: 'bg-muted text-muted-foreground', icon: <Activity className="h-3 w-3" /> };
   }
@@ -460,7 +460,7 @@ export default function ActivityTimeline() {
                                     </span>
                                     {entry.amount != null && (
                                       <span className={`inline-flex items-center gap-0.5 text-xs font-semibold ${
-                                        entry.type === 'credit' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'
+                                        entry.type === 'credit' ? 'text-slate-600 dark:text-slate-300' : 'text-slate-600 dark:text-slate-300'
                                       }`}>
                                         {entry.type === 'credit' ? (
                                           <ArrowUpRight className="h-3 w-3" />

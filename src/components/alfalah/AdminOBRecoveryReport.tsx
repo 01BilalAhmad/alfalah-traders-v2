@@ -449,12 +449,12 @@ export default function AdminOBRecoveryReport() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
             <Card className="card-hover">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                  <Scale className="h-5 w-5 text-blue-600" />
+                <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                  <Scale className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Route Total Balance</p>
-                  <p className="text-xl font-bold text-blue-600">{formatPKR(routeTotalBalance)}</p>
+                  <p className="text-xl font-bold text-foreground">{formatPKR(routeTotalBalance)}</p>
                   <p className="text-[10px] text-muted-foreground">Start of day outstanding</p>
                 </div>
               </CardContent>
@@ -473,12 +473,12 @@ export default function AdminOBRecoveryReport() {
             </Card>
             <Card className="card-hover">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="h-11 w-11 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                  <TrendingDown className="h-5 w-5 text-amber-600" />
+                <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                  <TrendingDown className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Remaining Balance</p>
-                  <p className="text-xl font-bold text-amber-600">{formatPKR(remainingBalance)}</p>
+                  <p className="text-xl font-bold text-foreground">{formatPKR(remainingBalance)}</p>
                   <p className="text-[10px] text-muted-foreground">Still outstanding</p>
                 </div>
               </CardContent>
