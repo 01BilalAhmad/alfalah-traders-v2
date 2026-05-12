@@ -35,6 +35,9 @@ import {
   CheckCircle,
   XCircle,
   Phone,
+  Receipt,
+  Warehouse,
+  Power,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -248,71 +251,82 @@ export default function AdminCompanies() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 stagger-children">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-children">
           {companies.map((company) => (
             <Card
               key={company.id}
-              className={`card-hover ${company.status === 'inactive' ? 'opacity-60' : ''} `}
+              className={`group relative overflow-hidden card-hover ${company.status === 'inactive' ? 'opacity-60 grayscale-[30%]' : ''}`}
             >
-              <CardContent className="p-5">
+              {/* Top accent gradient bar */}
+              <div className={`h-1.5 w-full ${company.status === 'active' ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500' : 'bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700'}`} />
+
+              <CardContent className="p-5 pt-4">
+                {/* Header: Avatar + Name + Status */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div
-                      className={`h-11 w-11 rounded-full flex items-center justify-center ${
-                        company.status === 'active' ? 'bg-primary/10' : 'bg-muted'
-                      }`}
-                    >
-                      <Building2
-                        className={`h-5 w-5 ${company.status === 'active' ? 'text-primary' : 'text-muted-foreground'}`}
-                      />
+                    <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center shadow-sm ${company.status === 'active' ? 'bg-gradient-to-br from-emerald-500/20 to-teal-500/20 dark:from-emerald-500/30 dark:to-teal-500/30' : 'bg-muted'}`}>
+                      <Building2 className={`h-5 w-5 ${company.status === 'active' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
+                      {company.status === 'active' && (
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-white dark:border-gray-900" />
+                      )}
                     </div>
                     <div>
-                      <p className="font-semibold text-sm">{company.name}</p>
+                      <p className="font-semibold text-sm leading-tight">{company.name}</p>
                       {company.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-1">{company.description}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{company.description}</p>
                       )}
                     </div>
                   </div>
-                  <Badge
-                    className={`text-[10px] animate-badge-pop ${
-                      company.status === 'active' ? 'badge-active' : 'badge-inactive'
-                    }`}
-                  >
-                    {company.status === 'active' ? (
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                    ) : (
-                      <XCircle className="h-3 w-3 mr-1" />
-                    )}
+                  <Badge className={`text-[10px] font-semibold animate-badge-pop shadow-sm ${company.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
+                    {company.status === 'active' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                     {company.status.charAt(0).toUpperCase() + company.status.slice(1)}
                   </Badge>
                 </div>
 
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Users className="h-3.5 w-3.5" />
-                    <span>{company._count?.orderbookers || 0} orderbooker(s)</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Store className="h-3.5 w-3.5" />
-                    <span>{company._count?.companyBalances || 0} shop balance(s)</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Building2 className="h-3.5 w-3.5" />
-                    <span>{company._count?.transactions || 0} transaction(s)</span>
-                  </div>
-                  {company.distributorPhone && (
-                    <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
-                      <Phone className="h-3.5 w-3.5" />
-                      <span>{company.distributorPhone}</span>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <div className="rounded-xl bg-muted/60 dark:bg-muted/30 border border-border/50 p-2.5 hover:bg-muted/80 transition-colors">
+                    <div className="flex items-center gap-1 mb-1">
+                      <Users className="h-3 w-3 text-emerald-500" />
+                      <span className="text-[9px] text-muted-foreground font-medium">OBs</span>
                     </div>
-                  )}
+                    <p className="text-sm font-bold tabular-nums">{company._count?.orderbookers || 0}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/60 dark:bg-muted/30 border border-border/50 p-2.5 hover:bg-muted/80 transition-colors">
+                    <div className="flex items-center gap-1 mb-1">
+                      <Store className="h-3 w-3 text-teal-500" />
+                      <span className="text-[9px] text-muted-foreground font-medium">Shops</span>
+                    </div>
+                    <p className="text-sm font-bold tabular-nums">{company._count?.companyBalances || 0}</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/60 dark:bg-muted/30 border border-border/50 p-2.5 hover:bg-muted/80 transition-colors">
+                    <div className="flex items-center gap-1 mb-1">
+                      <Receipt className="h-3 w-3 text-cyan-500" />
+                      <span className="text-[9px] text-muted-foreground font-medium">Txns</span>
+                    </div>
+                    <p className="text-sm font-bold tabular-nums">{company._count?.transactions || 0}</p>
+                  </div>
                 </div>
 
+                {/* Distributor Phone */}
+                {company.distributorPhone && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-900/15 border border-emerald-200/50 dark:border-emerald-800/30">
+                    <div className="h-6 w-6 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                      <Phone className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-emerald-600/70 dark:text-emerald-400/70 font-medium">Distributor</span>
+                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{company.distributorPhone}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 text-xs "
+                    className="flex-1 text-xs hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400 dark:hover:border-emerald-800 transition-colors"
                     onClick={() => openEditDialog(company)}
                   >
                     <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
@@ -320,15 +334,16 @@ export default function AdminCompanies() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 text-xs "
+                    className={`flex-1 text-xs transition-colors ${company.status === 'active' ? 'hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 dark:hover:bg-amber-900/20 dark:hover:text-amber-400 dark:hover:border-amber-800' : 'hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400 dark:hover:border-emerald-800'}`}
                     onClick={() => handleToggleStatus(company)}
                   >
+                    <Power className="h-3.5 w-3.5 mr-1" />
                     {company.status === 'active' ? 'Deactivate' : 'Activate'}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-xs text-destructive hover:text-destructive "
+                    className="text-xs text-destructive hover:text-destructive hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                     onClick={() => setConfirmDelete(company)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
