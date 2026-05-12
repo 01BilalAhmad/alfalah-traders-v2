@@ -97,7 +97,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       const obRes = await apiFetch('/api/orderbookers');
       const shopRes = await apiFetch('/api/shops');
       const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
-      const txnRes = await apiFetch(`/api/transactions?date=${todayStr}&limit=500&type=recovery`);
+      const txnRes = await apiFetch(`/api/transactions?date=${todayStr}&limit=500&type=recovery&status=approved`);
       const obs = obRes.ok ? await obRes.json() : [];
       const shops = shopRes.ok ? await shopRes.json() : [];
       const txnData = txnRes.ok ? await txnRes.json() : { transactions: [] };

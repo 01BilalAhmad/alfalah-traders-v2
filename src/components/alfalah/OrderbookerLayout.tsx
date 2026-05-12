@@ -222,7 +222,7 @@ function ProfileView({
       // Fetch all recovery transactions for this month
       const now = new Date();
       const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-      const res = await apiFetch(`/api/transactions?limit=200&type=recovery&createdBy=${user.id}&startDate=${firstOfMonth}`);
+      const res = await apiFetch(`/api/transactions?limit=200&type=recovery&status=approved&createdBy=${user.id}&startDate=${firstOfMonth}`);
       if (res.ok) {
         const data = await res.json();
         setMonthlyRecovery(data.transactions || []);
@@ -509,7 +509,7 @@ function RecoveryHistory() {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await apiFetch(`/api/transactions?limit=500&type=recovery&createdBy=${user.id}`);
+      const res = await apiFetch(`/api/transactions?limit=500&type=recovery&status=approved&createdBy=${user.id}`);
       if (res.ok) {
         const data = await res.json();
         setAllTransactions(data.transactions || []);
@@ -1162,7 +1162,7 @@ function OrderbookerDashboard() {
     setRecoverySummaryLoading(true);
     try {
       const today = getLocalDateString();
-      const res = await apiFetch(`/api/transactions?date=${today}&limit=50&type=recovery&createdBy=${user.id}`);
+      const res = await apiFetch(`/api/transactions?date=${today}&limit=50&type=recovery&status=approved&createdBy=${user.id}`);
       if (res.ok) {
         const data = await res.json();
         setTodayRecovery(data.transactions || []);

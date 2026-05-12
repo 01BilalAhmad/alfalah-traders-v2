@@ -109,13 +109,14 @@ export async function GET(request: NextRequest) {
       // ShopOrderbooker table might not exist yet - just skip
     }
 
-    // 2. Get recent transactions for this orderbooker (last 200)
+    // 2. Get recent transactions for this orderbooker (last 200) - exclude rejected
     const txRes = await client.query(
       `SELECT t.*, s.name AS "shopName", u.name AS "createdByName"
        FROM "Transaction" t
        LEFT JOIN "Shop" s ON t."shopId" = s.id
        LEFT JOIN "User" u ON t."createdBy" = u.id
        WHERE t."createdBy" = $1
+         AND t.status != 'rejected'
        ORDER BY t."createdAt" DESC
        LIMIT 200`,
       [userId]
