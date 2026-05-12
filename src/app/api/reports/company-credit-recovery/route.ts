@@ -121,18 +121,20 @@ export async function GET(request: NextRequest) {
       [companyId, startDate.toISOString(), endDate.toISOString()]
     );
 
-    // 5. Fetch all RECOVERY transactions from this company's orderbookers in the month
-    const obPlaceholders = orderbookerIds.map((_: string, idx: number) => `$${idx + 3}`).join(', ');
+    // 5. Fetch all RECOVERY transactions for this company's orderbookers in the month
+    // IMPORTANT: Filter by companyId so recovery from OTHER companies is NOT included
+    const obPlaceholders = orderbookerIds.map((_: string, idx: number) => `$${idx + 4}`).join(', ');
     const recoveryRes = await client.query(
       `SELECT t."shopId", t."createdBy", t.amount, t."createdAt"
        FROM "Transaction" t
-       WHERE t."createdBy" IN (${obPlaceholders})
+       WHERE t."companyId" = $3
+         AND t."createdBy" IN (${obPlaceholders})
          AND t.type = 'recovery'
          AND t.status = 'approved'
          AND t."createdAt" >= $1
          AND t."createdAt" <= $2
        ORDER BY t."createdAt" ASC`,
-      [startDate.toISOString(), endDate.toISOString(), ...orderbookerIds]
+      [startDate.toISOString(), endDate.toISOString(), companyId, ...orderbookerIds]
     );
 
     // 6. Build the data structure
