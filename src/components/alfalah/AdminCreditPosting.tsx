@@ -1485,11 +1485,16 @@ export default function AdminCreditPosting() {
 
       {/* Credit Dialog */}
       <Dialog open={creditDialogOpen} onOpenChange={(open) => {
-        if (!open && quickPostMode) return; // Prevent closing in quick post mode via overlay
+        if (!open && quickPostMode) {
+          // X button clicked in quick post mode — exit properly
+          handleExitQuickPost();
+          setCreditDialogOpen(false);
+          return;
+        }
         setCreditDialogOpen(open);
       }}>
         <DialogContent className="sm:max-w-md no-print" onInteractOutside={(e) => {
-          if (quickPostMode) e.preventDefault(); // Prevent closing in quick post mode
+          if (quickPostMode) e.preventDefault(); // Prevent accidental overlay close in quick post mode
         }}>
           {/* ========== QUICK POST MODE - NEW 3-STEP FLOW ========== */}
           {quickPostMode ? (
