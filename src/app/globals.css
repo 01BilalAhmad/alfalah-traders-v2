@@ -408,3 +408,114 @@ textarea:focus-visible {
     transition: background-color 0.1s ease;
   }
 }
+
+/* ====== Login Card — Uiverse-inspired ====== */
+.login-card {
+  max-width: 380px;
+  background: linear-gradient(0deg, rgb(255, 255, 255) 0%, rgb(248, 250, 255) 100%);
+  border-radius: 32px;
+  padding: 28px 32px;
+  border: 4px solid rgb(255, 255, 255);
+  box-shadow: rgba(99, 102, 241, 0.15) 0px 30px 40px -15px,
+              rgba(99, 102, 241, 0.05) 0px 10px 15px -5px;
+  margin: 16px auto;
+  transition: box-shadow 0.3s ease;
+}
+.login-card:hover {
+  box-shadow: rgba(99, 102, 241, 0.2) 0px 35px 50px -15px,
+              rgba(99, 102, 241, 0.08) 0px 12px 20px -5px;
+}
+
+/* Dark mode login card */
+.dark .login-card {
+  background: linear-gradient(0deg, rgb(30, 41, 59) 0%, rgb(30, 35, 55) 100%);
+  border-color: rgb(51, 65, 85);
+  box-shadow: rgba(99, 102, 241, 0.1) 0px 30px 40px -15px,
+              rgba(0, 0, 0, 0.4) 0px 10px 15px -5px;
+}
+.dark .login-card:hover {
+  box-shadow: rgba(99, 102, 241, 0.15) 0px 35px 50px -15px,
+              rgba(0, 0, 0, 0.5) 0px 12px 20px -5px;
+}
+
+/* ====== Login Input — Uiverse pill-style ====== */
+.login-input {
+  width: 100%;
+  background: white;
+  border: none;
+  padding: 14px 20px;
+  border-radius: 16px;
+  font-size: 14px;
+  outline: none;
+  box-shadow: rgba(99, 102, 241, 0.08) 0px 8px 12px -4px;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  color: #111827;
+  transition: all 0.2s ease;
+}
+.login-input::placeholder {
+  color: #9CA3AF;
+}
+.login-input:focus {
+  outline: none;
+  border-left: 3px solid #4F46E5;
+  border-right: 3px solid #4F46E5;
+  box-shadow: rgba(99, 102, 241, 0.15) 0px 10px 15px -5px;
+}
+
+/* Dark mode login input */
+.dark .login-input {
+  background: #1E293B;
+  color: #F1F5F9;
+  box-shadow: rgba(0, 0, 0, 0.3) 0px 8px 12px -4px;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+}
+.dark .login-input::placeholder {
+  color: #64748B;
+}
+.dark .login-input:focus {
+  border-left: 3px solid #818CF8;
+  border-right: 3px solid #818CF8;
+  box-shadow: rgba(129, 140, 248, 0.1) 0px 10px 15px -5px;
+}
+
+/* ====== Login Button — Uiverse gradient pill ====== */
+.login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  font-weight: 700;
+  font-size: 15px;
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  color: white;
+  padding: 14px 0;
+  margin-top: 8px;
+  border-radius: 16px;
+  box-shadow: rgba(99, 102, 241, 0.35) 0px 15px 15px -8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+.login-btn:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: rgba(99, 102, 241, 0.4) 0px 18px 18px -8px;
+}
+.login-btn:active:not(:disabled) {
+  transform: scale(0.97);
+  box-shadow: rgba(99, 102, 241, 0.25) 0px 10px 10px -6px;
+}
+.login-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Dark mode login button */
+.dark .login-btn {
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  box-shadow: rgba(129, 140, 248, 0.25) 0px 15px 15px -8px;
+}
+.dark .login-btn:hover:not(:disabled) {
+  box-shadow: rgba(129, 140, 248, 0.35) 0px 18px 18px -8px;
+}
