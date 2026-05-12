@@ -20,9 +20,10 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
-import { formatAmount } from '@/lib/utils';
+import { formatAmount, formatPKR } from '@/lib/utils';
 
 function formatCurrency(amount: number): string {
+  // Used in table cells (no Rs. prefix in template)
   if (amount === 0) return '—';
   return formatAmount(amount);
 }
@@ -282,7 +283,7 @@ export default function AdminCompanyReport() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Total Credit</p>
-                <p className="text-xl font-bold text-orange-600 number-display">Rs. {formatCurrency(data.grandTotals.credit)}</p>
+                <p className="text-xl font-bold text-orange-600 number-display">{formatPKR(data.grandTotals.credit)}</p>
               </div>
             </CardContent>
           </Card>
@@ -293,7 +294,7 @@ export default function AdminCompanyReport() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Total Recovery</p>
-                <p className="text-xl font-bold text-green-600 number-display">Rs. {formatCurrency(data.grandTotals.recovery)}</p>
+                <p className="text-xl font-bold text-green-600 number-display">{formatPKR(data.grandTotals.recovery)}</p>
               </div>
             </CardContent>
           </Card>
@@ -381,7 +382,7 @@ export default function AdminCompanyReport() {
                       className="border-r border-border/50 px-1 py-1 text-center font-extrabold text-blue-800 dark:text-blue-300 text-xs print:text-[10px]"
                       colSpan={2}
                     >
-                      Rs. {formatCurrency(data.currentBalances?.[ob.id] ?? data.openingBalances[ob.id] ?? 0)}
+                      {formatPKR(data.currentBalances?.[ob.id] ?? data.openingBalances[ob.id] ?? 0)}
                     </th>
                   ))}
                   {/* Grand total outstanding */}
@@ -389,7 +390,7 @@ export default function AdminCompanyReport() {
                     className="border-l-2 border-primary/30 px-1 py-1 text-center font-extrabold text-blue-800 dark:text-blue-300 text-xs print:text-[10px] bg-primary/5"
                     colSpan={2}
                   >
-                    Rs. {formatCurrency(data.orderbookers.reduce((sum, ob) => sum + (data.currentBalances?.[ob.id] ?? data.openingBalances[ob.id] ?? 0), 0))}
+                    {formatPKR(data.orderbookers.reduce((sum, ob) => sum + (data.currentBalances?.[ob.id] ?? data.openingBalances[ob.id] ?? 0), 0))}
                   </th>
                 </tr>
                 {/* Header Row 2: Orderbooker Names */}
