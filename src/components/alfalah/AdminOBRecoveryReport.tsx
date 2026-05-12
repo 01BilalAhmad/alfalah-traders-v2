@@ -447,7 +447,7 @@ export default function AdminOBRecoveryReport() {
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
-            <Card className="alfalah-card-hover">
+            <Card className="card-hover">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                   <Scale className="h-5 w-5 text-blue-600" />
@@ -459,7 +459,7 @@ export default function AdminOBRecoveryReport() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="alfalah-card-hover">
+            <Card className="card-hover">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="h-11 w-11 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
                   <Banknote className="h-5 w-5 text-green-600" />
@@ -471,7 +471,7 @@ export default function AdminOBRecoveryReport() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="alfalah-card-hover">
+            <Card className="card-hover">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="h-11 w-11 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
                   <TrendingDown className="h-5 w-5 text-amber-600" />
@@ -490,7 +490,7 @@ export default function AdminOBRecoveryReport() {
             <div className="flex gap-2">
               <Button
                 onClick={handlePrint}
-                className="bg-primary hover:bg-primary/90 text-white btn-ripple"
+                className="bg-primary hover:bg-primary/90 text-white "
                 size="sm"
               >
                 <Printer className="h-4 w-4 mr-1.5" />
@@ -520,7 +520,7 @@ export default function AdminOBRecoveryReport() {
                   link.click();
                   toast({ title: 'Downloaded', description: 'CSV file downloaded' });
                 }}
-                className="btn-ripple"
+                className=""
               >
                 <Download className="h-4 w-4 mr-1.5" /> CSV
               </Button>

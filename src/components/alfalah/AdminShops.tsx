@@ -705,7 +705,7 @@ export default function AdminShops() {
           <p className="text-sm text-muted-foreground mt-0.5">{shops.length} shops total</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white focus-glow">
+          <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white ">
             <Plus className="h-4 w-4 mr-2" /> Add Shop
           </Button>
           <Button variant="outline" onClick={() => setBulkImportOpen(true)} className="gap-2">
@@ -739,7 +739,7 @@ export default function AdminShops() {
       {/* Analytics Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in stagger-children">
         {/* Total Active Shops */}
-        <Card className="stat-card-green alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-green card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
               <Store className="h-5 w-5 text-green-600" />
@@ -755,7 +755,7 @@ export default function AdminShops() {
         </Card>
 
         {/* Total Inactive Shops */}
-        <Card className="stat-card-red alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-red card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
               <Users className="h-5 w-5 text-red-600" />
@@ -771,7 +771,7 @@ export default function AdminShops() {
         </Card>
 
         {/* Total Outstanding Balance */}
-        <Card className="stat-card-amber alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-amber card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
               <Wallet className="h-5 w-5 text-amber-600" />
@@ -784,7 +784,7 @@ export default function AdminShops() {
         </Card>
 
         {/* Average Balance */}
-        <Card className="stat-card-blue alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-blue card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
               <TrendingDown className="h-5 w-5 text-blue-600" />
@@ -797,7 +797,7 @@ export default function AdminShops() {
         </Card>
 
         {/* Highest Balance Shop */}
-        <Card className="stat-card-red alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-red card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
               <BarChart3 className="h-5 w-5 text-red-600" />
@@ -819,7 +819,7 @@ export default function AdminShops() {
         </Card>
 
         {/* Area with Most Shops */}
-        <Card className="stat-card-green alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-green card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
               <MapPin className="h-5 w-5 text-emerald-600" />
@@ -983,13 +983,13 @@ export default function AdminShops() {
               </p>
               <div className="flex items-center justify-center gap-2 mt-4">
                 <button
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-xs font-medium hover:bg-muted/80 transition-colors focus-glow"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-xs font-medium hover:bg-muted/80 transition-colors "
                   onClick={() => { setSearchQuery(''); setSelectedDay(''); setShowInactive(false); }}
                 >
                   Clear Filters
                 </button>
                 <button
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors focus-glow"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors "
                   onClick={openAddDialog}
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -1001,7 +1001,7 @@ export default function AdminShops() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="data-table-header hover:bg-transparent">
+                  <TableRow className="bg-primary hover:bg-transparent">
                     <TableHead className="text-white font-semibold text-xs w-10">
                       <Checkbox
                         checked={allSelected}
@@ -1102,27 +1102,27 @@ export default function AdminShops() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1 action-btn-group">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple" onClick={() => openShopDetail(shop)} title="View Details">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 " onClick={() => openShopDetail(shop)} title="View Details">
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple" onClick={() => openEditDialog(shop)} title="Edit">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 " onClick={() => openEditDialog(shop)} title="Edit">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple" onClick={() => openLedger(shop)} title="View Ledger">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 " onClick={() => openLedger(shop)} title="View Ledger">
                             <BookOpen className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple text-primary" onClick={() => {
+                          <Button variant="ghost" size="icon" className="h-8 w-8  text-primary" onClick={() => {
                             setSelectedShopId(shop.id);
                             setSelectedShopName(shop.name);
                             setCurrentView('admin-shop-detail');
                           }} title="View Analytics">
                             <TrendingUp className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover-lift btn-ripple text-amber-600 hover:text-amber-700" onClick={() => openNotesDialog(shop)} title="Shop Notes">
+                          <Button variant="ghost" size="icon" className="h-8 w-8  text-amber-600 hover:text-amber-700" onClick={() => openNotesDialog(shop)} title="Shop Notes">
                             <StickyNote className="h-3.5 w-3.5" />
                           </Button>
                           {shop.status === 'active' && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover-lift btn-ripple" onClick={() => setConfirmDeactivate(shop)} title="Deactivate">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive " onClick={() => setConfirmDeactivate(shop)} title="Deactivate">
                               <UserMinus className="h-3.5 w-3.5" />
                             </Button>
                           )}
@@ -1381,7 +1381,7 @@ export default function AdminShops() {
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
           {/* Shop Header - Navy Blue Gradient */}
-          <div className="bg-gradient-to-r from-[#1E3A8A] to-[#1D4ED8] px-6 py-5 shrink-0">
+          <div className="bg-gradient-to-r from-[#4F46E5] to-[#1D4ED8] px-6 py-5 shrink-0">
             <DialogHeader>
               <div className="flex items-start justify-between">
                 <div>
@@ -1618,7 +1618,7 @@ export default function AdminShops() {
                             <Line
                               type="monotone"
                               dataKey="balance"
-                              stroke="#1E3A8A"
+                              stroke="#4F46E5"
                               strokeWidth={2}
                               dot={(props: Record<string, unknown>) => {
                                 const { cx, cy, payload } = props as { cx: number; cy: number; payload: { type: string } };
@@ -1635,7 +1635,7 @@ export default function AdminShops() {
                                   />
                                 );
                               }}
-                              activeDot={{ r: 6, stroke: '#1E3A8A', strokeWidth: 2, fill: 'white' }}
+                              activeDot={{ r: 6, stroke: '#4F46E5', strokeWidth: 2, fill: 'white' }}
                             />
                           </LineChart>
                         </ResponsiveContainer>
@@ -1697,7 +1697,7 @@ export default function AdminShops() {
                     </div>
                     <Table>
                       <TableHeader>
-                        <TableRow className="data-table-header hover:bg-transparent">
+                        <TableRow className="bg-primary hover:bg-transparent">
                           <TableHead className="text-white font-semibold text-[10px]">Type</TableHead>
                           <TableHead className="text-white font-semibold text-[10px]">Amount</TableHead>
                           <TableHead className="text-white font-semibold text-[10px] hidden sm:table-cell">Description</TableHead>
@@ -1769,19 +1769,19 @@ export default function AdminShops() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Shop Name *</Label>
-                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g., Ali General Store" className="input-enhanced" />
+                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g., Ali General Store" className="" />
               </div>
               <div className="space-y-2">
                 <Label>Owner Name</Label>
-                <Input value={formOwner} onChange={(e) => setFormOwner(e.target.value)} placeholder="e.g., Muhammad Ali" className="input-enhanced" />
+                <Input value={formOwner} onChange={(e) => setFormOwner(e.target.value)} placeholder="e.g., Muhammad Ali" className="" />
               </div>
               <div className="space-y-2">
                 <Label>Area</Label>
-                <Input value={formArea} onChange={(e) => setFormArea(e.target.value)} placeholder="e.g., Gulshan-e-Iqbal" className="input-enhanced" />
+                <Input value={formArea} onChange={(e) => setFormArea(e.target.value)} placeholder="e.g., Gulshan-e-Iqbal" className="" />
               </div>
               <div className="space-y-2">
                 <Label>Phone</Label>
-                <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="e.g., 0300-1234567" className="input-enhanced" />
+                <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="e.g., 0300-1234567" className="" />
               </div>
             </div>
             <div className="space-y-2">
@@ -1833,7 +1833,7 @@ export default function AdminShops() {
                     value={formCreditLimit}
                     onChange={(e) => setFormCreditLimit(e.target.value)}
                     placeholder="0 = No limit"
-                    className="pl-9 input-enhanced"
+                    className="pl-9 "
                     min="0"
                     step="1000"
                   />
@@ -1844,7 +1844,7 @@ export default function AdminShops() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !formName.trim() || formRouteDays.length === 0 || !formOrderbookerId} className="bg-primary hover:bg-primary/90 focus-glow">
+            <Button onClick={handleSave} disabled={saving || !formName.trim() || formRouteDays.length === 0 || !formOrderbookerId} className="bg-primary hover:bg-primary/90 ">
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {editingShop ? 'Update Shop' : 'Create Shop'}
             </Button>

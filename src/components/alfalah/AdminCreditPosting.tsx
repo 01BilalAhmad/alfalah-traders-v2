@@ -1035,7 +1035,7 @@ export default function AdminCreditPosting() {
 
       {/* Summary Cards + Quick Post Toggle */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="alfalah-card-hover">
+        <Card className="card-hover">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-11 w-11 rounded-xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center shrink-0">
               <PackagePlus className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -1096,7 +1096,7 @@ export default function AdminCreditPosting() {
             </div>
           </CardContent>
         </Card>
-        <Card className="alfalah-card-hover">
+        <Card className="card-hover">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-11 w-11 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0">
               <Wallet className="h-5 w-5 text-red-600 dark:text-red-400" />
@@ -1107,7 +1107,7 @@ export default function AdminCreditPosting() {
             </div>
           </CardContent>
         </Card>
-        <Card className="alfalah-card-hover">
+        <Card className="card-hover">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-11 w-11 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center shrink-0">
               <Store className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -1286,7 +1286,7 @@ export default function AdminCreditPosting() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="data-table-header hover:bg-transparent">
+                  <TableRow className="bg-primary hover:bg-transparent">
                     <TableHead className="text-white font-semibold text-xs">Shop Name</TableHead>
                     <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Area</TableHead>
                     <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Route</TableHead>
@@ -1412,7 +1412,7 @@ export default function AdminCreditPosting() {
               <div className="rounded-lg border overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="data-table-header hover:bg-transparent">
+                    <TableRow className="bg-primary hover:bg-transparent">
                       <TableHead className="text-white font-semibold text-xs">#</TableHead>
                       <TableHead className="text-white font-semibold text-xs">Shop Name</TableHead>
                       <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Area</TableHead>
@@ -2039,7 +2039,7 @@ export default function AdminCreditPosting() {
                   <Button
                     onClick={handleQuickPostSubmit}
                     disabled={postingCredit || !quickPostAmount || parseFloat(quickPostAmount) <= 0 || !!quickPostAmountError}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold btn-ripple"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 text-sm font-semibold "
                   >
                     {postingCredit ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -2233,7 +2233,7 @@ export default function AdminCreditPosting() {
                 <Button
                   onClick={handlePostCredit}
                   disabled={postingCredit || !creditAmount || parseFloat(creditAmount) <= 0 || !!amountError}
-                  className="btn-ripple hover:opacity-90 focus-glow bg-primary hover:bg-primary/90"
+                  className="hover:opacity-90  bg-primary hover:bg-primary/90"
                 >
                   {postingCredit ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -2315,7 +2315,7 @@ export default function AdminCreditPosting() {
               </div>
 
               {/* Navy blue branded header */}
-              <div className="alfalah-gradient rounded-t-lg px-5 py-4 text-white">
+              <div className="bg-primary rounded-t-lg px-5 py-4 text-white">
                 <div className="flex items-center justify-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center">
                     <Store className="h-5 w-5 text-white" />

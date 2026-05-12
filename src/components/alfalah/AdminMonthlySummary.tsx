@@ -349,7 +349,7 @@ export default function AdminMonthlySummary() {
           {/* Summary KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
             {/* Total Credit */}
-            <Card className="card-elevated stat-card-amber hover-scale-102 animate-card-entrance" style={{ animationDelay: '0ms' }}>
+            <Card className="card-elevated stat-card-amber hover-scale-102 " style={{ animationDelay: '0ms' }}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/40 dark:to-amber-950/40 flex items-center justify-center shadow-sm">
@@ -365,7 +365,7 @@ export default function AdminMonthlySummary() {
             </Card>
 
             {/* Total Recovery */}
-            <Card className="card-elevated stat-card-green hover-scale-102 animate-card-entrance" style={{ animationDelay: '50ms' }}>
+            <Card className="card-elevated stat-card-green hover-scale-102 " style={{ animationDelay: '50ms' }}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/40 dark:to-green-950/40 flex items-center justify-center shadow-sm">
@@ -384,7 +384,7 @@ export default function AdminMonthlySummary() {
 
             {/* Net Balance Change */}
             <Card
-              className={`card-elevated hover-scale-102 animate-card-entrance ${data.netChange > 0 ? 'stat-card-red' : data.netChange < 0 ? 'stat-card-green' : 'stat-card-blue'}`}
+              className={`card-elevated hover-scale-102  ${data.netChange > 0 ? 'stat-card-red' : data.netChange < 0 ? 'stat-card-green' : 'stat-card-blue'}`}
               style={{ animationDelay: '100ms' }}
             >
               <CardContent className="p-4">
@@ -411,7 +411,7 @@ export default function AdminMonthlySummary() {
             </Card>
 
             {/* Active Shops & OBs */}
-            <Card className="card-elevated stat-card-blue hover-scale-102 animate-card-entrance" style={{ animationDelay: '150ms' }}>
+            <Card className="card-elevated stat-card-blue hover-scale-102 " style={{ animationDelay: '150ms' }}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-950/40 flex items-center justify-center shadow-sm">
@@ -571,7 +571,7 @@ export default function AdminMonthlySummary() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="data-table-header hover:bg-transparent">
+                      <TableRow className="bg-primary hover:bg-transparent">
                         <TableHead className="text-white font-semibold text-xs w-12">#</TableHead>
                         <TableHead className="text-white font-semibold text-xs">Name</TableHead>
                         <TableHead className="text-white font-semibold text-xs text-center hidden sm:table-cell">Shops</TableHead>

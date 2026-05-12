@@ -423,7 +423,7 @@ export default function AdminOrderbookers() {
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">{orderbookers.length} orderbookers registered</p>
         </div>
-        <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white focus-glow">
+        <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white ">
           <Plus className="h-4 w-4 mr-2" /> Add Orderbooker
         </Button>
       </div>
@@ -443,7 +443,7 @@ export default function AdminOrderbookers() {
               Add your first orderbooker to start managing credit routes.
             </p>
             <button
-              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors focus-glow"
+              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors "
               onClick={openAddDialog}
             >
               <Plus className="h-3.5 w-3.5" />
@@ -454,7 +454,7 @@ export default function AdminOrderbookers() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 stagger-children">
           {orderbookers.map((ob) => (
-            <Card key={ob.id} className={`alfalah-card-hover hover-lift ${ob.status === 'inactive' ? 'opacity-60' : ''} animate-card-entrance`}>
+            <Card key={ob.id} className={`card-hover ${ob.status === 'inactive' ? 'opacity-60' : ''} `}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -576,14 +576,14 @@ export default function AdminOrderbookers() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1 text-xs hover-glow-primary" onClick={() => openEditDialog(ob)}>
+                  <Button variant="outline" size="sm" className="flex-1 text-xs " onClick={() => openEditDialog(ob)}>
                     <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1 text-xs hover-glow-primary" onClick={() => openTargetDialog(ob)}>
+                  <Button variant="outline" size="sm" className="flex-1 text-xs " onClick={() => openTargetDialog(ob)}>
                     <Target className="h-3.5 w-3.5 mr-1" /> Set Target
                   </Button>
                   {ob.status === 'active' && (
-                    <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive hover-glow-red" onClick={() => setConfirmDeactivate(ob)}>
+                    <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive " onClick={() => setConfirmDeactivate(ob)}>
                       <UserMinus className="h-3.5 w-3.5 mr-1" /> Deactivate
                     </Button>
                   )}
@@ -613,7 +613,7 @@ export default function AdminOrderbookers() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Full Name *</Label>
-              <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g., Muhammad Ahmed" className="input-enhanced" />
+              <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g., Muhammad Ahmed" className="" />
             </div>
             {!editingOB && (
               <div className="space-y-2">
@@ -623,7 +623,7 @@ export default function AdminOrderbookers() {
                     value={formUsername}
                     onChange={(e) => handleUsernameChange(e.target.value)}
                     placeholder="e.g., ahmed"
-                    className={`input-enhanced pr-9 ${
+                    className={` pr-9 ${
                       usernameStatus === 'available' ? 'border-green-500 focus-visible:ring-green-500/20' :
                       usernameStatus === 'taken' ? 'border-destructive focus-visible:ring-destructive/20' :
                       usernameStatus === 'invalid' ? 'border-amber-500 focus-visible:ring-amber-500/20' :
@@ -653,7 +653,7 @@ export default function AdminOrderbookers() {
             )}
             <div className="space-y-2">
               <Label>{editingOB ? 'New Password (leave blank to keep)' : 'Password *'}</Label>
-              <Input type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} placeholder={editingOB ? 'Enter new password' : 'Set password'} className="input-enhanced" />
+              <Input type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} placeholder={editingOB ? 'Enter new password' : 'Set password'} className="" />
               {!editingOB && formPassword && (
                 <div className="flex items-center gap-2">
                   <div className={`h-1 flex-1 rounded-full ${formPassword.length < 4 ? 'bg-red-500' : formPassword.length < 6 ? 'bg-amber-500' : 'bg-green-500'}`} />
@@ -665,7 +665,7 @@ export default function AdminOrderbookers() {
             </div>
             <div className="space-y-2">
               <Label>Phone</Label>
-              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="e.g., 0300-1234567" className="input-enhanced" />
+              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="e.g., 0300-1234567" className="" />
             </div>
             <div className="space-y-2">
               <Label>Assign Company</Label>
@@ -710,7 +710,7 @@ export default function AdminOrderbookers() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !canSubmit} className="bg-primary hover:bg-primary/90 focus-glow">
+            <Button onClick={handleSave} disabled={saving || !canSubmit} className="bg-primary hover:bg-primary/90 ">
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {editingOB ? 'Update' : 'Create'}
             </Button>
@@ -752,7 +752,7 @@ export default function AdminOrderbookers() {
                 value={targetMonth}
                 onChange={(e) => setTargetMonth(e.target.value)}
                 placeholder="e.g., 2025-03"
-                className="input-enhanced"
+                className=""
               />
               <p className="text-[10px] text-muted-foreground">Format: Year-Month (e.g., 2025-03)</p>
             </div>
@@ -763,7 +763,7 @@ export default function AdminOrderbookers() {
                 value={targetAmount}
                 onChange={(e) => setTargetAmount(e.target.value)}
                 placeholder="e.g., 500000"
-                className="input-enhanced"
+                className=""
               />
               {targetAmount && (
                 <p className="text-xs text-muted-foreground">Target: {formatPKR(Number(targetAmount))}</p>
@@ -772,7 +772,7 @@ export default function AdminOrderbookers() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setTargetDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveTarget} disabled={targetSaving || !targetMonth || !targetAmount} className="bg-primary hover:bg-primary/90 focus-glow">
+            <Button onClick={handleSaveTarget} disabled={targetSaving || !targetMonth || !targetAmount} className="bg-primary hover:bg-primary/90 ">
               {targetSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Set Target
             </Button>

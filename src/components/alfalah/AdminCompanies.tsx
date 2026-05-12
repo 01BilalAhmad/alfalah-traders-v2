@@ -202,7 +202,7 @@ export default function AdminCompanies() {
             {companies.length} {companies.length === 1 ? 'company' : 'companies'} registered
           </p>
         </div>
-        <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white focus-glow">
+        <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90 text-white ">
           <Plus className="h-4 w-4 mr-2" /> Add Company
         </Button>
       </div>
@@ -239,7 +239,7 @@ export default function AdminCompanies() {
               Create your first company to start managing multi-company credit tracking.
             </p>
             <button
-              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors focus-glow"
+              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors "
               onClick={openAddDialog}
             >
               <Plus className="h-3.5 w-3.5" />
@@ -252,7 +252,7 @@ export default function AdminCompanies() {
           {companies.map((company) => (
             <Card
               key={company.id}
-              className={`alfalah-card-hover hover-lift ${company.status === 'inactive' ? 'opacity-60' : ''} animate-card-entrance`}
+              className={`card-hover ${company.status === 'inactive' ? 'opacity-60' : ''} `}
             >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-4">
@@ -312,7 +312,7 @@ export default function AdminCompanies() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 text-xs hover-glow-primary"
+                    className="flex-1 text-xs "
                     onClick={() => openEditDialog(company)}
                   >
                     <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
@@ -320,7 +320,7 @@ export default function AdminCompanies() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 text-xs hover-glow-primary"
+                    className="flex-1 text-xs "
                     onClick={() => handleToggleStatus(company)}
                   >
                     {company.status === 'active' ? 'Deactivate' : 'Activate'}
@@ -328,7 +328,7 @@ export default function AdminCompanies() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-xs text-destructive hover:text-destructive hover-glow-red"
+                    className="text-xs text-destructive hover:text-destructive "
                     onClick={() => setConfirmDelete(company)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -358,7 +358,7 @@ export default function AdminCompanies() {
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="e.g., CBL, Cadbury, Shan Foods"
-                className="input-enhanced"
+                className=""
               />
               <p className="text-[10px] text-muted-foreground">
                 This name will be displayed to orderbookers and used for credit tracking.
@@ -370,7 +370,7 @@ export default function AdminCompanies() {
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
                 placeholder="e.g., Continental Biscuits Limited"
-                className="input-enhanced"
+                className=""
               />
               <p className="text-[10px] text-muted-foreground">Optional full name or description of the company.</p>
             </div>
@@ -380,7 +380,7 @@ export default function AdminCompanies() {
                 value={formDistributorPhone}
                 onChange={(e) => setFormDistributorPhone(e.target.value)}
                 placeholder="e.g., 0300-1234567"
-                className="input-enhanced"
+                className=""
               />
               <p className="text-[10px] text-muted-foreground">Distributor contact number — will be shown on receipts sent to shops.</p>
             </div>
@@ -392,7 +392,7 @@ export default function AdminCompanies() {
             <Button
               onClick={handleSave}
               disabled={saving || !formName.trim()}
-              className="bg-primary hover:bg-primary/90 focus-glow"
+              className="bg-primary hover:bg-primary/90 "
             >
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {editingCompany ? 'Update' : 'Create'}

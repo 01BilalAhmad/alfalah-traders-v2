@@ -351,7 +351,7 @@ export default function AdminVisitTracking() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="data-table-header hover:bg-transparent">
+                <TableRow className="bg-primary hover:bg-transparent">
                   <TableHead className="text-white font-semibold text-xs w-12">#</TableHead>
                   <TableHead className="text-white font-semibold text-xs">Name</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center">Current Streak</TableHead>
@@ -469,7 +469,7 @@ export default function AdminVisitTracking() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="data-table-header hover:bg-transparent">
+                  <TableRow className="bg-primary hover:bg-transparent">
                     <TableHead className="text-white font-semibold text-xs">Shop</TableHead>
                     <TableHead className="text-white font-semibold text-xs">Orderbooker</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-center">Source</TableHead>

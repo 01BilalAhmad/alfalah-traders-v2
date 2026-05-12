@@ -424,7 +424,7 @@ export default function ActivityTimeline() {
 
                               {/* Right: Activity Card */}
                               <div className="flex-1 min-w-0 pb-1">
-                                <div className="rounded-lg border border-border/50 bg-card p-3 sm:p-3.5 hover:shadow-sm transition-shadow alfalah-card-hover">
+                                <div className="rounded-lg border border-border/50 bg-card p-3 sm:p-3.5 hover:shadow-sm transition-shadow card-hover">
                                   {/* Top: Type badge + time ago */}
                                   <div className="flex items-center justify-between gap-2 mb-1.5">
                                     <Badge className={`text-[10px] font-medium gap-1 ${typeBadge.className}`}>

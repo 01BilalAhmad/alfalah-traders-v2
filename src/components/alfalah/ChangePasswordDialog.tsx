@@ -267,7 +267,7 @@ export default function ChangePasswordDialog({ open, onOpenChange }: ChangePassw
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden">
         {/* Navy Blue Gradient Header */}
-        <div className="alfalah-gradient px-6 pt-6 pb-5 relative overflow-hidden">
+        <div className="bg-primary px-6 pt-6 pb-5 relative overflow-hidden">
           {/* Decorative elements */}
           <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/10" />
           <div className="absolute -bottom-6 -left-6 w-20 h-20 rounded-full bg-white/5" />
@@ -343,7 +343,7 @@ export default function ChangePasswordDialog({ open, onOpenChange }: ChangePassw
           <Button
             onClick={handleChangePassword}
             disabled={changing || !isValid}
-            className="flex-1 h-11 rounded-lg bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white font-medium text-sm transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 disabled:opacity-60"
+            className="flex-1 h-11 rounded-lg bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white font-medium text-sm transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 disabled:opacity-60"
           >
             {changing ? (
               <>

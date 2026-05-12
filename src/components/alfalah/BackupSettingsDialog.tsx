@@ -460,7 +460,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl alfalah-gradient flex items-center justify-center shadow-md">
+              <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-md">
                 <Database className="h-5 w-5 text-white" />
               </div>
               <div>

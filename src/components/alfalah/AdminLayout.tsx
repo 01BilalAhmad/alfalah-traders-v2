@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import Image from 'next/image';
 import {
   Building2,
   Home,
@@ -12,7 +13,7 @@ import {
   TrendingUp,
   Store,
   Users,
- FileText,
+  FileText,
   Shield,
   BarChart3,
   LogOut,
@@ -33,7 +34,6 @@ import {
   Target,
   AlertTriangle,
   Navigation,
-  Clock,
   MapPin,
   FileDown,
   FileSpreadsheet,
@@ -72,11 +72,11 @@ const adminNavSections: NavSection[] = [
     label: 'Transactions',
     icon: <Wallet className="h-4 w-4" />,
     items: [
-      { id: 'admin-credit', label: 'Credit Posting', icon: <CreditCard className="h-5 w-5" /> },
-      { id: 'admin-recovery', label: 'Recovery Report', icon: <TrendingUp className="h-5 w-5" /> },
-      { id: 'admin-approve-recovery', label: 'Approve Recovery', icon: <ShieldCheck className="h-5 w-5" /> },
-      { id: 'admin-transactions', label: 'Transactions', icon: <Receipt className="h-5 w-5" /> },
-      { id: 'admin-reconciliation', label: 'Reconciliation', icon: <FileText className="h-5 w-5" /> },
+      { id: 'admin-credit', label: 'Credit Posting', icon: <CreditCard className="h-4 w-4" /> },
+      { id: 'admin-recovery', label: 'Recovery Report', icon: <TrendingUp className="h-4 w-4" /> },
+      { id: 'admin-approve-recovery', label: 'Approve Recovery', icon: <ShieldCheck className="h-4 w-4" /> },
+      { id: 'admin-transactions', label: 'Transactions', icon: <Receipt className="h-4 w-4" /> },
+      { id: 'admin-reconciliation', label: 'Reconciliation', icon: <FileText className="h-4 w-4" /> },
     ],
   },
   {
@@ -84,9 +84,9 @@ const adminNavSections: NavSection[] = [
     label: 'Route & Tracking',
     icon: <Route className="h-4 w-4" />,
     items: [
-      { id: 'admin-calendar', label: 'Route Calendar', icon: <CalendarDays className="h-5 w-5" /> },
-      { id: 'admin-visit-tracking', label: 'Visit Tracking', icon: <Navigation className="h-5 w-5" /> },
-      { id: 'admin-map-view', label: 'Map View', icon: <MapPin className="h-5 w-5" /> },
+      { id: 'admin-calendar', label: 'Route Calendar', icon: <CalendarDays className="h-4 w-4" /> },
+      { id: 'admin-visit-tracking', label: 'Visit Tracking', icon: <Navigation className="h-4 w-4" /> },
+      { id: 'admin-map-view', label: 'Map View', icon: <MapPin className="h-4 w-4" /> },
     ],
   },
   {
@@ -94,9 +94,9 @@ const adminNavSections: NavSection[] = [
     label: 'Management',
     icon: <UserCog className="h-4 w-4" />,
     items: [
-      { id: 'admin-shops', label: 'Manage Shops', icon: <Store className="h-5 w-5" /> },
-      { id: 'admin-orderbookers', label: 'Manage Orderbookers', icon: <Users className="h-5 w-5" /> },
-      { id: 'admin-companies', label: 'Manage Companies', icon: <Building2 className="h-5 w-5" /> },
+      { id: 'admin-shops', label: 'Manage Shops', icon: <Store className="h-4 w-4" /> },
+      { id: 'admin-orderbookers', label: 'Manage Orderbookers', icon: <Users className="h-4 w-4" /> },
+      { id: 'admin-companies', label: 'Manage Companies', icon: <Building2 className="h-4 w-4" /> },
     ],
   },
   {
@@ -104,15 +104,15 @@ const adminNavSections: NavSection[] = [
     label: 'Reports',
     icon: <ClipboardList className="h-4 w-4" />,
     items: [
-      { id: 'admin-monthly-summary', label: 'Monthly Summary', icon: <CalendarDays className="h-5 w-5" /> },
-      { id: 'admin-ob-analytics', label: 'OB Analytics', icon: <BarChart3 className="h-5 w-5" /> },
-      { id: 'admin-ob-recovery-report', label: 'OB Recovery Report', icon: <FileText className="h-5 w-5" /> },
-      { id: 'admin-balance-report', label: 'Balance Report', icon: <Banknote className="h-5 w-5" /> },
-      { id: 'admin-company-report', label: 'Company Report', icon: <FileSpreadsheet className="h-5 w-5" /> },
-      { id: 'admin-activity', label: 'Activity', icon: <Activity className="h-5 w-5" /> },
-      { id: 'admin-daily-targets', label: 'Recovery Targets', icon: <Target className="h-5 w-5" /> },
-      { id: 'admin-overdue-shops', label: 'Overdue Shops', icon: <AlertTriangle className="h-5 w-5" /> },
-      { id: 'admin-export-data', label: 'Export & Reports', icon: <FileDown className="h-5 w-5" /> },
+      { id: 'admin-monthly-summary', label: 'Monthly Summary', icon: <CalendarDays className="h-4 w-4" /> },
+      { id: 'admin-ob-analytics', label: 'OB Analytics', icon: <BarChart3 className="h-4 w-4" /> },
+      { id: 'admin-ob-recovery-report', label: 'OB Recovery Report', icon: <FileText className="h-4 w-4" /> },
+      { id: 'admin-balance-report', label: 'Balance Report', icon: <Banknote className="h-4 w-4" /> },
+      { id: 'admin-company-report', label: 'Company Report', icon: <FileSpreadsheet className="h-4 w-4" /> },
+      { id: 'admin-activity', label: 'Activity', icon: <Activity className="h-4 w-4" /> },
+      { id: 'admin-daily-targets', label: 'Recovery Targets', icon: <Target className="h-4 w-4" /> },
+      { id: 'admin-overdue-shops', label: 'Overdue Shops', icon: <AlertTriangle className="h-4 w-4" /> },
+      { id: 'admin-export-data', label: 'Export & Reports', icon: <FileDown className="h-4 w-4" /> },
     ],
   },
   {
@@ -120,13 +120,12 @@ const adminNavSections: NavSection[] = [
     label: 'Admin',
     icon: <Shield className="h-4 w-4" />,
     items: [
-      { id: 'admin-audit', label: 'Audit Log', icon: <Shield className="h-5 w-5" /> },
+      { id: 'admin-audit', label: 'Audit Log', icon: <Shield className="h-4 w-4" /> },
     ],
   },
 ];
 
-// Dashboard is always visible at top (not inside a section)
-const dashboardItem: NavItem = { id: 'admin-dashboard', label: 'Dashboard', icon: <Home className="h-5 w-5" /> };
+const dashboardItem: NavItem = { id: 'admin-dashboard', label: 'Dashboard', icon: <Home className="h-4 w-4" /> };
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -177,103 +176,83 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Top Header */}
-      <header className="alfalah-header animate-header-gradient sticky top-0 z-50 h-16 flex items-center justify-between px-4 lg:px-6 md:backdrop-blur-md md:bg-opacity-95 print-hidden">
+      {/* Top Header — Clean, flat, Mosaic-style */}
+      <header className="sticky top-0 z-50 h-14 flex items-center justify-between px-4 lg:px-6 bg-white dark:bg-slate-900 border-b border-border print:hidden">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
-            className={`text-white hover:bg-white/10 lg:hidden min-w-[44px] min-h-[44px] hamburger-animate ${sidebarOpen ? 'is-open' : ''}`}
+            className="lg:hidden h-9 w-9 text-muted-foreground hover:text-foreground"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
           >
             {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
-          <Separator orientation="vertical" className="h-8 bg-white/10 lg:hidden" />
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
-              <Building2 className="h-4.5 w-4.5 text-white" />
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-sm font-bold text-white leading-tight">Finexa</h1>
-              <p className="text-[10px] text-blue-200 leading-tight">Credit Management</p>
-            </div>
+          <Separator orientation="vertical" className="h-6 lg:hidden" />
+          {/* Logo in header */}
+          <div className="flex items-center gap-2">
+            <Image src="/finexa-flat-icon.png" alt="Finexa" width={28} height={28} className="rounded" />
+            <span className="text-sm font-bold text-foreground hidden sm:inline">Finexa</span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Global Search Button */}
+        <div className="flex items-center gap-2">
+          {/* Search Button */}
           <button
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
-            className="hidden md:flex items-center gap-2 h-8 px-3 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-blue-100 hover:text-white text-xs font-medium transition-all duration-150 hover-glow-primary"
+            className="hidden md:flex items-center gap-2 h-8 px-3 rounded-md border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground text-xs transition-colors"
           >
             <Search className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">Search</span>
-            <kbd className="hidden lg:inline-flex h-4 items-center rounded border border-white/20 bg-white/10 px-1 font-mono text-[10px] leading-none">
+            <span>Search</span>
+            <kbd className="ml-1.5 h-4 rounded border border-border bg-muted px-1 font-mono text-[10px] leading-none">
               ⌘K
             </kbd>
           </button>
           <button
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
-            className="md:hidden min-h-[44px] min-w-[44px] h-11 w-11 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-blue-100 hover:text-white flex items-center justify-center transition-all duration-150"
+            className="md:hidden h-9 w-9 rounded-md border border-border hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
           >
             <Search className="h-4 w-4" />
           </button>
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="hidden sm:flex items-center gap-2 text-sm text-blue-100 hover:text-white cursor-pointer transition-colors focus-glow rounded-lg p-1"
-            aria-label="Open settings"
-          >
-            <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold text-white">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-medium text-white leading-tight">{user.name}</p>
-              <p className="text-[10px] text-blue-200 leading-tight">Administrator</p>
-            </div>
-          </button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="sm:hidden text-blue-100 hover:bg-white/10 hover:text-white min-h-[44px] min-w-[44px]"
-            onClick={() => setSettingsOpen(true)}
-            aria-label="Open settings"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-          <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
-          <button
-            onClick={() => setChangePasswordOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-blue-100 hover:text-white text-xs font-medium transition-all duration-150"
-            aria-label="Change password"
-            title="Change Password"
-          >
-            <KeyRound className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">Change Password</span>
-          </button>
-          <button
-            onClick={() => setChangePasswordOpen(true)}
-            className="sm:hidden text-blue-100 hover:bg-white/10 hover:text-white min-h-[44px] min-w-[44px] h-9 w-9 rounded-lg flex items-center justify-center"
-            aria-label="Change password"
-          >
-            <KeyRound className="h-4 w-4" />
-          </button>
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
           <ThemeToggle />
-          <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
           <NotificationPanel />
-          <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
           <ShareMenu
             title="Share"
             text="Finexa - Smart Credit Management"
-            className="h-9 w-9 text-blue-100 hover:bg-white/10 hover:text-white border-0 p-0"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground border-0 p-0"
           />
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
+          {/* Change Password */}
+          <button
+            onClick={() => setChangePasswordOpen(true)}
+            className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
+            title="Change Password"
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">Password</span>
+          </button>
+          {/* User Avatar */}
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="flex items-center gap-2 text-sm text-foreground hover:bg-muted rounded-md px-2 py-1 transition-colors"
+            aria-label="Open settings"
+          >
+            <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="text-left hidden sm:block">
+              <p className="text-xs font-medium text-foreground leading-tight">{user.name}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">Admin</p>
+            </div>
+          </button>
           <Button
             variant="ghost"
             size="sm"
-            className="text-blue-100 hover:bg-white/10 hover:text-white"
+            className="text-muted-foreground hover:text-foreground h-8 px-2"
             onClick={handleLogout}
           >
-            <LogOut className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Logout</span>
+            <LogOut className="h-4 w-4 sm:mr-1.5" />
+            <span className="hidden sm:inline text-xs">Logout</span>
           </Button>
         </div>
       </header>
@@ -282,59 +261,54 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Sidebar Overlay (mobile) */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+            className="fixed inset-0 bg-black/30 z-40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
-        {/* Sidebar */}
+        {/* Sidebar — Clean white, Mosaic-style */}
         <aside
-          className={`fixed lg:static inset-y-0 left-0 z-40 w-64 sidebar-navy-gradient transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:top-16 pt-16 lg:pt-0 border-r border-white/10 print-hidden ${
+          className={`fixed lg:static inset-y-0 left-0 z-40 w-60 bg-white dark:bg-slate-900 border-r border-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:top-14 pt-14 lg:pt-0 print:hidden ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          {/* Subtle pattern overlay */}
-          <div className="sidebar-pattern-overlay" />
-          <ScrollArea className="h-[calc(100vh-4rem)] sidebar-scroll">
-            {/* Branded Section */}
+          <ScrollArea className="h-[calc(100vh-3.5rem)] sidebar-scroll">
+            {/* Logo section in sidebar */}
             <div className="px-4 pt-5 pb-3">
-              <div className="flex items-center gap-3 px-2">
-                <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 border border-white/20">
-                  <Building2 className="h-5 w-5 text-blue-200" />
-                </div>
+              <div className="flex items-center gap-2.5 px-1">
+                <Image src="/finexa-icon.png" alt="Finexa" width={32} height={32} className="rounded-lg" />
                 <div>
-                  <p className="text-sm font-bold text-white leading-tight">Finexa</p>
-                  <p className="text-[10px] text-blue-300/70 leading-tight">Management Portal</p>
+                  <p className="text-sm font-bold text-foreground leading-tight">Finexa</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">Management Portal</p>
                 </div>
               </div>
             </div>
 
-            <Separator className="bg-white/10 mx-3" />
+            <Separator className="mx-4" />
 
             {/* Navigation */}
-            <nav className="p-3 space-y-1 nav-stagger">
-              {/* Dashboard - always visible */}
+            <nav className="p-3 space-y-0.5">
+              {/* Dashboard */}
               <button
                 key={dashboardItem.id}
                 onClick={() => handleNavClick(dashboardItem.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   currentView === dashboardItem.id
-                    ? 'bg-white/15 text-white shadow-sm border border-white/10'
-                    : 'nav-item-inactive'
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
-                <span className={currentView === dashboardItem.id ? 'text-white' : ''}>{dashboardItem.icon}</span>
+                <span className="shrink-0">{dashboardItem.icon}</span>
                 <span className="flex-1 text-left">{dashboardItem.label}</span>
-                {currentView === dashboardItem.id && <ChevronRight className="h-4 w-4 opacity-70" />}
+                {currentView === dashboardItem.id && <ChevronRight className="h-3.5 w-3.5" />}
               </button>
 
-              <Separator className="bg-white/10 my-2" />
+              <Separator className="my-2" />
 
               {/* Collapsible Sections */}
               {adminNavSections.map((section) => {
-                const isCollapsed = collapsedSections[section.id] !== false; // default: expanded
+                const isCollapsed = collapsedSections[section.id] !== false;
                 const hasActiveItem = section.items.some((item) => currentView === item.id);
-                // Auto-expand section if it has active item
                 const effectivelyCollapsed = hasActiveItem ? false : isCollapsed;
 
                 return (
@@ -342,18 +316,18 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     {/* Section Header */}
                     <button
                       onClick={() => setCollapsedSections((prev) => ({ ...prev, [section.id]: prev[section.id] === false }))}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-[11px] font-semibold uppercase tracking-wider text-blue-300/60 hover:text-blue-200/80 transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                     >
                       <span className="shrink-0">{section.icon}</span>
                       <span className="flex-1 text-left">{section.label}</span>
                       <ChevronDown
-                        className={`h-3.5 w-3.5 transition-transform duration-200 ${effectivelyCollapsed ? '-rotate-90' : ''}`}
+                        className={`h-3 w-3 transition-transform duration-150 ${effectivelyCollapsed ? '-rotate-90' : ''}`}
                       />
                     </button>
 
                     {/* Section Items */}
                     <div
-                      className={`space-y-0.5 overflow-hidden transition-all duration-200 ${
+                      className={`space-y-0.5 overflow-hidden transition-all duration-150 ${
                         effectivelyCollapsed ? 'max-h-0 opacity-0' : 'max-h-[500px] opacity-100'
                       }`}
                     >
@@ -363,15 +337,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                           <button
                             key={item.id}
                             onClick={() => handleNavClick(item.id)}
-                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
                               isActive
-                                ? 'bg-white/15 text-white shadow-sm border border-white/10'
-                                : 'nav-item-inactive'
+                                ? 'bg-primary/10 text-primary font-medium'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                             }`}
                           >
-                            <span className={`shrink-0 ${isActive ? 'text-white' : ''}`}>{item.icon}</span>
+                            <span className="shrink-0">{item.icon}</span>
                             <span className="flex-1 text-left">{item.label}</span>
-                            {isActive && <ChevronRight className="h-4 w-4 opacity-70" />}
+                            {isActive && <ChevronRight className="h-3.5 w-3.5" />}
                           </button>
                         );
                       })}
@@ -383,37 +357,30 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
             {/* Mini Stats at Bottom */}
             <div className="px-3 pb-4 mt-2">
-              <Separator className="bg-white/10 mb-3" />
-              {/* Live Recovery Ticker */}
-              <div className="mb-3 rounded-lg bg-green-500/15 border border-green-400/30 px-3 py-2.5">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-[10px] text-green-300/80 font-medium">Today&apos;s Recovery</span>
+              <Separator className="mb-3" />
+              {/* Today's Recovery */}
+              <div className="mb-3 rounded-md border border-green-200 dark:border-green-800/40 bg-green-50/50 dark:bg-green-900/10 px-3 py-2">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-live-pulse" />
+                  <span className="text-[10px] text-green-700 dark:text-green-400 font-medium">Today&apos;s Recovery</span>
                 </div>
-                <p className="text-base font-bold text-green-300 tabular-nums flex items-center gap-1.5">
-                  <ArrowDownRight className="h-4 w-4" />
+                <p className="text-sm font-bold text-green-700 dark:text-green-300 tabular-nums">
                   Rs. {todayRecovery.toLocaleString('en-PK', { maximumFractionDigits: 0 })}
                 </p>
               </div>
               {statsLoading ? (
-                <div className="flex items-center justify-center py-3">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-300/50" />
+                <div className="flex items-center justify-center py-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/50" />
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-lg bg-white/8 border border-white/10 px-3 py-2.5">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Store className="h-3 w-3 text-blue-300/70" />
-                      <span className="text-[10px] text-blue-300/70 font-medium">Total Shops</span>
-                    </div>
-                    <p className="text-base font-bold text-white">{miniStats.totalShops}</p>
+                  <div className="rounded-md border border-border px-3 py-2">
+                    <span className="text-[10px] text-muted-foreground font-medium">Shops</span>
+                    <p className="text-sm font-bold text-foreground">{miniStats.totalShops}</p>
                   </div>
-                  <div className="rounded-lg bg-white/8 border border-white/10 px-3 py-2.5">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Users className="h-3 w-3 text-blue-300/70" />
-                      <span className="text-[10px] text-blue-300/70 font-medium">Total OBs</span>
-                    </div>
-                    <p className="text-base font-bold text-white">{miniStats.totalOBs}</p>
+                  <div className="rounded-md border border-border px-3 py-2">
+                    <span className="text-[10px] text-muted-foreground font-medium">OBs</span>
+                    <p className="text-sm font-bold text-foreground">{miniStats.totalOBs}</p>
                   </div>
                 </div>
               )}
@@ -429,10 +396,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </main>
       </div>
 
-      {/* Footer */}
-      <footer className="glass-strong dark:bg-slate-800/90 dark:border-slate-600/50 border-t border-border/50 px-6 py-3 flex items-center justify-between text-xs text-muted-foreground dark:text-slate-300 mt-auto">
-        <span>&copy; {new Date().getFullYear()} Finexa. All rights reserved.</span>
-        <span>Smart Credit &amp; Route Management v1.0</span>
+      {/* Footer — minimal */}
+      <footer className="border-t border-border px-6 py-2.5 flex items-center justify-between text-[11px] text-muted-foreground print:hidden">
+        <span>&copy; {new Date().getFullYear()} Finexa</span>
+        <span>v1.0</span>
       </footer>
 
       {/* Global Search Overlay */}

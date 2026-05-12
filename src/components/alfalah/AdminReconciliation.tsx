@@ -166,7 +166,7 @@ export default function AdminReconciliation() {
             {/* Metric Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Month's Total Credit */}
-              <Card className="stat-card-amber alfalah-card-hover">
+              <Card className="stat-card-amber card-hover">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     <div className="h-11 w-11 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
@@ -189,7 +189,7 @@ export default function AdminReconciliation() {
               </Card>
 
               {/* Month's Total Recovery */}
-              <Card className="stat-card-green alfalah-card-hover">
+              <Card className="stat-card-green card-hover">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     <div className="h-11 w-11 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
@@ -212,7 +212,7 @@ export default function AdminReconciliation() {
               </Card>
 
               {/* Month's Net Position */}
-              <Card className={`alfalah-card-hover ${monthSummary.netPosition >= 0 ? 'stat-card-green' : 'stat-card-red'}`}>
+              <Card className={`card-hover ${monthSummary.netPosition >= 0 ? 'stat-card-green' : 'stat-card-red'}`}>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${monthSummary.netPosition >= 0 ? 'bg-green-500/15' : 'bg-red-500/15'}`}>
@@ -288,12 +288,12 @@ export default function AdminReconciliation() {
         <div className="flex items-center gap-2">
           <div className="relative">
             <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="pl-9 w-44 input-enhanced" />
+            <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="pl-9 w-44 " />
           </div>
-          <Button variant="outline" size="sm" onClick={fetchReport} disabled={loading} className="btn-ripple">
+          <Button variant="outline" size="sm" onClick={fetchReport} disabled={loading} className="">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
-          <Button variant="outline" size="sm" onClick={handlePrint} className="no-print btn-ripple">
+          <Button variant="outline" size="sm" onClick={handlePrint} className="no-print ">
             <Printer className="h-4 w-4" />
           </Button>
           {report && report.orderbookers.length > 0 && (
@@ -317,7 +317,7 @@ export default function AdminReconciliation() {
                 exportToCSV(rows, `reconciliation-${report.date}`, ['Orderbooker', 'Shop', 'Area', 'Credit', 'Recovery', 'Closing Balance']);
                 toast({ title: 'Exported', description: 'Reconciliation CSV downloaded' });
               }}
-              className="no-print btn-ripple"
+              className="no-print "
             >
               <Download className="h-4 w-4 mr-1.5" /> CSV
             </Button>
@@ -333,7 +333,7 @@ export default function AdminReconciliation() {
         return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Credit — amber themed with mini bar */}
-          <Card className="stat-card-amber alfalah-card-hover animate-card-entrance" style={{ animationDelay: '0ms' }}>
+          <Card className="stat-card-amber card-hover " style={{ animationDelay: '0ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
                 <div className="h-11 w-11 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
@@ -360,7 +360,7 @@ export default function AdminReconciliation() {
           </Card>
 
           {/* Total Recovery — green themed with mini bar */}
-          <Card className="stat-card-green alfalah-card-hover animate-card-entrance" style={{ animationDelay: '50ms' }}>
+          <Card className="stat-card-green card-hover " style={{ animationDelay: '50ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
                 <div className="h-11 w-11 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
@@ -387,7 +387,7 @@ export default function AdminReconciliation() {
           </Card>
 
           {/* Net Position — red/green based on sign */}
-          <Card className={`alfalah-card-hover animate-card-entrance ${report.netChange >= 0 ? 'stat-card-green' : 'stat-card-red'}`} style={{ animationDelay: '100ms' }}>
+          <Card className={`card-hover  ${report.netChange >= 0 ? 'stat-card-green' : 'stat-card-red'}`} style={{ animationDelay: '100ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
                 <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${report.netChange >= 0 ? 'bg-green-500/15' : 'bg-red-500/15'}`}>
@@ -411,7 +411,7 @@ export default function AdminReconciliation() {
           </Card>
 
           {/* Transactions */}
-          <Card className="stat-card-blue alfalah-card-hover animate-card-entrance" style={{ animationDelay: '150ms' }}>
+          <Card className="stat-card-blue card-hover " style={{ animationDelay: '150ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
                 <div className="h-11 w-11 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">

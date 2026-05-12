@@ -633,7 +633,7 @@ export default function AdminExportData() {
             <Button
               onClick={handleExport}
               disabled={exporting || selectedExports.size === 0}
-              className="w-full bg-primary hover:bg-primary/90 text-white h-11 text-sm font-semibold btn-ripple"
+              className="w-full bg-primary hover:bg-primary/90 text-white h-11 text-sm font-semibold "
             >
               {exporting ? (
                 <>

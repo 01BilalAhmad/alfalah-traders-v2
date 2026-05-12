@@ -554,7 +554,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
         className="sm:max-w-md p-0 w-full overflow-hidden"
       >
         {/* Navy Blue Gradient Header */}
-        <div className="alfalah-gradient px-6 pt-8 pb-6 relative">
+        <div className="bg-primary px-6 pt-8 pb-6 relative">
           <SheetHeader className="text-left space-y-0">
             <SheetTitle className="text-white text-lg flex items-center gap-2">
               <Settings className="h-5 w-5" />
@@ -1093,7 +1093,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
             <Card>
               <CardContent className="py-4">
                 <div className="text-center space-y-3">
-                  <div className="h-12 w-12 rounded-xl alfalah-gradient flex items-center justify-center mx-auto shadow-md">
+                  <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center mx-auto shadow-md">
                     <Building2 className="h-6 w-6 text-white" />
                   </div>
                   <div>

@@ -555,7 +555,7 @@ export default function ShopDetailAnalytics() {
 
       {/* Shop Header Card */}
       <Card className="card-elevated overflow-hidden">
-        <div className="alfalah-gradient p-5">
+        <div className="bg-primary p-5">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
@@ -1021,7 +1021,7 @@ export default function ShopDetailAnalytics() {
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
               placeholder="Add a note about this shop..."
-              className="input-enhanced resize-none"
+              className="resize-none"
               rows={3}
             />
             <div className="flex justify-end">
@@ -1029,7 +1029,7 @@ export default function ShopDetailAnalytics() {
                 size="sm"
                 onClick={handleAddNote}
                 disabled={noteSaving || !newNote.trim()}
-                className="bg-primary hover:bg-primary/90 focus-glow"
+                className="bg-primary hover:bg-primary/90 "
               >
                 {noteSaving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
                 Add Note
@@ -1118,7 +1118,7 @@ export default function ShopDetailAnalytics() {
             <ScrollArea className="max-h-96">
               <Table>
                 <TableHeader>
-                  <TableRow className="data-table-header hover:bg-transparent">
+                  <TableRow className="bg-primary hover:bg-transparent">
                     <TableHead className="text-white font-semibold text-xs">Date</TableHead>
                     <TableHead className="text-white font-semibold text-xs">Type</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-right">Amount</TableHead>

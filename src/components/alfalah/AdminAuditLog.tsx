@@ -296,7 +296,7 @@ export default function AdminAuditLog() {
 
       {/* Summary Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-children">
-        <Card className="stat-card-blue animate-card-entrance">
+        <Card className="stat-card-blue ">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
               <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -307,7 +307,7 @@ export default function AdminAuditLog() {
             </div>
           </CardContent>
         </Card>
-        <Card className="stat-card-amber animate-card-entrance">
+        <Card className="stat-card-amber ">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
               <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
@@ -318,7 +318,7 @@ export default function AdminAuditLog() {
             </div>
           </CardContent>
         </Card>
-        <Card className="stat-card-amber animate-card-entrance">
+        <Card className="stat-card-amber ">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
               <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
@@ -329,7 +329,7 @@ export default function AdminAuditLog() {
             </div>
           </CardContent>
         </Card>
-        <Card className="stat-card-green animate-card-entrance">
+        <Card className="stat-card-green ">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
               <ArrowDownRight className="h-4 w-4 text-green-600 dark:text-green-400" />
@@ -485,7 +485,7 @@ export default function AdminAuditLog() {
                 <div className="overflow-x-auto">
                   <Table className="min-w-[600px]">
                     <TableHeader>
-                      <TableRow className="data-table-header hover:bg-transparent">
+                      <TableRow className="bg-primary hover:bg-transparent">
                         <TableHead className="text-white font-semibold text-xs">Date</TableHead>
                         <TableHead className="text-white font-semibold text-xs">Action</TableHead>
                         <TableHead className="text-white font-semibold text-xs">Entity</TableHead>
@@ -601,7 +601,7 @@ export default function AdminAuditLog() {
 
                                 {/* Content Card */}
                                 <div className="flex-1 min-w-0 mb-1">
-                                  <div className="rounded-lg border border-border/50 bg-card p-3 hover:shadow-sm transition-shadow alfalah-card-hover">
+                                  <div className="rounded-lg border border-border/50 bg-card p-3 hover:shadow-sm transition-shadow card-hover">
                                     {/* Top row: badge + time */}
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="flex flex-wrap items-center gap-2">

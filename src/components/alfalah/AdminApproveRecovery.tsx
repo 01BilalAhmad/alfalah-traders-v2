@@ -280,7 +280,7 @@ export default function AdminApproveRecovery() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="hover-lift border-orange-200 dark:border-orange-900">
+        <Card className="border-orange-200 dark:border-orange-900">
           <CardContent className="p-4">
             <div className="flex items-center gap-2.5">
               <div className="h-9 w-9 rounded-lg bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center">
@@ -293,7 +293,7 @@ export default function AdminApproveRecovery() {
             </div>
           </CardContent>
         </Card>
-        <Card className="hover-lift border-green-200 dark:border-green-900">
+        <Card className="border-green-200 dark:border-green-900">
           <CardContent className="p-4">
             <div className="flex items-center gap-2.5">
               <div className="h-9 w-9 rounded-lg bg-green-100 dark:bg-green-900/40 flex items-center justify-center">

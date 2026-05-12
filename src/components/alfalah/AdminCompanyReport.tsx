@@ -229,13 +229,13 @@ export default function AdminCompanyReport() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="btn-ripple">
+          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><RefreshCw className="h-4 w-4 mr-1" />Refresh</>}
           </Button>
           {data && data.orderbookers.length > 0 && (
             <Button
               size="sm"
-              className="bg-primary hover:bg-primary/90 text-white btn-ripple"
+              className="bg-primary hover:bg-primary/90 text-white "
               onClick={handlePrint}
             >
               <Printer className="h-4 w-4 mr-1.5" />
@@ -276,7 +276,7 @@ export default function AdminCompanyReport() {
       {/* Summary Cards */}
       {data && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print-hidden">
-          <Card className="alfalah-card-hover animate-card-entrance" style={{ animationDelay: '0ms' }}>
+          <Card className="card-hover " style={{ animationDelay: '0ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
                 <FileSpreadsheet className="h-5 w-5 text-orange-600" />
@@ -287,7 +287,7 @@ export default function AdminCompanyReport() {
               </div>
             </CardContent>
           </Card>
-          <Card className="alfalah-card-hover animate-card-entrance" style={{ animationDelay: '50ms' }}>
+          <Card className="card-hover " style={{ animationDelay: '50ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
                 <Building2 className="h-5 w-5 text-green-600" />
@@ -298,7 +298,7 @@ export default function AdminCompanyReport() {
               </div>
             </CardContent>
           </Card>
-          <Card className="alfalah-card-hover animate-card-entrance" style={{ animationDelay: '100ms' }}>
+          <Card className="card-hover " style={{ animationDelay: '100ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                 <FileSpreadsheet className="h-5 w-5 text-blue-600" />

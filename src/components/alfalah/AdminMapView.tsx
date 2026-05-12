@@ -167,7 +167,7 @@ function AreaCard({ group, expanded, onToggle, onSelectShop }: {
   const colors = getRiskColor(group.riskLevel);
 
   return (
-    <Card className={`card-elevated alfalah-card-hover border ${colors.border} transition-all`}>
+    <Card className={`card-elevated card-hover border ${colors.border} transition-all`}>
       <CardContent className="p-0">
         {/* Header — always visible */}
         <button
@@ -252,7 +252,7 @@ function OBRouteCard({ ob }: { ob: OBRouteGroup }) {
   }));
 
   return (
-    <Card className="card-elevated alfalah-card-hover">
+    <Card className="card-elevated card-hover">
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           {/* OB Info */}
@@ -599,7 +599,7 @@ export default function AdminMapView() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in stagger-children">
-        <Card className="stat-card-green alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-green card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
               <Store className="h-5 w-5 text-emerald-600" />
@@ -611,7 +611,7 @@ export default function AdminMapView() {
           </CardContent>
         </Card>
 
-        <Card className="stat-card-red alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-red card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
               <XCircle className="h-5 w-5 text-red-600" />
@@ -623,7 +623,7 @@ export default function AdminMapView() {
           </CardContent>
         </Card>
 
-        <Card className="stat-card-amber alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-amber card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
               <Wallet className="h-5 w-5 text-amber-600" />
@@ -635,7 +635,7 @@ export default function AdminMapView() {
           </CardContent>
         </Card>
 
-        <Card className="stat-card-green alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-green card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
               <MapPin className="h-5 w-5 text-green-600" />

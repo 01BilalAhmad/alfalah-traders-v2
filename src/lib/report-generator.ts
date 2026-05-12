@@ -9,7 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 // ─── Brand Constants ────────────────────────────────────────────────────
-const NAVY_BLUE: [number, number, number] = [30, 58, 138];    // #1E3A8A
+const NAVY_BLUE: [number, number, number] = [30, 58, 138];    // #4F46E5
 const SLATE_GREY: [number, number, number] = [71, 85, 105];
 const LIGHT_BLUE: [number, number, number] = [239, 246, 255];
 const GREEN_TEXT: [number, number, number] = [6, 95, 70];

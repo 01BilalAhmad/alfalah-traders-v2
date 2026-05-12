@@ -539,7 +539,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
             <ScrollArea className="flex-1 rounded-lg border">
               <Table>
                 <TableHeader>
-                  <TableRow className="data-table-header hover:bg-transparent">
+                  <TableRow className="bg-primary hover:bg-transparent">
                     <TableHead className="text-white font-semibold text-xs w-12">#</TableHead>
                     <TableHead className="text-white font-semibold text-xs">Shop Name</TableHead>
                     <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Owner</TableHead>
@@ -641,7 +641,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                 <ScrollArea className="max-h-60 rounded-lg border">
                   <Table>
                     <TableHeader>
-                      <TableRow className="data-table-header hover:bg-transparent">
+                      <TableRow className="bg-primary hover:bg-transparent">
                         <TableHead className="text-white font-semibold text-xs">#</TableHead>
                         <TableHead className="text-white font-semibold text-xs">Name</TableHead>
                         <TableHead className="text-white font-semibold text-xs text-right">Balance</TableHead>

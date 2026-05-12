@@ -156,7 +156,7 @@ export default function KeyboardShortcuts() {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[520px] p-0 gap-0 overflow-hidden rounded-xl border shadow-2xl">
         {/* Header with navy blue gradient */}
-        <div className="bg-gradient-to-r from-[#1E3A8A] to-[#1D4ED8] px-6 py-5">
+        <div className="bg-gradient-to-r from-[#4F46E5] to-[#1D4ED8] px-6 py-5">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-white">
               <div className="h-10 w-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center">

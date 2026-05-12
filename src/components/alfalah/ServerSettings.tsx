@@ -264,7 +264,7 @@ export default function ServerSettings({ open, onOpenChange }: ServerSettingsPro
             onClick={handleSave}
             disabled={testStatus === 'testing'}
             className="w-full h-11 text-white font-semibold transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
-            style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 50%, #3B82F6 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #2563EB 50%, #3B82F6 100%)' }}
           >
             <CheckCircle2 className="mr-2 h-4 w-4" />
             {serverUrl.trim() ? `Connect to ${serverUrl.trim().replace(/https?:\/\//, '').split('/')[0]}` : 'Use Default Server'}

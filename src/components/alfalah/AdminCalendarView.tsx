@@ -422,13 +422,13 @@ export default function AdminCalendarView() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={goToPrevMonth} className="h-9 w-9 hover-glow-primary">
+          <Button variant="outline" size="icon" onClick={goToPrevMonth} className="h-9 w-9 ">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" onClick={goToToday} className="text-xs font-semibold px-3 h-9 hover-glow-primary">
+          <Button variant="outline" onClick={goToToday} className="text-xs font-semibold px-3 h-9 ">
             {format(currentMonth, 'MMMM yyyy')}
           </Button>
-          <Button variant="outline" size="icon" onClick={goToNextMonth} className="h-9 w-9 hover-glow-primary">
+          <Button variant="outline" size="icon" onClick={goToNextMonth} className="h-9 w-9 ">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -437,7 +437,7 @@ export default function AdminCalendarView() {
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 stagger-children">
         {/* Working Days */}
-        <Card className="stat-card-green alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-green card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
               <Calendar className="h-5 w-5 text-green-600" />
@@ -453,7 +453,7 @@ export default function AdminCalendarView() {
         </Card>
 
         {/* Total Scheduled Visits */}
-        <Card className="stat-card-blue alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-blue card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
               <Store className="h-5 w-5 text-blue-600" />
@@ -469,7 +469,7 @@ export default function AdminCalendarView() {
         </Card>
 
         {/* OB with Most Assignments */}
-        <Card className="stat-card-amber alfalah-card-hover animate-card-entrance">
+        <Card className="stat-card-amber card-hover ">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
               <Briefcase className="h-5 w-5 text-amber-600" />
@@ -807,7 +807,7 @@ export default function AdminCalendarView() {
             <div className="border-t pt-3 mt-2">
               <Button
                 variant="outline"
-                className="w-full text-xs hover-glow-primary"
+                className="w-full text-xs "
                 onClick={() => {
                   setDetailOpen(false);
                   // Store the selected route day so AdminShops can filter by it

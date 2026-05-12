@@ -298,7 +298,7 @@ export default function AdminPendingCredits() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="data-table-header hover:bg-transparent">
+                <TableRow className="bg-primary hover:bg-transparent">
                   <TableHead className="text-white font-semibold text-xs w-12">#</TableHead>
                   <TableHead className="text-white font-semibold text-xs">Shop</TableHead>
                   <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Area</TableHead>

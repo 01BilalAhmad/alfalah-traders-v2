@@ -254,7 +254,7 @@ function ProfileView({
     <div className="p-4 space-y-4">
       {/* Profile Card */}
       <Card className="overflow-hidden animate-fade-in">
-        <div className="alfalah-gradient p-5 text-white relative overflow-hidden">
+        <div className="bg-primary p-5 text-white relative overflow-hidden">
           {/* Decorative circles */}
           <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
           <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-white/5" />
@@ -292,7 +292,7 @@ function ProfileView({
 
       {/* Performance Stats */}
       <Card className="animate-fade-in relative overflow-hidden" style={{ animationDelay: '100ms' }}>
-        <div className="mesh-gradient absolute inset-0 pointer-events-none" />
+        <div className="absolute inset-0 pointer-events-none" />
         <CardHeader className="pb-2 relative z-10">
           <CardTitle className="text-sm font-bold flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
@@ -654,7 +654,7 @@ function RecoveryHistory() {
                   {/* Transactions */}
                   <div className="space-y-2">
                     {items.map((txn) => (
-                      <Card key={txn.id} className="alfalah-card-hover overflow-hidden">
+                      <Card key={txn.id} className="card-hover overflow-hidden">
                         <CardContent className="p-3">
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
@@ -817,7 +817,7 @@ export default function OrderbookerLayout() {
       />
 
       {/* Header */}
-      <header className="sticky top-0 z-50 relative flex items-center justify-between px-4 pb-4 pt-[env(safe-area-inset-top,0px)] bg-gradient-to-r from-[#065F46] to-[#047857] shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
+      <header className="sticky top-0 z-50 relative flex items-center justify-between px-4 py-2.5 pt-[env(safe-area-inset-top,0px)] bg-primary text-primary-foreground border-b border-primary/20">
         <div className="flex items-center gap-2.5">
           {/* Online/Offline indicator */}
           <div className={`h-2 w-2 rounded-full ${onlineStatus.isOnline ? 'bg-green-400 animate-pulse' : 'bg-amber-400'}`} title={onlineStatus.isOnline ? 'Online' : 'Offline'} />
@@ -826,7 +826,7 @@ export default function OrderbookerLayout() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20">
             <Store className="h-4 w-4 text-white" />
           </div>
           <div>
@@ -839,12 +839,12 @@ export default function OrderbookerLayout() {
         <div className="flex items-center gap-1.5 sm:gap-2">
           <div className="text-right hidden sm:block">
             <p className="text-xs font-medium text-white">{user.name}</p>
-            <p className="text-[9px] text-blue-200">Orderbooker</p>
+            <p className="text-[9px] text-white/70">Orderbooker</p>
           </div>
           <ShareMenu
             title="Share"
             text="Finexa - Smart Credit Management"
-            className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10 border-0 p-0"
+            className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10 border-0 p-0"
           />
           <Button
             variant="ghost"
@@ -867,7 +867,7 @@ export default function OrderbookerLayout() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-white/90 hover:text-white hover:bg-red-500/30 border border-white/20 gap-1.5 text-xs font-medium"
+            className="h-8 text-white/80 hover:text-white hover:bg-white/10 gap-1.5 text-xs font-medium"
             onClick={handleLogout}
           >
             <LogOut className="h-3.5 w-3.5" />
@@ -882,11 +882,10 @@ export default function OrderbookerLayout() {
             <span className="online-dot text-white" />
           </div>
         </div>
-        {/* Animated gradient underline - more visible */}
-        <div className="absolute bottom-0 left-0 right-0 h-[3px] animate-gradient-underline opacity-100" />
+        {/* Clean bottom border */}
         {/* Current date - mobile - improved visibility */}
         <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 sm:hidden">
-          <span className="text-[10px] text-white/80 font-medium bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-sm border border-white/20">
+          <span className="text-[10px] text-white/70 font-medium bg-white/10 px-2.5 py-1 rounded-md">
             <CalendarDays className="h-3 w-3 inline mr-1 -mt-px" />
             {formatNiceDate()}
           </span>
@@ -1365,7 +1364,7 @@ function OrderbookerDashboard() {
     return (
       <Card
         key={shop.id}
-        className={`alfalah-card-hover hover-lift animate-card-entrance overflow-hidden cursor-pointer ${isOverLimit ? 'border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-950/20' : ''}`}
+        className={`card-hover overflow-hidden cursor-pointer ${isOverLimit ? 'border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-950/20' : ''}`}
         style={{ animationDelay: `${Math.min(idx * 40, 300)}ms` }}
         onClick={() => openShopDetail(shop)}
       >
@@ -1420,7 +1419,7 @@ function OrderbookerDashboard() {
           <div className="mt-3 flex gap-2">
             <Button
               size="sm"
-              className="flex-1 h-9 bg-primary hover:bg-primary/90 text-white text-xs font-medium hover-glow-primary btn-ripple"
+              className="flex-1 h-9 bg-primary hover:bg-primary/90 text-white text-xs font-medium  "
               onClick={(e) => {
                 e.stopPropagation();
                 openRecoveryDialog(shop);
@@ -1474,7 +1473,7 @@ function OrderbookerDashboard() {
       />
 
       {/* Day Header with Progress Bar */}
-      <div className="alfalah-gradient rounded-xl p-4 text-white relative overflow-hidden">
+      <div className="bg-primary rounded-xl p-4 text-white relative overflow-hidden">
         {/* Decorative circles */}
         <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
         <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-white/5" />
@@ -1530,7 +1529,7 @@ function OrderbookerDashboard() {
 
       {/* Today's Recovery Summary */}
       <Card className="overflow-hidden animate-fade-in relative">
-        <div className="mesh-gradient absolute inset-0 pointer-events-none" />
+        <div className="absolute inset-0 pointer-events-none" />
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-3">
           <div className="flex items-center gap-2">
             <div className="h-7 w-7 rounded-lg bg-white/20 flex items-center justify-center">
@@ -1912,7 +1911,7 @@ function ShopDetailDialog({
         <ScrollArea className="flex-1 px-4 pb-4">
           <div className="space-y-4">
             {/* Shop Info Card */}
-            <div className="alfalah-gradient rounded-xl p-4 text-white relative overflow-hidden">
+            <div className="bg-primary rounded-xl p-4 text-white relative overflow-hidden">
               <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/10" />
               <div className="absolute -bottom-6 -left-6 w-20 h-20 rounded-full bg-white/5" />
               <div className="relative z-10">
@@ -2088,7 +2087,7 @@ function ShopDetailDialog({
               </Button>
             )}
             <Button
-              className="flex-1 h-11 bg-primary hover:bg-primary/90 text-white font-medium hover-glow-primary btn-ripple"
+              className="flex-1 h-11 bg-primary hover:bg-primary/90 text-white font-medium  "
               onClick={() => onCollectRecovery(shop)}
             >
               <Banknote className="h-4 w-4 mr-2" />
@@ -2347,7 +2346,7 @@ function LedgerView() {
                     {dayShops.map((shop) => (
                       <Card
                         key={shop.id}
-                        className="cursor-pointer alfalah-card-hover hover-lift"
+                        className="cursor-pointer card-hover hover-lift"
                         onClick={() => fetchLedger(shop.id)}
                       >
                         <CardContent className="p-4 flex items-center justify-between">

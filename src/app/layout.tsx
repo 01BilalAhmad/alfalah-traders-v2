@@ -12,7 +12,7 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#1E3A8A" },
+    { media: "(prefers-color-scheme: light)", color: "#4F46E5" },
     { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
   ],
 };
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   keywords: ["Finexa", "credit management", "recovery tracking", "orderbooker", "route management"],
   manifest: "/manifest.json",
   icons: {
-    icon: "/icon-192.png",
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }, { url: "/icon-192.png", sizes: "192x192" }],
     apple: "/icon-192.png",
   },
   appleWebApp: {
@@ -45,8 +45,8 @@ export const metadata: Metadata = {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "default",
-    "theme-color": "#1E3A8A",
-    "msapplication-TileColor": "#1E3A8A",
+    "theme-color": "#4F46E5",
+    "msapplication-TileColor": "#4F46E5",
   },
 };
 

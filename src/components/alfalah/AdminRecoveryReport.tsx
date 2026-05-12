@@ -485,7 +485,7 @@ export default function AdminRecoveryReport() {
           {/* Add Recovery Button */}
           <Button
             onClick={openAddDialog}
-            className="bg-green-600 hover:bg-green-700 text-white btn-ripple"
+            className="bg-green-600 hover:bg-green-700 text-white "
             size="sm"
           >
             <Plus className="h-4 w-4 mr-1.5" />
@@ -504,7 +504,7 @@ export default function AdminRecoveryReport() {
             variant={selectedDate === getLocalDateString() ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedDate(getLocalDateString())}
-            className="text-xs hover-glow-primary"
+            className="text-xs "
           >
             Today
           </Button>
@@ -512,11 +512,11 @@ export default function AdminRecoveryReport() {
             variant={selectedDate === getYesterdayDateString() ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSelectedDate(getYesterdayDateString())}
-            className="text-xs hover-glow-primary"
+            className="text-xs "
           >
             Yesterday
           </Button>
-          <Button variant="outline" size="sm" onClick={fetchSummary} disabled={loading} className="btn-ripple">
+          <Button variant="outline" size="sm" onClick={fetchSummary} disabled={loading} className="">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><RefreshCw className="h-4 w-4 mr-1" />Refresh</>}
           </Button>
           {lastUpdated && (
@@ -528,7 +528,7 @@ export default function AdminRecoveryReport() {
             <Button
               variant="outline"
               size="sm"
-              className="btn-ripple"
+              className=""
               onClick={() => {
                 const rows: Record<string, unknown>[] = [];
                 summary.orderbookers.forEach((ob) => {
@@ -558,7 +558,7 @@ export default function AdminRecoveryReport() {
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="alfalah-card-hover animate-card-entrance" style={{ animationDelay: '0ms' }}>
+          <Card className="card-hover " style={{ animationDelay: '0ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
                 <Banknote className="h-5 w-5 text-green-600" />
@@ -569,7 +569,7 @@ export default function AdminRecoveryReport() {
               </div>
             </CardContent>
           </Card>
-          <Card className="alfalah-card-hover animate-card-entrance" style={{ animationDelay: '50ms' }}>
+          <Card className="card-hover " style={{ animationDelay: '50ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                 <Users className="h-5 w-5 text-blue-600" />
@@ -580,7 +580,7 @@ export default function AdminRecoveryReport() {
               </div>
             </CardContent>
           </Card>
-          <Card className="alfalah-card-hover animate-card-entrance" style={{ animationDelay: '100ms' }}>
+          <Card className="card-hover " style={{ animationDelay: '100ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
               <div className="h-11 w-11 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
                 <MapPin className="h-5 w-5 text-amber-600" />
@@ -676,7 +676,7 @@ export default function AdminRecoveryReport() {
                 Recovery entries will appear here once orderbookers start collecting payments.
               </p>
               <button
-                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors focus-glow"
+                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors "
                 onClick={fetchSummary}
               >
                 <CalendarDays className="h-3.5 w-3.5" />

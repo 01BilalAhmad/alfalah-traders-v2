@@ -308,7 +308,7 @@ interface SparklineData {
 }
 
 const ROUTE_DAYS = [...WORKING_DAYS];
-const ROUTE_COLORS = ['#1E3A8A', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+const ROUTE_COLORS = ['#4F46E5', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 function RecoverySparkline({ data, width = 100, height = 28 }: { data: number[]; width?: number; height?: number }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
@@ -639,9 +639,9 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6 page-transition">
       {/* Welcome Banner */}
-      <div className="alfalah-gradient rounded-xl p-5 text-white relative overflow-hidden">
+      <div className="bg-primary rounded-xl p-5 text-white relative overflow-hidden">
         {/* Mesh gradient overlay */}
-        <div className="absolute inset-0 mesh-gradient opacity-40" />
+        <div className="absolute inset-0 opacity-40" />
         <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/4" />
         <div className="absolute bottom-0 left-1/2 w-24 h-24 rounded-full bg-white/5 translate-y-1/2" />
         <div className="absolute top-1/2 left-1/3 w-16 h-16 rounded-full bg-blue-400/10 blur-sm" />
@@ -661,7 +661,7 @@ export default function AdminDashboard() {
       {/* KPI Cards */}
       <div className="dot-pattern rounded-xl p-5">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
-          <Card className="kpi-card stat-card-amber card-border-glow hover-scale-102 animate-card-entrance">
+          <Card className="kpi-card stat-card-amber card-border-glow hover-scale-102 ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center shadow-sm">
@@ -673,7 +673,7 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
             </CardContent>
           </Card>
-          <Card className="kpi-card stat-card-green stat-pulse animate-fade-in card-border-glow hover-scale-102 animate-card-entrance">
+          <Card className="kpi-card stat-card-green stat-pulse animate-fade-in card-border-glow hover-scale-102 ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 flex items-center justify-center shadow-sm">
@@ -685,7 +685,7 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-green-600 tabular-nums number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
             </CardContent>
           </Card>
-          <Card className="kpi-card stat-card-red card-border-glow hover-scale-102 animate-card-entrance">
+          <Card className="kpi-card stat-card-red card-border-glow hover-scale-102 ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-100 to-red-50 flex items-center justify-center shadow-sm">
@@ -697,7 +697,7 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-red-600 tabular-nums number-animate number-display">{formatPKR(animatedOutstanding)}</p>
             </CardContent>
           </Card>
-          <Card className="kpi-card stat-card-blue card-border-glow hover-scale-102 animate-card-entrance">
+          <Card className="kpi-card stat-card-blue card-border-glow hover-scale-102 ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center shadow-sm">
@@ -793,7 +793,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-3 gap-3">
         <Button
           variant="outline"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group hover-lift focus-glow"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group "
           onClick={() => setCurrentView('admin-credit')}
         >
           <div className="h-9 w-9 rounded-lg bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
@@ -803,7 +803,7 @@ export default function AdminDashboard() {
         </Button>
         <Button
           variant="outline"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group hover-lift focus-glow"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group "
           onClick={() => setCurrentView('admin-recovery')}
         >
           <div className="h-9 w-9 rounded-lg bg-green-50 flex items-center justify-center group-hover:bg-green-100 transition-colors">
@@ -813,7 +813,7 @@ export default function AdminDashboard() {
         </Button>
         <Button
           variant="outline"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group hover-lift focus-glow"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group "
           onClick={() => setCurrentView('admin-shops')}
         >
           <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
@@ -1310,7 +1310,7 @@ export default function AdminDashboard() {
               const avatarIdx = ob.name.charCodeAt(0) % avatarColors.length;
               const spark = sparklineData.find(s => s.orderbookerId === ob.id);
               return (
-                <div key={ob.id} className="alfalah-card-hover rounded-xl p-3.5 cursor-default" onClick={() => setCurrentView('admin-ob-analytics')}>
+                <div key={ob.id} className="card-hover rounded-xl p-3.5 cursor-default" onClick={() => setCurrentView('admin-ob-analytics')}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className={`h-9 w-9 rounded-full avatar-initials text-sm ${avatarColors[avatarIdx]}`}>
                       {ob.name.charAt(0)}
@@ -1378,7 +1378,7 @@ export default function AdminDashboard() {
             <ScrollArea className="max-h-80">
               <Table>
                 <TableHeader>
-                  <TableRow className="data-table-header hover:bg-transparent">
+                  <TableRow className="bg-primary hover:bg-transparent">
                     <TableHead className="text-white font-semibold text-xs">Name</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-center">Shops</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-right">Outstanding</TableHead>
@@ -1495,7 +1495,7 @@ export default function AdminDashboard() {
                     Post credit or collect recovery to see activity here.
                   </p>
                   <button
-                    className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors focus-glow"
+                    className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors "
                     onClick={() => setCurrentView('admin-credit')}
                   >
                     <CreditCard className="h-3.5 w-3.5" />
@@ -1530,7 +1530,7 @@ export default function AdminDashboard() {
                               )}
                             </div>
                             {/* Timeline card */}
-                            <div className="rounded-lg border border-border/50 bg-card p-3 -mx-2 alfalah-card-hover transition-all">
+                            <div className="rounded-lg border border-border/50 bg-card p-3 -mx-2 card-hover transition-all">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
                                   {/* Time and badge */}

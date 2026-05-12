@@ -534,13 +534,13 @@ export default function AdminTransactions() {
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             onClick={openAddDialog}
-            className="bg-primary hover:bg-primary/90 text-white btn-ripple"
+            className="bg-primary hover:bg-primary/90 text-white "
           >
             <Plus className="h-4 w-4 mr-1.5" />
             Add Transaction
           </Button>
           {filteredTransactions.length > 0 && (
-            <Button variant="outline" size="sm" onClick={handleExportCSV} className="btn-ripple">
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="">
               <Download className="h-4 w-4 mr-1.5" />
               Export CSV
             </Button>
@@ -550,7 +550,7 @@ export default function AdminTransactions() {
             size="sm"
             onClick={() => { fetchTransactions(); fetchShops(); }}
             disabled={loading}
-            className="btn-ripple"
+            className=""
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><RefreshCw className="h-4 w-4 mr-1" /> Refresh</>}
           </Button>
@@ -559,7 +559,7 @@ export default function AdminTransactions() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
-        <Card className="alfalah-card-hover animate-card-entrance" style={{ animationDelay: '0ms' }}>
+        <Card className="card-hover " style={{ animationDelay: '0ms' }}>
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-11 w-11 rounded-xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center shrink-0">
               <ArrowDownLeft className="h-5 w-5 text-amber-600" />
@@ -572,7 +572,7 @@ export default function AdminTransactions() {
             </div>
           </CardContent>
         </Card>
-        <Card className="alfalah-card-hover animate-card-entrance" style={{ animationDelay: '50ms' }}>
+        <Card className="card-hover " style={{ animationDelay: '50ms' }}>
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-11 w-11 rounded-xl bg-green-50 dark:bg-green-950/30 flex items-center justify-center shrink-0">
               <Banknote className="h-5 w-5 text-green-600" />
@@ -585,7 +585,7 @@ export default function AdminTransactions() {
             </div>
           </CardContent>
         </Card>
-        <Card className="alfalah-card-hover animate-card-entrance" style={{ animationDelay: '100ms' }}>
+        <Card className="card-hover " style={{ animationDelay: '100ms' }}>
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-11 w-11 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center shrink-0">
               <Receipt className="h-5 w-5 text-blue-600" />
@@ -753,7 +753,7 @@ export default function AdminTransactions() {
               </p>
               {hasActiveFilters && (
                 <button
-                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-xs font-medium hover:bg-muted/80 transition-colors focus-glow"
+                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-xs font-medium hover:bg-muted/80 transition-colors "
                   onClick={resetFilters}
                 >
                   Clear Filters
@@ -764,7 +764,7 @@ export default function AdminTransactions() {
             <div className="overflow-x-auto">
               <Table className="min-w-[600px]">
                 <TableHeader>
-                  <TableRow className="data-table-header hover:bg-transparent">
+                  <TableRow className="bg-primary hover:bg-transparent">
                     <TableHead className="text-white font-semibold text-xs w-10">#</TableHead>
                     <TableHead className="text-white font-semibold text-xs">Date & Time</TableHead>
                     <TableHead className="text-white font-semibold text-xs">Shop</TableHead>
@@ -848,7 +848,7 @@ export default function AdminTransactions() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 hover-lift btn-ripple"
+                            className="h-8 w-8 "
                             onClick={() => openEditDialog(txn)}
                             title="Edit"
                           >
@@ -857,7 +857,7 @@ export default function AdminTransactions() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 hover-lift btn-ripple text-muted-foreground hover:text-destructive"
+                            className="h-8 w-8  text-muted-foreground hover:text-destructive"
                             onClick={() => openDeleteDialog(txn)}
                             title="Delete"
                           >
