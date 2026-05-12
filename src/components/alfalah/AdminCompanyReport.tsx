@@ -51,6 +51,7 @@ interface ReportData {
   data: Record<string, Record<string, DayData>>;
   obTotals: Record<string, { credit: number; recovery: number; balance: number }>;
   openingBalances: Record<string, number>;
+  currentBalances: Record<string, number>;
   grandTotals: { credit: number; recovery: number; balance: number };
   workingDays: number;
 }
@@ -372,14 +373,14 @@ export default function AdminCompanyReport() {
                   >
                     Date
                   </th>
-                  {/* Outstanding Balance (bold) above each OB name — from ShopCompanyBalance */}
+                  {/* Current Outstanding Balance (bold) above each OB name — matches Balance Report */}
                   {data.orderbookers.map((ob) => (
                     <th
                       key={`bal-${ob.id}`}
                       className="border-r border-border/50 px-1 py-1 text-center font-extrabold text-blue-800 dark:text-blue-300 text-xs print:text-[10px]"
                       colSpan={2}
                     >
-                      Rs. {formatCurrency(data.openingBalances[ob.id] || 0)}
+                      Rs. {formatCurrency(data.currentBalances?.[ob.id] ?? data.openingBalances[ob.id] ?? 0)}
                     </th>
                   ))}
                   {/* Grand total outstanding */}
@@ -387,7 +388,7 @@ export default function AdminCompanyReport() {
                     className="border-l-2 border-primary/30 px-1 py-1 text-center font-extrabold text-blue-800 dark:text-blue-300 text-xs print:text-[10px] bg-primary/5"
                     colSpan={2}
                   >
-                    Rs. {formatCurrency(data.orderbookers.reduce((sum, ob) => sum + (data.openingBalances[ob.id] || 0), 0))}
+                    Rs. {formatCurrency(data.orderbookers.reduce((sum, ob) => sum + (data.currentBalances?.[ob.id] ?? data.openingBalances[ob.id] ?? 0), 0))}
                   </th>
                 </tr>
                 {/* Header Row 2: Orderbooker Names */}

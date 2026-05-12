@@ -84,25 +84,28 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. Get opening balance for each orderbooker at the start of the month
-    // This is the sum of ShopCompanyBalance for all shops belonging to this OB's shops under this company
+    // 3. Get CURRENT balance for each orderbooker under this company
+    // This is the sum of ShopCompanyBalance for ACTIVE shops belonging to each OB
+    // NOTE: This is the CURRENT balance (includes all transactions up to now)
+    // We will calculate the TRUE opening balance later by subtracting this month's transactions
     const openingBalRes = await client.query(
-      `SELECT s."orderbookerId", COALESCE(SUM(scb.balance), 0) AS "openingBalance"
+      `SELECT s."orderbookerId", COALESCE(SUM(scb.balance), 0) AS "currentBalance"
        FROM "ShopCompanyBalance" scb
        JOIN "Shop" s ON s.id = scb."shopId"
        WHERE scb."companyId" = $1
          AND s."orderbookerId" IN (${orderbookerIds.map((_: string, idx: number) => `$${idx + 2}`).join(', ')})
+         AND s.status = 'active'
        GROUP BY s."orderbookerId"`,
       [companyId, ...orderbookerIds]
     );
-    const openingBalances: Record<string, number> = {};
+    const currentBalances: Record<string, number> = {};
     for (const row of openingBalRes.rows) {
-      openingBalances[row.orderbookerId] = Math.round(Number(row.openingBalance) * 100) / 100;
+      currentBalances[row.orderbookerId] = Math.round(Number(row.currentBalance) * 100) / 100;
     }
     // Initialize OBs with no ShopCompanyBalance entries
     for (const ob of orderbookers) {
-      if (openingBalances[ob.id] === undefined) {
-        openingBalances[ob.id] = 0;
+      if (currentBalances[ob.id] === undefined) {
+        currentBalances[ob.id] = 0;
       }
     }
 
@@ -179,11 +182,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 7. Calculate running closing balances
-    // Balance = opening + cumulative(credit - recovery) up to each day
+    // 7. Calculate TRUE opening balance and running closing balances
+    // True Opening = Current Balance - (this month's credits) + (this month's recoveries)
+    // Because current balance already includes this month's transactions
+    const openingBalances: Record<string, number> = {};
     const obRunningBal: Record<string, number> = {};
     for (const ob of orderbookers) {
-      obRunningBal[ob.id] = openingBalances[ob.id] || 0;
+      // First calculate month totals per OB
+      let obMonthCredit = 0;
+      let obMonthRecovery = 0;
+      for (const day of days) {
+        const entry = dataMap[day.date][ob.id];
+        obMonthCredit += entry.credit;
+        obMonthRecovery += entry.recovery;
+      }
+      // True opening = current balance minus this month's net activity
+      openingBalances[ob.id] = Math.round(((currentBalances[ob.id] || 0) - obMonthCredit + obMonthRecovery) * 100) / 100;
+      obRunningBal[ob.id] = openingBalances[ob.id];
     }
 
     for (const day of days) {
@@ -260,6 +275,7 @@ export async function GET(request: NextRequest) {
       data: dataMap,
       obTotals,
       openingBalances,
+      currentBalances,
       grandTotals: {
         credit: Math.round(grandCredit * 100) / 100,
         recovery: Math.round(grandRecovery * 100) / 100,
