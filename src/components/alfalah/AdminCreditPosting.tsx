@@ -450,6 +450,11 @@ export default function AdminCreditPosting() {
   const totalOutstanding = shops.reduce((sum, s) => sum + s.balance, 0);
   const averageBalance = shops.length > 0 ? totalOutstanding / shops.length : 0;
 
+  // Client-side day filter — admin sees ALL shops from API, day tabs just filter the view
+  const displayedShops = selectedDay
+    ? shops.filter((s) => s.routeDays.includes(selectedDay))
+    : shops;
+
   const checkDuplicateCreditToday = useCallback(async (shop: Shop, date?: string) => {
     try {
       const dateToCheck = date || creditDate || getTodayDateString();
@@ -1106,7 +1111,7 @@ export default function AdminCreditPosting() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Shops Listed</p>
-              <p className="text-xl font-bold text-foreground tabular-nums">{shops.length}</p>
+              <p className="text-xl font-bold text-foreground tabular-nums">{displayedShops.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -1158,7 +1163,7 @@ export default function AdminCreditPosting() {
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground animate-fade-in">
               <Search className="h-3 w-3" />
               <span>
-                Showing <span className="font-semibold text-foreground">{shops.length}</span> of{' '}
+                Showing <span className="font-semibold text-foreground">{displayedShops.length}</span> of{' '}
                 <span className="font-semibold text-foreground">{totalShopsForFilter}</span> shops
                 {debouncedSearch.trim() && (
                   <>
@@ -1269,7 +1274,7 @@ export default function AdminCreditPosting() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : shops.length === 0 ? (
+          ) : displayedShops.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Store className="h-10 w-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">No shops found matching your criteria</p>
@@ -1287,7 +1292,7 @@ export default function AdminCreditPosting() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {shops.map((shop, idx) => (
+                  {displayedShops.map((shop, idx) => (
                     <TableRow key={shop.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} transition-colors`}>
                       <TableCell>
                         <div>
