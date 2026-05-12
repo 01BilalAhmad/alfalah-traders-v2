@@ -159,10 +159,10 @@ export function validateTransaction(params: {
     errors.push(`Maximum single transaction amount is Rs. ${TRANSACTION_RULES.MAX_AMOUNT.toLocaleString()}`);
   }
 
-  // 3. For credit type: daily credit cap
+  // 3. For credit type: daily credit cap (WARNING only — admin can override)
   if (type === 'credit') {
     if (todayShopCredits + amount > TRANSACTION_RULES.DAILY_CREDIT_CAP) {
-      errors.push(
+      warnings.push(
         `Daily credit cap exceeded for this shop. Today's total: Rs. ${todayShopCredits.toLocaleString()}, ` +
         `this entry: Rs. ${amount.toLocaleString()}, ` +
         `combined: Rs. ${(todayShopCredits + amount).toLocaleString()} (limit: Rs. ${TRANSACTION_RULES.DAILY_CREDIT_CAP.toLocaleString()})`

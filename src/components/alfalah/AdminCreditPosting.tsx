@@ -2257,7 +2257,7 @@ export default function AdminCreditPosting() {
                   <p>Combined: <span className="font-bold text-amber-600 dark:text-amber-400">{formatPKR(shopTodayCredits + pendingOverrideAmount)}</span></p>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  The server will also reject this if it exceeds the cap. Do you want to try posting anyway?
+                  This exceeds the daily credit cap. Do you want to post anyway?
                 </p>
               </div>
             </AlertDialogDescription>

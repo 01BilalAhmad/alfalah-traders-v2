@@ -5,6 +5,8 @@ import crypto from 'crypto';
 // Business rule constants
 const MIN_AMOUNT = 100;
 const MAX_AMOUNT = 500000;
+// Daily credit cap is now a WARNING only (not a hard block) — admin can override
+// Client-side shows a confirmation dialog; server just adds a warning
 const DAILY_CREDIT_CAP = 100000;
 
 // Helper: Convert a date string (YYYY-MM-DD) to Pakistan timezone boundaries
@@ -272,12 +274,12 @@ export async function POST(request: NextRequest) {
       );
       const todayCreditTotal = Number(creditSumRes.rows[0].total);
 
+      // Changed from hard block to warning only — admin may need to post 8-10 lac credits
+      // Client-side already shows a confirmation popup; server allows the transaction
       if (todayCreditTotal + amount > DAILY_CREDIT_CAP) {
-        await client.query('ROLLBACK');
-        await client.end();
-        return NextResponse.json({
-          error: `Daily credit cap exceeded for this shop. Today's total: Rs. ${todayCreditTotal.toLocaleString()}, this entry: Rs. ${amount.toLocaleString()}, combined: Rs. ${(todayCreditTotal + amount).toLocaleString()} (limit: Rs. ${DAILY_CREDIT_CAP.toLocaleString()})`,
-        }, { status: 400 });
+        warnings.push(
+          `Daily credit cap exceeded for this shop. Today's total: Rs. ${todayCreditTotal.toLocaleString()}, this entry: Rs. ${amount.toLocaleString()}, combined: Rs. ${(todayCreditTotal + amount).toLocaleString()} (limit: Rs. ${DAILY_CREDIT_CAP.toLocaleString()})`
+        );
       }
 
       // Validation 7: Check if shop's orderbooker is active (warning only)
