@@ -238,7 +238,7 @@ export default function AdminApproveRecovery() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6 text-orange-500" />
+            <ShieldCheck className="h-6 w-6 text-slate-600 dark:text-slate-300" />
             Approve Transactions
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -280,28 +280,28 @@ export default function AdminApproveRecovery() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="border-orange-200 dark:border-orange-900">
+        <Card className="border border-border">
           <CardContent className="p-4">
             <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-lg bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center">
-                <Clock className="h-4.5 w-4.5 text-orange-600" />
+              <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <Clock className="h-4.5 w-4.5 text-slate-600 dark:text-slate-300" />
               </div>
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Pending</p>
-                <p className="text-lg font-bold text-orange-600 tabular-nums">{totalPending}</p>
+                <p className="text-lg font-bold text-foreground tabular-nums">{totalPending}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-green-200 dark:border-green-900">
+        <Card className="border border-border">
           <CardContent className="p-4">
             <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-lg bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
-                <Banknote className="h-4.5 w-4.5 text-green-600" />
+              <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <Banknote className="h-4.5 w-4.5 text-slate-600 dark:text-slate-300" />
               </div>
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Total Amount</p>
-                <p className="text-lg font-bold text-green-600 tabular-nums">{formatPKR(totalAmount)}</p>
+                <p className="text-lg font-bold text-foreground tabular-nums">{formatPKR(totalAmount)}</p>
               </div>
             </div>
           </CardContent>
@@ -309,12 +309,12 @@ export default function AdminApproveRecovery() {
         <Card className="hover-lift">
           <CardContent className="p-4">
             <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
-                <Smartphone className="h-4.5 w-4.5 text-blue-600" />
+              <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <Smartphone className="h-4.5 w-4.5 text-slate-600 dark:text-slate-300" />
               </div>
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Orderbookers</p>
-                <p className="text-lg font-bold text-blue-600 tabular-nums">{grouped.length}</p>
+                <p className="text-lg font-bold text-foreground tabular-nums">{grouped.length}</p>
               </div>
             </div>
           </CardContent>
@@ -373,8 +373,8 @@ export default function AdminApproveRecovery() {
 
       {/* Bulk Actions Bar */}
       {selectedIds.size > 0 && (
-        <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 animate-fade-in">
-          <p className="text-sm text-green-800 dark:text-green-200">
+        <div className="rounded-lg border border-border bg-slate-50 dark:bg-slate-800/50 px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 animate-fade-in">
+          <p className="text-sm text-foreground">
             <span className="font-bold">{selectedIds.size}</span> selected —{' '}
             <span className="font-bold">{formatPKR(selectedTotal)}</span>
           </p>
@@ -415,8 +415,8 @@ export default function AdminApproveRecovery() {
       ) : !lastError && displayGroups.length === 0 ? (
         <Card>
           <CardContent className="p-10 flex flex-col items-center justify-center text-center">
-            <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center mb-3">
-              <CircleCheck className="h-8 w-8 text-green-500" />
+            <div className="h-16 w-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
+              <CircleCheck className="h-8 w-8 text-slate-400" />
             </div>
             <p className="text-base font-bold text-foreground">All Clear!</p>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">
@@ -443,8 +443,8 @@ export default function AdminApproveRecovery() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center">
-                        <Smartphone className="h-5 w-5 text-orange-600" />
+                      <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                        <Smartphone className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                       </div>
                       <div>
                         <p className="text-sm font-bold text-foreground">{group.orderbooker.name}</p>
@@ -460,9 +460,7 @@ export default function AdminApproveRecovery() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <p className="text-sm font-bold text-green-600 tabular-nums">
-                          {formatPKR(group.totalAmount)}
-                        </p>
+                        <p className="text-sm font-bold text-foreground">{formatPKR(group.totalAmount)}</p>
                         <p className="text-[10px] text-muted-foreground">pending approval</p>
                       </div>
                       {isExpanded ? (
@@ -533,7 +531,7 @@ export default function AdminApproveRecovery() {
                                     {txn.shop.name}
                                   </span>
                                   {/* Type badge */}
-                                  <Badge variant={txn.type === 'credit' ? 'default' : 'secondary'} className={`text-[9px] h-4 px-1.5 ${txn.type === 'credit' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
+                                  <Badge variant={txn.type === 'credit' ? 'default' : 'secondary'} className={`text-[9px] h-4 px-1.5 ${txn.type === 'credit' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' : 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400'}`}>
                                     {txn.type === 'credit' ? 'CREDIT' : 'RECOVERY'}
                                   </Badge>
                                   {txn.shop.area && (
@@ -547,7 +545,7 @@ export default function AdminApproveRecovery() {
                                     <Timer className="h-2.5 w-2.5" />{getTimeAgo(txn.createdAt)}
                                   </span>
                                   {hasGPS ? (
-                                    <span className="text-[10px] text-green-600 font-medium flex items-center gap-0.5">
+                                    <span className="text-[10px] text-slate-500 font-medium flex items-center gap-0.5">
                                       <CheckCircle2 className="h-2.5 w-2.5" />GPS
                                     </span>
                                   ) : (
@@ -568,7 +566,7 @@ export default function AdminApproveRecovery() {
 
                               {/* Amount + Actions */}
                               <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
-                                <p className="text-sm font-bold text-green-600 tabular-nums">
+                                <p className="text-sm font-bold text-foreground tabular-nums">
                                   +{formatPKR(txn.amount)}
                                 </p>
                                 <div className="flex items-center gap-1.5">

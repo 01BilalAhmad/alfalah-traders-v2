@@ -561,12 +561,12 @@ export default function AdminTransactions() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
         <Card className="card-hover " style={{ animationDelay: '0ms' }}>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center shrink-0">
-              <ArrowDownLeft className="h-5 w-5 text-amber-600" />
+            <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+              <ArrowDownLeft className="h-5 w-5 text-slate-600 dark:text-slate-300" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Total Credits</p>
-              <p className="text-xl font-bold text-amber-600 dark:text-amber-400 animate-live-pulse number-display">
+              <p className="text-xl font-bold text-foreground animate-live-pulse number-display">
                 {formatPKR(totalCredits)}
               </p>
             </div>
@@ -574,12 +574,12 @@ export default function AdminTransactions() {
         </Card>
         <Card className="card-hover " style={{ animationDelay: '50ms' }}>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-green-50 dark:bg-green-950/30 flex items-center justify-center shrink-0">
-              <Banknote className="h-5 w-5 text-green-600" />
+            <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+              <Banknote className="h-5 w-5 text-slate-600 dark:text-slate-300" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Total Recoveries</p>
-              <p className="text-xl font-bold text-green-600 dark:text-green-400 animate-live-pulse number-display">
+              <p className="text-xl font-bold text-foreground animate-live-pulse number-display">
                 {formatPKR(totalRecoveries)}
               </p>
             </div>
@@ -587,12 +587,12 @@ export default function AdminTransactions() {
         </Card>
         <Card className="card-hover " style={{ animationDelay: '100ms' }}>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center shrink-0">
-              <Receipt className="h-5 w-5 text-blue-600" />
+            <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+              <Receipt className="h-5 w-5 text-slate-600 dark:text-slate-300" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Net Effect</p>
-              <p className={`text-xl font-bold number-display ${totalCredits - totalRecoveries >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+              <p className={`text-xl font-bold number-display ${totalCredits - totalRecoveries >= 0 ? 'text-foreground' : 'text-slate-500 dark:text-slate-400'}`}>
                 {totalCredits - totalRecoveries >= 0 ? '+' : ''}{formatPKR(totalCredits - totalRecoveries)}
               </p>
             </div>
@@ -741,7 +741,7 @@ export default function AdminTransactions() {
           {filteredTransactions.length === 0 ? (
             <div className="text-center py-14 text-muted-foreground">
               <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
-                <div className="relative z-10 h-20 w-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-100 dark:from-primary/20 dark:to-blue-900/30 flex items-center justify-center">
+                <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                   <Receipt className="h-9 w-9 text-primary/50 animate-gentle-float" />
                 </div>
               </div>
@@ -764,7 +764,7 @@ export default function AdminTransactions() {
             <div className="overflow-x-auto">
               <Table className="min-w-[600px]">
                 <TableHeader>
-                  <TableRow className="bg-primary hover:bg-transparent">
+                  <TableRow className="bg-slate-800 dark:bg-slate-900 hover:bg-slate-800 dark:hover:bg-slate-900">
                     <TableHead className="text-white font-semibold text-xs w-10">#</TableHead>
                     <TableHead className="text-white font-semibold text-xs">Date & Time</TableHead>
                     <TableHead className="text-white font-semibold text-xs">Shop</TableHead>
@@ -800,12 +800,12 @@ export default function AdminTransactions() {
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           {txn.type === 'credit' ? (
-                            <Badge className="badge-credit text-[10px] w-fit">
+                            <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] w-fit">
                               <ArrowDownLeft className="h-3 w-3 mr-0.5" />
                               Credit
                             </Badge>
                           ) : (
-                            <Badge className="badge-recovery text-[10px] w-fit">
+                            <Badge className="bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px] w-fit">
                               <TrendingUp className="h-3 w-3 mr-0.5" />
                               Recovery
                             </Badge>
@@ -823,7 +823,7 @@ export default function AdminTransactions() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={`text-sm font-semibold ${txn.type === 'credit' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                        <span className={`text-sm font-semibold ${txn.type === 'credit' ? 'text-foreground' : 'text-foreground'}`}>
                           {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
                         </span>
                       </TableCell>
@@ -831,7 +831,7 @@ export default function AdminTransactions() {
                         {formatPKR(txn.previousBalance)}
                       </TableCell>
                       <TableCell className="text-right hidden md:table-cell">
-                        <span className={`text-sm font-medium ${txn.newBalance > txn.previousBalance ? 'text-red-600' : txn.newBalance < txn.previousBalance ? 'text-green-600' : ''}`}>
+                        <span className={`text-sm font-medium ${txn.newBalance > txn.previousBalance ? 'text-foreground' : txn.newBalance < txn.previousBalance ? 'text-foreground' : ''}`}>
                           {formatPKR(txn.newBalance)}
                         </span>
                       </TableCell>
@@ -969,9 +969,9 @@ export default function AdminTransactions() {
                 <Label className="text-xs text-muted-foreground">Type</Label>
                 <div>
                   {editTransaction.type === 'credit' ? (
-                    <Badge className="badge-credit">Credit</Badge>
+                    <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700">Credit</Badge>
                   ) : (
-                    <Badge className="badge-recovery">Recovery</Badge>
+                    <Badge className="bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200 dark:border-slate-700">Recovery</Badge>
                   )}
                 </div>
               </div>
@@ -979,7 +979,7 @@ export default function AdminTransactions() {
               {/* Current amount */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Current Amount</Label>
-                <p className={`text-sm font-semibold ${editTransaction.type === 'credit' ? 'text-amber-600' : 'text-green-600'}`}>
+                <p className={`text-sm font-semibold ${editTransaction.type === 'credit' ? 'text-foreground' : 'text-foreground'}`}>
                   {formatPKR(editTransaction.amount)}
                 </p>
               </div>
@@ -1048,21 +1048,21 @@ export default function AdminTransactions() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">Type</span>
-                      <Badge className={`text-[10px] ${deleteTransaction.type === 'credit' ? 'badge-credit' : 'badge-recovery'}`}>
+                      <Badge className={`text-[10px] ${deleteTransaction.type === 'credit' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>
                         {deleteTransaction.type.charAt(0).toUpperCase() + deleteTransaction.type.slice(1)}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">Amount</span>
-                      <span className={`text-sm font-bold ${deleteTransaction.type === 'credit' ? 'text-amber-600' : 'text-green-600'}`}>
+                      <span className={`text-sm font-bold ${deleteTransaction.type === 'credit' ? 'text-foreground' : 'text-foreground'}`}>
                         {formatPKR(deleteTransaction.amount)}
                       </span>
                     </div>
                   </div>
                 )}
-                <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-2.5">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                <div className="flex items-start gap-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-2.5">
+                  <AlertTriangle className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-slate-700 dark:text-slate-300">
                     This will reverse the balance change on the shop. The shop&apos;s current balance will be adjusted accordingly.
                   </p>
                 </div>
@@ -1101,7 +1101,7 @@ export default function AdminTransactions() {
               onClick={() => setAddTab('recovery')}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                 addTab === 'recovery'
-                  ? 'bg-green-600 text-white shadow-sm'
+                  ? 'bg-slate-600 text-white shadow-sm'
                   : 'bg-muted text-muted-foreground hover:bg-accent'
               }`}
             >
@@ -1112,7 +1112,7 @@ export default function AdminTransactions() {
               onClick={() => setAddTab('credit')}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                 addTab === 'credit'
-                  ? 'bg-amber-600 text-white shadow-sm'
+                  ? 'bg-slate-700 text-white shadow-sm'
                   : 'bg-muted text-muted-foreground hover:bg-accent'
               }`}
             >
@@ -1187,8 +1187,8 @@ export default function AdminTransactions() {
                   </div>
                   <div className="flex items-center gap-3 text-xs">
                     <span className="flex items-center gap-1">
-                      <Banknote className="h-3 w-3 text-amber-500" />
-                      Balance: <span className="font-bold text-amber-600 dark:text-amber-400">{formatPKR(selectedShopDetails.balance)}</span>
+                      <Banknote className="h-3 w-3 text-slate-500" />
+                      Balance: <span className="font-bold text-foreground">{formatPKR(selectedShopDetails.balance)}</span>
                     </span>
                     {selectedShopDetails.orderbooker && (
                       <span className="text-muted-foreground">
@@ -1203,7 +1203,7 @@ export default function AdminTransactions() {
                       <div className="flex flex-wrap gap-1">
                         {selectedShopDetails.companyBalances.map((cb) => (
                           <span key={cb.companyId} className="inline-flex items-center gap-1 text-[10px] bg-muted px-1.5 py-0.5 rounded">
-                            {cb.companyName}: <span className="font-bold text-amber-600">{formatPKR(cb.balance)}</span>
+                            {cb.companyName}: <span className="font-bold text-foreground">{formatPKR(cb.balance)}</span>
                           </span>
                         ))}
                       </div>
@@ -1277,7 +1277,7 @@ export default function AdminTransactions() {
                                 </div>
                               </div>
                             </div>
-                            <span className={`text-xs font-bold tabular-nums shrink-0 ${shop.balance > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                            <span className={`text-xs font-bold tabular-nums shrink-0 ${shop.balance > 0 ? 'text-foreground' : 'text-slate-500 dark:text-slate-400'}`}>
                               {formatPKR(shop.balance)}
                             </span>
                           </button>
@@ -1380,7 +1380,7 @@ export default function AdminTransactions() {
             <Button
               onClick={handleAddSubmit}
               disabled={addSaving || !addOrderbookerId || !addShopId || !addAmount || parseFloat(addAmount) <= 0}
-              className={addTab === 'credit' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}
+              className={addTab === 'credit' ? 'bg-slate-700 hover:bg-slate-800 text-white' : 'bg-slate-600 hover:bg-slate-700 text-white'}
             >
               {addSaving ? (
                 <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Creating...</>

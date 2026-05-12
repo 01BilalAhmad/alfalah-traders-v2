@@ -129,14 +129,14 @@ function getRiskLevel(totalBalance: number): 'low' | 'medium' | 'high' {
 
 function getRiskColor(risk: 'low' | 'medium' | 'high') {
   switch (risk) {
-    case 'high': return { bg: 'bg-red-500/10', border: 'border-red-300 dark:border-red-800', text: 'text-red-700 dark:text-red-400', badge: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800' };
-    case 'medium': return { bg: 'bg-amber-500/10', border: 'border-amber-300 dark:border-amber-800', text: 'text-amber-700 dark:text-amber-400', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border-amber-200 dark:border-amber-800' };
-    case 'low': return { bg: 'bg-emerald-500/10', border: 'border-emerald-300 dark:border-emerald-800', text: 'text-emerald-700 dark:text-emerald-400', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' };
+    case 'high': return { bg: 'bg-slate-100 dark:bg-slate-800', border: 'border-border', text: 'text-foreground', badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' };
+    case 'medium': return { bg: 'bg-slate-100 dark:bg-slate-800', border: 'border-border', text: 'text-foreground', badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' };
+    case 'low': return { bg: 'bg-slate-100 dark:bg-slate-800', border: 'border-border', text: 'text-foreground', badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' };
   }
 }
 
 // Pie chart colors
-const PIE_COLORS = ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316', '#14b8a6', '#6366f1', '#84cc16'];
+const PIE_COLORS = ['#475569', '#64748B', '#94A3B8', '#CBD5E1', '#334155', '#1E293B', '#475569', '#64748B', '#94A3B8', '#CBD5E1'];
 
 // ── View Tabs ──────────────────────────────────────────────────────────────
 type MapTab = 'areas' | 'map' | 'ob-routes';
@@ -186,12 +186,12 @@ function AreaCard({ group, expanded, onToggle, onSelectShop }: {
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1"><Store className="h-3 w-3" />{group.shops.length} shops</span>
-              <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-500" />{group.activeShops}</span>
-              <span className="flex items-center gap-1"><XCircle className="h-3 w-3 text-red-500" />{group.inactiveShops}</span>
+              <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-slate-500" />{group.activeShops}</span>
+              <span className="flex items-center gap-1"><XCircle className="h-3 w-3 text-slate-400" />{group.inactiveShops}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <span className={`text-sm font-bold ${group.totalBalance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600'}`}>
+            <span className={`text-sm font-bold ${group.totalBalance > 0 ? 'text-foreground' : 'text-slate-500 dark:text-slate-400'}`}>
               {formatPKR(group.totalBalance)}
             </span>
             {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
@@ -222,12 +222,12 @@ function AreaCard({ group, expanded, onToggle, onSelectShop }: {
                       <TableCell className="py-1.5 text-xs text-muted-foreground hidden sm:table-cell">{shop.ownerName || '—'}</TableCell>
                       <TableCell className="py-1.5 text-xs text-muted-foreground hidden md:table-cell">{shop.orderbooker.name}</TableCell>
                       <TableCell className="py-1.5 text-right">
-                        <span className={`text-xs font-semibold ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        <span className={`text-xs font-semibold ${shop.balance > 0 ? 'text-foreground' : 'text-slate-500 dark:text-slate-400'}`}>
                           {formatPKR(shop.balance)}
                         </span>
                       </TableCell>
                       <TableCell className="py-1.5 text-center">
-                        <Badge className={`text-[9px] px-1.5 h-4 font-bold ${shop.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-200' : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200'}`}>
+                        <Badge className={`text-[9px] px-1.5 h-4 font-bold ${shop.status === 'active' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500 border-slate-200 dark:border-slate-700'}`}>
                           {shop.status === 'active' ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
@@ -304,7 +304,7 @@ function OBRouteCard({ ob }: { ob: OBRouteGroup }) {
             <div className="mt-2 pt-2 border-t">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-muted-foreground font-medium">Outstanding</span>
-                <span className={`text-xs font-bold ${ob.totalOutstanding > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                <span className={`text-xs font-bold ${ob.totalOutstanding > 0 ? 'text-foreground' : 'text-slate-500 dark:text-slate-400'}`}>
                   {formatPKR(ob.totalOutstanding)}
                 </span>
               </div>
@@ -599,46 +599,46 @@ export default function AdminMapView() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in stagger-children">
-        <Card className="stat-card-green card-hover ">
+        <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
-              <Store className="h-5 w-5 text-emerald-600" />
+            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+              <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Active Shops</p>
-              <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{summaryStats.activeCount}</p>
+              <p className="text-lg font-bold text-foreground">{summaryStats.activeCount}</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="stat-card-red card-hover ">
+        <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
-              <XCircle className="h-5 w-5 text-red-600" />
+            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+              <XCircle className="h-5 w-5 text-slate-600 dark:text-slate-300" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Inactive Shops</p>
-              <p className="text-lg font-bold text-red-700 dark:text-red-400">{summaryStats.inactiveCount}</p>
+              <p className="text-lg font-bold text-foreground">{summaryStats.inactiveCount}</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="stat-card-amber card-hover ">
+        <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
-              <Wallet className="h-5 w-5 text-amber-600" />
+            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+              <Wallet className="h-5 w-5 text-slate-600 dark:text-slate-300" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
-              <p className="text-lg font-bold text-red-600 dark:text-red-400">{formatPKR(summaryStats.totalOutstanding)}</p>
+              <p className="text-lg font-bold text-foreground">{formatPKR(summaryStats.totalOutstanding)}</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="stat-card-green card-hover ">
+        <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
-              <MapPin className="h-5 w-5 text-green-600" />
+            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+              <MapPin className="h-5 w-5 text-slate-600 dark:text-slate-300" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Areas Covered</p>
@@ -746,8 +746,8 @@ export default function AdminMapView() {
             <Card className="card-elevated">
               <CardContent className="py-14 text-center">
                 <div className="mx-auto mb-4 h-20 w-20">
-                  <div className="relative z-10 h-20 w-20 rounded-full bg-gradient-to-br from-primary/10 to-emerald-100 dark:from-primary/20 dark:to-emerald-900/30 flex items-center justify-center">
-                    <MapPin className="h-9 w-9 text-primary/50 animate-gentle-float" />
+                  <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                    <MapPin className="h-9 w-9 text-slate-400 animate-gentle-float" />
                   </div>
                 </div>
                 <p className="font-semibold text-muted-foreground text-sm">No areas match your filters</p>
@@ -788,7 +788,7 @@ export default function AdminMapView() {
                                 <span className="text-xs text-muted-foreground w-28 truncate text-right shrink-0">{group.area}</span>
                                 <div className="flex-1 h-6 bg-muted/50 rounded-full overflow-hidden">
                                   <div
-                                    className={`h-full rounded-full ${group.riskLevel === 'high' ? 'bg-red-500' : group.riskLevel === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'} transition-all duration-500`}
+                                    className={`h-full rounded-full ${group.riskLevel === 'high' ? 'bg-red-500' : group.riskLevel === 'medium' ? 'bg-slate-400' : 'bg-slate-300'} transition-all duration-500`}
                                     style={{ width: `${widthPct}%` }}
                                   />
                                 </div>
@@ -903,14 +903,14 @@ export default function AdminMapView() {
 
           {/* Location tracking notice */}
           {mapMarkers.length === 0 ? (
-            <Card className="card-elevated border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+            <Card className="card-elevated border-border bg-slate-50 dark:bg-slate-800/50">
               <CardContent className="p-4 flex items-start gap-3">
-                <div className="h-8 w-8 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5">
-                  <Info className="h-4 w-4 text-amber-600" />
+                <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
+                  <Info className="h-4 w-4 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-400">No Shop Locations Yet</h4>
-                  <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-0.5 leading-relaxed">
+                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">No Shop Locations Yet</h4>
+                  <p className="text-xs text-slate-600/80 dark:text-slate-300/80 mt-0.5 leading-relaxed">
                     Shop markers appear on the map when orderbookers submit recovery with GPS location or mark a GPS visit.
                     {shopLocations.length === 0
                       ? ' No GPS data has been recorded yet. Ask orderbookers to enable GPS when submitting recovery.'
@@ -920,14 +920,14 @@ export default function AdminMapView() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="card-elevated border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
+            <Card className="card-elevated border-border bg-slate-50 dark:bg-slate-800/50">
               <CardContent className="p-4 flex items-start gap-3">
-                <div className="h-8 w-8 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0 mt-0.5">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckCircle2 className="h-4 w-4 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">GPS Tracking Active</h4>
-                  <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-0.5 leading-relaxed">
+                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">GPS Tracking Active</h4>
+                  <p className="text-xs text-slate-600/80 dark:text-slate-300/80 mt-0.5 leading-relaxed">
                     {mapMarkers.length} shop(s) are pinned on the map based on GPS data from orderbooker visits and recovery submissions.
                   </p>
                 </div>
@@ -1033,8 +1033,8 @@ export default function AdminMapView() {
               <Card className="card-elevated col-span-full">
                 <CardContent className="py-14 text-center">
                   <div className="mx-auto mb-4 h-20 w-20">
-                    <div className="relative z-10 h-20 w-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-100 dark:from-primary/20 dark:to-blue-900/30 flex items-center justify-center">
-                      <Users className="h-9 w-9 text-primary/50 animate-gentle-float" />
+                    <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                      <Users className="h-9 w-9 text-slate-400 animate-gentle-float" />
                     </div>
                   </div>
                   <p className="font-semibold text-muted-foreground text-sm">No orderbooker routes match your filters</p>

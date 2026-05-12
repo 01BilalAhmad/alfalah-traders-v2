@@ -65,20 +65,20 @@ interface AuditData {
 }
 
 const actionColors: Record<string, string> = {
-  create: 'badge-active',
-  edit: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-  credit_post: 'badge-credit',
-  recovery_entry: 'badge-recovery',
-  status_change: 'badge-inactive',
+  create: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+  edit: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+  credit_post: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+  recovery_entry: 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+  status_change: 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500 border-slate-200 dark:border-slate-700',
 };
 
 const actionDotColors: Record<string, string> = {
-  create: 'bg-emerald-500',
-  edit: 'bg-blue-500',
-  credit_post: 'bg-amber-500',
-  recovery_entry: 'bg-green-500',
+  create: 'bg-slate-700 dark:bg-slate-300',
+  edit: 'bg-slate-600 dark:bg-slate-400',
+  credit_post: 'bg-slate-500',
+  recovery_entry: 'bg-slate-400',
   status_change: 'bg-slate-500',
-  login: 'bg-purple-500',
+  login: 'bg-slate-600 dark:bg-slate-300',
 };
 
 const actionLabels: Record<string, string> = {
@@ -215,10 +215,10 @@ export default function AdminAuditLog() {
     const chips: { key: string; label: string; color: string }[] = [];
     if (actionFilter) {
       const colors: Record<string, string> = {
-        create: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800',
-        edit: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800',
-        credit_post: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
-        recovery_entry: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
+        create: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+        edit: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+        credit_post: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+        recovery_entry: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
         status_change: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
       };
       chips.push({
@@ -231,14 +231,14 @@ export default function AdminAuditLog() {
       chips.push({
         key: 'entity',
         label: `Entity: ${entityLabels[entityFilter] || entityFilter}`,
-        color: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800',
+        color: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
       });
     }
     if (debouncedSearch) {
       chips.push({
         key: 'search',
         label: `Search: "${debouncedSearch}"`,
-        color: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800',
+        color: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
       });
     }
     return chips;
@@ -296,10 +296,10 @@ export default function AdminAuditLog() {
 
       {/* Summary Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger-children">
-        <Card className="stat-card-blue ">
+        <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-              <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+              <Shield className="h-4 w-4 text-slate-600 dark:text-slate-300" />
             </div>
             <div className="min-w-0">
               <p className="text-lg font-bold text-foreground tabular-nums">{stats.total}</p>
@@ -307,10 +307,10 @@ export default function AdminAuditLog() {
             </div>
           </CardContent>
         </Card>
-        <Card className="stat-card-amber ">
+        <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+              <Clock className="h-4 w-4 text-slate-600 dark:text-slate-300" />
             </div>
             <div className="min-w-0">
               <p className="text-lg font-bold text-foreground tabular-nums">{stats.todayCount}</p>
@@ -318,10 +318,10 @@ export default function AdminAuditLog() {
             </div>
           </CardContent>
         </Card>
-        <Card className="stat-card-amber ">
+        <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-              <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+              <TrendingUp className="h-4 w-4 text-slate-600 dark:text-slate-300" />
             </div>
             <div className="min-w-0">
               <p className="text-lg font-bold text-foreground tabular-nums">{stats.creditPosts}</p>
@@ -329,10 +329,10 @@ export default function AdminAuditLog() {
             </div>
           </CardContent>
         </Card>
-        <Card className="stat-card-green ">
+        <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
-              <ArrowDownRight className="h-4 w-4 text-green-600 dark:text-green-400" />
+            <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+              <ArrowDownRight className="h-4 w-4 text-slate-600 dark:text-slate-300" />
             </div>
             <div className="min-w-0">
               <p className="text-lg font-bold text-foreground tabular-nums">{stats.recoveryEntries}</p>
@@ -485,7 +485,7 @@ export default function AdminAuditLog() {
                 <div className="overflow-x-auto">
                   <Table className="min-w-[600px]">
                     <TableHeader>
-                      <TableRow className="bg-primary hover:bg-transparent">
+                      <TableRow className="bg-slate-800 dark:bg-slate-900 hover:bg-slate-800 dark:hover:bg-slate-900">
                         <TableHead className="text-white font-semibold text-xs">Date</TableHead>
                         <TableHead className="text-white font-semibold text-xs">Action</TableHead>
                         <TableHead className="text-white font-semibold text-xs">Entity</TableHead>
@@ -580,12 +580,12 @@ export default function AdminAuditLog() {
                             const dotColor = actionDotColors[log.action] || 'bg-muted-foreground';
                             const avatarInitial = log.performer?.name ? log.performer.name.charAt(0).toUpperCase() : 'S';
                             const avatarBg = log.action === 'create'
-                              ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400'
+                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                               : log.action === 'edit'
-                                ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400'
+                                ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                                 : (log.action === 'credit_post' || log.action === 'recovery_entry' || log.action === 'delete')
-                                  ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400'
-                                  : 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-400';
+                                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300';
 
                             return (
                               <div
@@ -648,13 +648,13 @@ export default function AdminAuditLog() {
                                         {log.oldValue && (
                                           <div className="text-xs">
                                             <span className="text-muted-foreground font-medium">Before: </span>
-                                            <span className="text-red-600 dark:text-red-400">{log.oldValue}</span>
+                                            <span className="text-slate-600 dark:text-slate-300">{log.oldValue}</span>
                                           </div>
                                         )}
                                         {log.newValue && (
                                           <div className="text-xs">
                                             <span className="text-muted-foreground font-medium">After: </span>
-                                            <span className="text-green-600 dark:text-green-400">{log.newValue}</span>
+                                            <span className="text-slate-600 dark:text-slate-300">{log.newValue}</span>
                                           </div>
                                         )}
                                         {log.entityId && (

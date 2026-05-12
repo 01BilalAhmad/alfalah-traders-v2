@@ -90,22 +90,22 @@ function PendingRecoveryBanner({ setCurrentView }: { setCurrentView: (v: string)
   return (
     <button
       onClick={() => setCurrentView('admin-approve-recovery')}
-      className="w-full rounded-xl border-2 border-orange-200 dark:border-orange-800 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/40 dark:to-amber-950/40 p-4 flex items-center justify-between hover:shadow-md transition-all group cursor-pointer animate-fade-in"
+      className="w-full rounded-xl border-2 border-border bg-slate-50 dark:bg-slate-900/40 p-4 flex items-center justify-between hover:shadow-md transition-all group cursor-pointer animate-fade-in"
     >
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center shrink-0">
-          <ShieldCheck className="h-5 w-5 text-orange-600" />
+        <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+          <ShieldCheck className="h-5 w-5 text-slate-600 dark:text-slate-300" />
         </div>
         <div className="text-left">
-          <p className="text-sm font-bold text-orange-800 dark:text-orange-200">
+          <p className="text-sm font-bold text-foreground">
             {pendingCount} Pending Recover{pendingCount === 1 ? 'y' : 'ies'}
           </p>
-          <p className="text-xs text-orange-600/70 dark:text-orange-400/70">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Total: {formatPKR(pendingAmount)} — Click to review &amp; approve
           </p>
         </div>
       </div>
-      <ChevronRight className="h-5 w-5 text-orange-400 group-hover:translate-x-1 transition-transform" />
+      <ChevronRight className="h-5 w-5 text-slate-400 group-hover:translate-x-1 transition-transform" />
     </button>
   );
 }
@@ -180,14 +180,12 @@ function OverdueShopsAlert({ setCurrentView }: { setCurrentView: (v: string) => 
                 <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${
                   shop.daysSinceCredit >= 30
                     ? 'bg-red-100 dark:bg-red-900/40'
-                    : shop.daysSinceCredit >= 21
-                      ? 'bg-orange-100 dark:bg-orange-900/40'
-                      : 'bg-amber-100 dark:bg-amber-900/40'
+                    : 'bg-slate-100 dark:bg-slate-800'
                 }`}>
                   {shop.daysSinceCredit >= 30 ? (
                     <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
                   ) : (
-                    <Store className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                    <Store className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                   )}
                 </div>
                 <div className="min-w-0">
@@ -198,9 +196,7 @@ function OverdueShopsAlert({ setCurrentView }: { setCurrentView: (v: string) => 
               <Badge className={`text-[9px] font-bold shrink-0 ${
                 shop.daysSinceCredit >= 30
                   ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200 dark:border-red-800'
-                  : shop.daysSinceCredit >= 21
-                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400 border-orange-200 dark:border-orange-800'
-                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                  : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
               }`}>
                 {shop.daysSinceCredit}d
               </Badge>
@@ -308,7 +304,7 @@ interface SparklineData {
 }
 
 const ROUTE_DAYS = [...WORKING_DAYS];
-const ROUTE_COLORS = ['#4F46E5', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+const ROUTE_COLORS = ['#475569', '#64748B', '#94A3B8', '#CBD5E1', '#334155', '#1E293B'];
 
 function RecoverySparkline({ data, width = 100, height = 28 }: { data: number[]; width?: number; height?: number }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
@@ -336,8 +332,8 @@ function RecoverySparkline({ data, width = 100, height = 28 }: { data: number[];
   const isUp = secondAvg > firstAvg;
   const hasData = data.some(d => d > 0);
 
-  const strokeColor = isUp ? '#10B981' : hasData ? '#F59E0B' : '#94A3B8';
-  const fillColor = isUp ? 'rgba(16, 185, 129, 0.12)' : hasData ? 'rgba(245, 158, 11, 0.06)' : 'rgba(148, 163, 184, 0.06)';
+  const strokeColor = '#475569';
+  const fillColor = 'rgba(71, 85, 105, 0.1)';
 
   // Generate day labels for tooltip
   const today = new Date();
@@ -644,10 +640,10 @@ export default function AdminDashboard() {
         <div className="absolute inset-0 opacity-40" />
         <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/4" />
         <div className="absolute bottom-0 left-1/2 w-24 h-24 rounded-full bg-white/5 translate-y-1/2" />
-        <div className="absolute top-1/2 left-1/3 w-16 h-16 rounded-full bg-blue-400/10 blur-sm" />
+        <div className="absolute top-1/2 left-1/3 w-16 h-16 rounded-full bg-white/5 blur-sm" />
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-1">
-            <Home className="h-5 w-5 text-blue-200" />
+            <Home className="h-5 w-5 text-white/80" />
             <h2 className="text-lg font-bold">Welcome back, {user?.name?.split(' ')[0] || 'Admin'}</h2>
           </div>
           <p className="text-sm text-white/90">
@@ -661,49 +657,49 @@ export default function AdminDashboard() {
       {/* KPI Cards */}
       <div className="dot-pattern rounded-xl p-5">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
-          <Card className="kpi-card stat-card-amber card-border-glow hover-scale-102 ">
+          <Card className="kpi-card card-hover border border-border card-border-glow hover-scale-102 ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center shadow-sm">
-                  <ArrowUpRight className="h-5 w-5 text-amber-600" />
+                <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                  <ArrowUpRight className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                 </div>
-                <span className="text-[11px] text-amber-800 font-bold bg-amber-200 dark:bg-amber-800/60 dark:text-amber-200 px-2.5 py-0.5 rounded-full">Today</span>
+                <span className="text-[11px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold px-2.5 py-0.5 rounded-full">Today</span>
               </div>
               <p className="text-sm text-foreground font-semibold mb-0.5">Today&apos;s Credit</p>
-              <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
+              <p className="text-2xl font-bold text-foreground tabular-nums number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
             </CardContent>
           </Card>
-          <Card className="kpi-card stat-card-green stat-pulse animate-fade-in card-border-glow hover-scale-102 ">
+          <Card className="kpi-card card-hover border border-border stat-pulse animate-fade-in card-border-glow hover-scale-102 ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 flex items-center justify-center shadow-sm">
-                  <ArrowDownRight className="h-5 w-5 text-green-600" />
+                <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                  <ArrowDownRight className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                 </div>
-                <span className="text-[11px] text-green-800 font-bold bg-green-200 dark:bg-green-800/60 dark:text-green-200 px-2.5 py-0.5 rounded-full">Today</span>
+                <span className="text-[11px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold px-2.5 py-0.5 rounded-full">Today</span>
               </div>
               <p className="text-sm text-foreground font-semibold mb-0.5">Today&apos;s Recovery</p>
-              <p className="text-2xl font-bold text-green-600 tabular-nums number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
+              <p className="text-2xl font-bold text-foreground tabular-nums number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
             </CardContent>
           </Card>
-          <Card className="kpi-card stat-card-red card-border-glow hover-scale-102 ">
+          <Card className="kpi-card card-hover border border-border card-border-glow hover-scale-102 ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-100 to-red-50 flex items-center justify-center shadow-sm">
-                  <Wallet className="h-5 w-5 text-red-600" />
+                <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                  <Wallet className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                 </div>
-                <span className="text-[11px] text-red-800 font-bold bg-red-200 dark:bg-red-800/60 dark:text-red-200 px-2.5 py-0.5 rounded-full">Alert</span>
+                <span className="text-[11px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold px-2.5 py-0.5 rounded-full">Alert</span>
               </div>
               <p className="text-sm text-foreground font-semibold mb-0.5">Total Outstanding</p>
-              <p className="text-2xl font-bold text-red-600 tabular-nums number-animate number-display">{formatPKR(animatedOutstanding)}</p>
+              <p className="text-2xl font-bold text-foreground tabular-nums number-animate number-display">{formatPKR(animatedOutstanding)}</p>
             </CardContent>
           </Card>
-          <Card className="kpi-card stat-card-blue card-border-glow hover-scale-102 ">
+          <Card className="kpi-card card-hover border border-border card-border-glow hover-scale-102 ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center shadow-sm">
-                  <Store className="h-5 w-5 text-blue-600" />
+                <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                  <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                 </div>
-                <span className="text-[11px] text-blue-800 font-bold bg-blue-200 dark:bg-blue-800/60 dark:text-blue-200 px-2.5 py-0.5 rounded-full">All</span>
+                <span className="text-[11px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold px-2.5 py-0.5 rounded-full">All</span>
               </div>
               <p className="text-sm text-foreground font-semibold mb-0.5">Total Active Shops</p>
               <p className="text-2xl font-bold tabular-nums number-animate number-display">{animatedTotalShops}</p>
@@ -726,14 +722,12 @@ export default function AdminDashboard() {
               {/* Credit */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-foreground/70 font-medium">Credit:</span>
-                <span className="text-xs font-bold text-amber-600 tabular-nums">{formatPKR(monthSummary?.totalCredit ?? 0)}</span>
+                <span className="text-xs font-bold text-foreground tabular-nums">{formatPKR(monthSummary?.totalCredit ?? 0)}</span>
                 {monthSummary && monthSummary.prevTotalCredit > 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                    monthSummary.creditChangePct > 0
-                      ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-                      : monthSummary.creditChangePct < 0
-                        ? 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-muted text-muted-foreground'
+                    monthSummary.creditChangePct !== 0
+                      ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      : 'bg-muted text-muted-foreground'
                   }`}>
                     {monthSummary.creditChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
                     {Math.abs(monthSummary.creditChangePct)}%
@@ -744,14 +738,12 @@ export default function AdminDashboard() {
               {/* Recovery */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-foreground/70 font-medium">Recovery:</span>
-                <span className="text-xs font-bold text-green-600 tabular-nums">{formatPKR(monthSummary?.totalRecovery ?? 0)}</span>
+                <span className="text-xs font-bold text-foreground tabular-nums">{formatPKR(monthSummary?.totalRecovery ?? 0)}</span>
                 {monthSummary && monthSummary.prevTotalRecovery > 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                    monthSummary.recoveryChangePct > 0
-                      ? 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400'
-                      : monthSummary.recoveryChangePct < 0
-                        ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-                        : 'bg-muted text-muted-foreground'
+                    monthSummary.recoveryChangePct !== 0
+                      ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      : 'bg-muted text-muted-foreground'
                   }`}>
                     {monthSummary.recoveryChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
                     {Math.abs(monthSummary.recoveryChangePct)}%
@@ -762,16 +754,14 @@ export default function AdminDashboard() {
               {/* Net */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-foreground/70 font-medium">Net:</span>
-                <span className={`text-xs font-bold tabular-nums ${(monthSummary?.netPosition ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`text-xs font-bold tabular-nums text-foreground`}>
                   {formatPKR(monthSummary?.netPosition ?? 0)}
                 </span>
                 {monthSummary && monthSummary.prevNetPosition !== 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                    monthSummary.netChangePct > 0
-                      ? 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400'
-                      : monthSummary.netChangePct < 0
-                        ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-                        : 'bg-muted text-muted-foreground'
+                    monthSummary.netChangePct !== 0
+                      ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      : 'bg-muted text-muted-foreground'
                   }`}>
                     {monthSummary.netChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
                     {Math.abs(monthSummary.netChangePct)}%
@@ -796,8 +786,8 @@ export default function AdminDashboard() {
           className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group "
           onClick={() => setCurrentView('admin-credit')}
         >
-          <div className="h-9 w-9 rounded-lg bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
-            <CreditCard className="h-5 w-5 text-amber-600" />
+          <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
+            <CreditCard className="h-5 w-5 text-slate-600 dark:text-slate-300" />
           </div>
           <span className="text-xs font-medium">Post Credit</span>
         </Button>
@@ -806,8 +796,8 @@ export default function AdminDashboard() {
           className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group "
           onClick={() => setCurrentView('admin-recovery')}
         >
-          <div className="h-9 w-9 rounded-lg bg-green-50 flex items-center justify-center group-hover:bg-green-100 transition-colors">
-            <TrendingUp className="h-5 w-5 text-green-600" />
+          <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
+            <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-300" />
           </div>
           <span className="text-xs font-medium">Recovery Report</span>
         </Button>
@@ -816,8 +806,8 @@ export default function AdminDashboard() {
           className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group "
           onClick={() => setCurrentView('admin-shops')}
         >
-          <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-            <Plus className="h-5 w-5 text-blue-600" />
+          <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
+            <Plus className="h-5 w-5 text-slate-600 dark:text-slate-300" />
           </div>
           <span className="text-xs font-medium">Add Shop</span>
         </Button>
@@ -829,33 +819,33 @@ export default function AdminDashboard() {
           <div className="overflow-x-auto">
             <div className="flex gap-3 min-w-max snap-x snap-mandatory pb-1">
               {/* Total Credit Today */}
-              <div className="flex items-center gap-2.5 rounded-full bg-amber-50 border border-amber-200/60 px-4 py-2.5 snap-center">
-                <div className="h-7 w-7 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                  <TrendingUp className="h-3.5 w-3.5 text-amber-600" />
+              <div className="flex items-center gap-2.5 rounded-full bg-slate-50 border border-slate-200/60 dark:bg-slate-900/40 dark:border-slate-700/60 px-4 py-2.5 snap-center">
+                <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                  <TrendingUp className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-medium text-amber-600/70 leading-none">Total Credit Today</span>
-                  <span className="text-sm font-bold text-amber-700 tabular-nums leading-tight mt-0.5">{formatPKR(data.todayCredit)}</span>
+                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-none">Total Credit Today</span>
+                  <span className="text-sm font-bold text-foreground tabular-nums leading-tight mt-0.5">{formatPKR(data.todayCredit)}</span>
                 </div>
               </div>
               {/* Total Recovery Today */}
-              <div className="flex items-center gap-2.5 rounded-full bg-green-50 border border-green-200/60 px-4 py-2.5 snap-center">
-                <div className="h-7 w-7 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                  <ArrowDownRight className="h-3.5 w-3.5 text-green-600" />
+              <div className="flex items-center gap-2.5 rounded-full bg-slate-50 border border-slate-200/60 dark:bg-slate-900/40 dark:border-slate-700/60 px-4 py-2.5 snap-center">
+                <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                  <ArrowDownRight className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-medium text-green-600/70 leading-none">Total Recovery Today</span>
-                  <span className="text-sm font-bold text-green-700 tabular-nums leading-tight mt-0.5">{formatPKR(data.todayRecovery)}</span>
+                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-none">Total Recovery Today</span>
+                  <span className="text-sm font-bold text-foreground tabular-nums leading-tight mt-0.5">{formatPKR(data.todayRecovery)}</span>
                 </div>
               </div>
               {/* Transactions */}
-              <div className="flex items-center gap-2.5 rounded-full bg-blue-50 border border-blue-200/60 px-4 py-2.5 snap-center">
-                <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                  <Hash className="h-3.5 w-3.5 text-blue-600" />
+              <div className="flex items-center gap-2.5 rounded-full bg-slate-50 border border-slate-200/60 dark:bg-slate-900/40 dark:border-slate-700/60 px-4 py-2.5 snap-center">
+                <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                  <Hash className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-medium text-blue-600/70 leading-none">Transactions</span>
-                  <span className="text-sm font-bold text-blue-700 tabular-nums leading-tight mt-0.5">{data.todayTxns.length} entries</span>
+                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-none">Transactions</span>
+                  <span className="text-sm font-bold text-foreground tabular-nums leading-tight mt-0.5">{data.todayTxns.length} entries</span>
                 </div>
               </div>
               {/* Shops Active */}
@@ -916,24 +906,24 @@ export default function AdminDashboard() {
                   className="flex items-center justify-between gap-3 py-2 px-2 rounded-lg hover:bg-muted/50 transition-colors cursor-default"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${txn.type === 'credit' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-green-100 dark:bg-green-900/30'}`}>
+                    <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 bg-slate-100 dark:bg-slate-800`}>
                       {txn.type === 'credit' ? (
-                        <ArrowUpRight className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                        <ArrowUpRight className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                       ) : (
-                        <ArrowDownRight className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                        <ArrowDownRight className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                       )}
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{txn.shop.name}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <Badge className={`text-[9px] px-1.5 py-0 font-medium ${txn.type === 'credit' ? 'badge-credit' : 'badge-recovery'}`}>
+                        <Badge className={`text-[9px] px-1.5 py-0 font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700`}>
                           {txn.type === 'credit' ? 'Credit' : 'Recovery'}
                         </Badge>
                         <span className="text-[10px] text-muted-foreground tabular-nums">{getTimeAgo(txn.createdAt)}</span>
                       </div>
                     </div>
                   </div>
-                  <span className={`text-sm font-bold tabular-nums shrink-0 ${txn.type === 'credit' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                  <span className={`text-sm font-bold tabular-nums shrink-0 text-foreground`}>
                     {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
                   </span>
                 </div>
@@ -948,7 +938,7 @@ export default function AdminDashboard() {
         <CardHeader className="pb-2 pt-4 px-5">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <div className="h-2 w-2 rounded-full bg-slate-700 dark:bg-slate-300 animate-pulse" />
               Live Recovery Feed
             </CardTitle>
             <button
@@ -988,9 +978,9 @@ export default function AdminDashboard() {
             return (
               <>
                 <div className="flex items-center gap-2 mb-3 px-2">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                    <Banknote className="h-3 w-3 text-green-600" />
-                    <span className="text-xs font-bold text-green-700 dark:text-green-400">{formatPKR(totalLiveRecovery)}</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <Banknote className="h-3 w-3 text-slate-600 dark:text-slate-300" />
+                    <span className="text-xs font-bold text-foreground">{formatPKR(totalLiveRecovery)}</span>
                   </div>
                   <span className="text-[10px] text-muted-foreground">across {recoveryTxns.length} entries</span>
                 </div>
@@ -998,11 +988,11 @@ export default function AdminDashboard() {
                   {recoveryTxns.map((txn) => (
                     <div
                       key={txn.id}
-                      className="flex items-center justify-between gap-3 py-2.5 px-2 rounded-lg hover:bg-green-50/50 dark:hover:bg-green-900/10 transition-colors cursor-default"
+                      className="flex items-center justify-between gap-3 py-2.5 px-2 rounded-lg hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors cursor-default"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="h-7 w-7 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
-                          <ArrowDownRight className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                        <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                          <ArrowDownRight className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{txn.shop.name}</p>
@@ -1013,7 +1003,7 @@ export default function AdminDashboard() {
                           </p>
                         </div>
                       </div>
-                      <span className="text-sm font-bold text-green-600 dark:text-green-400 tabular-nums shrink-0">
+                      <span className="text-sm font-bold text-foreground tabular-nums shrink-0">
                         -{formatPKR(txn.amount)}
                       </span>
                     </div>
@@ -1043,12 +1033,12 @@ export default function AdminDashboard() {
                 <AreaChart data={trends} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="creditGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#475569" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#475569" stopOpacity={0.02} />
                     </linearGradient>
                     <linearGradient id="recoveryGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#10B981" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#64748B" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#64748B" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
@@ -1082,20 +1072,20 @@ export default function AdminDashboard() {
                   <Area
                     type="monotone"
                     dataKey="credit"
-                    stroke="#F59E0B"
+                    stroke="#475569"
                     strokeWidth={2}
                     fill="url(#creditGradient)"
-                    dot={{ r: 3, fill: '#F59E0B', strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: '#F59E0B', strokeWidth: 2, stroke: '#fff' }}
+                    dot={{ r: 3, fill: '#64748B', strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#475569', strokeWidth: 2, stroke: '#fff' }}
                   />
                   <Area
                     type="monotone"
                     dataKey="recovery"
-                    stroke="#10B981"
+                    stroke="#64748B"
                     strokeWidth={2}
                     fill="url(#recoveryGradient)"
-                    dot={{ r: 3, fill: '#10B981', strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }}
+                    dot={{ r: 3, fill: '#94A3B8', strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#64748B', strokeWidth: 2, stroke: '#fff' }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -1107,11 +1097,11 @@ export default function AdminDashboard() {
           )}
           <div className="flex items-center justify-center gap-6 mt-2">
             <div className="flex items-center gap-1.5">
-              <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+              <div className="h-2.5 w-2.5 rounded-full bg-slate-500" />
               <span className="text-xs text-muted-foreground">Credit</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
+              <div className="h-2.5 w-2.5 rounded-full bg-slate-400" />
               <span className="text-xs text-muted-foreground">Recovery</span>
             </div>
           </div>
@@ -1133,12 +1123,12 @@ export default function AdminDashboard() {
                 <BarChart data={data.orderbookers} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="outstandingGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0.5} />
+                      <stop offset="5%" stopColor="#475569" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#475569" stopOpacity={0.5} />
                     </linearGradient>
                     <linearGradient id="shopsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.5} />
+                      <stop offset="5%" stopColor="#94A3B8" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#94A3B8" stopOpacity={0.5} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
@@ -1304,9 +1294,9 @@ export default function AdminDashboard() {
             {data.orderbookers.map((ob) => {
               const maxOutstanding = Math.max(...data.orderbookers.map(o => o.totalOutstanding), 1);
               const pct = (ob.totalOutstanding / maxOutstanding) * 100;
-              const colorClass = ob.totalOutstanding > 50000 ? 'text-red-600 dark:text-red-400' : ob.totalOutstanding > 25000 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400';
-              const progressClass = ob.totalOutstanding > 50000 ? 'progress-gradient-red' : ob.totalOutstanding > 25000 ? 'progress-gradient-amber' : 'progress-gradient-green';
-              const avatarColors = ['bg-primary/15 text-primary', 'bg-emerald-500/15 text-emerald-600', 'bg-amber-500/15 text-amber-600', 'bg-rose-500/15 text-rose-600', 'bg-violet-500/15 text-violet-600'];
+              const colorClass = 'text-foreground';
+              const progressClass = 'progress-gradient-green';
+              const avatarColors = ['bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300', 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200', 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400', 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300', 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'];
               const avatarIdx = ob.name.charCodeAt(0) % avatarColors.length;
               const spark = sparklineData.find(s => s.orderbookerId === ob.id);
               return (
@@ -1343,7 +1333,7 @@ export default function AdminDashboard() {
                           </span>
                         </div>
                         <span className={`text-[10px] font-bold tabular-nums shrink-0 flex items-center gap-0.5 ${
-                          spark.trend === 'up' ? 'text-green-600 dark:text-green-400' : spark.trend === 'down' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'
+                          spark.trend === 'up' ? 'text-slate-600 dark:text-slate-300' : spark.trend === 'down' ? 'text-slate-500 dark:text-slate-400' : 'text-muted-foreground'
                         }`}>
                           {spark.trend === 'up' ? <ArrowUp className="h-3 w-3" /> : spark.trend === 'down' ? <ArrowDown className="h-3 w-3" /> : <span className="text-[8px]">—</span>}
                           {spark.trend !== 'stable' ? (
@@ -1378,7 +1368,7 @@ export default function AdminDashboard() {
             <ScrollArea className="max-h-80">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-primary hover:bg-transparent">
+                  <TableRow className="bg-slate-800 dark:bg-slate-900 hover:bg-slate-800 dark:hover:bg-slate-900">
                     <TableHead className="text-white font-semibold text-xs">Name</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-center">Shops</TableHead>
                     <TableHead className="text-white font-semibold text-xs text-right">Outstanding</TableHead>
@@ -1394,7 +1384,7 @@ export default function AdminDashboard() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-sm font-semibold text-red-600 number-animate">{formatPKR(ob.totalOutstanding)}</span>
+                        <span className="text-sm font-semibold text-foreground number-animate">{formatPKR(ob.totalOutstanding)}</span>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1413,7 +1403,7 @@ export default function AdminDashboard() {
         <Card className="hover-scale-102">
           <CardHeader className="pb-3 pt-4 px-5">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-red-500" />
+              <TrendingDown className="h-4 w-4 text-slate-600 dark:text-slate-300" />
               Top 5 Debtors
             </CardTitle>
           </CardHeader>
@@ -1427,7 +1417,7 @@ export default function AdminDashboard() {
                       <div key={shop.id} className="space-y-1.5">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${idx === 0 ? 'bg-red-100 text-red-600' : idx === 1 ? 'bg-orange-100 text-orange-600' : idx === 2 ? 'bg-amber-100 text-amber-600' : 'bg-muted text-muted-foreground'}`}>
+                            <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300`}>
                               {idx + 1}
                             </span>
                             <div className="min-w-0">
@@ -1435,11 +1425,11 @@ export default function AdminDashboard() {
                               <p className="text-[11px] text-muted-foreground truncate">{shop.area || '—'}</p>
                             </div>
                           </div>
-                          <span className="text-sm font-bold text-red-600 tabular-nums shrink-0 ml-2 number-animate">{formatPKR(shop.balance)}</span>
+                          <span className="text-sm font-bold text-foreground tabular-nums shrink-0 ml-2 number-animate">{formatPKR(shop.balance)}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-red-500 to-red-400 transition-all duration-500"
+                            className="h-full rounded-full bg-slate-300 transition-all duration-500"
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -1486,7 +1476,7 @@ export default function AdminDashboard() {
               ) : timelineGroups.length === 0 ? (
                 <div className="text-center py-10">
                   <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
-                    <div className="relative z-10 h-20 w-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-100 dark:from-primary/20 dark:to-blue-900/30 flex items-center justify-center">
+                    <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                       <Clock className="h-9 w-9 text-primary/60 animate-gentle-float" />
                     </div>
                   </div>
@@ -1520,13 +1510,13 @@ export default function AdminDashboard() {
                         {group.entries.map((entry) => (
                           <div key={entry.id} className="relative pb-4 last:pb-0 group">
                             {/* Timeline dot with icon */}
-                            <div className={`absolute -left-8 top-0.5 h-[22px] w-[22px] rounded-full flex items-center justify-center ring-4 ring-background z-10 ${entry.type === 'credit' ? 'bg-amber-100 dark:bg-amber-900/40' : entry.type === 'recovery' ? 'bg-green-100 dark:bg-green-900/40' : 'bg-blue-100 dark:bg-blue-900/40'}`}>
+                            <div className={`absolute -left-8 top-0.5 h-[22px] w-[22px] rounded-full flex items-center justify-center ring-4 ring-background z-10 bg-slate-100 dark:bg-slate-800`}>
                               {entry.type === 'credit' ? (
-                                <ArrowUpRight className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                                <ArrowUpRight className="h-3 w-3 text-slate-600 dark:text-slate-300" />
                               ) : entry.type === 'recovery' ? (
-                                <ArrowDownRight className="h-3 w-3 text-green-600 dark:text-green-400" />
+                                <ArrowDownRight className="h-3 w-3 text-slate-600 dark:text-slate-300" />
                               ) : (
-                                <Pencil className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                                <Pencil className="h-3 w-3 text-slate-600 dark:text-slate-300" />
                               )}
                             </div>
                             {/* Timeline card */}
@@ -1536,7 +1526,7 @@ export default function AdminDashboard() {
                                   {/* Time and badge */}
                                   <div className="flex items-center gap-2 mb-1.5">
                                     <span className="text-[11px] text-muted-foreground tabular-nums">{formatTimeFull(entry.createdAt)}</span>
-                                    <Badge className={`text-[9px] px-1.5 py-0 ${entry.type === 'credit' ? 'badge-credit' : entry.type === 'recovery' ? 'badge-recovery' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800'}`}>
+                                    <Badge className={`text-[9px] px-1.5 py-0 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700`}>
                                       {entry.type === 'credit' ? 'Credit' : entry.type === 'recovery' ? 'Recovery' : 'Edit'}
                                     </Badge>
                                   </div>
@@ -1554,7 +1544,7 @@ export default function AdminDashboard() {
                                 {/* Amount */}
                                 <div className="text-right shrink-0">
                                   {entry.amount > 0 && (
-                                    <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full ${entry.type === 'credit' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>
+                                    <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300`}>
                                       {entry.type === 'credit' ? '+' : '-'}{formatPKR(entry.amount)}
                                     </span>
                                   )}
@@ -1592,32 +1582,32 @@ export default function AdminDashboard() {
       {/* Business Summary Widget */}
       {bizSummary && (
         <Card className="animate-fade-in overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary/5 to-primary/[0.02] border-b border-border/40">
-            <Activity className="h-3.5 w-3.5 text-primary shrink-0" />
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-900/40 border-b border-border/40">
+            <Activity className="h-3.5 w-3.5 text-slate-500 shrink-0" />
             <span className="text-xs font-semibold text-foreground">All-Time Business Summary</span>
           </div>
           <CardContent className="p-4">
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="h-9 w-9 rounded-xl bg-amber-50 flex items-center justify-center mx-auto mb-2">
-                  <ArrowUpRight className="h-4 w-4 text-amber-600" />
+                <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-2">
+                  <ArrowUpRight className="h-4 w-4 text-slate-600 dark:text-slate-300" />
                 </div>
                 <p className="text-[10px] text-muted-foreground font-medium">Total Business Volume</p>
-                <p className="text-base font-bold text-amber-700 dark:text-amber-400 tabular-nums mt-0.5">{formatPKR(bizSummary.totalCredit)}</p>
+                <p className="text-base font-bold text-foreground tabular-nums mt-0.5">{formatPKR(bizSummary.totalCredit)}</p>
               </div>
               <div className="text-center">
-                <div className="h-9 w-9 rounded-xl bg-green-50 flex items-center justify-center mx-auto mb-2">
-                  <ArrowDownRight className="h-4 w-4 text-green-600" />
+                <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-2">
+                  <ArrowDownRight className="h-4 w-4 text-slate-600 dark:text-slate-300" />
                 </div>
                 <p className="text-[10px] text-muted-foreground font-medium">Total Recovery Collected</p>
-                <p className="text-base font-bold text-green-700 dark:text-green-400 tabular-nums mt-0.5">{formatPKR(bizSummary.totalRecovery)}</p>
+                <p className="text-base font-bold text-foreground tabular-nums mt-0.5">{formatPKR(bizSummary.totalRecovery)}</p>
               </div>
               <div className="text-center">
-                <div className={`h-9 w-9 rounded-xl flex items-center justify-center mx-auto mb-2 ${bizSummary.netBalance > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
-                  <Wallet className={`h-4 w-4 ${bizSummary.netBalance > 0 ? 'text-red-600' : 'text-green-600'}`} />
+                <div className={`h-9 w-9 rounded-xl flex items-center justify-center mx-auto mb-2 bg-slate-100 dark:bg-slate-800`}>
+                  <Wallet className={`h-4 w-4 text-slate-600 dark:text-slate-300`} />
                 </div>
                 <p className="text-[10px] text-muted-foreground font-medium">Net Outstanding</p>
-                <p className={`text-base font-bold tabular-nums mt-0.5 ${bizSummary.netBalance > 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>{formatPKR(bizSummary.netBalance)}</p>
+                <p className={`text-base font-bold text-foreground tabular-nums mt-0.5`}>{formatPKR(bizSummary.netBalance)}</p>
               </div>
             </div>
           </CardContent>

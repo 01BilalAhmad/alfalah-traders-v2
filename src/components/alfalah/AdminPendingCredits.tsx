@@ -178,7 +178,7 @@ export default function AdminPendingCredits() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold flex items-center gap-2">
-            <Clock className="h-5 w-5 text-amber-500" />
+            <Clock className="h-5 w-5 text-slate-600 dark:text-slate-300" />
             Pending Credits
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -203,54 +203,54 @@ export default function AdminPendingCredits() {
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
-        <Card className="card-elevated stat-card-amber hover-scale-102">
+        <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/40 dark:to-amber-950/40 flex items-center justify-center shadow-sm">
-                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Clock className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Pending</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Pending</p>
-            <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate">{summary?.count || 0}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{summary?.count || 0}</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-red hover-scale-102">
+        <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/40 dark:to-red-950/40 flex items-center justify-center shadow-sm">
-                <CreditCard className="h-5 w-5 text-red-600 dark:text-red-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <CreditCard className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Unapproved</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Amount</p>
-            <p className="text-2xl font-bold text-red-600 tabular-nums number-animate">{formatPKR(summary?.total || 0)}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{formatPKR(summary?.total || 0)}</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-blue hover-scale-102">
+        <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-950/40 flex items-center justify-center shadow-sm">
-                <Store className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Average</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Avg per Transaction</p>
-            <p className="text-2xl font-bold text-blue-600 tabular-nums number-animate">
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">
               {summary?.count ? formatPKR(summary.total / summary.count) : '—'}
             </p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-amber hover-scale-102">
+        <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-900/40 dark:to-orange-950/40 flex items-center justify-center shadow-sm">
-                <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <AlertTriangle className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">OBs</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">OBs with Pending</p>
-            <p className="text-2xl font-bold text-orange-600 tabular-nums number-animate">
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">
               {obPendingList.filter(o => o.count > 0).length}
             </p>
           </CardContent>
@@ -262,7 +262,7 @@ export default function AdminPendingCredits() {
         <Card className="card-elevated">
           <CardHeader className="pb-3 pt-4 px-5">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertTriangle className="h-4 w-4 text-slate-600 dark:text-slate-300" />
               Pending by Orderbooker
             </CardTitle>
           </CardHeader>
@@ -274,7 +274,7 @@ export default function AdminPendingCredits() {
                   className="rounded-lg border border-border p-3"
                 >
                   <p className="text-sm font-medium truncate">{info.ob.name}</p>
-                  <p className="text-lg font-bold text-amber-600 mt-1">{info.count}</p>
+                  <p className="text-lg font-bold text-foreground mt-1">{info.count}</p>
                   <p className="text-[11px] text-muted-foreground">{formatPKR(info.total)}</p>
                 </div>
               ))}
@@ -298,7 +298,7 @@ export default function AdminPendingCredits() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-primary hover:bg-transparent">
+                <TableRow className="bg-slate-800 dark:bg-slate-900 hover:bg-slate-800 dark:hover:bg-slate-900">
                   <TableHead className="text-white font-semibold text-xs w-12">#</TableHead>
                   <TableHead className="text-white font-semibold text-xs">Shop</TableHead>
                   <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Area</TableHead>
@@ -324,7 +324,7 @@ export default function AdminPendingCredits() {
                       className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} table-row-hover-effect`}
                     >
                       <TableCell className="text-sm">
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 text-xs font-bold shrink-0">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-xs font-bold shrink-0">
                           {idx + 1}
                         </span>
                       </TableCell>
@@ -335,7 +335,7 @@ export default function AdminPendingCredits() {
                         <span className="text-sm text-muted-foreground">{txn.shopArea || '—'}</span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-sm font-semibold text-amber-600 tabular-nums">
+                        <span className="text-sm font-semibold text-foreground tabular-nums">
                           {formatPKR(txn.amount)}
                         </span>
                       </TableCell>

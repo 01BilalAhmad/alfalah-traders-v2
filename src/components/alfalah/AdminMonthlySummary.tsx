@@ -349,34 +349,34 @@ export default function AdminMonthlySummary() {
           {/* Summary KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
             {/* Total Credit */}
-            <Card className="card-elevated stat-card-amber hover-scale-102 " style={{ animationDelay: '0ms' }}>
+            <Card className="card-elevated card-hover border border-border" style={{ animationDelay: '0ms' }}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/40 dark:to-amber-950/40 flex items-center justify-center shadow-sm">
-                    <ArrowUpRight className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                    <ArrowUpRight className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                   </div>
                   <Badge variant="secondary" className="text-[10px] font-medium">{getMonthLabel(selectedMonth)}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Credit Posted</p>
-                <p className="text-2xl font-bold text-amber-700 dark:text-amber-400 tabular-nums number-animate">
+                <p className="text-2xl font-bold text-foreground tabular-nums number-animate">
                   {formatPKR(Math.abs(data.totalCredit))}
                 </p>
               </CardContent>
             </Card>
 
             {/* Total Recovery */}
-            <Card className="card-elevated stat-card-green hover-scale-102 " style={{ animationDelay: '50ms' }}>
+            <Card className="card-elevated card-hover border border-border" style={{ animationDelay: '50ms' }}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/40 dark:to-green-950/40 flex items-center justify-center shadow-sm">
-                    <ArrowDownRight className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                    <ArrowDownRight className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                   </div>
                   <Badge variant="secondary" className="text-[10px] font-medium">
                     {recoveryRate >= 80 ? 'On Track' : recoveryRate >= 50 ? 'Attention' : 'Behind'}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Recovery Collected</p>
-                <p className="text-2xl font-bold text-green-700 dark:text-green-400 tabular-nums number-animate">
+                <p className="text-2xl font-bold text-foreground tabular-nums number-animate">
                   {formatPKR(Math.abs(data.totalRecovery))}
                 </p>
               </CardContent>
@@ -384,18 +384,18 @@ export default function AdminMonthlySummary() {
 
             {/* Net Balance Change */}
             <Card
-              className={`card-elevated hover-scale-102  ${data.netChange > 0 ? 'stat-card-red' : data.netChange < 0 ? 'stat-card-green' : 'stat-card-blue'}`}
+              className="card-elevated card-hover border border-border"
               style={{ animationDelay: '100ms' }}
             >
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center shadow-sm ${data.netChange > 0 ? 'bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/40 dark:to-red-950/40' : data.netChange < 0 ? 'bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/40 dark:to-green-950/40' : 'bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-950/40'}`}>
+                  <div className="h-10 w-10 rounded-xl flex items-center justify-center shadow-sm bg-slate-100 dark:bg-slate-800">
                     {data.netChange > 0 ? (
-                      <TrendingUp className="h-5 w-5 text-red-600 dark:text-red-400" />
+                      <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                     ) : data.netChange < 0 ? (
-                      <TrendingDown className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      <TrendingDown className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                     ) : (
-                      <Target className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <Target className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                     )}
                   </div>
                   <Badge variant="secondary" className="text-[10px] font-medium">
@@ -403,7 +403,7 @@ export default function AdminMonthlySummary() {
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground font-medium mb-0.5">Net Balance Change</p>
-                <p className={`text-2xl font-bold tabular-nums number-animate ${data.netChange > 0 ? 'text-red-700 dark:text-red-400' : data.netChange < 0 ? 'text-green-700 dark:text-green-400' : 'text-blue-700 dark:text-blue-400'}`}>
+                <p className="text-2xl font-bold tabular-nums number-animate text-foreground">
                   {data.netChange > 0 ? '+' : data.netChange < 0 ? '-' : ''}
                   {formatPKR(Math.abs(data.netChange))}
                 </p>
@@ -411,11 +411,11 @@ export default function AdminMonthlySummary() {
             </Card>
 
             {/* Active Shops & OBs */}
-            <Card className="card-elevated stat-card-blue hover-scale-102 " style={{ animationDelay: '150ms' }}>
+            <Card className="card-elevated card-hover border border-border" style={{ animationDelay: '150ms' }}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-950/40 flex items-center justify-center shadow-sm">
-                    <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                    <Users className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                   </div>
                   <Badge variant="secondary" className="text-[10px] font-medium">Active</Badge>
                 </div>
@@ -437,19 +437,13 @@ export default function AdminMonthlySummary() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-foreground">Month Recovery Rate</span>
-                  <span className={`text-sm font-bold tabular-nums ${recoveryRate >= 80 ? 'text-green-600 dark:text-green-400' : recoveryRate >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                  <span className="text-sm font-bold tabular-nums text-foreground">
                     {recoveryRate}%
                   </span>
                 </div>
                 <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-700 ${
-                      recoveryRate >= 80
-                        ? 'bg-gradient-to-r from-green-400 to-green-500'
-                        : recoveryRate >= 50
-                          ? 'bg-gradient-to-r from-amber-400 to-amber-500'
-                          : 'bg-gradient-to-r from-red-400 to-red-500'
-                    }`}
+                    className="h-full rounded-full transition-all duration-700 bg-slate-300"
                     style={{ width: `${Math.min(recoveryRate, 100)}%` }}
                   />
                 </div>
@@ -457,7 +451,7 @@ export default function AdminMonthlySummary() {
                   <span className="text-[10px] text-muted-foreground">
                     {formatPKR(Math.abs(data.totalRecovery))} recovered of {formatPKR(Math.abs(data.totalCredit))} credit
                   </span>
-                  <span className={`text-[10px] font-semibold ${recoveryRate >= 80 ? 'text-green-600' : recoveryRate >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
                     {recoveryRate >= 80 ? '✓ On Track' : recoveryRate >= 50 ? '⚠ Needs Attention' : '✗ Behind Target'}
                   </span>
                 </div>
@@ -485,12 +479,12 @@ export default function AdminMonthlySummary() {
                     <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                       <defs>
                         <linearGradient id="msCreditGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.9} />
-                          <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.3} />
+                          <stop offset="5%" stopColor="#64748B" stopOpacity={0.9} />
+                          <stop offset="95%" stopColor="#64748B" stopOpacity={0.3} />
                         </linearGradient>
                         <linearGradient id="msRecoveryGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10B981" stopOpacity={0.9} />
-                          <stop offset="95%" stopColor="#10B981" stopOpacity={0.3} />
+                          <stop offset="5%" stopColor="#475569" stopOpacity={0.9} />
+                          <stop offset="95%" stopColor="#475569" stopOpacity={0.3} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
@@ -586,9 +580,9 @@ export default function AdminMonthlySummary() {
                         const net = ob.credit - ob.recovery;
                         const rate = ob.credit > 0 ? Math.round((ob.recovery / ob.credit) * 100) : (ob.recovery > 0 ? 100 : 0);
                         const rateColorClass = rate >= 80
-                          ? 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800'
+                          ? 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
                           : rate >= 50
-                            ? 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800'
+                            ? 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
                             : 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800';
                         return (
                           <TableRow
@@ -597,9 +591,9 @@ export default function AdminMonthlySummary() {
                           >
                             <TableCell className="text-sm">
                               <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
-                                idx === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
-                                : idx === 1 ? 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                                : idx === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
+                                idx === 0 ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                                : idx === 1 ? 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                : idx === 2 ? 'bg-slate-300 text-slate-700 dark:bg-slate-600 dark:text-slate-300'
                                 : 'bg-muted text-muted-foreground'
                               }`}>
                                 {idx + 1}
@@ -619,17 +613,17 @@ export default function AdminMonthlySummary() {
                               </span>
                             </TableCell>
                             <TableCell className="text-right">
-                              <span className="text-sm font-semibold text-amber-600 tabular-nums">
+                              <span className="text-sm font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
                                 {formatPKR(Math.abs(ob.credit))}
                               </span>
                             </TableCell>
                             <TableCell className="text-right">
-                              <span className="text-sm font-semibold text-green-600 tabular-nums">
+                              <span className="text-sm font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
                                 {formatPKR(Math.abs(ob.recovery))}
                               </span>
                             </TableCell>
                             <TableCell className="text-right">
-                              <span className={`text-sm font-semibold tabular-nums ${net > 0 ? 'text-red-600' : net < 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                              <span className={`text-sm font-semibold tabular-nums ${net > 0 ? 'text-foreground' : net < 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
                                 {net > 0 ? '+' : net < 0 ? '-' : ''}
                                 {formatPKR(Math.abs(net))}
                               </span>
@@ -656,10 +650,10 @@ export default function AdminMonthlySummary() {
               <CardHeader className="pb-3 pt-4 px-5">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-amber-500" />
+                    <TrendingUp className="h-4 w-4 text-slate-500" />
                     Top 5 Credit Shops
                   </CardTitle>
-                  <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-amber-200 dark:border-amber-800">
+                  <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700">
                     <ArrowUpRight className="h-3 w-3 mr-1" />
                     Credit
                   </Badge>
@@ -674,12 +668,12 @@ export default function AdminMonthlySummary() {
                       return (
                         <div
                           key={`credit-${idx}`}
-                          className={`flex items-center gap-3 p-2.5 rounded-lg ${idx % 2 === 0 ? 'bg-amber-50/50 dark:bg-amber-950/10' : ''} transition-colors`}
+                          className={`flex items-center gap-3 p-2.5 rounded-lg ${idx % 2 === 0 ? 'bg-slate-50/50 dark:bg-slate-800/20' : ''} transition-colors`}
                         >
                           <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold shrink-0 ${
-                            idx === 0 ? 'bg-amber-500 text-white'
-                            : idx === 1 ? 'bg-amber-400 text-white'
-                            : idx === 2 ? 'bg-amber-300 text-amber-800'
+                            idx === 0 ? 'bg-slate-500 text-white'
+                            : idx === 1 ? 'bg-slate-400 text-white'
+                            : idx === 2 ? 'bg-slate-300 text-slate-800'
                             : 'bg-muted text-muted-foreground'
                           }`}>
                             {idx + 1}
@@ -693,13 +687,13 @@ export default function AdminMonthlySummary() {
                                   {shop.area} {shop.orderbookerName ? `· ${shop.orderbookerName}` : ''}
                                 </p>
                               </div>
-                              <span className="text-sm font-bold text-amber-700 dark:text-amber-400 tabular-nums ml-2 shrink-0">
+                              <span className="text-sm font-bold text-foreground tabular-nums ml-2 shrink-0">
                                 {formatPKR(Math.abs(shop.credit || 0))}
                               </span>
                             </div>
-                            <div className="h-1.5 w-full bg-amber-100 dark:bg-amber-900/30 rounded-full overflow-hidden">
+                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-500"
+                                className="h-full bg-slate-300 rounded-full transition-all duration-500"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
@@ -722,10 +716,10 @@ export default function AdminMonthlySummary() {
               <CardHeader className="pb-3 pt-4 px-5">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Trophy className="h-4 w-4 text-green-500" />
+                    <Trophy className="h-4 w-4 text-slate-500" />
                     Top 5 Recovery Shops
                   </CardTitle>
-                  <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-800">
+                  <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700">
                     <ArrowDownRight className="h-3 w-3 mr-1" />
                     Recovery
                   </Badge>
@@ -740,12 +734,12 @@ export default function AdminMonthlySummary() {
                       return (
                         <div
                           key={`recovery-${idx}`}
-                          className={`flex items-center gap-3 p-2.5 rounded-lg ${idx % 2 === 0 ? 'bg-green-50/50 dark:bg-green-950/10' : ''} transition-colors`}
+                          className={`flex items-center gap-3 p-2.5 rounded-lg ${idx % 2 === 0 ? 'bg-slate-50/50 dark:bg-slate-800/20' : ''} transition-colors`}
                         >
                           <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold shrink-0 ${
-                            idx === 0 ? 'bg-green-500 text-white'
-                            : idx === 1 ? 'bg-green-400 text-white'
-                            : idx === 2 ? 'bg-green-300 text-green-800'
+                            idx === 0 ? 'bg-slate-500 text-white'
+                            : idx === 1 ? 'bg-slate-400 text-white'
+                            : idx === 2 ? 'bg-slate-300 text-slate-800'
                             : 'bg-muted text-muted-foreground'
                           }`}>
                             {idx + 1}
@@ -759,13 +753,13 @@ export default function AdminMonthlySummary() {
                                   {shop.area} {shop.orderbookerName ? `· ${shop.orderbookerName}` : ''}
                                 </p>
                               </div>
-                              <span className="text-sm font-bold text-green-700 dark:text-green-400 tabular-nums ml-2 shrink-0">
+                              <span className="text-sm font-bold text-foreground tabular-nums ml-2 shrink-0">
                                 {formatPKR(Math.abs(shop.recovery || 0))}
                               </span>
                             </div>
-                            <div className="h-1.5 w-full bg-green-100 dark:bg-green-900/30 rounded-full overflow-hidden">
+                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full transition-all duration-500"
+                                className="h-full bg-slate-400 rounded-full transition-all duration-500"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>

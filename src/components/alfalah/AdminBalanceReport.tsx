@@ -284,21 +284,21 @@ export default function AdminBalanceReport() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print-hidden">
           <Card className="card-hover " style={{ animationDelay: '0ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
-                <Banknote className="h-5 w-5 text-red-600" />
+              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                <Banknote className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">
                   {selectedDay !== 'all' ? `${selectedDayLabel} Outstanding` : 'Total Outstanding'}
                 </p>
-                <p className="text-xl font-bold text-red-600 number-display">Rs. {formatAmount(data.grandTotal)}</p>
+                <p className="text-xl font-bold text-foreground number-display">Rs. {formatAmount(data.grandTotal)}</p>
               </div>
             </CardContent>
           </Card>
           <Card className="card-hover " style={{ animationDelay: '50ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                <Store className="h-5 w-5 text-blue-600" />
+              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">
@@ -310,8 +310,8 @@ export default function AdminBalanceReport() {
           </Card>
           <Card className="card-hover " style={{ animationDelay: '100ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
-                <Users className="h-5 w-5 text-purple-600" />
+              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                <Users className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Orderbookers</p>
@@ -327,8 +327,8 @@ export default function AdminBalanceReport() {
         <Card>
           <CardContent className="text-center py-12">
             <div className="mx-auto mb-4 h-20 w-20">
-              <div className="relative z-10 h-20 w-20 rounded-full bg-gradient-to-br from-green-500/10 to-green-100 dark:from-green-500/20 dark:to-green-900/30 flex items-center justify-center">
-                <Banknote className="h-9 w-9 text-green-500/50 animate-gentle-float" />
+              <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <Banknote className="h-9 w-9 text-slate-400 animate-gentle-float" />
               </div>
             </div>
             <p className="font-semibold text-muted-foreground text-sm">
@@ -516,7 +516,7 @@ export default function AdminBalanceReport() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-red-600">Rs. {formatAmount(ob.totalBalance)}</p>
+                  <p className="text-sm font-bold text-foreground">Rs. {formatAmount(ob.totalBalance)}</p>
                   {selectedDay !== 'all' && (
                     <p className="text-[10px] text-muted-foreground">{selectedDayLabel} routes only</p>
                   )}
@@ -538,7 +538,7 @@ export default function AdminBalanceReport() {
                         <Badge variant="secondary" className="text-[9px] h-4 px-1">
                           {d.shopCount}
                         </Badge>
-                        <span className="font-semibold text-red-600">{formatAmount(d.totalBalance)}</span>
+                        <span className="font-semibold text-foreground">{formatAmount(d.totalBalance)}</span>
                       </div>
                     ))}
                   </div>
@@ -553,7 +553,7 @@ export default function AdminBalanceReport() {
                       <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{comp.companyName}</span>
                     </div>
-                    <span className="text-xs font-bold text-red-600">Rs. {formatAmount(comp.totalBalance)}</span>
+                    <span className="text-xs font-bold text-foreground">Rs. {formatAmount(comp.totalBalance)}</span>
                   </div>
                   <div className="divide-y divide-border">
                     {comp.shops.map((shop, idx) => (

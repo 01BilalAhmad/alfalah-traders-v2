@@ -166,19 +166,19 @@ export default function AdminReconciliation() {
             {/* Metric Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Month's Total Credit */}
-              <Card className="stat-card-amber card-hover">
+              <Card className="card-hover border border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
-                    <div className="h-11 w-11 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
-                      <TrendingUp className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                      <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground font-medium">Month&apos;s Total Credit</p>
-                      <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{formatPKR(monthSummary.totalCredit)}</p>
+                      <p className="text-lg font-bold text-foreground">{formatPKR(monthSummary.totalCredit)}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
                         {monthSummary.creditCount} transactions
                         {monthSummary.topCreditDay && (
-                          <span className="text-amber-600 dark:text-amber-400 ml-1">
+                          <span className="text-slate-600 dark:text-slate-300 ml-1">
                             &middot; Peak: {formatPKR(monthSummary.topCreditDay.amount)}
                           </span>
                         )}
@@ -189,19 +189,19 @@ export default function AdminReconciliation() {
               </Card>
 
               {/* Month's Total Recovery */}
-              <Card className="stat-card-green card-hover">
+              <Card className="card-hover border border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
-                    <div className="h-11 w-11 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
-                      <ArrowDownRight className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                      <ArrowDownRight className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground font-medium">Month&apos;s Total Recovery</p>
-                      <p className="text-lg font-bold text-green-700 dark:text-green-400">{formatPKR(monthSummary.totalRecovery)}</p>
+                      <p className="text-lg font-bold text-foreground">{formatPKR(monthSummary.totalRecovery)}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
                         {monthSummary.recoveryCount} transactions
                         {monthSummary.topRecoveryDay && (
-                          <span className="text-green-600 dark:text-green-400 ml-1">
+                          <span className="text-slate-600 dark:text-slate-300 ml-1">
                             &middot; Peak: {formatPKR(monthSummary.topRecoveryDay.amount)}
                           </span>
                         )}
@@ -212,15 +212,15 @@ export default function AdminReconciliation() {
               </Card>
 
               {/* Month's Net Position */}
-              <Card className={`card-hover ${monthSummary.netPosition >= 0 ? 'stat-card-green' : 'stat-card-red'}`}>
+              <Card className="card-hover border border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
-                    <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${monthSummary.netPosition >= 0 ? 'bg-green-500/15' : 'bg-red-500/15'}`}>
-                      <BarChart3 className={`h-5 w-5 ${monthSummary.netPosition >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} />
+                    <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0 bg-slate-100 dark:bg-slate-800">
+                      <BarChart3 className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground font-medium">Month&apos;s Net Position</p>
-                      <p className={`text-lg font-bold tabular-nums ${monthSummary.netPosition >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                      <p className="text-lg font-bold tabular-nums text-foreground">
                         {monthSummary.netPosition >= 0 ? '+' : ''}{formatPKR(monthSummary.netPosition)}
                       </p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -238,19 +238,13 @@ export default function AdminReconciliation() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-foreground">Month Recovery Rate</span>
-                    <span className={`text-sm font-bold tabular-nums ${recoveryRate >= 80 ? 'text-green-600 dark:text-green-400' : recoveryRate >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                    <span className="text-sm font-bold tabular-nums text-foreground">
                       {recoveryRate}%
                     </span>
                   </div>
                   <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-700 ${
-                        recoveryRate >= 80
-                          ? 'bg-gradient-to-r from-green-400 to-green-500'
-                          : recoveryRate >= 50
-                            ? 'bg-gradient-to-r from-amber-400 to-amber-500'
-                            : 'bg-gradient-to-r from-red-400 to-red-500'
-                      }`}
+                      className="h-full rounded-full transition-all duration-700 bg-slate-300"
                       style={{ width: `${Math.min(recoveryRate, 100)}%` }}
                     />
                   </div>
@@ -258,7 +252,7 @@ export default function AdminReconciliation() {
                     <span className="text-[10px] text-muted-foreground">
                       {formatPKR(monthSummary.totalRecovery)} recovered of {formatPKR(monthSummary.totalCredit)} credit
                     </span>
-                    <span className={`text-[10px] font-semibold ${recoveryRate >= 80 ? 'text-green-600' : recoveryRate >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
                       {recoveryRate >= 80 ? '✓ On Track' : recoveryRate >= 50 ? '⚠ Needs Attention' : '✗ Behind Target'}
                     </span>
                   </div>
@@ -332,26 +326,26 @@ export default function AdminReconciliation() {
         const recoveryPct = totalFlow > 0 ? (report.totalRecovery / totalFlow) * 100 : 0;
         return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Credit — amber themed with mini bar */}
-          <Card className="stat-card-amber card-hover " style={{ animationDelay: '0ms' }}>
+          {/* Total Credit with mini bar */}
+          <Card className="card-hover border border-border" style={{ animationDelay: '0ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="h-11 w-11 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
-                  <ArrowUpRight className="h-5 w-5 text-amber-600" />
+                <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                  <ArrowUpRight className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-medium">Total Credit</p>
-                  <p className="text-lg font-bold text-amber-700 dark:text-amber-400 number-display">{formatPKR(report.totalCredit)}</p>
+                  <p className="text-lg font-bold text-foreground number-display">{formatPKR(report.totalCredit)}</p>
                 </div>
               </div>
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] text-muted-foreground">Proportion</span>
-                  <span className="text-[10px] font-semibold text-amber-600">{creditPct.toFixed(0)}%</span>
+                  <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300">{creditPct.toFixed(0)}%</span>
                 </div>
-                <div className="h-1.5 w-full bg-amber-100 dark:bg-amber-900/30 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-500"
+                    className="h-full bg-slate-300 rounded-full transition-all duration-500"
                     style={{ width: `${creditPct}%` }}
                   />
                 </div>
@@ -360,25 +354,25 @@ export default function AdminReconciliation() {
           </Card>
 
           {/* Total Recovery — green themed with mini bar */}
-          <Card className="stat-card-green card-hover " style={{ animationDelay: '50ms' }}>
+          <Card className="card-hover border border-border" style={{ animationDelay: '50ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="h-11 w-11 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
-                  <ArrowDownRight className="h-5 w-5 text-green-600" />
+                <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                  <ArrowDownRight className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-medium">Total Recovery</p>
-                  <p className="text-lg font-bold text-green-700 dark:text-green-400 number-display">{formatPKR(report.totalRecovery)}</p>
+                  <p className="text-lg font-bold text-foreground number-display">{formatPKR(report.totalRecovery)}</p>
                 </div>
               </div>
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] text-muted-foreground">Proportion</span>
-                  <span className="text-[10px] font-semibold text-green-600">{recoveryPct.toFixed(0)}%</span>
+                  <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300">{recoveryPct.toFixed(0)}%</span>
                 </div>
-                <div className="h-1.5 w-full bg-green-100 dark:bg-green-900/30 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full transition-all duration-500"
+                    className="h-full bg-slate-400 rounded-full transition-all duration-500"
                     style={{ width: `${recoveryPct}%` }}
                   />
                 </div>
@@ -387,23 +381,21 @@ export default function AdminReconciliation() {
           </Card>
 
           {/* Net Position — red/green based on sign */}
-          <Card className={`card-hover  ${report.netChange >= 0 ? 'stat-card-green' : 'stat-card-red'}`} style={{ animationDelay: '100ms' }}>
+          <Card className="card-hover border border-border" style={{ animationDelay: '100ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${report.netChange >= 0 ? 'bg-green-500/15' : 'bg-red-500/15'}`}>
-                  <TrendingUp className={`h-5 w-5 ${report.netChange >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+                <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0 bg-slate-100 dark:bg-slate-800">
+                  <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-medium">Net Position</p>
-                  <p className={`text-xl font-extrabold tabular-nums number-display ${report.netChange >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                  <p className="text-xl font-extrabold tabular-nums number-display text-foreground">
                     {report.netChange >= 0 ? '+' : ''}{formatPKR(report.netChange)}
                   </p>
                 </div>
               </div>
               <div className="mt-2">
-                <Badge className={`text-[10px] font-bold ${report.netChange >= 0
-                  ? 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'
-                  : 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'}`}>
+                <Badge className="text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700">
                   {report.netChange >= 0 ? '↑ Recovery Surplus' : '↓ Credit Excess'}
                 </Badge>
               </div>
@@ -411,11 +403,11 @@ export default function AdminReconciliation() {
           </Card>
 
           {/* Transactions */}
-          <Card className="stat-card-blue card-hover " style={{ animationDelay: '150ms' }}>
+          <Card className="card-hover border border-border" style={{ animationDelay: '150ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="h-11 w-11 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
-                  <RefreshCw className="h-5 w-5 text-blue-600" />
+                <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                  <RefreshCw className="h-5 w-5 text-slate-600 dark:text-slate-300" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-medium">Transactions</p>
@@ -425,11 +417,11 @@ export default function AdminReconciliation() {
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] text-muted-foreground">OBs Active</span>
-                  <span className="text-[10px] font-semibold text-blue-600">{report.orderbookers.length}</span>
+                  <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300">{report.orderbookers.length}</span>
                 </div>
-                <div className="h-1.5 w-full bg-blue-100 dark:bg-blue-900/30 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
+                    className="h-full bg-slate-300 rounded-full transition-all duration-500"
                     style={{ width: `${Math.min(report.orderbookers.length * 33, 100)}%` }}
                   />
                 </div>
@@ -459,9 +451,9 @@ export default function AdminReconciliation() {
                 const recoveryProportion = obTotal > 0 ? (ob.recovery / obTotal) * 100 : 0;
                 const recoveryRate = ob.credit > 0 ? Math.round((ob.recovery / ob.credit) * 100) : (ob.recovery > 0 ? 100 : 0);
                 const recoveryColorClass = recoveryRate >= 80
-                  ? 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800'
+                  ? 'text-slate-700 bg-slate-50 dark:bg-slate-800/50 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                   : recoveryRate >= 50
-                    ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                    ? 'text-slate-700 bg-slate-50 dark:bg-slate-800/50 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                     : 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800';
                 return (
                   <div key={ob.orderbookerId}>
@@ -478,11 +470,11 @@ export default function AdminReconciliation() {
                       <div className="flex items-center gap-4 sm:gap-5 text-sm shrink-0">
                         <div className="hidden sm:block text-right">
                           <p className="text-[10px] text-muted-foreground">Credit</p>
-                          <p className="font-semibold text-amber-600">{formatPKR(ob.credit)}</p>
+                          <p className="font-semibold text-slate-600 dark:text-slate-300">{formatPKR(ob.credit)}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-[10px] text-muted-foreground">Recovery</p>
-                          <p className="font-semibold text-green-600">{formatPKR(ob.recovery)}</p>
+                          <p className="font-semibold text-slate-600 dark:text-slate-300">{formatPKR(ob.recovery)}</p>
                         </div>
                         <Badge className={`${recoveryColorClass} text-[10px] font-bold border`}>{recoveryRate}%</Badge>
                       </div>
@@ -492,12 +484,12 @@ export default function AdminReconciliation() {
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-2 rounded-full overflow-hidden bg-muted flex">
                           <div
-                            className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-500"
+                            className="h-full bg-slate-300 transition-all duration-500"
                             style={{ width: `${creditProportion}%` }}
                             title={`Credit: ${creditProportion.toFixed(0)}%`}
                           />
                           <div
-                            className="h-full bg-gradient-to-r from-green-400 to-green-500 transition-all duration-500"
+                            className="h-full bg-slate-400 transition-all duration-500"
                             style={{ width: `${recoveryProportion}%` }}
                             title={`Recovery: ${recoveryProportion.toFixed(0)}%`}
                           />
@@ -506,10 +498,10 @@ export default function AdminReconciliation() {
                       {obTotal > 0 && (
                         <div className="flex items-center justify-between mt-1">
                           <span className="text-[10px] text-muted-foreground">
-                            <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1" />Credit {creditProportion.toFixed(0)}%
-                            <span className="inline-block w-2 h-2 rounded-full bg-green-400 ml-3 mr-1" />Recovery {recoveryProportion.toFixed(0)}%
+                            <span className="inline-block w-2 h-2 rounded-full bg-slate-400 mr-1" />Credit {creditProportion.toFixed(0)}%
+                            <span className="inline-block w-2 h-2 rounded-full bg-slate-600 ml-3 mr-1" />Recovery {recoveryProportion.toFixed(0)}%
                           </span>
-                          <span className={`text-[10px] font-semibold ${recoveryRate >= 80 ? 'text-green-600' : recoveryRate >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                          <span className={`text-[10px] font-semibold ${recoveryRate >= 80 ? 'text-slate-600 dark:text-slate-300' : recoveryRate >= 50 ? 'text-slate-600 dark:text-slate-300' : 'text-red-600'}`}>
                             {recoveryRate >= 80 ? '✓' : recoveryRate >= 50 ? '⚠' : '✗'} {recoveryRate}% recovered
                           </span>
                         </div>
@@ -534,10 +526,10 @@ export default function AdminReconciliation() {
                                   {shop.shopName}
                                   <span className="text-xs text-muted-foreground ml-1 hidden sm:inline">({shop.shopArea})</span>
                                 </TableCell>
-                                <TableCell className="text-right text-sm text-amber-600 hidden sm:table-cell">
+                                <TableCell className="text-right text-sm text-slate-600 dark:text-slate-300 hidden sm:table-cell">
                                   {shop.credit > 0 ? `+${formatPKR(shop.credit)}` : '—'}
                                 </TableCell>
-                                <TableCell className="text-right text-sm text-green-600 hidden sm:table-cell">
+                                <TableCell className="text-right text-sm text-slate-600 dark:text-slate-300 hidden sm:table-cell">
                                   {shop.recovery > 0 ? `-${formatPKR(shop.recovery)}` : '—'}
                                 </TableCell>
                                 <TableCell className="text-right text-sm font-semibold">{formatPKR(shop.closingBalance)}</TableCell>

@@ -438,7 +438,7 @@ export default function AdminOrderbookers() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
-              <div className="relative z-10 h-20 w-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-100 dark:from-primary/20 dark:to-blue-900/30 flex items-center justify-center">
+              <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                 <Users className="h-9 w-9 text-primary/50 animate-gentle-float" />
               </div>
             </div>
@@ -466,18 +466,18 @@ export default function AdminOrderbookers() {
             return (
             <Card key={ob.id} className={`group relative overflow-hidden card-hover ${ob.status === 'inactive' ? 'opacity-60 grayscale-[30%]' : ''}`}>
               {/* Top accent gradient bar */}
-              <div className={`h-1.5 w-full ${ob.status === 'active' ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500' : 'bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700'}`} />
+              <div className={`h-1.5 w-full ${ob.status === 'active' ? 'bg-slate-600' : 'bg-slate-300 dark:bg-slate-700'}`} />
 
               <CardContent className="p-5 pt-4">
                 {/* Header: Avatar + Name + Status */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center shadow-sm ${ob.status === 'active' ? 'bg-gradient-to-br from-indigo-500/20 to-purple-500/20 dark:from-indigo-500/30 dark:to-purple-500/30' : 'bg-muted'}`}>
-                      <span className={`text-base font-bold ${ob.status === 'active' ? 'bg-gradient-to-br from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent' : 'text-muted-foreground'}`}>
+                    <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center shadow-sm ${ob.status === 'active' ? 'bg-slate-100 dark:bg-slate-800' : 'bg-muted'}`}>
+                      <span className={`text-base font-bold ${ob.status === 'active' ? 'text-slate-800 dark:text-slate-100' : 'text-muted-foreground'}`}>
                         {ob.name.charAt(0).toUpperCase()}
                       </span>
                       {ob.status === 'active' && (
-                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-white dark:border-gray-900" />
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-slate-700 dark:bg-slate-300 border-2 border-white dark:border-gray-900" />
                       )}
                     </div>
                     <div>
@@ -485,7 +485,7 @@ export default function AdminOrderbookers() {
                       <p className="text-xs text-muted-foreground mt-0.5">@{ob.username}</p>
                     </div>
                   </div>
-                  <Badge className={`text-[10px] font-semibold animate-badge-pop shadow-sm ${ob.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
+                  <Badge className={`text-[10px] font-semibold animate-badge-pop shadow-sm ${ob.status === 'active' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500 border-slate-200 dark:border-slate-700'}`}>
                     {ob.status === 'active' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                     {ob.status.charAt(0).toUpperCase() + ob.status.slice(1)}
                   </Badge>
@@ -495,17 +495,17 @@ export default function AdminOrderbookers() {
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   <div className="rounded-xl bg-muted/60 dark:bg-muted/30 border border-border/50 p-2.5 hover:bg-muted/80 transition-colors">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Store className="h-3 w-3 text-indigo-500" />
+                      <Store className="h-3 w-3 text-slate-600 dark:text-slate-300" />
                       <span className="text-[10px] text-muted-foreground font-medium">Shops</span>
                     </div>
                     <p className="text-sm font-bold tabular-nums">{ob.totalShops}</p>
                   </div>
                   <div className="rounded-xl bg-muted/60 dark:bg-muted/30 border border-border/50 p-2.5 hover:bg-muted/80 transition-colors">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Wallet className="h-3 w-3 text-red-500" />
+                      <Wallet className="h-3 w-3 text-slate-600 dark:text-slate-300" />
                       <span className="text-[10px] text-muted-foreground font-medium">Outstanding</span>
                     </div>
-                    <p className="text-sm font-bold text-red-600 dark:text-red-400 tabular-nums">{formatPKR(ob.totalOutstanding)}</p>
+                    <p className="text-sm font-bold text-foreground tabular-nums">{formatPKR(ob.totalOutstanding)}</p>
                   </div>
                 </div>
 
@@ -513,14 +513,14 @@ export default function AdminOrderbookers() {
                 <div className="space-y-2 mb-3">
                   {ob.phone && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Phone className="h-3.5 w-3.5 text-indigo-400" />
+                      <Phone className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                       <span>{ob.phone}</span>
                     </div>
                   )}
                   {ob.companyName && (
                     <div className="flex items-center gap-2 text-xs">
-                      <Building2 className="h-3.5 w-3.5 text-purple-500" />
-                      <Badge className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800 text-[10px] font-semibold gap-1">
+                      <Building2 className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
+                      <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] font-semibold gap-1">
                         <Shield className="h-2.5 w-2.5" />
                         {ob.companyName}
                       </Badge>
@@ -533,10 +533,10 @@ export default function AdminOrderbookers() {
                   {streaksLoading ? (
                     <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                   ) : visitStreaks[ob.id] && visitStreaks[ob.id].currentStreak > 0 ? (
-                    <Badge className="bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border-orange-200 dark:from-orange-900/30 dark:to-amber-900/30 dark:text-orange-400 dark:border-orange-800 text-[10px] font-bold gap-1 shadow-sm">
+                    <Badge className="bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 text-[10px] font-bold gap-1 shadow-sm">
                       <Flame className="h-3 w-3" />
                       {visitStreaks[ob.id].currentStreak} Day Streak
-                      {visitStreaks[ob.id].currentStreak >= 7 && <Sparkles className="h-2.5 w-2.5 text-amber-500" />}
+                      {visitStreaks[ob.id].currentStreak >= 7 && <Sparkles className="h-2.5 w-2.5 text-slate-600" />}
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="text-[10px] font-medium">
@@ -547,7 +547,7 @@ export default function AdminOrderbookers() {
 
                 {/* Monthly Recovery Target Progress */}
                 {monthlyTargets[ob.id] && monthlyTargets[ob.id].target > 0 && (
-                  <div className={`mb-3 p-3 rounded-xl border transition-colors ${targetMet ? 'bg-green-50/80 border-green-200 dark:bg-green-900/20 dark:border-green-800' : 'bg-muted/50 border-border/50'}`}>
+                  <div className={`mb-3 p-3 rounded-xl border transition-colors ${targetMet ? 'bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700' : 'bg-muted/50 border-border/50'}`}>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
                         <TrendingUp className="h-3 w-3" /> Monthly Target
@@ -558,7 +558,7 @@ export default function AdminOrderbookers() {
                     </div>
                     <Progress
                       value={targetPct}
-                      className={`h-2 ${targetMet ? '[&>div]:bg-green-500' : ''}`}
+                      className={`h-2 ${targetMet ? '[&>div]:bg-slate-300' : ''}`}
                     />
                     <div className="flex items-center justify-between mt-1.5">
                       <span className="text-[9px] text-muted-foreground">
@@ -566,10 +566,10 @@ export default function AdminOrderbookers() {
                       </span>
                       <span className={`text-[9px] font-semibold ${
                         targetMet
-                          ? 'text-green-600 dark:text-green-400'
+                          ? 'text-slate-500 dark:text-slate-400'
                           : monthlyTargets[ob.id].achieved >= monthlyTargets[ob.id].target * 0.7
-                            ? 'text-amber-600'
-                            : 'text-red-600'
+                            ? 'text-foreground'
+                            : 'text-foreground'
                       }`}>
                         {targetMet
                           ? 'Target met!'
@@ -582,8 +582,8 @@ export default function AdminOrderbookers() {
                 {/* All Routes Toggle */}
                 <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border/50 mb-3">
                   <div className="flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-                      <Layers className="h-3.5 w-3.5 text-indigo-500" />
+                    <div className="h-7 w-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                      <Layers className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                     </div>
                     <div>
                       <span className="text-xs font-medium">All Routes Access</span>
@@ -598,10 +598,10 @@ export default function AdminOrderbookers() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1 text-xs hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400 dark:hover:border-indigo-800 transition-colors" onClick={() => openEditDialog(ob)}>
+                  <Button variant="outline" size="sm" className="flex-1 text-xs hover:bg-slate-50 hover:text-slate-700 hover:border-slate-200 dark:hover:bg-slate-800 dark:hover:text-slate-300 transition-colors" onClick={() => openEditDialog(ob)}>
                     <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1 text-xs hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 dark:hover:bg-purple-900/20 dark:hover:text-purple-400 dark:hover:border-purple-800 transition-colors" onClick={() => openTargetDialog(ob)}>
+                  <Button variant="outline" size="sm" className="flex-1 text-xs hover:bg-slate-50 hover:text-slate-700 hover:border-slate-200 dark:hover:bg-slate-800 dark:hover:text-slate-300 transition-colors" onClick={() => openTargetDialog(ob)}>
                     <Target className="h-3.5 w-3.5 mr-1" /> Target
                   </Button>
                   {ob.status === 'active' && (
@@ -647,26 +647,26 @@ export default function AdminOrderbookers() {
                     onChange={(e) => handleUsernameChange(e.target.value)}
                     placeholder="e.g., ahmed"
                     className={` pr-9 ${
-                      usernameStatus === 'available' ? 'border-green-500 focus-visible:ring-green-500/20' :
+                      usernameStatus === 'available' ? 'border-slate-400 focus-visible:ring-slate-400/20' :
                       usernameStatus === 'taken' ? 'border-destructive focus-visible:ring-destructive/20' :
-                      usernameStatus === 'invalid' ? 'border-amber-500 focus-visible:ring-amber-500/20' :
+                      usernameStatus === 'invalid' ? 'border-slate-400 focus-visible:ring-slate-400/20' :
                       ''
                     }`}
                     autoComplete="off"
                   />
                   <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
                     {usernameStatus === 'checking' && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                    {usernameStatus === 'available' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                    {usernameStatus === 'available' && <CheckCircle2 className="h-4 w-4 text-slate-600 dark:text-slate-300" />}
                     {usernameStatus === 'taken' && <XCircle className="h-4 w-4 text-destructive" />}
-                    {usernameStatus === 'invalid' && <AlertCircle className="h-4 w-4 text-amber-500" />}
+                    {usernameStatus === 'invalid' && <AlertCircle className="h-4 w-4 text-slate-600 dark:text-slate-300" />}
                   </div>
                 </div>
                 {usernameMessage && usernameStatus !== 'idle' && (
                   <p className={`text-xs flex items-center gap-1 ${
-                    usernameStatus === 'available' ? 'text-green-600' :
+                    usernameStatus === 'available' ? 'text-slate-600 dark:text-slate-300' :
                     usernameStatus === 'taken' ? 'text-destructive' :
                     usernameStatus === 'checking' ? 'text-muted-foreground' :
-                    'text-amber-600'
+                    'text-slate-600 dark:text-slate-300'
                   }`}>
                     {usernameMessage}
                   </p>
@@ -679,7 +679,7 @@ export default function AdminOrderbookers() {
               <Input type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} placeholder={editingOB ? 'Enter new password' : 'Set password'} className="" />
               {!editingOB && formPassword && (
                 <div className="flex items-center gap-2">
-                  <div className={`h-1 flex-1 rounded-full ${formPassword.length < 4 ? 'bg-red-500' : formPassword.length < 6 ? 'bg-amber-500' : 'bg-green-500'}`} />
+                  <div className={`h-1 flex-1 rounded-full ${formPassword.length < 4 ? 'bg-red-500' : formPassword.length < 6 ? 'bg-slate-400' : 'bg-slate-300'}`} />
                   <span className="text-[10px] text-muted-foreground">
                     {formPassword.length < 4 ? 'Too short' : formPassword.length < 6 ? 'Weak' : 'Strong'}
                   </span>

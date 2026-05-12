@@ -580,14 +580,14 @@ export default function AdminExportData() {
                   <RadioGroupItem value="xlsx" id="format-xlsx" className="mt-0.5" />
                   <div className="flex-1">
                     <Label htmlFor="format-xlsx" className="text-sm font-medium cursor-pointer flex items-center gap-1.5">
-                      <FileSpreadsheet className="h-4 w-4 text-green-600" />
+                      <FileSpreadsheet className="h-4 w-4 text-slate-600" />
                       Excel (.xlsx)
                     </Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       All selected data in one workbook with separate sheets
                     </p>
                   </div>
-                  <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
+                  <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                     Recommended
                   </Badge>
                 </div>
@@ -602,7 +602,7 @@ export default function AdminExportData() {
                   <RadioGroupItem value="csv" id="format-csv" className="mt-0.5" />
                   <div className="flex-1">
                     <Label htmlFor="format-csv" className="text-sm font-medium cursor-pointer flex items-center gap-1.5">
-                      <FileText className="h-4 w-4 text-amber-600" />
+                      <FileText className="h-4 w-4 text-slate-600" />
                       CSV (.csv)
                     </Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -649,7 +649,7 @@ export default function AdminExportData() {
             </Button>
 
             {selectedExports.size === 0 && (
-              <p className="text-xs text-center text-amber-600 flex items-center justify-center gap-1">
+              <p className="text-xs text-center text-slate-600 dark:text-slate-400 flex items-center justify-center gap-1">
                 <AlertCircle className="h-3 w-3" />
                 Select at least one data type to export
               </p>
@@ -680,16 +680,16 @@ export default function AdminExportData() {
             <button
               onClick={handlePrintRecovery}
               disabled={printingRecovery}
-              className="group relative p-4 rounded-xl border border-border hover:border-green-300 dark:hover:border-green-800 bg-card hover:bg-green-50/50 dark:hover:bg-green-950/10 transition-all text-left disabled:opacity-50"
+              className="group relative p-4 rounded-xl border border-border hover:border-slate-300 dark:hover:border-slate-700 bg-card hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-all text-left disabled:opacity-50"
             >
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/40 dark:to-green-950/40 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                <FileDown className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                <FileDown className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <p className="text-sm font-semibold text-foreground">Recovery Report</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">Today&apos;s recovery summary</p>
               {printingRecovery && (
                 <div className="absolute inset-0 flex items-center justify-center bg-card/80 rounded-xl">
-                  <Loader2 className="h-6 w-6 animate-spin text-green-600" />
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
                 </div>
               )}
             </button>
@@ -698,16 +698,16 @@ export default function AdminExportData() {
             <button
               onClick={handlePrintMonthly}
               disabled={printingMonthly}
-              className="group relative p-4 rounded-xl border border-border hover:border-amber-300 dark:hover:border-amber-800 bg-card hover:bg-amber-50/50 dark:hover:bg-amber-950/10 transition-all text-left disabled:opacity-50"
+              className="group relative p-4 rounded-xl border border-border hover:border-slate-300 dark:hover:border-slate-700 bg-card hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-all text-left disabled:opacity-50"
             >
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/40 dark:to-amber-950/40 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                <FileDown className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                <FileDown className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <p className="text-sm font-semibold text-foreground">Monthly Summary</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">Monthly breakdown &amp; OB stats</p>
               {printingMonthly && (
                 <div className="absolute inset-0 flex items-center justify-center bg-card/80 rounded-xl">
-                  <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
                 </div>
               )}
             </button>
@@ -716,16 +716,16 @@ export default function AdminExportData() {
             <button
               onClick={handlePrintShops}
               disabled={printingShops}
-              className="group relative p-4 rounded-xl border border-border hover:border-blue-300 dark:hover:border-blue-800 bg-card hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-all text-left disabled:opacity-50"
+              className="group relative p-4 rounded-xl border border-border hover:border-slate-300 dark:hover:border-slate-700 bg-card hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-all text-left disabled:opacity-50"
             >
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-950/40 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                <FileDown className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                <FileDown className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <p className="text-sm font-semibold text-foreground">Shop List</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">Complete shop directory</p>
               {printingShops && (
                 <div className="absolute inset-0 flex items-center justify-center bg-card/80 rounded-xl">
-                  <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
                 </div>
               )}
             </button>
@@ -734,16 +734,16 @@ export default function AdminExportData() {
             <button
               onClick={handlePrintOB}
               disabled={printingOB}
-              className="group relative p-4 rounded-xl border border-border hover:border-purple-300 dark:hover:border-purple-800 bg-card hover:bg-purple-50/50 dark:hover:bg-purple-950/10 transition-all text-left disabled:opacity-50"
+              className="group relative p-4 rounded-xl border border-border hover:border-slate-300 dark:hover:border-slate-700 bg-card hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-all text-left disabled:opacity-50"
             >
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-100 to-purple-50 dark:from-purple-900/40 dark:to-purple-950/40 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                <FileDown className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                <FileDown className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <p className="text-sm font-semibold text-foreground">OB Performance</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">Rankings &amp; recovery rates</p>
               {printingOB && (
                 <div className="absolute inset-0 flex items-center justify-center bg-card/80 rounded-xl">
-                  <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
                 </div>
               )}
             </button>
@@ -774,8 +774,8 @@ export default function AdminExportData() {
                 >
                   <div className="flex items-center gap-3">
                     {exp.status === 'success' ? (
-                      <div className="h-8 w-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                        <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                        <CheckCircle2 className="h-4 w-4 text-slate-600 dark:text-slate-300" />
                       </div>
                     ) : (
                       <div className="h-8 w-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
@@ -800,8 +800,8 @@ export default function AdminExportData() {
                       exp.format === 'PDF'
                         ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'
                         : exp.format === 'XLSX'
-                          ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
-                          : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800'
+                          ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-700'
                     }`}
                   >
                     {exp.format}

@@ -328,11 +328,11 @@ export default function AdminDailyTargets() {
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
-        <Card className="card-elevated stat-card-blue hover-scale-102">
+        <Card className="card-elevated card-hover border border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-950/40 flex items-center justify-center shadow-sm">
-                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Users className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Active</Badge>
             </div>
@@ -340,40 +340,40 @@ export default function AdminDailyTargets() {
             <p className="text-2xl font-bold tabular-nums number-animate">{summary.totalOBs}</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-amber hover-scale-102">
+        <Card className="card-elevated card-hover border border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/40 dark:to-amber-950/40 flex items-center justify-center shadow-sm">
-                <Target className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Target className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">{getMonthLabel(selectedMonth)}</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Target</p>
-            <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate">{formatPKR(summary.totalTarget)}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{formatPKR(summary.totalTarget)}</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-green hover-scale-102">
+        <Card className="card-elevated card-hover border border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/40 dark:to-green-950/40 flex items-center justify-center shadow-sm">
-                <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Recovered</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Recovery</p>
-            <p className="text-2xl font-bold text-green-600 tabular-nums number-animate">{formatPKR(summary.totalRecovery)}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{formatPKR(summary.totalRecovery)}</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-blue hover-scale-102">
+        <Card className="card-elevated card-hover border border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/40 dark:to-emerald-950/40 flex items-center justify-center shadow-sm">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <CheckCircle2 className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">On Track</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">OBs On Track (80%+)</p>
-            <p className="text-2xl font-bold text-emerald-600 tabular-nums number-animate">
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">
               {summary.onTrack}/{summary.withTargetCount}
             </p>
           </CardContent>
@@ -426,9 +426,9 @@ export default function AdminDailyTargets() {
                     >
                       <TableCell className="text-sm">
                         <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
-                          idx === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
-                          : idx === 1 ? 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                          : idx === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
+                          idx === 0 ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                          : idx === 1 ? 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                          : idx === 2 ? 'bg-slate-300 text-slate-700 dark:bg-slate-600 dark:text-slate-300'
                           : 'bg-muted text-muted-foreground'
                         }`}>
                           {idx + 1}
@@ -442,7 +442,7 @@ export default function AdminDailyTargets() {
                       </TableCell>
                       <TableCell className="text-right">
                         {info.target ? (
-                          <span className="text-sm font-semibold text-amber-600 tabular-nums">
+                          <span className="text-sm font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
                             {formatPKR(info.target.target)}
                           </span>
                         ) : (
@@ -450,7 +450,7 @@ export default function AdminDailyTargets() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-sm font-semibold text-green-600 tabular-nums">
+                        <span className="text-sm font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
                           {formatPKR(info.monthRecovery)}
                         </span>
                       </TableCell>
@@ -461,8 +461,8 @@ export default function AdminDailyTargets() {
                             className="h-2 w-full"
                           />
                           <span className={`text-[11px] font-semibold tabular-nums ${
-                            info.progress >= 80 ? 'text-emerald-600' :
-                            info.progress >= 50 ? 'text-amber-600' :
+                            info.progress >= 80 ? 'text-slate-600 dark:text-slate-300' :
+                            info.progress >= 50 ? 'text-slate-600 dark:text-slate-300' :
                             info.progress > 0 ? 'text-red-600' : 'text-muted-foreground'
                           }`}>
                             {info.progress}%
@@ -472,15 +472,15 @@ export default function AdminDailyTargets() {
                       <TableCell className="text-center">
                         {info.target ? (
                           info.progress >= 100 ? (
-                            <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800">
+                            <Badge className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                               Achieved
                             </Badge>
                           ) : info.progress >= 80 ? (
-                            <Badge className="text-[10px] bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-800">
+                            <Badge className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                               On Track
                             </Badge>
                           ) : info.progress >= 50 ? (
-                            <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800">
+                            <Badge className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                               Behind
                             </Badge>
                           ) : (
@@ -502,9 +502,9 @@ export default function AdminDailyTargets() {
                             title={info.target ? 'Edit Target' : 'Set Target'}
                           >
                             {info.target ? (
-                              <Pencil className="h-3.5 w-3.5 text-blue-600" />
+                              <Pencil className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
                             ) : (
-                              <Plus className="h-3.5 w-3.5 text-green-600" />
+                              <Plus className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
                             )}
                           </Button>
                           {info.target && (
@@ -565,8 +565,8 @@ export default function AdminDailyTargets() {
               </p>
             </div>
             {editingOB && recoveryMap[editingOB.id] > 0 && (
-              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3">
-                <p className="text-xs text-green-700 dark:text-green-400 font-medium">
+              <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-3">
+                <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">
                   Current recovery this month: {formatPKR(recoveryMap[editingOB.id])}
                 </p>
               </div>

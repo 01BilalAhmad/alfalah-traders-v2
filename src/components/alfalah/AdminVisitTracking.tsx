@@ -109,21 +109,21 @@ function VisitSkeleton() {
 function StreakBadge({ streak }: { streak: number }) {
   if (streak >= 7) {
     return (
-      <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800 font-semibold">
+      <Badge className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-semibold">
         <Flame className="h-3 w-3 mr-1" /> {streak} days — On Fire!
       </Badge>
     );
   }
   if (streak >= 3) {
     return (
-      <Badge className="text-[10px] bg-green-100 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-400 dark:border-green-800 font-semibold">
+      <Badge className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-semibold">
         {streak} days — Good
       </Badge>
     );
   }
   if (streak >= 1) {
     return (
-      <Badge className="text-[10px] bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-800 font-semibold">
+      <Badge className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-semibold">
         {streak} day{streak > 1 ? 's' : ''}
       </Badge>
     );
@@ -273,66 +273,66 @@ export default function AdminVisitTracking() {
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 stagger-children">
-        <Card className="card-elevated stat-card-green hover-scale-102">
+        <Card className="card-elevated card-hover border border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/40 dark:to-green-950/40 flex items-center justify-center shadow-sm">
-                <Flame className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Flame className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Best</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Best Active Streak</p>
-            <p className="text-2xl font-bold text-green-600 tabular-nums number-animate">{summary.bestStreak}d</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{summary.bestStreak}d</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-blue hover-scale-102">
+        <Card className="card-elevated card-hover border border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-950/40 flex items-center justify-center shadow-sm">
-                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Users className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Average</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Avg Active Streak</p>
-            <p className="text-2xl font-bold text-blue-600 tabular-nums number-animate">{summary.avgStreak}d</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{summary.avgStreak}d</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-amber hover-scale-102">
+        <Card className="card-elevated card-hover border border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/40 dark:to-amber-950/40 flex items-center justify-center shadow-sm">
-                <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Calendar className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">All Time</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Visit Days</p>
-            <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate">{summary.totalVisitDays}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{summary.totalVisitDays}</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-green hover-scale-102">
+        <Card className="card-elevated card-hover border border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/40 dark:to-emerald-950/40 flex items-center justify-center shadow-sm">
-                <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <MapPin className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Today</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Shops Visited Today</p>
-            <p className="text-2xl font-bold text-emerald-600 tabular-nums number-animate">
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">
               {summary.shopsVisitedToday}
             </p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-blue hover-scale-102">
+        <Card className="card-elevated card-hover border border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-950/40 flex items-center justify-center shadow-sm">
-                <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <CheckCircle2 className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Today</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">OBs Active Today</p>
-            <p className="text-2xl font-bold text-blue-600 tabular-nums number-animate">
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">
               {summary.activeToday}/{summary.totalOBs}
             </p>
           </CardContent>
@@ -381,9 +381,9 @@ export default function AdminVisitTracking() {
                       >
                         <TableCell className="text-sm">
                           <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
-                            idx === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
-                            : idx === 1 ? 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                            : idx === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
+                            idx === 0 ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                            : idx === 1 ? 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                            : idx === 2 ? 'bg-slate-300 text-slate-700 dark:bg-slate-600 dark:text-slate-300'
                             : 'bg-muted text-muted-foreground'
                           }`}>
                             {idx + 1}
@@ -400,7 +400,7 @@ export default function AdminVisitTracking() {
                         </TableCell>
                         <TableCell className="text-center hidden sm:table-cell">
                           <div className="flex items-center justify-center gap-1.5">
-                            <Trophy className="h-3 w-3 text-amber-500" />
+                            <Trophy className="h-3 w-3 text-slate-500" />
                             <span className="text-sm font-semibold tabular-nums">{streak?.longestStreak || 0}d</span>
                           </div>
                         </TableCell>
@@ -506,22 +506,22 @@ export default function AdminVisitTracking() {
                         </TableCell>
                         <TableCell className="text-center">
                           {visit.source === 'gps' ? (
-                            <Badge className="text-[10px] bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-800">
+                            <Badge className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                               <MapPin className="h-3 w-3 mr-1" /> Check-in
                             </Badge>
                           ) : visit.transactionType === 'recovery' ? (
-                            <Badge className="text-[10px] bg-green-100 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-400 dark:border-green-800">
+                            <Badge className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                               Recovery
                             </Badge>
                           ) : (
-                            <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800">
+                            <Badge className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                               Credit
                             </Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-right hidden sm:table-cell">
                           {visit.amount != null ? (
-                            <span className={`text-sm font-semibold tabular-nums ${visit.transactionType === 'recovery' ? 'text-green-600' : 'text-amber-600'}`}>
+                            <span className={`text-sm font-semibold tabular-nums text-foreground`}>
                               {formatPKR(visit.amount)}
                             </span>
                           ) : (
@@ -530,7 +530,7 @@ export default function AdminVisitTracking() {
                         </TableCell>
                         <TableCell className="text-center hidden md:table-cell">
                           {visit.inRange ? (
-                            <Badge className="text-[10px] bg-green-100 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-400 dark:border-green-800">
+                            <Badge className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                               <CheckCircle2 className="h-3 w-3 mr-1" /> In Range
                             </Badge>
                           ) : visit.gpsLat && visit.gpsLng ? (

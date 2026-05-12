@@ -70,15 +70,15 @@ function PerformanceBadge({ rate }: { rate: number }) {
   if (rate >= 80) {
     variant = 'excellent';
     label = 'Excellent';
-    classes = 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800';
+    classes = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
   } else if (rate >= 50) {
     variant = 'good';
     label = 'Good';
-    classes = 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800';
+    classes = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
   } else {
     variant = 'poor';
     label = 'Low';
-    classes = 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800';
+    classes = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
   }
 
   return (
@@ -293,11 +293,11 @@ export default function AdminOBAnalytics() {
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
-        <Card className="card-elevated stat-card-blue hover-scale-102">
+        <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-950/40 flex items-center justify-center shadow-sm">
-                <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Users className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Total</Badge>
             </div>
@@ -305,40 +305,40 @@ export default function AdminOBAnalytics() {
             <p className="text-2xl font-bold tabular-nums number-animate">{summary.totalOBs}</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-red hover-scale-102">
+        <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/40 dark:to-red-950/40 flex items-center justify-center shadow-sm">
-                <Wallet className="h-5 w-5 text-red-600 dark:text-red-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Wallet className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">All Time</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Outstanding</p>
-            <p className="text-2xl font-bold text-red-600 tabular-nums number-animate">{formatPKR(summary.totalOutstanding)}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{formatPKR(summary.totalOutstanding)}</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-green hover-scale-102">
+        <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/40 dark:to-green-950/40 flex items-center justify-center shadow-sm">
-                <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">{periodLabels[period]}</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Recovery This Period</p>
-            <p className="text-2xl font-bold text-green-600 tabular-nums number-animate">{formatPKR(summary.totalRecovery)}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{formatPKR(summary.totalRecovery)}</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-amber hover-scale-102">
+        <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/40 dark:to-amber-950/40 flex items-center justify-center shadow-sm">
-                <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Trophy className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Average</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Avg Recovery per OB</p>
-            <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate">{formatPKR(summary.avgRecovery)}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{formatPKR(summary.avgRecovery)}</p>
           </CardContent>
         </Card>
       </div>
@@ -358,12 +358,12 @@ export default function AdminOBAnalytics() {
                 <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="perfRecoveryGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#10B981" stopOpacity={0.4} />
+                      <stop offset="5%" stopColor="#64748B" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#64748B" stopOpacity={0.4} />
                     </linearGradient>
                     <linearGradient id="perfOutstandingGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0.4} />
+                      <stop offset="5%" stopColor="#475569" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#475569" stopOpacity={0.4} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
@@ -442,7 +442,7 @@ export default function AdminOBAnalytics() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-primary hover:bg-transparent">
+                <TableRow className="bg-slate-800 dark:bg-slate-900 hover:bg-slate-800 dark:hover:bg-slate-900">
                   <TableHead className="text-white font-semibold text-xs w-12">#</TableHead>
                   <TableHead className="text-white font-semibold text-xs">Name</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center hidden sm:table-cell">Shops</TableHead>
@@ -472,9 +472,9 @@ export default function AdminOBAnalytics() {
                     >
                       <TableCell className="text-sm">
                         <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
-                          idx === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
-                          : idx === 1 ? 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                          : idx === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
+                          idx === 0 ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                          : idx === 1 ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                          : idx === 2 ? 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-400'
                           : 'bg-muted text-muted-foreground'
                         }`}>
                           {idx + 1}
@@ -497,12 +497,12 @@ export default function AdminOBAnalytics() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-sm font-semibold text-red-600 tabular-nums number-animate">
+                        <span className="text-sm font-semibold text-foreground tabular-nums number-animate">
                           {formatPKR(ob.totalOutstanding)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-sm font-semibold text-green-600 tabular-nums number-animate">
+                        <span className="text-sm font-semibold text-foreground tabular-nums number-animate">
                           {formatPKR(ob.periodRecovery)}
                         </span>
                       </TableCell>
@@ -562,12 +562,12 @@ export default function AdminOBAnalytics() {
                   <BarChart data={dailyBreakdownData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="dailyCreditGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.9} />
-                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.4} />
+                        <stop offset="5%" stopColor="#94A3B8" stopOpacity={0.9} />
+                        <stop offset="95%" stopColor="#94A3B8" stopOpacity={0.4} />
                       </linearGradient>
                       <linearGradient id="dailyRecoveryGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.9} />
-                        <stop offset="95%" stopColor="#10B981" stopOpacity={0.4} />
+                        <stop offset="5%" stopColor="#475569" stopOpacity={0.9} />
+                        <stop offset="95%" stopColor="#475569" stopOpacity={0.4} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />

@@ -109,13 +109,13 @@ function DaysBadge({ days }: { days: number | null }) {
   }
   if (days >= 21) {
     return (
-      <Badge className="text-[10px] bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/50 dark:text-orange-400 dark:border-orange-800 font-semibold">
+      <Badge className="text-[10px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 font-semibold">
         {days}d — Urgent
       </Badge>
     );
   }
   return (
-    <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800 font-semibold">
+    <Badge className="text-[10px] bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200 dark:border-slate-700 font-semibold">
       {days}d — Overdue
     </Badge>
   );
@@ -216,7 +216,7 @@ export default function AdminOverdueShops() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-500" />
+            <AlertTriangle className="h-5 w-5 text-slate-600 dark:text-slate-300" />
             Overdue Shops
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -256,47 +256,47 @@ export default function AdminOverdueShops() {
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
-        <Card className="card-elevated stat-card-red hover-scale-102">
+        <Card className="card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/40 dark:to-red-950/40 flex items-center justify-center shadow-sm">
-                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <AlertTriangle className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">{minDays}+ Days</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Overdue Shops</p>
-            <p className="text-2xl font-bold text-red-600 tabular-nums number-animate">{summary.totalOverdue}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{summary.totalOverdue}</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-red hover-scale-102">
+        <Card className="card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/40 dark:to-red-950/40 flex items-center justify-center shadow-sm">
-                <Store className="h-5 w-5 text-red-600 dark:text-red-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">At Risk</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Outstanding Balance</p>
-            <p className="text-2xl font-bold text-red-600 tabular-nums number-animate">{formatPKR(summary.totalBalance)}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{formatPKR(summary.totalBalance)}</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-amber hover-scale-102">
+        <Card className="card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-900/40 dark:to-orange-950/40 flex items-center justify-center shadow-sm">
-                <Clock className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <Clock className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Critical</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">30+ Days Overdue</p>
-            <p className="text-2xl font-bold text-orange-600 tabular-nums number-animate">{summary.criticalCount}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{summary.criticalCount}</p>
           </CardContent>
         </Card>
-        <Card className="card-elevated stat-card-blue hover-scale-102">
+        <Card className="card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-900/40 dark:to-slate-950/40 flex items-center justify-center shadow-sm">
-                <AlertCircle className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                <AlertCircle className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Never</Badge>
             </div>
@@ -328,7 +328,7 @@ export default function AdminOverdueShops() {
                   }`}
                 >
                   <p className="text-sm font-medium truncate">{ob.name}</p>
-                  <p className="text-lg font-bold text-red-600 mt-1">{ob.count}</p>
+                  <p className="text-lg font-bold text-foreground mt-1">{ob.count}</p>
                   <p className="text-[11px] text-muted-foreground">{formatPKR(ob.balance)}</p>
                 </button>
               ))}
@@ -363,7 +363,7 @@ export default function AdminOverdueShops() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-primary hover:bg-transparent">
+                <TableRow className="bg-slate-800 dark:bg-slate-900 hover:bg-slate-800 dark:hover:bg-slate-900">
                   <TableHead className="text-white font-semibold text-xs w-12">#</TableHead>
                   <TableHead className="text-white font-semibold text-xs">Shop Name</TableHead>
                   <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Area</TableHead>
@@ -379,7 +379,7 @@ export default function AdminOverdueShops() {
                   <TableRow>
                     <TableCell colSpan={8}>
                       <div className="text-center py-10">
-                        <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-green-500/40" />
+                        <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-slate-400/40" />
                         <p className="font-medium text-muted-foreground text-sm">No overdue shops found</p>
                         <p className="text-xs text-muted-foreground/70 mt-1">
                           {shops.length === 0
@@ -414,7 +414,7 @@ export default function AdminOverdueShops() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-sm font-semibold text-red-600 tabular-nums">
+                        <span className="text-sm font-semibold text-foreground tabular-nums">
                           {formatPKR(shop.balance)}
                         </span>
                       </TableCell>
