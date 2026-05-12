@@ -197,8 +197,8 @@ export default function LoginView() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
       {/* Logo & Brand */}
       <div className="mb-8 text-center">
-        <Image src="/finexa-login.png" alt="Finexa" width={180} height={48} className="mx-auto mb-3" priority />
-        <p className="text-sm text-muted-foreground">Smart Credit & Route Management</p>
+        <Image src="/finexa-wordmark-v2.png" alt="Finexa" width={220} height={220} className="mx-auto mb-2" priority />
+        <p className="text-sm text-foreground/60 font-medium">Smart Credit & Route Management</p>
       </div>
 
       <div className="w-full max-w-sm">
