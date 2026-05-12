@@ -313,6 +313,7 @@ export default function AdminCreditPosting() {
       }
       params.set('balanceOnly', 'false'); // Admin credit posting needs all shops including zero balance
       params.set('showZeroBalance', 'true'); // Admin needs to see all shops including zero balance
+      params.set('includeInactive', 'true'); // Admin needs to see all shops including inactive
       const res = await apiFetch(`/api/shops?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
@@ -396,6 +397,7 @@ export default function AdminCreditPosting() {
       }
       params.set('balanceOnly', 'false'); // Admin needs all shops
       params.set('showZeroBalance', 'true');
+      params.set('includeInactive', 'true'); // Admin needs to see all shops including inactive
       const res = await apiFetch(`/api/shops?${params.toString()}`);
       if (res.ok) {
         const data: Shop[] = await res.json();
@@ -728,6 +730,7 @@ export default function AdminCreditPosting() {
       params.set('orderbookerId', orderbookerId);
       params.set('balanceOnly', 'false');
       params.set('showZeroBalance', 'true'); // Admin Quick Post needs ALL shops including zero balance
+      params.set('includeInactive', 'true'); // Admin Quick Post needs ALL shops including inactive
       const res = await apiFetch(`/api/shops?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
