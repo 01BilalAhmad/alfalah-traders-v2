@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Badge } from '@/components/ui/badge';
+import { formatPKR } from '@/lib/utils';
 
 // Fix default marker icon issue with webpack/next.js
 // Leaflet's default icon URLs break with bundlers, so we create custom icons
@@ -44,10 +45,6 @@ interface ShopMapMarker {
 
 interface ShopMapProps {
   markers: ShopMapMarker[];
-}
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 // Component to reset map view when markers change
@@ -125,7 +122,7 @@ export default function ShopMap({ markers }: ShopMapProps) {
                   OB: {marker.orderbookerName} &bull; Route: {marker.routeDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}
                 </p>
                 <p className={`text-xs font-bold ${marker.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  Balance: {formatCurrency(marker.balance)}
+                  Balance: {formatPKR(marker.balance)}
                 </p>
               </div>
             </Popup>

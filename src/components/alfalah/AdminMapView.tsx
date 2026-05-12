@@ -53,7 +53,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { WORKING_DAYS } from '@/lib/utils';
+import { WORKING_DAYS, formatPKR } from '@/lib/utils';
 
 // Dynamically import ShopMap to avoid SSR issues with Leaflet
 const ShopMap = dynamic(() => import('./ShopMap'), {
@@ -113,10 +113,6 @@ interface OBRouteGroup {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
-
 function capitalizeDay(day: string): string {
   return day.charAt(0).toUpperCase() + day.slice(1);
 }
@@ -196,7 +192,7 @@ function AreaCard({ group, expanded, onToggle, onSelectShop }: {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className={`text-sm font-bold ${group.totalBalance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600'}`}>
-              {formatCurrency(group.totalBalance)}
+              {formatPKR(group.totalBalance)}
             </span>
             {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
           </div>
@@ -227,7 +223,7 @@ function AreaCard({ group, expanded, onToggle, onSelectShop }: {
                       <TableCell className="py-1.5 text-xs text-muted-foreground hidden md:table-cell">{shop.orderbooker.name}</TableCell>
                       <TableCell className="py-1.5 text-right">
                         <span className={`text-xs font-semibold ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          {formatCurrency(shop.balance)}
+                          {formatPKR(shop.balance)}
                         </span>
                       </TableCell>
                       <TableCell className="py-1.5 text-center">
@@ -309,7 +305,7 @@ function OBRouteCard({ ob }: { ob: OBRouteGroup }) {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-muted-foreground font-medium">Outstanding</span>
                 <span className={`text-xs font-bold ${ob.totalOutstanding > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {formatCurrency(ob.totalOutstanding)}
+                  {formatPKR(ob.totalOutstanding)}
                 </span>
               </div>
             </div>
@@ -634,7 +630,7 @@ export default function AdminMapView() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
-              <p className="text-lg font-bold text-red-600 dark:text-red-400">{formatCurrency(summaryStats.totalOutstanding)}</p>
+              <p className="text-lg font-bold text-red-600 dark:text-red-400">{formatPKR(summaryStats.totalOutstanding)}</p>
             </div>
           </CardContent>
         </Card>
@@ -796,14 +792,14 @@ export default function AdminMapView() {
                                     style={{ width: `${widthPct}%` }}
                                   />
                                 </div>
-                                <span className={`text-xs font-bold shrink-0 w-24 text-right ${colors.text}`}>{formatCurrency(group.totalBalance)}</span>
+                                <span className={`text-xs font-bold shrink-0 w-24 text-right ${colors.text}`}>{formatPKR(group.totalBalance)}</span>
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="text-xs">
                                 <p className="font-semibold">{group.area}</p>
                                 <p>{group.shops.length} shops ({group.activeShops} active, {group.inactiveShops} inactive)</p>
-                                <p>Outstanding: {formatCurrency(group.totalBalance)}</p>
+                                <p>Outstanding: {formatPKR(group.totalBalance)}</p>
                               </div>
                             </TooltipContent>
                           </Tooltip>

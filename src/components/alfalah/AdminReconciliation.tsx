@@ -31,10 +31,7 @@ import {
 } from 'lucide-react';
 import { exportToCSV } from '@/lib/csv-export';
 import { toast } from '@/hooks/use-toast';
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
+import { formatPKR } from '@/lib/utils';
 
 interface ShopDetail {
   shopId: string;
@@ -177,12 +174,12 @@ export default function AdminReconciliation() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground font-medium">Month&apos;s Total Credit</p>
-                      <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{formatCurrency(monthSummary.totalCredit)}</p>
+                      <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{formatPKR(monthSummary.totalCredit)}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
                         {monthSummary.creditCount} transactions
                         {monthSummary.topCreditDay && (
                           <span className="text-amber-600 dark:text-amber-400 ml-1">
-                            &middot; Peak: {formatCurrency(monthSummary.topCreditDay.amount)}
+                            &middot; Peak: {formatPKR(monthSummary.topCreditDay.amount)}
                           </span>
                         )}
                       </p>
@@ -200,12 +197,12 @@ export default function AdminReconciliation() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground font-medium">Month&apos;s Total Recovery</p>
-                      <p className="text-lg font-bold text-green-700 dark:text-green-400">{formatCurrency(monthSummary.totalRecovery)}</p>
+                      <p className="text-lg font-bold text-green-700 dark:text-green-400">{formatPKR(monthSummary.totalRecovery)}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
                         {monthSummary.recoveryCount} transactions
                         {monthSummary.topRecoveryDay && (
                           <span className="text-green-600 dark:text-green-400 ml-1">
-                            &middot; Peak: {formatCurrency(monthSummary.topRecoveryDay.amount)}
+                            &middot; Peak: {formatPKR(monthSummary.topRecoveryDay.amount)}
                           </span>
                         )}
                       </p>
@@ -224,7 +221,7 @@ export default function AdminReconciliation() {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground font-medium">Month&apos;s Net Position</p>
                       <p className={`text-lg font-bold tabular-nums ${monthSummary.netPosition >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
-                        {monthSummary.netPosition >= 0 ? '+' : ''}{formatCurrency(monthSummary.netPosition)}
+                        {monthSummary.netPosition >= 0 ? '+' : ''}{formatPKR(monthSummary.netPosition)}
                       </p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
                         {monthSummary.transactionCount} total &middot; {monthSummary.activeDays} active days
@@ -259,7 +256,7 @@ export default function AdminReconciliation() {
                   </div>
                   <div className="flex items-center justify-between mt-1.5">
                     <span className="text-[10px] text-muted-foreground">
-                      {formatCurrency(monthSummary.totalRecovery)} recovered of {formatCurrency(monthSummary.totalCredit)} credit
+                      {formatPKR(monthSummary.totalRecovery)} recovered of {formatPKR(monthSummary.totalCredit)} credit
                     </span>
                     <span className={`text-[10px] font-semibold ${recoveryRate >= 80 ? 'text-green-600' : recoveryRate >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
                       {recoveryRate >= 80 ? '✓ On Track' : recoveryRate >= 50 ? '⚠ Needs Attention' : '✗ Behind Target'}
@@ -344,7 +341,7 @@ export default function AdminReconciliation() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-medium">Total Credit</p>
-                  <p className="text-lg font-bold text-amber-700 dark:text-amber-400 number-display">{formatCurrency(report.totalCredit)}</p>
+                  <p className="text-lg font-bold text-amber-700 dark:text-amber-400 number-display">{formatPKR(report.totalCredit)}</p>
                 </div>
               </div>
               <div className="mt-3">
@@ -371,7 +368,7 @@ export default function AdminReconciliation() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-medium">Total Recovery</p>
-                  <p className="text-lg font-bold text-green-700 dark:text-green-400 number-display">{formatCurrency(report.totalRecovery)}</p>
+                  <p className="text-lg font-bold text-green-700 dark:text-green-400 number-display">{formatPKR(report.totalRecovery)}</p>
                 </div>
               </div>
               <div className="mt-3">
@@ -399,7 +396,7 @@ export default function AdminReconciliation() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground font-medium">Net Position</p>
                   <p className={`text-xl font-extrabold tabular-nums number-display ${report.netChange >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
-                    {report.netChange >= 0 ? '+' : ''}{formatCurrency(report.netChange)}
+                    {report.netChange >= 0 ? '+' : ''}{formatPKR(report.netChange)}
                   </p>
                 </div>
               </div>
@@ -481,11 +478,11 @@ export default function AdminReconciliation() {
                       <div className="flex items-center gap-4 sm:gap-5 text-sm shrink-0">
                         <div className="hidden sm:block text-right">
                           <p className="text-[10px] text-muted-foreground">Credit</p>
-                          <p className="font-semibold text-amber-600">{formatCurrency(ob.credit)}</p>
+                          <p className="font-semibold text-amber-600">{formatPKR(ob.credit)}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-[10px] text-muted-foreground">Recovery</p>
-                          <p className="font-semibold text-green-600">{formatCurrency(ob.recovery)}</p>
+                          <p className="font-semibold text-green-600">{formatPKR(ob.recovery)}</p>
                         </div>
                         <Badge className={`${recoveryColorClass} text-[10px] font-bold border`}>{recoveryRate}%</Badge>
                       </div>
@@ -538,12 +535,12 @@ export default function AdminReconciliation() {
                                   <span className="text-xs text-muted-foreground ml-1 hidden sm:inline">({shop.shopArea})</span>
                                 </TableCell>
                                 <TableCell className="text-right text-sm text-amber-600 hidden sm:table-cell">
-                                  {shop.credit > 0 ? `+${formatCurrency(shop.credit)}` : '—'}
+                                  {shop.credit > 0 ? `+${formatPKR(shop.credit)}` : '—'}
                                 </TableCell>
                                 <TableCell className="text-right text-sm text-green-600 hidden sm:table-cell">
-                                  {shop.recovery > 0 ? `-${formatCurrency(shop.recovery)}` : '—'}
+                                  {shop.recovery > 0 ? `-${formatPKR(shop.recovery)}` : '—'}
                                 </TableCell>
-                                <TableCell className="text-right text-sm font-semibold">{formatCurrency(shop.closingBalance)}</TableCell>
+                                <TableCell className="text-right text-sm font-semibold">{formatPKR(shop.closingBalance)}</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>

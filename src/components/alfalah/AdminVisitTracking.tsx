@@ -33,10 +33,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
+import { formatPKR } from '@/lib/utils';
 
 interface Orderbooker {
   id: string;
@@ -525,7 +522,7 @@ export default function AdminVisitTracking() {
                         <TableCell className="text-right hidden sm:table-cell">
                           {visit.amount != null ? (
                             <span className={`text-sm font-semibold tabular-nums ${visit.transactionType === 'recovery' ? 'text-green-600' : 'text-amber-600'}`}>
-                              {formatCurrency(visit.amount)}
+                              {formatPKR(visit.amount)}
                             </span>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>

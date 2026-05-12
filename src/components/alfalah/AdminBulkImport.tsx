@@ -49,7 +49,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
-import { WORKING_DAYS } from '@/lib/utils';
+import { WORKING_DAYS, formatPKR } from '@/lib/utils';
 
 interface Orderbooker {
   id: string;
@@ -84,10 +84,6 @@ interface BulkImportDialogProps {
   orderbookers: Orderbooker[];
   companies: Company[];
   onImportComplete: () => void;
-}
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 function normalizeRouteDays(raw: string): string[] {
@@ -510,7 +506,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
               {totalCredit > 0 && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-200 dark:border-amber-800">
                   <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-                    Total Credit: {formatCurrency(totalCredit)}
+                    Total Credit: {formatPKR(totalCredit)}
                   </span>
                 </div>
               )}
@@ -566,14 +562,14 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                       </TableCell>
                       <TableCell className="text-right">
                         {shop.creditAmount > 0 ? (
-                          <span className="font-semibold text-sm text-amber-600">{formatCurrency(shop.creditAmount)}</span>
+                          <span className="font-semibold text-sm text-amber-600">{formatPKR(shop.creditAmount)}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
                         {shop.creditLimit > 0 ? (
-                          <span className="font-semibold text-sm text-blue-600">{formatCurrency(shop.creditLimit)}</span>
+                          <span className="font-semibold text-sm text-blue-600">{formatPKR(shop.creditLimit)}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
@@ -621,7 +617,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                   <p className="text-xs text-muted-foreground">Failed</p>
                 </div>
                 <div className="rounded-lg bg-white dark:bg-black/20 p-3 text-center border border-green-200 dark:border-green-800">
-                  <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{formatCurrency(importResult.totalCredit)}</p>
+                  <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{formatPKR(importResult.totalCredit)}</p>
                   <p className="text-xs text-muted-foreground">Total Credit</p>
                 </div>
               </div>
@@ -658,7 +654,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                           <TableCell className="font-medium text-sm">{shop.name}</TableCell>
                           <TableCell className="text-right">
                             <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                              {formatCurrency(shop.balance)}
+                              {formatPKR(shop.balance)}
                             </span>
                           </TableCell>
                         </TableRow>
@@ -712,7 +708,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
                 <><Loader2 className="h-4 w-4 animate-spin" /> Importing {validShops.length} shops...</>
               ) : (
                 <><Rocket className="h-4 w-4" /> Import {validShops.length} Shops
-                {totalCredit > 0 && <span className="text-xs opacity-80 ml-1">({formatCurrency(totalCredit)} credit)</span>}</>
+                {totalCredit > 0 && <span className="text-xs opacity-80 ml-1">({formatPKR(totalCredit)} credit)</span>}</>
               )}
             </Button>
           )}

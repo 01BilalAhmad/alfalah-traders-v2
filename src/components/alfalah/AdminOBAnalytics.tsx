@@ -39,10 +39,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { exportToCSV } from '@/lib/csv-export';
 import { apiFetch } from '@/lib/api';
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
+import { formatPKR } from '@/lib/utils';
 
 interface OBPerformance {
   orderbookerId: string;
@@ -317,7 +314,7 @@ export default function AdminOBAnalytics() {
               <Badge variant="secondary" className="text-[10px] font-medium">All Time</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Outstanding</p>
-            <p className="text-2xl font-bold text-red-600 tabular-nums number-animate">{formatCurrency(summary.totalOutstanding)}</p>
+            <p className="text-2xl font-bold text-red-600 tabular-nums number-animate">{formatPKR(summary.totalOutstanding)}</p>
           </CardContent>
         </Card>
         <Card className="card-elevated stat-card-green hover-scale-102">
@@ -329,7 +326,7 @@ export default function AdminOBAnalytics() {
               <Badge variant="secondary" className="text-[10px] font-medium">{periodLabels[period]}</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Recovery This Period</p>
-            <p className="text-2xl font-bold text-green-600 tabular-nums number-animate">{formatCurrency(summary.totalRecovery)}</p>
+            <p className="text-2xl font-bold text-green-600 tabular-nums number-animate">{formatPKR(summary.totalRecovery)}</p>
           </CardContent>
         </Card>
         <Card className="card-elevated stat-card-amber hover-scale-102">
@@ -341,7 +338,7 @@ export default function AdminOBAnalytics() {
               <Badge variant="secondary" className="text-[10px] font-medium">Average</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Avg Recovery per OB</p>
-            <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate">{formatCurrency(summary.avgRecovery)}</p>
+            <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate">{formatPKR(summary.avgRecovery)}</p>
           </CardContent>
         </Card>
       </div>
@@ -501,17 +498,17 @@ export default function AdminOBAnalytics() {
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="text-sm font-semibold text-red-600 tabular-nums number-animate">
-                          {formatCurrency(ob.totalOutstanding)}
+                          {formatPKR(ob.totalOutstanding)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="text-sm font-semibold text-green-600 tabular-nums number-animate">
-                          {formatCurrency(ob.periodRecovery)}
+                          {formatPKR(ob.periodRecovery)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right hidden md:table-cell">
                         <span className="text-sm tabular-nums text-muted-foreground">
-                          {formatCurrency(ob.avgRecoveryPerShop)}
+                          {formatPKR(ob.avgRecoveryPerShop)}
                         </span>
                       </TableCell>
                       <TableCell className="text-center hidden lg:table-cell">

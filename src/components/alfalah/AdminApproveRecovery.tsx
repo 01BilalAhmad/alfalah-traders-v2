@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
+import { formatPKR } from '@/lib/utils';
 import {
   CheckCircle2,
   XCircle,
@@ -55,10 +56,6 @@ interface OrderbookerGroup {
   orderbooker: { id: string; name: string; phone: string | null };
   transactions: PendingRecovery[];
   totalAmount: number;
-}
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 function getTimeAgo(dateStr: string): string {
@@ -304,7 +301,7 @@ export default function AdminApproveRecovery() {
               </div>
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Total Amount</p>
-                <p className="text-lg font-bold text-green-600 tabular-nums">{formatCurrency(totalAmount)}</p>
+                <p className="text-lg font-bold text-green-600 tabular-nums">{formatPKR(totalAmount)}</p>
               </div>
             </div>
           </CardContent>
@@ -379,7 +376,7 @@ export default function AdminApproveRecovery() {
         <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 animate-fade-in">
           <p className="text-sm text-green-800 dark:text-green-200">
             <span className="font-bold">{selectedIds.size}</span> selected —{' '}
-            <span className="font-bold">{formatCurrency(selectedTotal)}</span>
+            <span className="font-bold">{formatPKR(selectedTotal)}</span>
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -464,7 +461,7 @@ export default function AdminApproveRecovery() {
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <p className="text-sm font-bold text-green-600 tabular-nums">
-                          {formatCurrency(group.totalAmount)}
+                          {formatPKR(group.totalAmount)}
                         </p>
                         <p className="text-[10px] text-muted-foreground">pending approval</p>
                       </div>
@@ -559,7 +556,7 @@ export default function AdminApproveRecovery() {
                                     </span>
                                   )}
                                   <span className="text-[10px] text-muted-foreground">
-                                    Balance: {formatCurrency(txn.shop.balance)}
+                                    Balance: {formatPKR(txn.shop.balance)}
                                   </span>
                                 </div>
                                 {txn.description && (
@@ -572,7 +569,7 @@ export default function AdminApproveRecovery() {
                               {/* Amount + Actions */}
                               <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
                                 <p className="text-sm font-bold text-green-600 tabular-nums">
-                                  +{formatCurrency(txn.amount)}
+                                  +{formatPKR(txn.amount)}
                                 </p>
                                 <div className="flex items-center gap-1.5">
                                   <button

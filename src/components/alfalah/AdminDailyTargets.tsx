@@ -34,10 +34,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
+import { formatPKR } from '@/lib/utils';
 
 function getCurrentMonth(): string {
   const now = new Date();
@@ -258,7 +255,7 @@ export default function AdminDailyTargets() {
       if (res.ok) {
         toast({
           title: 'Target Saved',
-          description: `${getMonthLabel(selectedMonth)} target for ${editingOB.name}: ${formatCurrency(amount)}`,
+          description: `${getMonthLabel(selectedMonth)} target for ${editingOB.name}: ${formatPKR(amount)}`,
         });
         setDialogOpen(false);
         fetchData();
@@ -352,7 +349,7 @@ export default function AdminDailyTargets() {
               <Badge variant="secondary" className="text-[10px] font-medium">{getMonthLabel(selectedMonth)}</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Target</p>
-            <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate">{formatCurrency(summary.totalTarget)}</p>
+            <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate">{formatPKR(summary.totalTarget)}</p>
           </CardContent>
         </Card>
         <Card className="card-elevated stat-card-green hover-scale-102">
@@ -364,7 +361,7 @@ export default function AdminDailyTargets() {
               <Badge variant="secondary" className="text-[10px] font-medium">Recovered</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Recovery</p>
-            <p className="text-2xl font-bold text-green-600 tabular-nums number-animate">{formatCurrency(summary.totalRecovery)}</p>
+            <p className="text-2xl font-bold text-green-600 tabular-nums number-animate">{formatPKR(summary.totalRecovery)}</p>
           </CardContent>
         </Card>
         <Card className="card-elevated stat-card-blue hover-scale-102">
@@ -446,7 +443,7 @@ export default function AdminDailyTargets() {
                       <TableCell className="text-right">
                         {info.target ? (
                           <span className="text-sm font-semibold text-amber-600 tabular-nums">
-                            {formatCurrency(info.target.target)}
+                            {formatPKR(info.target.target)}
                           </span>
                         ) : (
                           <span className="text-xs text-muted-foreground italic">No target</span>
@@ -454,7 +451,7 @@ export default function AdminDailyTargets() {
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="text-sm font-semibold text-green-600 tabular-nums">
-                          {formatCurrency(info.monthRecovery)}
+                          {formatPKR(info.monthRecovery)}
                         </span>
                       </TableCell>
                       <TableCell className="text-center">
@@ -564,13 +561,13 @@ export default function AdminDailyTargets() {
                 autoFocus
               />
               <p className="text-[11px] text-muted-foreground">
-                Daily average: {targetAmount ? formatCurrency(parseFloat(targetAmount) / 30) : '—'}
+                Daily average: {targetAmount ? formatPKR(parseFloat(targetAmount) / 30) : '—'}
               </p>
             </div>
             {editingOB && recoveryMap[editingOB.id] > 0 && (
               <div className="rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3">
                 <p className="text-xs text-green-700 dark:text-green-400 font-medium">
-                  Current recovery this month: {formatCurrency(recoveryMap[editingOB.id])}
+                  Current recovery this month: {formatPKR(recoveryMap[editingOB.id])}
                 </p>
               </div>
             )}
@@ -602,10 +599,10 @@ export default function AdminDailyTargets() {
           {deletingTarget?.target && (
             <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3">
               <p className="text-sm text-red-700 dark:text-red-400">
-                Target: <strong>{formatCurrency(deletingTarget.target.target)}</strong> for {getMonthLabel(selectedMonth)}
+                Target: <strong>{formatPKR(deletingTarget.target.target)}</strong> for {getMonthLabel(selectedMonth)}
               </p>
               <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                Recovery so far: {formatCurrency(deletingTarget.monthRecovery)} ({deletingTarget.progress}%)
+                Recovery so far: {formatPKR(deletingTarget.monthRecovery)} ({deletingTarget.progress}%)
               </p>
             </div>
           )}

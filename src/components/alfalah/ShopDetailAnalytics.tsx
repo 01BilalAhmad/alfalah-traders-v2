@@ -52,10 +52,7 @@ import { toast } from '@/hooks/use-toast';
 import { exportToCSV } from '@/lib/csv-export';
 import { apiFetch } from '@/lib/api';
 import { Textarea } from '@/components/ui/textarea';
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
+import { formatPKR } from '@/lib/utils';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-PK', {
@@ -613,7 +610,7 @@ export default function ShopDetailAnalytics() {
                 <CreditCard className="h-3.5 w-3.5" /> Credit Limit Usage
               </span>
               <span className={`text-xs font-bold ${creditLimitColor}`}>
-                {formatCurrency(data.shop.balance)} / {formatCurrency(data.shop.creditLimit)}
+                {formatPKR(data.shop.balance)} / {formatPKR(data.shop.creditLimit)}
                 ({Math.round(data.stats.creditLimitUsage * 100)}%)
               </span>
             </div>
@@ -670,7 +667,7 @@ export default function ShopDetailAnalytics() {
                       ? 'text-red-700 dark:text-red-400'
                       : 'text-foreground'
                 }`}>
-                  {formatCurrency(Math.round(balanceTrend.currentBalance))}
+                  {formatPKR(Math.round(balanceTrend.currentBalance))}
                 </p>
               </div>
               <div className="flex items-center gap-4">
@@ -689,7 +686,7 @@ export default function ShopDetailAnalytics() {
                           ? 'text-red-600 dark:text-red-400'
                           : 'text-muted-foreground'
                     }`}>
-                      {balanceTrend.change >= 0 ? '+' : ''}{formatCurrency(Math.round(balanceTrend.change))}
+                      {balanceTrend.change >= 0 ? '+' : ''}{formatPKR(Math.round(balanceTrend.change))}
                     </span>
                     {balanceTrend.changePercent !== 0 && (
                       <span className={`text-xs font-medium tabular-nums ${
@@ -734,7 +731,7 @@ export default function ShopDetailAnalytics() {
               <Badge variant="secondary" className="text-[10px] font-medium">Total</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Credit</p>
-            <p className="text-xl font-bold text-amber-700 dark:text-amber-400 tabular-nums number-animate">{formatCurrency(data.stats.totalCredit)}</p>
+            <p className="text-xl font-bold text-amber-700 dark:text-amber-400 tabular-nums number-animate">{formatPKR(data.stats.totalCredit)}</p>
           </CardContent>
         </Card>
 
@@ -748,7 +745,7 @@ export default function ShopDetailAnalytics() {
               <Badge variant="secondary" className="text-[10px] font-medium">Total</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Recovery</p>
-            <p className="text-xl font-bold text-green-700 dark:text-green-400 tabular-nums number-animate">{formatCurrency(data.stats.totalRecovery)}</p>
+            <p className="text-xl font-bold text-green-700 dark:text-green-400 tabular-nums number-animate">{formatPKR(data.stats.totalRecovery)}</p>
           </CardContent>
         </Card>
 
@@ -767,7 +764,7 @@ export default function ShopDetailAnalytics() {
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Net Balance</p>
             <p className={`text-xl font-bold tabular-nums number-animate ${data.stats.netBalance > 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
-              {formatCurrency(data.stats.netBalance)}
+              {formatPKR(data.stats.netBalance)}
             </p>
           </CardContent>
         </Card>
@@ -782,7 +779,7 @@ export default function ShopDetailAnalytics() {
               <Badge variant="secondary" className="text-[10px] font-medium">Avg</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Avg Credit / Txn</p>
-            <p className="text-xl font-bold text-blue-700 dark:text-blue-400 tabular-nums number-animate">{formatCurrency(data.stats.avgCreditPerTransaction)}</p>
+            <p className="text-xl font-bold text-blue-700 dark:text-blue-400 tabular-nums number-animate">{formatPKR(data.stats.avgCreditPerTransaction)}</p>
           </CardContent>
         </Card>
 
@@ -889,7 +886,7 @@ export default function ShopDetailAnalytics() {
                       fontSize: '12px',
                     }}
                     formatter={(value: number) => [
-                      formatCurrency(value),
+                      formatPKR(value),
                     ]}
                     labelStyle={{ fontWeight: 600, marginBottom: 4 }}
                   />
@@ -938,16 +935,16 @@ export default function ShopDetailAnalytics() {
               <>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Outstanding Balance</span>
-                  <span className="font-semibold">{formatCurrency(data.shop.balance)}</span>
+                  <span className="font-semibold">{formatPKR(data.shop.balance)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Credit Limit</span>
-                  <span className="font-semibold">{formatCurrency(data.shop.creditLimit)}</span>
+                  <span className="font-semibold">{formatPKR(data.shop.creditLimit)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Available Credit</span>
                   <span className={`font-semibold ${creditLimitColor}`}>
-                    {formatCurrency(Math.max(0, data.shop.creditLimit - data.shop.balance))}
+                    {formatPKR(Math.max(0, data.shop.creditLimit - data.shop.balance))}
                   </span>
                 </div>
                 <Progress
@@ -986,7 +983,7 @@ export default function ShopDetailAnalytics() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Avg Recovery / Txn</span>
-              <span className="font-semibold text-green-600 dark:text-green-400 tabular-nums">{formatCurrency(data.stats.avgRecoveryPerTransaction)}</span>
+              <span className="font-semibold text-green-600 dark:text-green-400 tabular-nums">{formatPKR(data.stats.avgRecoveryPerTransaction)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Top Credit Days</span>
@@ -1143,11 +1140,11 @@ export default function ShopDetailAnalytics() {
                       </TableCell>
                       <TableCell className="text-right">
                         <span className={`text-sm font-semibold tabular-nums ${txn.type === 'credit' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                          {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                          {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right hidden sm:table-cell">
-                        <span className="text-sm tabular-nums text-muted-foreground">{formatCurrency(txn.newBalance)}</span>
+                        <span className="text-sm tabular-nums text-muted-foreground">{formatPKR(txn.newBalance)}</span>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <span className="text-sm text-muted-foreground truncate max-w-[180px] block">{txn.description || '—'}</span>

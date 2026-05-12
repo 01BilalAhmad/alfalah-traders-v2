@@ -11,6 +11,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useAppStore } from '@/lib/store';
 import { apiFetch } from '@/lib/api';
+import { formatPKR } from '@/lib/utils';
 import {
   Search,
   Store,
@@ -47,15 +48,6 @@ interface OrderbookerResult {
 type SearchResult =
   | { type: 'shop'; data: ShopResult }
   | { type: 'orderbooker'; data: OrderbookerResult };
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-PK', {
-    style: 'currency',
-    currency: 'PKR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
 
 export default function GlobalSearch() {
   const [open, setOpen] = useState(false);
@@ -415,7 +407,7 @@ export default function GlobalSearch() {
                                 : 'text-emerald-600 dark:text-emerald-400'
                             }`}
                           >
-                            {formatCurrency(shop.balance)}
+                            {formatPKR(shop.balance)}
                           </p>
                           {shop.status === 'inactive' && (
                             <span className="text-[10px] text-destructive font-medium">
@@ -496,7 +488,7 @@ export default function GlobalSearch() {
                             {ob.totalShops} shops
                           </p>
                           <p className="text-[11px] text-muted-foreground">
-                            {formatCurrency(ob.totalOutstanding)}
+                            {formatPKR(ob.totalOutstanding)}
                           </p>
                         </div>
                         {isSelected && (

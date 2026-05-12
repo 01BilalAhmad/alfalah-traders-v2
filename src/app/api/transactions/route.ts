@@ -5,7 +5,7 @@ import crypto from 'crypto';
 // Business rule constants
 const MIN_AMOUNT = 100;
 const MAX_AMOUNT = 500000;
-const DAILY_CREDIT_CAP = 500000;
+const DAILY_CREDIT_CAP = 100000;
 
 // Helper: Convert a date string (YYYY-MM-DD) to Pakistan timezone boundaries
 function getPakistanDayRange(dateStr: string): { start: Date; end: Date } {

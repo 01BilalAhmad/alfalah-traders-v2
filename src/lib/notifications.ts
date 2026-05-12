@@ -1,3 +1,5 @@
+import { formatPKR } from '@/lib/utils';
+
 // ====== Notification Types & Generation Utility ======
 
 export type NotificationType = 'high_balance' | 'zero_recovery' | 'new_shop' | 'credit_limit_exceeded';
@@ -89,7 +91,7 @@ export function generateNotifications(
     .sort((a, b) => b.balance - a.balance)
     .slice(0, 10)
     .forEach((shop) => {
-      const formattedBalance = formatCurrency(shop.balance);
+      const formattedBalance = formatPKR(shop.balance);
       notifications.push({
         id: `high-balance-${shop.id}`,
         type: 'high_balance',
@@ -113,7 +115,7 @@ export function generateNotifications(
       id: 'high-balance-summary',
       type: 'high_balance',
       title: 'High Balance Summary',
-      description: `${highBalanceShops.length} shops exceed ${formatCurrency(BALANCE_THRESHOLD)} (total: ${formatCurrency(totalOverThreshold)})`,
+      description: `${highBalanceShops.length} shops exceed ${formatPKR(BALANCE_THRESHOLD)} (total: ${formatPKR(totalOverThreshold)})`,
       timestamp: now,
       read: false,
       actionRoute: 'admin-shops',
@@ -190,7 +192,7 @@ export function generateNotifications(
         id: `credit-limit-${shop.id}`,
         type: 'credit_limit_exceeded',
         title: 'Credit Limit Exceeded',
-        description: `${shop.name} has exceeded its limit by ${formatCurrency(overAmount)} (Balance: ${formatCurrency(shop.balance)}, Limit: ${formatCurrency(shop.creditLimit || 0)})`,
+        description: `${shop.name} has exceeded its limit by ${formatPKR(overAmount)} (Balance: ${formatPKR(shop.balance)}, Limit: ${formatPKR(shop.creditLimit || 0)})`,
         timestamp: now,
         read: false,
         actionRoute: 'admin-shops',
@@ -226,10 +228,6 @@ export function generateNotifications(
 }
 
 // ── Helpers ────────────────────────────────────────────────────
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
 
 function getTimeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);

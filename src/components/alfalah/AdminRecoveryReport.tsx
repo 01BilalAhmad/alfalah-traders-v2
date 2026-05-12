@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useAppStore } from '@/lib/store';
-import { getLocalDateString, getYesterdayDateString } from '@/lib/utils';
+import { getLocalDateString, getYesterdayDateString, formatPKR } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,10 +66,6 @@ import {
 import { exportToCSV } from '@/lib/csv-export';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
 
 interface RecoveryEntry {
   id: string;
@@ -543,7 +539,7 @@ export default function AdminRecoveryReport() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Grand Total Recovery</p>
-                <p className="text-xl font-bold text-green-600 animate-live-pulse number-display">{formatCurrency(summary.grandTotalRecovery)}</p>
+                <p className="text-xl font-bold text-green-600 animate-live-pulse number-display">{formatPKR(summary.grandTotalRecovery)}</p>
               </div>
             </CardContent>
           </Card>
@@ -710,7 +706,7 @@ export default function AdminRecoveryReport() {
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-sm font-bold text-green-600">{formatCurrency(obTotalRecovery)}</p>
+                          <p className="text-sm font-bold text-green-600">{formatPKR(obTotalRecovery)}</p>
                           <p className="text-[10px] text-muted-foreground">Collected Today</p>
                         </div>
                         {isExpanded ? (
@@ -737,7 +733,7 @@ export default function AdminRecoveryReport() {
                               />
                             </div>
                             <p className="text-[10px] text-muted-foreground mt-1">
-                              {formatCurrency(obTotalRecovery)} / {formatCurrency(obTotalOutstanding)} recovered
+                              {formatPKR(obTotalRecovery)} / {formatPKR(obTotalOutstanding)} recovered
                             </p>
                           </>
                         ) : (
@@ -801,13 +797,13 @@ export default function AdminRecoveryReport() {
                                         {shop.shopArea || '\u2014'}
                                       </TableCell>
                                       <TableCell className="text-right text-sm">
-                                        {formatCurrency(shop.previousBalance)}
+                                        {formatPKR(shop.previousBalance)}
                                       </TableCell>
                                       <TableCell className="text-right text-sm text-amber-600 font-medium">
-                                        {shop.todayCredit > 0 ? `+${formatCurrency(shop.todayCredit)}` : '\u2014'}
+                                        {shop.todayCredit > 0 ? `+${formatPKR(shop.todayCredit)}` : '\u2014'}
                                       </TableCell>
                                       <TableCell className="text-right text-sm text-green-600 font-medium">
-                                        {shop.todayRecovery > 0 ? `-${formatCurrency(shop.todayRecovery)}` : '\u2014'}
+                                        {shop.todayRecovery > 0 ? `-${formatPKR(shop.todayRecovery)}` : '\u2014'}
                                       </TableCell>
                                       <TableCell className="text-right text-sm">
                                         <div className="flex items-center justify-end gap-1.5">
@@ -818,7 +814,7 @@ export default function AdminRecoveryReport() {
                                             </Badge>
                                           ) : (
                                             <span className={shop.closingBalance > shop.previousBalance + shop.todayCredit ? 'font-bold text-red-600' : 'font-bold'}>
-                                              {formatCurrency(shop.closingBalance)}
+                                              {formatPKR(shop.closingBalance)}
                                             </span>
                                           )}
                                         </div>
@@ -886,7 +882,7 @@ export default function AdminRecoveryReport() {
                                                           : '\u2014'}
                                                       </TableCell>
                                                       <TableCell className="text-right text-sm font-medium text-green-600">
-                                                        {formatCurrency(entry.amount)}
+                                                        {formatPKR(entry.amount)}
                                                       </TableCell>
                                                       <TableCell className="text-xs text-muted-foreground hidden sm:table-cell max-w-[200px] truncate">
                                                         {entry.description || '\u2014'}
@@ -945,7 +941,7 @@ export default function AdminRecoveryReport() {
               {/* Grand Total */}
               <div className="flex items-center justify-between px-5 py-3 bg-primary/5">
                 <span className="font-bold text-sm">Grand Total {gpsFilter !== 'all' ? `(filtered)` : ''}</span>
-                <span className="font-bold text-sm text-primary number-display">{formatCurrency(gpsFilter === 'all' ? summary.grandTotalRecovery : filteredGrandTotal)}</span>
+                <span className="font-bold text-sm text-primary number-display">{formatPKR(gpsFilter === 'all' ? summary.grandTotalRecovery : filteredGrandTotal)}</span>
               </div>
             </div>
           )}
@@ -1011,7 +1007,7 @@ export default function AdminRecoveryReport() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Changes</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to update this recovery entry to {formatCurrency(parseFloat(editAmount) || 0)}?
+              Are you sure you want to update this recovery entry to {formatPKR(parseFloat(editAmount) || 0)}?
               {editDescription.trim() && ` Description: "${editDescription.trim()}"`}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1039,7 +1035,7 @@ export default function AdminRecoveryReport() {
             <AlertDialogTitle>Delete Recovery Entry</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteEntry
-                ? `Delete this recovery entry of ${formatCurrency(deleteEntry.amount)}? This action cannot be undone.`
+                ? `Delete this recovery entry of ${formatPKR(deleteEntry.amount)}? This action cannot be undone.`
                 : 'Are you sure you want to delete this recovery entry?'}
             </AlertDialogDescription>
           </AlertDialogHeader>

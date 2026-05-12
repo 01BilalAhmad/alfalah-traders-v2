@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
-import { getLocalDateString, getYesterdayDateString } from '@/lib/utils';
+import { getLocalDateString, getYesterdayDateString, formatPKR } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,10 +67,6 @@ import { apiFetch } from '@/lib/api';
 import { exportToCSV } from '@/lib/csv-export';
 
 // ─── Helpers ───
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
-
 function formatDateTime(dateStr: string): string {
   return new Date(dateStr).toLocaleString('en-PK', {
     timeZone: 'Asia/Karachi',
@@ -408,7 +404,7 @@ export default function AdminTransactions() {
       if (res.ok) {
         toast({
           title: 'Transaction Created',
-          description: `${addTab === 'credit' ? 'Credit' : 'Recovery'} of ${formatCurrency(amount)} recorded`,
+          description: `${addTab === 'credit' ? 'Credit' : 'Recovery'} of ${formatPKR(amount)} recorded`,
         });
         setAddDialogOpen(false);
         fetchTransactions();
@@ -511,7 +507,7 @@ export default function AdminTransactions() {
             <div>
               <p className="text-xs text-muted-foreground font-medium">Total Credits</p>
               <p className="text-xl font-bold text-amber-600 dark:text-amber-400 animate-live-pulse number-display">
-                {formatCurrency(totalCredits)}
+                {formatPKR(totalCredits)}
               </p>
             </div>
           </CardContent>
@@ -524,7 +520,7 @@ export default function AdminTransactions() {
             <div>
               <p className="text-xs text-muted-foreground font-medium">Total Recoveries</p>
               <p className="text-xl font-bold text-green-600 dark:text-green-400 animate-live-pulse number-display">
-                {formatCurrency(totalRecoveries)}
+                {formatPKR(totalRecoveries)}
               </p>
             </div>
           </CardContent>
@@ -537,7 +533,7 @@ export default function AdminTransactions() {
             <div>
               <p className="text-xs text-muted-foreground font-medium">Net Effect</p>
               <p className={`text-xl font-bold number-display ${totalCredits - totalRecoveries >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                {totalCredits - totalRecoveries >= 0 ? '+' : ''}{formatCurrency(totalCredits - totalRecoveries)}
+                {totalCredits - totalRecoveries >= 0 ? '+' : ''}{formatPKR(totalCredits - totalRecoveries)}
               </p>
             </div>
           </CardContent>
@@ -733,15 +729,15 @@ export default function AdminTransactions() {
                       </TableCell>
                       <TableCell className="text-right">
                         <span className={`text-sm font-semibold ${txn.type === 'credit' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
-                          {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                          {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground hidden md:table-cell">
-                        {formatCurrency(txn.previousBalance)}
+                        {formatPKR(txn.previousBalance)}
                       </TableCell>
                       <TableCell className="text-right hidden md:table-cell">
                         <span className={`text-sm font-medium ${txn.newBalance > txn.previousBalance ? 'text-red-600' : txn.newBalance < txn.previousBalance ? 'text-green-600' : ''}`}>
-                          {formatCurrency(txn.newBalance)}
+                          {formatPKR(txn.newBalance)}
                         </span>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
@@ -889,7 +885,7 @@ export default function AdminTransactions() {
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Current Amount</Label>
                 <p className={`text-sm font-semibold ${editTransaction.type === 'credit' ? 'text-amber-600' : 'text-green-600'}`}>
-                  {formatCurrency(editTransaction.amount)}
+                  {formatPKR(editTransaction.amount)}
                 </p>
               </div>
 
@@ -964,7 +960,7 @@ export default function AdminTransactions() {
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">Amount</span>
                       <span className={`text-sm font-bold ${deleteTransaction.type === 'credit' ? 'text-amber-600' : 'text-green-600'}`}>
-                        {formatCurrency(deleteTransaction.amount)}
+                        {formatPKR(deleteTransaction.amount)}
                       </span>
                     </div>
                   </div>

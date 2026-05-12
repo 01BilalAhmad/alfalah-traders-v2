@@ -41,10 +41,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { exportToCSV } from '@/lib/csv-export';
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${Math.abs(amount).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
+import { formatPKR } from '@/lib/utils';
 
 interface DailyBreakdown {
   date: string;
@@ -362,7 +359,7 @@ export default function AdminMonthlySummary() {
                 </div>
                 <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Credit Posted</p>
                 <p className="text-2xl font-bold text-amber-700 dark:text-amber-400 tabular-nums number-animate">
-                  {formatCurrency(data.totalCredit)}
+                  {formatPKR(Math.abs(data.totalCredit))}
                 </p>
               </CardContent>
             </Card>
@@ -380,7 +377,7 @@ export default function AdminMonthlySummary() {
                 </div>
                 <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Recovery Collected</p>
                 <p className="text-2xl font-bold text-green-700 dark:text-green-400 tabular-nums number-animate">
-                  {formatCurrency(data.totalRecovery)}
+                  {formatPKR(Math.abs(data.totalRecovery))}
                 </p>
               </CardContent>
             </Card>
@@ -408,7 +405,7 @@ export default function AdminMonthlySummary() {
                 <p className="text-xs text-muted-foreground font-medium mb-0.5">Net Balance Change</p>
                 <p className={`text-2xl font-bold tabular-nums number-animate ${data.netChange > 0 ? 'text-red-700 dark:text-red-400' : data.netChange < 0 ? 'text-green-700 dark:text-green-400' : 'text-blue-700 dark:text-blue-400'}`}>
                   {data.netChange > 0 ? '+' : data.netChange < 0 ? '-' : ''}
-                  {formatCurrency(data.netChange)}
+                  {formatPKR(Math.abs(data.netChange))}
                 </p>
               </CardContent>
             </Card>
@@ -458,7 +455,7 @@ export default function AdminMonthlySummary() {
                 </div>
                 <div className="flex items-center justify-between mt-1.5">
                   <span className="text-[10px] text-muted-foreground">
-                    {formatCurrency(data.totalRecovery)} recovered of {formatCurrency(data.totalCredit)} credit
+                    {formatPKR(Math.abs(data.totalRecovery))} recovered of {formatPKR(Math.abs(data.totalCredit))} credit
                   </span>
                   <span className={`text-[10px] font-semibold ${recoveryRate >= 80 ? 'text-green-600' : recoveryRate >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
                     {recoveryRate >= 80 ? '✓ On Track' : recoveryRate >= 50 ? '⚠ Needs Attention' : '✗ Behind Target'}
@@ -623,18 +620,18 @@ export default function AdminMonthlySummary() {
                             </TableCell>
                             <TableCell className="text-right">
                               <span className="text-sm font-semibold text-amber-600 tabular-nums">
-                                {formatCurrency(ob.credit)}
+                                {formatPKR(Math.abs(ob.credit))}
                               </span>
                             </TableCell>
                             <TableCell className="text-right">
                               <span className="text-sm font-semibold text-green-600 tabular-nums">
-                                {formatCurrency(ob.recovery)}
+                                {formatPKR(Math.abs(ob.recovery))}
                               </span>
                             </TableCell>
                             <TableCell className="text-right">
                               <span className={`text-sm font-semibold tabular-nums ${net > 0 ? 'text-red-600' : net < 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
                                 {net > 0 ? '+' : net < 0 ? '-' : ''}
-                                {formatCurrency(net)}
+                                {formatPKR(Math.abs(net))}
                               </span>
                             </TableCell>
                             <TableCell className="text-center hidden md:table-cell">
@@ -697,7 +694,7 @@ export default function AdminMonthlySummary() {
                                 </p>
                               </div>
                               <span className="text-sm font-bold text-amber-700 dark:text-amber-400 tabular-nums ml-2 shrink-0">
-                                {formatCurrency(shop.credit || 0)}
+                                {formatPKR(Math.abs(shop.credit || 0))}
                               </span>
                             </div>
                             <div className="h-1.5 w-full bg-amber-100 dark:bg-amber-900/30 rounded-full overflow-hidden">
@@ -763,7 +760,7 @@ export default function AdminMonthlySummary() {
                                 </p>
                               </div>
                               <span className="text-sm font-bold text-green-700 dark:text-green-400 tabular-nums ml-2 shrink-0">
-                                {formatCurrency(shop.recovery || 0)}
+                                {formatPKR(Math.abs(shop.recovery || 0))}
                               </span>
                             </div>
                             <div className="h-1.5 w-full bg-green-100 dark:bg-green-900/30 rounded-full overflow-hidden">

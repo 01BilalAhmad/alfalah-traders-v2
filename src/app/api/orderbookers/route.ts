@@ -9,11 +9,12 @@ export async function GET() {
     client = getPgClient();
     await client.connect();
 
-    // Get all orderbookers with active shop counts
+    // Single query: Get all orderbookers with shop counts AND total outstanding (no N+1)
     const obRes = await client.query(
       `SELECT u.id, u.username, u.name, u.phone, u.status, u."createdAt", u."allRoutesEnabled", u."companyId",
               c.name AS "companyName",
-              COUNT(s.id) AS "activeShopCount"
+              COUNT(s.id) AS "activeShopCount",
+              COALESCE(SUM(s.balance), 0) AS "totalOutstanding"
        FROM "User" u
        LEFT JOIN "Shop" s ON u.id = s."orderbookerId" AND s.status = 'active'
        LEFT JOIN "Company" c ON u."companyId" = c.id
@@ -21,32 +22,20 @@ export async function GET() {
        GROUP BY u.id, c.name
        ORDER BY u.name ASC`
     );
-    const orderbookers: any[] = obRes.rows;
 
-    // Get total outstanding for each orderbooker
-    const orderbookersWithBalance = await Promise.all(
-      orderbookers.map(async (ob: any) => {
-        const balanceRes = await client!.query(
-          `SELECT COALESCE(SUM(balance), 0) AS total FROM "Shop" WHERE "orderbookerId" = $1 AND status = 'active'`,
-          [ob.id]
-        );
-        const totalOutstanding = Number(balanceRes.rows[0].total);
-        const activeShopCount = parseInt(ob.activeShopCount, 10);
-        return {
-          id: ob.id,
-          username: ob.username,
-          name: ob.name,
-          phone: ob.phone,
-          status: ob.status,
-          allRoutesEnabled: ob.allRoutesEnabled ?? false,
-          companyId: ob.companyId || null,
-          companyName: ob.companyName || null,
-          createdAt: ob.createdAt instanceof Date ? ob.createdAt.toISOString() : ob.createdAt,
-          totalShops: activeShopCount,
-          totalOutstanding: Math.round(totalOutstanding * 100) / 100,
-        };
-      })
-    );
+    const orderbookersWithBalance = obRes.rows.map((ob: any) => ({
+      id: ob.id,
+      username: ob.username,
+      name: ob.name,
+      phone: ob.phone,
+      status: ob.status,
+      allRoutesEnabled: ob.allRoutesEnabled ?? false,
+      companyId: ob.companyId || null,
+      companyName: ob.companyName || null,
+      createdAt: ob.createdAt instanceof Date ? ob.createdAt.toISOString() : ob.createdAt,
+      totalShops: parseInt(ob.activeShopCount, 10),
+      totalOutstanding: Math.round(Number(ob.totalOutstanding) * 100) / 100,
+    }));
 
     await client.end();
     return NextResponse.json(orderbookersWithBalance);

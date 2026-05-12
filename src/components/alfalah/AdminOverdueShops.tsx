@@ -31,10 +31,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
+import { formatPKR } from '@/lib/utils';
 
 interface OverdueShop {
   id: string;
@@ -280,7 +277,7 @@ export default function AdminOverdueShops() {
               <Badge variant="secondary" className="text-[10px] font-medium">At Risk</Badge>
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Outstanding Balance</p>
-            <p className="text-2xl font-bold text-red-600 tabular-nums number-animate">{formatCurrency(summary.totalBalance)}</p>
+            <p className="text-2xl font-bold text-red-600 tabular-nums number-animate">{formatPKR(summary.totalBalance)}</p>
           </CardContent>
         </Card>
         <Card className="card-elevated stat-card-amber hover-scale-102">
@@ -332,7 +329,7 @@ export default function AdminOverdueShops() {
                 >
                   <p className="text-sm font-medium truncate">{ob.name}</p>
                   <p className="text-lg font-bold text-red-600 mt-1">{ob.count}</p>
-                  <p className="text-[11px] text-muted-foreground">{formatCurrency(ob.balance)}</p>
+                  <p className="text-[11px] text-muted-foreground">{formatPKR(ob.balance)}</p>
                 </button>
               ))}
             </div>
@@ -418,7 +415,7 @@ export default function AdminOverdueShops() {
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="text-sm font-semibold text-red-600 tabular-nums">
-                          {formatCurrency(shop.balance)}
+                          {formatPKR(shop.balance)}
                         </span>
                       </TableCell>
                       <TableCell className="text-center">

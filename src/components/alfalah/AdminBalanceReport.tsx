@@ -24,10 +24,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
-
-function formatCurrency(amount: number): string {
-  return `${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
+import { formatAmount } from '@/lib/utils';
 
 const ROUTE_DAYS = [
   { value: 'sunday', label: 'Sunday' },
@@ -294,7 +291,7 @@ export default function AdminBalanceReport() {
                 <p className="text-xs text-muted-foreground font-medium">
                   {selectedDay !== 'all' ? `${selectedDayLabel} Outstanding` : 'Total Outstanding'}
                 </p>
-                <p className="text-xl font-bold text-red-600 number-display">Rs. {formatCurrency(data.grandTotal)}</p>
+                <p className="text-xl font-bold text-red-600 number-display">Rs. {formatAmount(data.grandTotal)}</p>
               </div>
             </CardContent>
           </Card>
@@ -371,7 +368,7 @@ export default function AdminBalanceReport() {
                   <span className="print-stat-label">Total Shops</span>
                 </div>
                 <div className="print-stat">
-                  <span className="print-stat-value">Rs. {formatCurrency(data.grandTotal)}</span>
+                  <span className="print-stat-value">Rs. {formatAmount(data.grandTotal)}</span>
                   <span className="print-stat-label">Total Outstanding</span>
                 </div>
               </div>
@@ -399,7 +396,7 @@ export default function AdminBalanceReport() {
                         </td>
                         <td style={{ padding: '2px 8px' }}>{d.dayLabel}</td>
                         <td className="col-num" style={{ padding: '2px 8px' }}>{d.shopCount}</td>
-                        <td className="col-balance" style={{ padding: '2px 8px' }}>{formatCurrency(d.totalBalance)}</td>
+                        <td className="col-balance" style={{ padding: '2px 8px' }}>{formatAmount(d.totalBalance)}</td>
                       </tr>
                     ))
                   )}
@@ -450,7 +447,7 @@ export default function AdminBalanceReport() {
                           {selectedDay === 'all' && (
                             <td className="col-area">{(shop.routeDays || []).map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}</td>
                           )}
-                          <td className="col-balance">{formatCurrency(shop.remainingBalance)}</td>
+                          <td className="col-balance">{formatAmount(shop.remainingBalance)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -459,7 +456,7 @@ export default function AdminBalanceReport() {
                       {ob.companies.length > 1 && (
                         <tr className="total-row">
                           <td colSpan={selectedDay === 'all' ? 4 : 3} className="total-label">Total {comp.companyName}</td>
-                          <td className="total-value">{formatCurrency(comp.totalBalance)}</td>
+                          <td className="total-value">{formatAmount(comp.totalBalance)}</td>
                         </tr>
                       )}
                     </tfoot>
@@ -473,7 +470,7 @@ export default function AdminBalanceReport() {
                   Total {ob.orderbookerName}
                   {selectedDay !== 'all' && ` (${selectedDayLabel})`}
                 </span>
-                <span className="ob-total-value">Rs. {formatCurrency(ob.totalBalance)}</span>
+                <span className="ob-total-value">Rs. {formatAmount(ob.totalBalance)}</span>
               </div>
             </div>
           ))}
@@ -486,12 +483,12 @@ export default function AdminBalanceReport() {
               {selectedDay !== 'all' && (
                 <div className="grand-total-day">{selectedDayLabel}</div>
               )}
-              <div className="grand-total-amount">Rs. {formatCurrency(data.grandTotal)}</div>
+              <div className="grand-total-amount">Rs. {formatAmount(data.grandTotal)}</div>
               <div className="grand-total-breakdown">
                 {data.orderbookers.map(ob => (
                   <div key={ob.orderbookerId} className="grand-total-row">
                     <span>{ob.orderbookerName}</span>
-                    <span>Rs. {formatCurrency(ob.totalBalance)}</span>
+                    <span>Rs. {formatAmount(ob.totalBalance)}</span>
                   </div>
                 ))}
               </div>
@@ -519,7 +516,7 @@ export default function AdminBalanceReport() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-red-600">Rs. {formatCurrency(ob.totalBalance)}</p>
+                  <p className="text-sm font-bold text-red-600">Rs. {formatAmount(ob.totalBalance)}</p>
                   {selectedDay !== 'all' && (
                     <p className="text-[10px] text-muted-foreground">{selectedDayLabel} routes only</p>
                   )}
@@ -541,7 +538,7 @@ export default function AdminBalanceReport() {
                         <Badge variant="secondary" className="text-[9px] h-4 px-1">
                           {d.shopCount}
                         </Badge>
-                        <span className="font-semibold text-red-600">{formatCurrency(d.totalBalance)}</span>
+                        <span className="font-semibold text-red-600">{formatAmount(d.totalBalance)}</span>
                       </div>
                     ))}
                   </div>
@@ -556,7 +553,7 @@ export default function AdminBalanceReport() {
                       <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{comp.companyName}</span>
                     </div>
-                    <span className="text-xs font-bold text-red-600">Rs. {formatCurrency(comp.totalBalance)}</span>
+                    <span className="text-xs font-bold text-red-600">Rs. {formatAmount(comp.totalBalance)}</span>
                   </div>
                   <div className="divide-y divide-border">
                     {comp.shops.map((shop, idx) => (
@@ -577,7 +574,7 @@ export default function AdminBalanceReport() {
                             </div>
                           </div>
                         </div>
-                        <p className="text-sm font-bold">Rs. {formatCurrency(shop.remainingBalance)}</p>
+                        <p className="text-sm font-bold">Rs. {formatAmount(shop.remainingBalance)}</p>
                       </div>
                     ))}
                   </div>

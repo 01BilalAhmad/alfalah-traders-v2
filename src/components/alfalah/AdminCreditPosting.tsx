@@ -68,7 +68,7 @@ import {
   ArrowRightLeft,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { WORKING_DAYS, getTodayRouteDay, validateTransaction, TRANSACTION_RULES, getCreditLimitStatus } from '@/lib/utils';
+import { WORKING_DAYS, getTodayRouteDay, validateTransaction, TRANSACTION_RULES, getCreditLimitStatus, formatPKR } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
 
 const ROUTE_DAYS = [...WORKING_DAYS];
@@ -127,10 +127,6 @@ interface EditableTransaction {
   createdAt: string;
   companyId: string | null;
   companyName: string | null;
-}
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 function getTodayDateString(): string {
@@ -1101,7 +1097,7 @@ export default function AdminCreditPosting() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
-              <p className="text-xl font-bold text-foreground tabular-nums number-animate">{formatCurrency(totalOutstanding)}</p>
+              <p className="text-xl font-bold text-foreground tabular-nums number-animate">{formatPKR(totalOutstanding)}</p>
             </div>
           </CardContent>
         </Card>
@@ -1250,12 +1246,12 @@ export default function AdminCreditPosting() {
               <div className="w-px h-7 bg-border hidden sm:block" />
               <div className="flex flex-col items-center sm:items-start">
                 <span className="text-muted-foreground font-medium">Outstanding</span>
-                <span className="font-bold text-red-600 dark:text-red-400 text-sm tabular-nums">{formatCurrency(totalOutstanding)}</span>
+                <span className="font-bold text-red-600 dark:text-red-400 text-sm tabular-nums">{formatPKR(totalOutstanding)}</span>
               </div>
               <div className="w-px h-7 bg-border hidden sm:block" />
               <div className="flex flex-col items-center sm:items-start">
                 <span className="text-muted-foreground font-medium">Avg Balance</span>
-                <span className="font-bold text-foreground text-sm tabular-nums">{formatCurrency(Math.round(averageBalance))}</span>
+                <span className="font-bold text-foreground text-sm tabular-nums">{formatPKR(Math.round(averageBalance))}</span>
               </div>
             </div>
           </div>
@@ -1326,7 +1322,7 @@ export default function AdminCreditPosting() {
                     const displayBalance = companyBal ? companyBal.balance : 0;
                     return (
                       <span className={`font-semibold text-sm ${displayBalance > 0 ? 'text-red-600 dark:text-red-400' : displayBalance < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
-                        {formatCurrency(displayBalance)}
+                        {formatPKR(displayBalance)}
                       </span>
                     );
                   })()
@@ -1334,11 +1330,11 @@ export default function AdminCreditPosting() {
                   <>
                     {shop.creditLimit > 0 && (
                       <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                        /{formatCurrency(shop.creditLimit)}
+                        /{formatPKR(shop.creditLimit)}
                       </span>
                     )}
                     <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600 dark:text-red-400' : shop.balance < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
-                            {formatCurrency(shop.balance)}
+                            {formatPKR(shop.balance)}
                     </span>
                   </>
                 )}
@@ -1392,7 +1388,7 @@ export default function AdminCreditPosting() {
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground font-medium">Total Credit Posted</p>
-                    <p className="text-lg font-bold text-amber-700 dark:text-amber-300 number-animate">{formatCurrency(todayTotal)}</p>
+                    <p className="text-lg font-bold text-amber-700 dark:text-amber-300 number-animate">{formatPKR(todayTotal)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/10 dark:border-primary/20">
@@ -1426,7 +1422,7 @@ export default function AdminCreditPosting() {
                         <TableCell className="font-medium text-sm">{item.shopName}</TableCell>
                         <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{item.shopArea || '—'}</TableCell>
                         <TableCell className="hidden sm:table-cell text-center text-sm text-muted-foreground">{item.transactionCount}</TableCell>
-                        <TableCell className="text-right font-semibold text-sm text-red-600 dark:text-red-400">{formatCurrency(item.totalAmount)}</TableCell>
+                        <TableCell className="text-right font-semibold text-sm text-red-600 dark:text-red-400">{formatPKR(item.totalAmount)}</TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
                             <Button
@@ -1469,7 +1465,7 @@ export default function AdminCreditPosting() {
                 <div>
                   <p className="text-xs text-white/70 font-medium">Quick Post Session</p>
                   <p className="text-sm font-bold">
-                    Posted <span className="tabular-nums">{quickPostShops}</span> shop{quickPostShops > 1 ? 's' : ''}, Total: <span className="tabular-nums">{formatCurrency(quickPostTotal)}</span>
+                    Posted <span className="tabular-nums">{quickPostShops}</span> shop{quickPostShops > 1 ? 's' : ''}, Total: <span className="tabular-nums">{formatPKR(quickPostTotal)}</span>
                   </p>
                 </div>
               </div>
@@ -1518,7 +1514,7 @@ export default function AdminCreditPosting() {
                 <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-800/30">
                   <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                   <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                    {quickPostShops} shop{quickPostShops > 1 ? 's' : ''} posted — Total: {formatCurrency(quickPostTotal)}
+                    {quickPostShops} shop{quickPostShops > 1 ? 's' : ''} posted — Total: {formatPKR(quickPostTotal)}
                   </span>
                   <Badge variant="outline" className="ml-auto text-[9px] px-1.5 py-0 border-emerald-300 text-emerald-600 dark:border-emerald-700 dark:text-emerald-400">
                     {quickPostDate !== getTodayDateString()
@@ -1546,7 +1542,7 @@ export default function AdminCreditPosting() {
                   <div>
                     <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Credit Limit Exceeded!</p>
                     <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
-                      Balance ({formatCurrency(creditLimitWarning.currentBalance)}) exceeds limit ({formatCurrency(creditLimitWarning.limit)}). Credit posted.
+                      Balance ({formatPKR(creditLimitWarning.currentBalance)}) exceeds limit ({formatPKR(creditLimitWarning.limit)}). Credit posted.
                     </p>
                   </div>
                 </div>
@@ -1730,7 +1726,7 @@ export default function AdminCreditPosting() {
                                 {shop.area && <p className="text-[10px] text-muted-foreground">{shop.area}</p>}
                               </div>
                               <span className="text-sm font-bold text-red-600 dark:text-red-400 shrink-0 ml-2">
-                                {formatCurrency(shop.balance)}
+                                {formatPKR(shop.balance)}
                               </span>
                             </button>
                           ))}
@@ -1974,7 +1970,7 @@ export default function AdminCreditPosting() {
                         {quickPostSelectedShop.area && <p className="text-[10px] text-muted-foreground">{quickPostSelectedShop.area}</p>}
                       </div>
                       <span className="text-sm font-bold text-red-600 dark:text-red-400">
-                        Bal: {formatCurrency(quickPostSelectedShop.balance)}
+                        Bal: {formatPKR(quickPostSelectedShop.balance)}
                       </span>
                     </div>
                   </div>
@@ -2073,7 +2069,7 @@ export default function AdminCreditPosting() {
                       ⚠ Credit already posted to {duplicateCreditWarning.shopName} today
                     </p>
                     <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
-                      Total today: {formatCurrency(duplicateCreditWarning.todayTotal)}. You can still proceed with posting.
+                      Total today: {formatPKR(duplicateCreditWarning.todayTotal)}. You can still proceed with posting.
                     </p>
                   </div>
                 </div>
@@ -2084,7 +2080,7 @@ export default function AdminCreditPosting() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                       <span className="text-sm text-muted-foreground">Current Balance</span>
-                      <span className="font-bold text-sm">{formatCurrency(selectedShop.balance)}</span>
+                      <span className="font-bold text-sm">{formatPKR(selectedShop.balance)}</span>
                     </div>
                     {selectedShop.creditLimit > 0 && (() => {
                       const limitStatus = getCreditLimitStatus(selectedShop.balance, selectedShop.creditLimit);
@@ -2108,17 +2104,17 @@ export default function AdminCreditPosting() {
                             />
                           </div>
                           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                            <span>{formatCurrency(selectedShop.balance)} of {formatCurrency(selectedShop.creditLimit)}</span>
+                            <span>{formatPKR(selectedShop.balance)} of {formatPKR(selectedShop.creditLimit)}</span>
                             {creditAmount && !amountError && (
                               <span className="text-foreground/60">
-                                → {formatCurrency(projectedBalance)} ({projectedStatus.percentage}%)
+                                → {formatPKR(projectedBalance)} ({projectedStatus.percentage}%)
                               </span>
                             )}
                           </div>
                           {creditAmount && !amountError && projectedStatus.status === 'exceeded' && (
                             <p className="text-[10px] text-destructive font-medium flex items-center gap-1 animate-fade-in">
                               <AlertTriangle className="h-3 w-3" />
-                              This credit will exceed the limit by {formatCurrency(projectedBalance - selectedShop.creditLimit)}
+                              This credit will exceed the limit by {formatPKR(projectedBalance - selectedShop.creditLimit)}
                             </p>
                           )}
                         </div>
@@ -2135,7 +2131,7 @@ export default function AdminCreditPosting() {
                         Credit Limit Exceeded!
                       </p>
                       <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
-                        This shop&apos;s balance ({formatCurrency(creditLimitWarning.currentBalance)}) exceeds its credit limit ({formatCurrency(creditLimitWarning.limit)}). The credit has been posted.
+                        This shop&apos;s balance ({formatPKR(creditLimitWarning.currentBalance)}) exceeds its credit limit ({formatPKR(creditLimitWarning.limit)}). The credit has been posted.
                       </p>
                     </div>
                   </div>
@@ -2252,13 +2248,13 @@ export default function AdminCreditPosting() {
             <AlertDialogDescription asChild>
               <div className="space-y-2">
                 <p>
-                  Posting <span className="font-bold">{formatCurrency(pendingOverrideAmount)}</span> to this shop
-                  will exceed the daily credit cap of <span className="font-bold">{formatCurrency(TRANSACTION_RULES.DAILY_CREDIT_CAP)}</span>.
+                  Posting <span className="font-bold">{formatPKR(pendingOverrideAmount)}</span> to this shop
+                  will exceed the daily credit cap of <span className="font-bold">{formatPKR(TRANSACTION_RULES.DAILY_CREDIT_CAP)}</span>.
                 </p>
                 <div className="p-2 rounded-md bg-muted text-sm">
-                  <p>Today&apos;s credits: <span className="font-semibold">{formatCurrency(shopTodayCredits)}</span></p>
-                  <p>This entry: <span className="font-semibold">{formatCurrency(pendingOverrideAmount)}</span></p>
-                  <p>Combined: <span className="font-bold text-amber-600 dark:text-amber-400">{formatCurrency(shopTodayCredits + pendingOverrideAmount)}</span></p>
+                  <p>Today&apos;s credits: <span className="font-semibold">{formatPKR(shopTodayCredits)}</span></p>
+                  <p>This entry: <span className="font-semibold">{formatPKR(pendingOverrideAmount)}</span></p>
+                  <p>Combined: <span className="font-bold text-amber-600 dark:text-amber-400">{formatPKR(shopTodayCredits + pendingOverrideAmount)}</span></p>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   The server will also reject this if it exceeds the cap. Do you want to try posting anyway?
@@ -2336,15 +2332,15 @@ export default function AdminCreditPosting() {
                     )}
                     <tr className="border-b border-border/40">
                       <td className="px-5 py-2.5 text-muted-foreground font-medium">Previous Balance</td>
-                      <td className="px-5 py-2.5 font-medium text-right">{formatCurrency(postedReceipt.previousBalance)}</td>
+                      <td className="px-5 py-2.5 font-medium text-right">{formatPKR(postedReceipt.previousBalance)}</td>
                     </tr>
                     <tr className="border-b border-border/40 bg-amber-50 dark:bg-amber-950/20">
                       <td className="px-5 py-3 text-amber-800 dark:text-amber-300 font-semibold">Credit Amount</td>
-                      <td className="px-5 py-3 text-right font-bold text-amber-700 dark:text-amber-300 text-base">{formatCurrency(postedReceipt.amount)}</td>
+                      <td className="px-5 py-3 text-right font-bold text-amber-700 dark:text-amber-300 text-base">{formatPKR(postedReceipt.amount)}</td>
                     </tr>
                     <tr className="border-b border-border/40">
                       <td className="px-5 py-2.5 text-muted-foreground font-medium">New Balance</td>
-                      <td className="px-5 py-2.5 font-bold text-right text-red-600 dark:text-red-400">{formatCurrency(postedReceipt.newBalance)}</td>
+                      <td className="px-5 py-2.5 font-bold text-right text-red-600 dark:text-red-400">{formatPKR(postedReceipt.newBalance)}</td>
                     </tr>
                     <tr className="border-b border-border/40">
                       <td className="px-5 py-2.5 text-muted-foreground font-medium">Description</td>
@@ -2557,7 +2553,7 @@ export default function AdminCreditPosting() {
               <p>
                 Are you sure you want to delete this credit entry of{' '}
                 <span className="font-bold text-foreground">
-                  {deleteTarget ? formatCurrency(deleteTarget.totalAmount) : ''}
+                  {deleteTarget ? formatPKR(deleteTarget.totalAmount) : ''}
                 </span>{' '}
                 from <span className="font-semibold text-foreground">{deleteTarget?.shopName}</span>?
                 {deleteTarget && deleteTarget.transactionCount > 1 && (

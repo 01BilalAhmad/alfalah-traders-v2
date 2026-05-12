@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
-import { getLocalDateString } from '@/lib/utils';
+import { getLocalDateString, formatPKR } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,10 +39,6 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
 
 function formatCurrencyPDF(amount: number): string {
   return amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -458,7 +454,7 @@ export default function AdminOBRecoveryReport() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Route Total Balance</p>
-                  <p className="text-xl font-bold text-blue-600">{formatCurrency(routeTotalBalance)}</p>
+                  <p className="text-xl font-bold text-blue-600">{formatPKR(routeTotalBalance)}</p>
                   <p className="text-[10px] text-muted-foreground">Start of day outstanding</p>
                 </div>
               </CardContent>
@@ -470,7 +466,7 @@ export default function AdminOBRecoveryReport() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Today's Recovery</p>
-                  <p className="text-xl font-bold text-green-600">{formatCurrency(todayRecovery)}</p>
+                  <p className="text-xl font-bold text-green-600">{formatPKR(todayRecovery)}</p>
                   <p className="text-[10px] text-muted-foreground">From {recoveryShops.length} shop{recoveryShops.length !== 1 ? 's' : ''}</p>
                 </div>
               </CardContent>
@@ -482,7 +478,7 @@ export default function AdminOBRecoveryReport() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Remaining Balance</p>
-                  <p className="text-xl font-bold text-amber-600">{formatCurrency(remainingBalance)}</p>
+                  <p className="text-xl font-bold text-amber-600">{formatPKR(remainingBalance)}</p>
                   <p className="text-[10px] text-muted-foreground">Still outstanding</p>
                 </div>
               </CardContent>
@@ -592,13 +588,13 @@ export default function AdminOBRecoveryReport() {
                             {shop.shopArea || '\u2014'}
                           </TableCell>
                           <TableCell className="text-right text-sm">
-                            {formatCurrency(shop.previousBalance)}
+                            {formatPKR(shop.previousBalance)}
                           </TableCell>
                           <TableCell className="text-right text-sm text-amber-600 font-medium">
-                            {shop.todayCredit > 0 ? `+${formatCurrency(shop.todayCredit)}` : '\u2014'}
+                            {shop.todayCredit > 0 ? `+${formatPKR(shop.todayCredit)}` : '\u2014'}
                           </TableCell>
                           <TableCell className="text-right text-sm text-green-600 font-bold">
-                            {formatCurrency(shop.todayRecovery)}
+                            {formatPKR(shop.todayRecovery)}
                           </TableCell>
                           <TableCell className="text-right text-sm">
                             {shop.closingBalance === 0 ? (
@@ -607,7 +603,7 @@ export default function AdminOBRecoveryReport() {
                                 Settled
                               </Badge>
                             ) : (
-                              <span className="font-bold">{formatCurrency(shop.closingBalance)}</span>
+                              <span className="font-bold">{formatPKR(shop.closingBalance)}</span>
                             )}
                           </TableCell>
                         </TableRow>
@@ -618,19 +614,19 @@ export default function AdminOBRecoveryReport() {
                           TOTAL
                         </TableCell>
                         <TableCell className="text-right font-bold text-sm">
-                          {formatCurrency(recoveryShops.reduce((s, sh) => s + sh.previousBalance, 0))}
+                          {formatPKR(recoveryShops.reduce((s, sh) => s + sh.previousBalance, 0))}
                         </TableCell>
                         <TableCell className="text-right font-bold text-sm text-amber-600">
                           {(() => {
                             const t = recoveryShops.reduce((s, sh) => s + sh.todayCredit, 0);
-                            return t > 0 ? `+${formatCurrency(t)}` : '\u2014';
+                            return t > 0 ? `+${formatPKR(t)}` : '\u2014';
                           })()}
                         </TableCell>
                         <TableCell className="text-right font-bold text-sm text-green-600">
-                          {formatCurrency(reportData.totalRecovery)}
+                          {formatPKR(reportData.totalRecovery)}
                         </TableCell>
                         <TableCell className="text-right font-bold text-sm">
-                          {formatCurrency(recoveryShops.reduce((s, sh) => s + sh.closingBalance, 0))}
+                          {formatPKR(recoveryShops.reduce((s, sh) => s + sh.closingBalance, 0))}
                         </TableCell>
                       </TableRow>
                     </TableBody>

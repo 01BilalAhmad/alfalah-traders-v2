@@ -47,7 +47,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
-import { getLocalDateString, WORKING_DAYS, getTodayRouteDay } from '@/lib/utils';
+import { getLocalDateString, WORKING_DAYS, getTodayRouteDay, formatPKR } from '@/lib/utils';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
 import BackupSettingsDialog from './BackupSettingsDialog';
 import ChangePasswordDialog from './ChangePasswordDialog';
@@ -67,10 +67,6 @@ import {
 } from '@/lib/offline-store';
 
 const ROUTE_DAYS = [...WORKING_DAYS];
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(amount);
-}
 
 // Helper: Get the display balance for a shop based on user's company assignment
 function getShopDisplayBalance(shop: Shop, userCompanyId: string | null): number {
@@ -172,7 +168,7 @@ function SuccessOverlay({
         </div>
         <h3 className="text-base font-bold text-foreground mb-1">Recovery Collected!</h3>
         <p className="text-sm text-muted-foreground mb-2">{shopName}</p>
-        <p className="text-2xl font-bold text-green-600 animate-count-up">{formatCurrency(parseFloat(amount))}</p>
+        <p className="text-2xl font-bold text-green-600 animate-count-up">{formatPKR(parseFloat(amount))}</p>
       </div>
     </div>
   );
@@ -314,7 +310,7 @@ function ProfileView({
                 <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                   <TrendingUp className="h-4 w-4 text-green-600" />
                 </div>
-                <p className="text-sm font-bold text-green-600">{formatCurrency(totalRecovery)}</p>
+                <p className="text-sm font-bold text-green-600">{formatPKR(totalRecovery)}</p>
                 <p className="text-[9px] text-muted-foreground">Total Recovery</p>
               </div>
               <div className="flex flex-col items-center gap-1 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
@@ -328,7 +324,7 @@ function ProfileView({
                 <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                   <BarChart3 className="h-4 w-4 text-amber-600" />
                 </div>
-                <p className="text-sm font-bold text-amber-600">{formatCurrency(avgPerVisit)}</p>
+                <p className="text-sm font-bold text-amber-600">{formatPKR(avgPerVisit)}</p>
                 <p className="text-[9px] text-muted-foreground">Avg / Visit</p>
               </div>
             </div>
@@ -357,14 +353,14 @@ function ProfileView({
                   <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                     <TrendingUp className="h-4 w-4 text-green-600" />
                   </div>
-                  <p className="text-sm font-bold text-green-600">{formatCurrency(weeklyPerf.totalRecovered)}</p>
+                  <p className="text-sm font-bold text-green-600">{formatPKR(weeklyPerf.totalRecovered)}</p>
                   <p className="text-[9px] text-muted-foreground">Total Recovered</p>
                 </div>
                 <div className="flex flex-col items-center gap-1 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                   <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                     <BarChart3 className="h-4 w-4 text-blue-600" />
                   </div>
-                  <p className="text-sm font-bold text-blue-600">{formatCurrency(weeklyPerf.avgDaily)}</p>
+                  <p className="text-sm font-bold text-blue-600">{formatPKR(weeklyPerf.avgDaily)}</p>
                   <p className="text-[9px] text-muted-foreground">Daily Average</p>
                 </div>
                 <div className="flex flex-col items-center gap-1 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20">
@@ -372,7 +368,7 @@ function ProfileView({
                     <Zap className="h-4 w-4 text-amber-600" />
                   </div>
                   <p className="text-sm font-bold text-amber-600">
-                    {weeklyPerf.bestDay ? formatCurrency(weeklyPerf.bestDay.amount) : '—'}
+                    {weeklyPerf.bestDay ? formatPKR(weeklyPerf.bestDay.amount) : '—'}
                   </p>
                   <p className="text-[9px] text-muted-foreground">Best Single Day</p>
                 </div>
@@ -402,7 +398,7 @@ function ProfileView({
                             <span className="text-[11px] font-medium text-foreground">{week.weekLabel}</span>
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-muted-foreground">{week.shopsVisited} shops</span>
-                              <span className="text-xs font-bold tabular-nums">{formatCurrency(week.total)}</span>
+                              <span className="text-xs font-bold tabular-nums">{formatPKR(week.total)}</span>
                             </div>
                           </div>
                           <div className="w-full h-6 bg-muted/50 dark:bg-muted/20 rounded-full overflow-hidden">
@@ -424,7 +420,7 @@ function ProfileView({
                   <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                   <p className="text-[11px] text-amber-700 dark:text-amber-400">
                     Best day: <span className="font-semibold">{weeklyPerf.bestDay.date}</span> — collected{' '}
-                    <span className="font-bold">{formatCurrency(weeklyPerf.bestDay.amount)}</span>
+                    <span className="font-bold">{formatPKR(weeklyPerf.bestDay.amount)}</span>
                   </p>
                 </div>
               )}
@@ -482,7 +478,7 @@ function ProfileView({
             </div>
             <ShareMenu
               title="Share Profile"
-              text={`${user?.name} is an orderbooker at Al-Falah Traders. Recovery this month: ${formatCurrency(totalRecovery)}`}
+              text={`${user?.name} is an orderbooker at Al-Falah Traders. Recovery this month: ${formatPKR(totalRecovery)}`}
               className="h-9 w-9"
             />
           </div>
@@ -603,11 +599,11 @@ function RecoveryHistory() {
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground font-medium">Total Recovered</p>
-              <p className="text-sm font-bold text-green-600 tabular-nums">{formatCurrency(totalRecovered)}</p>
+              <p className="text-sm font-bold text-green-600 tabular-nums">{formatPKR(totalRecovered)}</p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground font-medium">Avg / Entry</p>
-              <p className="text-sm font-bold tabular-nums">{formatCurrency(avgPerEntry)}</p>
+              <p className="text-sm font-bold tabular-nums">{formatPKR(avgPerEntry)}</p>
             </div>
           </div>
         </CardContent>
@@ -652,7 +648,7 @@ function RecoveryHistory() {
                       <span className="text-sm font-semibold">{dateKey}</span>
                       <Badge variant="outline" className="text-[10px]">{items.length} entries</Badge>
                     </div>
-                    <span className="text-sm font-bold text-green-600">{formatCurrency(dayTotal)}</span>
+                    <span className="text-sm font-bold text-green-600">{formatPKR(dayTotal)}</span>
                   </div>
 
                   {/* Transactions */}
@@ -685,7 +681,7 @@ function RecoveryHistory() {
                             </div>
                             <div className="text-right shrink-0 ml-3">
                               <p className="text-sm font-bold text-green-600">
-                                +{formatCurrency(txn.amount)}
+                                +{formatPKR(txn.amount)}
                               </p>
                               <div className="flex items-center gap-1 justify-end mt-0.5">
                                 <Navigation className="h-2.5 w-2.5 text-muted-foreground" />
@@ -703,7 +699,7 @@ function RecoveryHistory() {
                   {/* Day Total */}
                   <div className="flex items-center justify-end mt-2 pr-1">
                     <span className="text-[10px] text-muted-foreground">Day total:&nbsp;</span>
-                    <span className="text-xs font-bold text-green-600">{formatCurrency(dayTotal)}</span>
+                    <span className="text-xs font-bold text-green-600">{formatPKR(dayTotal)}</span>
                   </div>
 
                   <Separator className="mt-3" />
@@ -1404,11 +1400,11 @@ function OrderbookerDashboard() {
               {shop.creditLimit > 0 && (
                 <>
                   <p className={`text-[10px] mt-0.5 font-medium ${isOverLimit ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
-                    Limit: {formatCurrency(shop.creditLimit)}
+                    Limit: {formatPKR(shop.creditLimit)}
                   </p>
                   {isOverLimit && (
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                      Over limit ({formatCurrency(displayBalance)} / {formatCurrency(shop.creditLimit)})
+                      Over limit ({formatPKR(displayBalance)} / {formatPKR(shop.creditLimit)})
                     </span>
                   )}
                 </>
@@ -1416,7 +1412,7 @@ function OrderbookerDashboard() {
             </div>
             <div className="text-right shrink-0 ml-3">
               <p className={`text-lg font-bold ${displayBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                {formatCurrency(displayBalance)}
+                {formatPKR(displayBalance)}
               </p>
               <p className="text-[10px] text-muted-foreground">Balance</p>
             </div>
@@ -1527,7 +1523,7 @@ function OrderbookerDashboard() {
               <Wallet className="h-4 w-4 text-red-500" />
               <span className="text-[10px] text-muted-foreground font-medium">Outstanding</span>
             </div>
-            <p className="text-lg font-bold text-red-600 number-display">{formatCurrency(totalOutstanding)}</p>
+            <p className="text-lg font-bold text-red-600 number-display">{formatPKR(totalOutstanding)}</p>
           </CardContent>
         </Card>
       </div>
@@ -1569,7 +1565,7 @@ function OrderbookerDashboard() {
                 <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                 </div>
-                <p className="text-xs font-bold text-green-600">{formatCurrency(totalRecovered)}</p>
+                <p className="text-xs font-bold text-green-600">{formatPKR(totalRecovered)}</p>
                 <p className="text-[9px] text-muted-foreground badge-bounce">Collected</p>
               </div>
 
@@ -1590,7 +1586,7 @@ function OrderbookerDashboard() {
                 <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                   <BarChart3 className="h-4 w-4 text-amber-600" />
                 </div>
-                <p className="text-xs font-bold text-amber-600">{formatCurrency(avgRecovery)}</p>
+                <p className="text-xs font-bold text-amber-600">{formatPKR(avgRecovery)}</p>
                 <p className="text-[9px] text-muted-foreground badge-bounce">Avg / Shop</p>
               </div>
             </div>
@@ -1781,7 +1777,7 @@ function RecoveryDialog({
               </div>
               <h3 className="font-bold text-base">Collect Recovery</h3>
             </div>
-            <p className="text-sm text-muted-foreground mb-5 pl-10">{shop.name} &bull; Current: <span className="font-semibold text-red-600">{formatCurrency(getShopDisplayBalance(shop, user?.companyId || null))}</span></p>
+            <p className="text-sm text-muted-foreground mb-5 pl-10">{shop.name} &bull; Current: <span className="font-semibold text-red-600">{formatPKR(getShopDisplayBalance(shop, user?.companyId || null))}</span></p>
 
             <div className="space-y-4">
               <div>
@@ -1945,7 +1941,7 @@ function ShopDetailDialog({
                 <CardContent className="p-3">
                   <p className="text-[10px] text-muted-foreground font-medium">Current Balance</p>
                   <p className={`text-lg font-bold ${getShopDisplayBalance(shop, user?.companyId || null) > 0 ? 'text-red-600' : 'text-green-600'} tabular-nums`}>
-                    {formatCurrency(getShopDisplayBalance(shop, user?.companyId || null))}
+                    {formatPKR(getShopDisplayBalance(shop, user?.companyId || null))}
                   </p>
                 </CardContent>
               </Card>
@@ -1953,7 +1949,7 @@ function ShopDetailDialog({
                 <CardContent className="p-3">
                   <p className="text-[10px] text-muted-foreground font-medium">Credit Limit</p>
                   <p className="text-lg font-bold text-blue-700 dark:text-blue-400 tabular-nums">
-                    {shop.creditLimit > 0 ? formatCurrency(shop.creditLimit) : 'N/A'}
+                    {shop.creditLimit > 0 ? formatPKR(shop.creditLimit) : 'N/A'}
                   </p>
                 </CardContent>
               </Card>
@@ -2012,7 +2008,7 @@ function ShopDetailDialog({
                   </div>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-[9px] text-muted-foreground">0</span>
-                    <span className="text-[9px] text-muted-foreground">{formatCurrency(shop.creditLimit)}</span>
+                    <span className="text-[9px] text-muted-foreground">{formatPKR(shop.creditLimit)}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -2064,9 +2060,9 @@ function ShopDetailDialog({
                           </div>
                           <div className="text-right shrink-0 ml-3">
                             <p className={`font-bold text-sm tabular-nums ${txn.type === 'credit' ? 'text-amber-600' : 'text-green-600'}`}>
-                              {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                              {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
                             </p>
-                            <p className="text-[10px] text-muted-foreground tabular-nums">Bal: {formatCurrency(txn.newBalance)}</p>
+                            <p className="text-[10px] text-muted-foreground tabular-nums">Bal: {formatPKR(txn.newBalance)}</p>
                           </div>
                         </div>
                       </CardContent>
@@ -2246,7 +2242,7 @@ function LedgerView() {
                       : 'bg-muted text-muted-foreground hover:bg-accent'
                   }`}
                 >
-                  {cb.companyName} ({formatCurrency(cb.balance)})
+                  {cb.companyName} ({formatPKR(cb.balance)})
                 </button>
               ))}
             </div>
@@ -2256,15 +2252,15 @@ function LedgerView() {
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 text-center">
               <p className="text-[10px] text-muted-foreground">Credit</p>
-              <p className="text-sm font-bold text-amber-700 dark:text-amber-400">{formatCurrency(ledger.summary.totalCredit)}</p>
+              <p className="text-sm font-bold text-amber-700 dark:text-amber-400">{formatPKR(ledger.summary.totalCredit)}</p>
             </div>
             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
               <p className="text-[10px] text-muted-foreground">Recovery</p>
-              <p className="text-sm font-bold text-green-700 dark:text-green-400">{formatCurrency(ledger.summary.totalRecovery)}</p>
+              <p className="text-sm font-bold text-green-700 dark:text-green-400">{formatPKR(ledger.summary.totalRecovery)}</p>
             </div>
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
               <p className="text-[10px] text-muted-foreground">Balance</p>
-              <p className="text-sm font-bold text-blue-700 dark:text-blue-400">{formatCurrency(ledger.summary.currentBalance)}</p>
+              <p className="text-sm font-bold text-blue-700 dark:text-blue-400">{formatPKR(ledger.summary.currentBalance)}</p>
             </div>
           </div>
 
@@ -2302,9 +2298,9 @@ function LedgerView() {
                           </div>
                           <div className="text-right shrink-0 ml-3">
                             <p className={`font-bold text-sm ${txn.type === 'credit' ? 'text-amber-600' : 'text-green-600'}`}>
-                              {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                              {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
                             </p>
-                            <p className="text-[10px] text-muted-foreground">Bal: {formatCurrency(txn.newBalance)}</p>
+                            <p className="text-[10px] text-muted-foreground">Bal: {formatPKR(txn.newBalance)}</p>
                           </div>
                         </div>
                       </div>
@@ -2361,7 +2357,7 @@ function LedgerView() {
                           </div>
                           <div className="text-right shrink-0 ml-3">
                             <p className={`font-bold text-sm ${getShopDisplayBalance(shop, user?.companyId || null) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              {formatCurrency(getShopDisplayBalance(shop, user?.companyId || null))}
+                              {formatPKR(getShopDisplayBalance(shop, user?.companyId || null))}
                             </p>
                             <p className="text-[10px] text-muted-foreground">Balance</p>
                           </div>

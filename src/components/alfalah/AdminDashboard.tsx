@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useAnimatedNumber } from '@/lib/use-animated-number';
-import { getLocalDateString, WORKING_DAYS } from '@/lib/utils';
+import { getLocalDateString, WORKING_DAYS, formatPKR } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -101,7 +101,7 @@ function PendingRecoveryBanner({ setCurrentView }: { setCurrentView: (v: string)
             {pendingCount} Pending Recover{pendingCount === 1 ? 'y' : 'ies'}
           </p>
           <p className="text-xs text-orange-600/70 dark:text-orange-400/70">
-            Total: {formatCurrency(pendingAmount)} — Click to review &amp; approve
+            Total: {formatPKR(pendingAmount)} — Click to review &amp; approve
           </p>
         </div>
       </div>
@@ -192,7 +192,7 @@ function OverdueShopsAlert({ setCurrentView }: { setCurrentView: (v: string) => 
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{shop.name}</p>
-                  <p className="text-[10px] text-muted-foreground">{shop.area || 'No area'} · {formatCurrency(shop.balance)} balance</p>
+                  <p className="text-[10px] text-muted-foreground">{shop.area || 'No area'} · {formatPKR(shop.balance)} balance</p>
                 </div>
               </div>
               <Badge className={`text-[9px] font-bold shrink-0 ${
@@ -221,10 +221,6 @@ function OverdueShopsAlert({ setCurrentView }: { setCurrentView: (v: string) => 
       </CardContent>
     </Card>
   );
-}
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 interface Orderbooker {
@@ -398,7 +394,7 @@ function RecoverySparkline({ data, width = 100, height = 28 }: { data: number[];
         <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
           <div className="bg-popover text-popover-foreground text-[10px] font-medium rounded-md px-2 py-1 shadow-md border border-border whitespace-nowrap">
             <span className="text-muted-foreground">{dayLabels[hoveredIdx]}:</span>{' '}
-            <span className="font-bold tabular-nums">{formatCurrency(data[hoveredIdx])}</span>
+            <span className="font-bold tabular-nums">{formatPKR(data[hoveredIdx])}</span>
           </div>
         </div>
       )}
@@ -674,7 +670,7 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Today&apos;s Credit</p>
-              <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate number-display">{formatCurrency(animatedTodayCredit)}</p>
+              <p className="text-2xl font-bold text-amber-600 tabular-nums number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
             </CardContent>
           </Card>
           <Card className="kpi-card stat-card-green stat-pulse animate-fade-in card-border-glow hover-scale-102 animate-card-entrance">
@@ -686,7 +682,7 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-muted-foreground font-medium bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Today&apos;s Recovery</p>
-              <p className="text-2xl font-bold text-green-600 tabular-nums number-animate number-display">{formatCurrency(animatedTodayRecovery)}</p>
+              <p className="text-2xl font-bold text-green-600 tabular-nums number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
             </CardContent>
           </Card>
           <Card className="kpi-card stat-card-red card-border-glow hover-scale-102 animate-card-entrance">
@@ -698,7 +694,7 @@ export default function AdminDashboard() {
                 <span className="text-[10px] text-red-500 font-medium bg-red-50 px-2 py-0.5 rounded-full">Alert</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Outstanding</p>
-              <p className="text-2xl font-bold text-red-600 tabular-nums number-animate number-display">{formatCurrency(animatedOutstanding)}</p>
+              <p className="text-2xl font-bold text-red-600 tabular-nums number-animate number-display">{formatPKR(animatedOutstanding)}</p>
             </CardContent>
           </Card>
           <Card className="kpi-card stat-card-blue card-border-glow hover-scale-102 animate-card-entrance">
@@ -730,7 +726,7 @@ export default function AdminDashboard() {
               {/* Credit */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Credit:</span>
-                <span className="text-xs font-bold text-amber-600 tabular-nums">{formatCurrency(monthSummary?.totalCredit ?? 0)}</span>
+                <span className="text-xs font-bold text-amber-600 tabular-nums">{formatPKR(monthSummary?.totalCredit ?? 0)}</span>
                 {monthSummary && monthSummary.prevTotalCredit > 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                     monthSummary.creditChangePct > 0
@@ -748,7 +744,7 @@ export default function AdminDashboard() {
               {/* Recovery */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Recovery:</span>
-                <span className="text-xs font-bold text-green-600 tabular-nums">{formatCurrency(monthSummary?.totalRecovery ?? 0)}</span>
+                <span className="text-xs font-bold text-green-600 tabular-nums">{formatPKR(monthSummary?.totalRecovery ?? 0)}</span>
                 {monthSummary && monthSummary.prevTotalRecovery > 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                     monthSummary.recoveryChangePct > 0
@@ -767,7 +763,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Net:</span>
                 <span className={`text-xs font-bold tabular-nums ${(monthSummary?.netPosition ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(monthSummary?.netPosition ?? 0)}
+                  {formatPKR(monthSummary?.netPosition ?? 0)}
                 </span>
                 {monthSummary && monthSummary.prevNetPosition !== 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
@@ -839,7 +835,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-medium text-amber-600/70 leading-none">Total Credit Today</span>
-                  <span className="text-sm font-bold text-amber-700 tabular-nums leading-tight mt-0.5">{formatCurrency(data.todayCredit)}</span>
+                  <span className="text-sm font-bold text-amber-700 tabular-nums leading-tight mt-0.5">{formatPKR(data.todayCredit)}</span>
                 </div>
               </div>
               {/* Total Recovery Today */}
@@ -849,7 +845,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-medium text-green-600/70 leading-none">Total Recovery Today</span>
-                  <span className="text-sm font-bold text-green-700 tabular-nums leading-tight mt-0.5">{formatCurrency(data.todayRecovery)}</span>
+                  <span className="text-sm font-bold text-green-700 tabular-nums leading-tight mt-0.5">{formatPKR(data.todayRecovery)}</span>
                 </div>
               </div>
               {/* Transactions */}
@@ -938,7 +934,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <span className={`text-sm font-bold tabular-nums shrink-0 ${txn.type === 'credit' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
-                    {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                    {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
                   </span>
                 </div>
               ))}
@@ -994,7 +990,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center gap-2 mb-3 px-2">
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
                     <Banknote className="h-3 w-3 text-green-600" />
-                    <span className="text-xs font-bold text-green-700 dark:text-green-400">{formatCurrency(totalLiveRecovery)}</span>
+                    <span className="text-xs font-bold text-green-700 dark:text-green-400">{formatPKR(totalLiveRecovery)}</span>
                   </div>
                   <span className="text-[10px] text-muted-foreground">across {recoveryTxns.length} entries</span>
                 </div>
@@ -1018,7 +1014,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <span className="text-sm font-bold text-green-600 dark:text-green-400 tabular-nums shrink-0">
-                        -{formatCurrency(txn.amount)}
+                        -{formatPKR(txn.amount)}
                       </span>
                     </div>
                   ))}
@@ -1326,7 +1322,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xs text-muted-foreground">Outstanding</span>
-                    <span className={`text-sm font-bold tabular-nums ${colorClass}`}>{formatCurrency(ob.totalOutstanding)}</span>
+                    <span className={`text-sm font-bold tabular-nums ${colorClass}`}>{formatPKR(ob.totalOutstanding)}</span>
                   </div>
                   <div className={`progress-gradient ${progressClass} mb-2.5`}>
                     <div style={{ width: `${Math.min(pct, 100)}%` }} />
@@ -1343,7 +1339,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <RecoverySparkline data={spark.data} width={80} height={24} />
                           <span className="text-[9px] text-muted-foreground leading-tight">
-                            7d avg: <span className="font-semibold text-foreground tabular-nums">{formatCurrency(spark.avg)}</span>
+                            7d avg: <span className="font-semibold text-foreground tabular-nums">{formatPKR(spark.avg)}</span>
                           </span>
                         </div>
                         <span className={`text-[10px] font-bold tabular-nums shrink-0 flex items-center gap-0.5 ${
@@ -1398,7 +1394,7 @@ export default function AdminDashboard() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-sm font-semibold text-red-600 number-animate">{formatCurrency(ob.totalOutstanding)}</span>
+                        <span className="text-sm font-semibold text-red-600 number-animate">{formatPKR(ob.totalOutstanding)}</span>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1439,7 +1435,7 @@ export default function AdminDashboard() {
                               <p className="text-[11px] text-muted-foreground truncate">{shop.area || '—'}</p>
                             </div>
                           </div>
-                          <span className="text-sm font-bold text-red-600 tabular-nums shrink-0 ml-2 number-animate">{formatCurrency(shop.balance)}</span>
+                          <span className="text-sm font-bold text-red-600 tabular-nums shrink-0 ml-2 number-animate">{formatPKR(shop.balance)}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
@@ -1559,11 +1555,11 @@ export default function AdminDashboard() {
                                 <div className="text-right shrink-0">
                                   {entry.amount > 0 && (
                                     <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full ${entry.type === 'credit' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>
-                                      {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
+                                      {entry.type === 'credit' ? '+' : '-'}{formatPKR(entry.amount)}
                                     </span>
                                   )}
                                   <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
-                                    {entry.balanceAfter > 0 ? `Bal: ${formatCurrency(entry.balanceAfter)}` : ''}
+                                    {entry.balanceAfter > 0 ? `Bal: ${formatPKR(entry.balanceAfter)}` : ''}
                                   </p>
                                 </div>
                               </div>
@@ -1607,21 +1603,21 @@ export default function AdminDashboard() {
                   <ArrowUpRight className="h-4 w-4 text-amber-600" />
                 </div>
                 <p className="text-[10px] text-muted-foreground font-medium">Total Business Volume</p>
-                <p className="text-base font-bold text-amber-700 dark:text-amber-400 tabular-nums mt-0.5">{formatCurrency(bizSummary.totalCredit)}</p>
+                <p className="text-base font-bold text-amber-700 dark:text-amber-400 tabular-nums mt-0.5">{formatPKR(bizSummary.totalCredit)}</p>
               </div>
               <div className="text-center">
                 <div className="h-9 w-9 rounded-xl bg-green-50 flex items-center justify-center mx-auto mb-2">
                   <ArrowDownRight className="h-4 w-4 text-green-600" />
                 </div>
                 <p className="text-[10px] text-muted-foreground font-medium">Total Recovery Collected</p>
-                <p className="text-base font-bold text-green-700 dark:text-green-400 tabular-nums mt-0.5">{formatCurrency(bizSummary.totalRecovery)}</p>
+                <p className="text-base font-bold text-green-700 dark:text-green-400 tabular-nums mt-0.5">{formatPKR(bizSummary.totalRecovery)}</p>
               </div>
               <div className="text-center">
                 <div className={`h-9 w-9 rounded-xl flex items-center justify-center mx-auto mb-2 ${bizSummary.netBalance > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
                   <Wallet className={`h-4 w-4 ${bizSummary.netBalance > 0 ? 'text-red-600' : 'text-green-600'}`} />
                 </div>
                 <p className="text-[10px] text-muted-foreground font-medium">Net Outstanding</p>
-                <p className={`text-base font-bold tabular-nums mt-0.5 ${bizSummary.netBalance > 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>{formatCurrency(bizSummary.netBalance)}</p>
+                <p className={`text-base font-bold tabular-nums mt-0.5 ${bizSummary.netBalance > 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>{formatPKR(bizSummary.netBalance)}</p>
               </div>
             </div>
           </CardContent>

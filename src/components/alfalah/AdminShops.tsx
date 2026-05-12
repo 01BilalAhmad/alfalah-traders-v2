@@ -81,7 +81,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
 import { exportToCSV } from '@/lib/csv-export';
-import { WORKING_DAYS, getTodayRouteDay } from '@/lib/utils';
+import { WORKING_DAYS, getTodayRouteDay, formatPKR } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
 import AdminBulkImport from './AdminBulkImport';
 
@@ -123,10 +123,6 @@ interface Orderbooker {
   status: string;
   totalShops?: number;
   totalOutstanding?: number;
-}
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 export default function AdminShops() {
@@ -782,7 +778,7 @@ export default function AdminShops() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
-              <p className="text-lg font-bold text-red-600 dark:text-red-400">{formatCurrency(totalOutstanding)}</p>
+              <p className="text-lg font-bold text-red-600 dark:text-red-400">{formatPKR(totalOutstanding)}</p>
             </div>
           </CardContent>
         </Card>
@@ -795,7 +791,7 @@ export default function AdminShops() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Average Balance</p>
-              <p className="text-lg font-bold text-foreground">{formatCurrency(Math.round(averageBalance))}</p>
+              <p className="text-lg font-bold text-foreground">{formatPKR(Math.round(averageBalance))}</p>
             </div>
           </CardContent>
         </Card>
@@ -816,7 +812,7 @@ export default function AdminShops() {
             </div>
             {highestBalanceShop && (
               <span className="text-sm font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
-                {formatCurrency(highestBalanceShop.balance)}
+                {formatPKR(highestBalanceShop.balance)}
               </span>
             )}
           </CardContent>
@@ -1040,7 +1036,7 @@ export default function AdminShops() {
                         <p className="font-medium text-sm">{shop.name}</p>
                         {shop.creditLimit > 0 && shop.balance > shop.creditLimit && (
                           <p className="text-[10px] text-red-600 dark:text-red-400 font-medium leading-tight">
-                            Over limit ({formatCurrency(shop.balance)} / {formatCurrency(shop.creditLimit)})
+                            Over limit ({formatPKR(shop.balance)} / {formatPKR(shop.creditLimit)})
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground sm:hidden">{shop.ownerName || ''} &bull; {shop.area || ''}</p>
@@ -1061,7 +1057,7 @@ export default function AdminShops() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(shop.balance)}</span>
+                        <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>{formatPKR(shop.balance)}</span>
                       </TableCell>
                       <TableCell>
                         {(() => {
@@ -1074,7 +1070,7 @@ export default function AdminShops() {
                                 <Badge className="bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-200 dark:border-red-800 text-[10px] font-bold animate-pulse">
                                   ⚠ Over Limit
                                 </Badge>
-                                <span className="text-[9px] text-red-600 dark:text-red-400 font-medium">Limit: {formatCurrency(shop.creditLimit)}</span>
+                                <span className="text-[9px] text-red-600 dark:text-red-400 font-medium">Limit: {formatPKR(shop.creditLimit)}</span>
                               </div>
                             );
                           }
@@ -1084,7 +1080,7 @@ export default function AdminShops() {
                                 <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border-amber-200 dark:border-amber-800 text-[10px] font-bold">
                                   Near Limit
                                 </Badge>
-                                <span className="text-[9px] text-muted-foreground">Limit: {formatCurrency(shop.creditLimit)}</span>
+                                <span className="text-[9px] text-muted-foreground">Limit: {formatPKR(shop.creditLimit)}</span>
                               </div>
                             );
                           }
@@ -1093,7 +1089,7 @@ export default function AdminShops() {
                               <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 text-[10px] font-bold">
                                 Within Limit
                               </Badge>
-                              <span className="text-[9px] text-muted-foreground">Limit: {formatCurrency(shop.creditLimit)}</span>
+                              <span className="text-[9px] text-muted-foreground">Limit: {formatPKR(shop.creditLimit)}</span>
                             </div>
                           );
                         })()}
@@ -1457,7 +1453,7 @@ export default function AdminShops() {
                       </Badge>
                     </div>
                     <p className={`text-2xl font-bold tabular-nums ${detailShop.balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                      {formatCurrency(detailShop.balance)}
+                      {formatPKR(detailShop.balance)}
                     </p>
 
                     {/* Credit Limit Progress Bar */}
@@ -1465,7 +1461,7 @@ export default function AdminShops() {
                       <div className="mt-3 space-y-1.5">
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] text-muted-foreground font-medium">Credit Limit</span>
-                          <span className="text-[11px] font-semibold text-foreground">{formatCurrency(detailShop.creditLimit)}</span>
+                          <span className="text-[11px] font-semibold text-foreground">{formatPKR(detailShop.creditLimit)}</span>
                         </div>
                         <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
                           <div
@@ -1490,7 +1486,7 @@ export default function AdminShops() {
                                 : 'text-emerald-600 dark:text-emerald-400'
                           }`}>
                             {detailShop.balance > detailShop.creditLimit
-                              ? `${formatCurrency(detailShop.balance)} — Over limit by ${formatCurrency(detailShop.balance - detailShop.creditLimit)}`
+                              ? `${formatPKR(detailShop.balance)} — Over limit by ${formatPKR(detailShop.balance - detailShop.creditLimit)}`
                               : `${Math.round((detailShop.balance / detailShop.creditLimit) * 100)}% used`
                             }
                           </span>
@@ -1617,7 +1613,7 @@ export default function AdminShops() {
                                 boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                                 fontSize: '11px',
                               }}
-                              formatter={(value: number, name: string) => [formatCurrency(value), 'Balance']}
+                              formatter={(value: number, name: string) => [formatPKR(value), 'Balance']}
                             />
                             <Line
                               type="monotone"
@@ -1719,7 +1715,7 @@ export default function AdminShops() {
                             </TableCell>
                             <TableCell>
                               <span className={`text-xs font-bold ${txn.type === 'credit' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                                {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                                {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
                               </span>
                             </TableCell>
                             <TableCell className="hidden sm:table-cell">
@@ -1734,7 +1730,7 @@ export default function AdminShops() {
                             </TableCell>
                             <TableCell className="text-right">
                               <span className="text-xs font-semibold text-foreground tabular-nums">
-                                {formatCurrency(txn.newBalance)}
+                                {formatPKR(txn.newBalance)}
                               </span>
                             </TableCell>
                           </TableRow>
@@ -1942,7 +1938,7 @@ export default function AdminShops() {
                             : 'bg-muted text-muted-foreground hover:bg-accent'
                         }`}
                       >
-                        {cb.companyName} ({formatCurrency(cb.balance)})
+                        {cb.companyName} ({formatPKR(cb.balance)})
                       </button>
                     ))}
                   </div>
@@ -1952,15 +1948,15 @@ export default function AdminShops() {
               <div className="grid grid-cols-3 gap-3 px-1">
                 <div className="bg-amber-50 rounded-lg p-3 text-center">
                   <p className="text-[10px] text-muted-foreground">Total Credit</p>
-                  <p className="text-sm font-bold text-amber-700">{formatCurrency(ledgerData.summary.totalCredit)}</p>
+                  <p className="text-sm font-bold text-amber-700">{formatPKR(ledgerData.summary.totalCredit)}</p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-3 text-center">
                   <p className="text-[10px] text-muted-foreground">Total Recovery</p>
-                  <p className="text-sm font-bold text-green-700">{formatCurrency(ledgerData.summary.totalRecovery)}</p>
+                  <p className="text-sm font-bold text-green-700">{formatPKR(ledgerData.summary.totalRecovery)}</p>
                 </div>
                 <div className="bg-blue-50 rounded-lg p-3 text-center">
                   <p className="text-[10px] text-muted-foreground">Balance</p>
-                  <p className="text-sm font-bold text-blue-700">{formatCurrency(ledgerData.summary.currentBalance)}</p>
+                  <p className="text-sm font-bold text-blue-700">{formatPKR(ledgerData.summary.currentBalance)}</p>
                 </div>
               </div>
               {/* Transactions */}
@@ -1991,9 +1987,9 @@ export default function AdminShops() {
                           </div>
                           <div className="text-right shrink-0 ml-3">
                             <p className={`font-bold text-sm ${txn.type === 'credit' ? 'text-amber-600' : 'text-green-600'}`}>
-                              {txn.type === 'credit' ? '+' : '-'}{formatCurrency(txn.amount)}
+                              {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
                             </p>
-                            <p className="text-[10px] text-muted-foreground">Bal: {formatCurrency(txn.newBalance)}</p>
+                            <p className="text-[10px] text-muted-foreground">Bal: {formatPKR(txn.newBalance)}</p>
                           </div>
                         </div>
                       </div>

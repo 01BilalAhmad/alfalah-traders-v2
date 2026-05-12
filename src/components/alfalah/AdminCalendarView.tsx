@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
-import { WORKING_DAYS } from '@/lib/utils';
+import { WORKING_DAYS, formatPKR } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -148,10 +148,6 @@ const JS_DAY_TO_ROUTE: Record<number, string> = {
 const DAY_HEADER_LABELS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
 
 function getRouteDayForDate(date: Date): string {
   const jsDay = getDay(date);
@@ -768,7 +764,7 @@ export default function AdminCalendarView() {
                         <div>
                           <p className="text-sm font-semibold">{ob.name}</p>
                           <p className="text-[10px] text-muted-foreground">
-                            {obShops.length} shop{obShops.length !== 1 ? 's' : ''} · {formatCurrency(obTotalOutstanding)} outstanding
+                            {obShops.length} shop{obShops.length !== 1 ? 's' : ''} · {formatPKR(obTotalOutstanding)} outstanding
                           </p>
                         </div>
                       </div>
@@ -795,7 +791,7 @@ export default function AdminCalendarView() {
                               shop.balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
                             }`}
                           >
-                            {formatCurrency(shop.balance)}
+                            {formatPKR(shop.balance)}
                           </span>
                         </div>
                       ))}

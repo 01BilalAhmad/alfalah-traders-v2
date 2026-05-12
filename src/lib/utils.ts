@@ -86,6 +86,13 @@ export function formatPKR(amount: number): string {
 }
 
 /**
+ * Format a number with Pakistani locale grouping, without currency prefix.
+ */
+export function formatAmount(amount: number): string {
+  return amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+/**
  * Working days for Al-Falah Traders.
  * Friday is the weekly off day. Saturday through Thursday are working days.
  */

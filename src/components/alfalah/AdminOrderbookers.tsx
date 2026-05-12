@@ -46,6 +46,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
+import { formatPKR } from '@/lib/utils';
 
 interface Orderbooker {
   id: string;
@@ -81,10 +82,6 @@ interface UsernameCheckResult {
     username: string;
     status: string;
   };
-}
-
-function formatCurrency(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 export default function AdminOrderbookers() {
@@ -231,7 +228,7 @@ export default function AdminOrderbookers() {
         }),
       });
       if (res.ok) {
-        toast({ title: 'Target Set', description: `Monthly target of ${formatCurrency(Number(targetAmount))} set for ${targetOB.name}` });
+        toast({ title: 'Target Set', description: `Monthly target of ${formatPKR(Number(targetAmount))} set for ${targetOB.name}` });
         setTargetDialogOpen(false);
         // Update local state
         setMonthlyTargets(prev => ({
@@ -498,7 +495,7 @@ export default function AdminOrderbookers() {
                   )}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Wallet className="h-3.5 w-3.5" />
-                    <span className="font-semibold text-red-600">{formatCurrency(ob.totalOutstanding)}</span>
+                    <span className="font-semibold text-red-600">{formatPKR(ob.totalOutstanding)}</span>
                     <span>outstanding</span>
                   </div>
                   {/* Visit Streak Badge */}
@@ -526,7 +523,7 @@ export default function AdminOrderbookers() {
                         <Target className="h-3 w-3" /> Monthly Target
                       </span>
                       <span className="text-[10px] font-bold tabular-nums">
-                        {formatCurrency(monthlyTargets[ob.id].achieved)} / {formatCurrency(monthlyTargets[ob.id].target)}
+                        {formatPKR(monthlyTargets[ob.id].achieved)} / {formatPKR(monthlyTargets[ob.id].target)}
                       </span>
                     </div>
                     <Progress
@@ -546,7 +543,7 @@ export default function AdminOrderbookers() {
                       }`}>
                         {monthlyTargets[ob.id].achieved >= monthlyTargets[ob.id].target
                           ? '✓ Target met!'
-                          : `${formatCurrency(monthlyTargets[ob.id].target - monthlyTargets[ob.id].achieved)} remaining`}
+                          : `${formatPKR(monthlyTargets[ob.id].target - monthlyTargets[ob.id].achieved)} remaining`}
                       </span>
                     </div>
                   </div>
@@ -769,7 +766,7 @@ export default function AdminOrderbookers() {
                 className="input-enhanced"
               />
               {targetAmount && (
-                <p className="text-xs text-muted-foreground">Target: {formatCurrency(Number(targetAmount))}</p>
+                <p className="text-xs text-muted-foreground">Target: {formatPKR(Number(targetAmount))}</p>
               )}
             </div>
           </div>

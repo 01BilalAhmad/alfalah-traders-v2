@@ -20,10 +20,11 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
+import { formatAmount } from '@/lib/utils';
 
 function formatCurrency(amount: number): string {
   if (amount === 0) return '—';
-  return `${amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  return formatAmount(amount);
 }
 
 interface Orderbooker {
