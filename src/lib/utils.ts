@@ -93,7 +93,7 @@ export function formatAmount(amount: number): string {
 }
 
 /**
- * Working days for Al-Falah Traders.
+ * Working days for Finexa.
  * Friday is the weekly off day. Saturday through Thursday are working days.
  */
 export const WORKING_DAYS = [

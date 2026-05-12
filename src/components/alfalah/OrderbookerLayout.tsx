@@ -478,7 +478,7 @@ function ProfileView({
             </div>
             <ShareMenu
               title="Share Profile"
-              text={`${user?.name} is an orderbooker at Al-Falah Traders. Recovery this month: ${formatPKR(totalRecovery)}`}
+              text={`${user?.name} is an orderbooker at Finexa. Recovery this month: ${formatPKR(totalRecovery)}`}
               className="h-9 w-9"
             />
           </div>
@@ -749,7 +749,7 @@ function PendingSyncCard({ transactions }: { transactions: PendingTransaction[] 
   // Get cached distributor phone for offline receipt display
   let cachedDistPhone: string | null = null;
   try {
-    cachedDistPhone = localStorage.getItem('alfalah-distributor-phone') || null;
+    cachedDistPhone = localStorage.getItem('finexa-distributor-phone') || localStorage.getItem('alfalah-distributor-phone') || null;
   } catch { /* storage unavailable */ }
 
   return (
@@ -830,7 +830,7 @@ export default function OrderbookerLayout() {
             <Store className="h-4 w-4 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-white leading-tight">Al-Falah Traders</h1>
+            <h1 className="text-sm font-bold text-white leading-tight">Finexa</h1>
             <p className="text-[9px] text-blue-200 leading-tight hidden sm:block">
               {isHistory ? 'Recovery History' : isLedger ? 'Shop Ledger' : isProfile ? 'My Profile' : 'Orderbooker Portal'}
             </p>
@@ -843,7 +843,7 @@ export default function OrderbookerLayout() {
           </div>
           <ShareMenu
             title="Share"
-            text="Al-Falah Traders - Smart Credit Management System"
+            text="Finexa - Smart Credit Management"
             className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10 border-0 p-0"
           />
           <Button
@@ -1091,8 +1091,8 @@ function OrderbookerDashboard() {
 
         // Cache distributor phone in localStorage for offline use
         try {
-          localStorage.setItem('alfalah-distributor-phone', distributorPhone || '');
-          localStorage.setItem('alfalah-company-name', companyName || '');
+          localStorage.setItem('finexa-distributor-phone', distributorPhone || '');
+          localStorage.setItem('finexa-company-name', companyName || '');
         } catch { /* storage unavailable */ }
 
         // Cache shops for offline use (including company/distributor info for receipts)
@@ -1127,8 +1127,8 @@ function OrderbookerDashboard() {
         let cachedDistPhone: string | null = null;
         let cachedCompanyName: string | null = null;
         try {
-          cachedDistPhone = localStorage.getItem('alfalah-distributor-phone') || null;
-          cachedCompanyName = localStorage.getItem('alfalah-company-name') || null;
+          cachedDistPhone = localStorage.getItem('finexa-distributor-phone') || localStorage.getItem('alfalah-distributor-phone') || null;
+          cachedCompanyName = localStorage.getItem('finexa-company-name') || localStorage.getItem('alfalah-company-name') || null;
         } catch { /* storage unavailable */ }
 
         setShops(cached.map((s: CachedShop) => ({
@@ -1315,8 +1315,8 @@ function OrderbookerDashboard() {
       let offlineDistPhone: string | null = null;
       let offlineCompanyName: string | null = null;
       try {
-        offlineDistPhone = localStorage.getItem('alfalah-distributor-phone') || selectedShop.distributorPhone || null;
-        offlineCompanyName = localStorage.getItem('alfalah-company-name') || selectedShop.companyName || null;
+        offlineDistPhone = localStorage.getItem('finexa-distributor-phone') || localStorage.getItem('alfalah-distributor-phone') || selectedShop.distributorPhone || null;
+        offlineCompanyName = localStorage.getItem('finexa-company-name') || localStorage.getItem('alfalah-company-name') || selectedShop.companyName || null;
       } catch { /* storage unavailable */ }
 
       addPendingTransaction({

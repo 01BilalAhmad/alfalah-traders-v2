@@ -38,7 +38,7 @@ export default function LoginView() {
 
   // Auto-setup: Create admin user if database is empty
   useEffect(() => {
-    const saved = localStorage.getItem('alfalah-remembered-username');
+    const saved = localStorage.getItem('finexa-remembered-username') || localStorage.getItem('alfalah-remembered-username');
     if (saved) {
       setUsername(saved);
       setRememberMe(true);
@@ -104,9 +104,9 @@ export default function LoginView() {
 
       // Save/clear remembered username
       if (rememberMe) {
-        localStorage.setItem('alfalah-remembered-username', username.trim());
+        localStorage.setItem('finexa-remembered-username', username.trim());
       } else {
-        localStorage.removeItem('alfalah-remembered-username');
+        localStorage.removeItem('finexa-remembered-username');
       }
 
       toast({ title: 'Welcome!', description: `Logged in as ${data.user.name}` });
@@ -231,8 +231,8 @@ export default function LoginView() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm shadow-lg shadow-blue-500/20">
             <Building2 className="h-9 w-9 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Al-Falah Traders</h1>
-          <p className="mt-1.5 text-sm text-blue-200">Smart Credit & Route Management System</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Finexa</h1>
+          <p className="mt-1.5 text-sm text-blue-200">Smart Credit & Route Management</p>
         </div>
 
         {/* LOGIN VIEW */}
@@ -531,11 +531,11 @@ export default function LoginView() {
         )}
 
         <p className="mt-6 text-center text-xs text-blue-200/60">
-          &copy; {new Date().getFullYear()} Al-Falah Traders. All rights reserved.
+          &copy; {new Date().getFullYear()} Finexa. All rights reserved.
         </p>
 
         <p className="mt-4 text-center text-[10px] text-blue-300/40">
-          Powered by Al-Falah Systems
+          Powered by Finexa
         </p>
       </div>
     </div>

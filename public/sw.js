@@ -1,4 +1,4 @@
-const CACHE_NAME = 'alfalah-traders-v2';
+const CACHE_NAME = 'finexa-v1';
 const STATIC_ASSETS = [
   '/',
   '/icon-192.png',
@@ -200,7 +200,7 @@ async function syncOfflineCredits() {
 
 function openIndexedDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('alfalah-offline', 1);
+    const request = indexedDB.open('finexa-offline', 1);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains('offline-recoveries')) {

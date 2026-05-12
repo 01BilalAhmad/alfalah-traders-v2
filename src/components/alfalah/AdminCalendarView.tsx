@@ -811,7 +811,7 @@ export default function AdminCalendarView() {
                 onClick={() => {
                   setDetailOpen(false);
                   // Store the selected route day so AdminShops can filter by it
-                  sessionStorage.setItem('alfalah-calendar-filter-day', selectedRouteDay);
+                  sessionStorage.setItem('finexa-calendar-filter-day', selectedRouteDay);
                   setCurrentView('admin-shops');
                 }}
               >

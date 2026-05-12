@@ -416,7 +416,7 @@ export default function OrderbookerProfile({ open, onOpenChange }: OrderbookerPr
                   <Store className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-foreground">Al-Falah Traders</p>
+                  <p className="text-sm font-bold text-foreground">Finexa</p>
                   <p className="text-[10px] text-muted-foreground">Smart Credit &amp; Route Management</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge

@@ -50,7 +50,7 @@ export function usePWAInstall() {
       setCanInstall(false);
       toast({
         title: 'App Installed! 🎉',
-        description: 'Al-Falah Traders has been added to your home screen',
+        description: 'Finexa has been added to your home screen',
       });
     };
 
@@ -116,7 +116,7 @@ export function registerServiceWorker() {
 export async function storeOfflineRecovery(data: Record<string, unknown>) {
   try {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('alfalah-offline', 1);
+      const request = indexedDB.open('finexa-offline', 1);
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains('offline-recoveries')) {
@@ -148,7 +148,7 @@ export async function storeOfflineRecovery(data: Record<string, unknown>) {
 export async function storeOfflineCredit(data: Record<string, unknown>) {
   try {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('alfalah-offline', 1);
+      const request = indexedDB.open('finexa-offline', 1);
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains('offline-recoveries')) {
@@ -180,7 +180,7 @@ export async function storeOfflineCredit(data: Record<string, unknown>) {
 export async function getPendingOfflineCount(): Promise<number> {
   try {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('alfalah-offline', 1);
+      const request = indexedDB.open('finexa-offline', 1);
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains('offline-recoveries')) {

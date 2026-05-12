@@ -1,20 +1,23 @@
 /**
- * Central API Utility for Al-Falah Traders
+ * Central API Utility for Finexa
  * 
  * This module provides a configurable base URL for all API calls.
  * - In web browser: uses relative paths (works with current domain)
  * - In APK/Capacitor: prepends the configured server URL
  * 
- * Server URL is stored in localStorage under 'alfalah-server-url'
- * Auth token is stored in localStorage under 'alfalah-token'
+ * Server URL is stored in localStorage under 'finexa-server-url'
+ * Auth token is stored in localStorage under 'finexa-token'
  * 
  * Usage: 
  *   import { apiFetch, getServerUrl, setServerUrl, testConnection } from '@/lib/api';
  *   const res = await apiFetch('/api/auth/login', { method: 'POST', body: ... });
  */
 
-const STORAGE_KEY = 'alfalah-server-url';
-const TOKEN_KEY = 'alfalah-token';
+const STORAGE_KEY = 'finexa-server-url';
+const TOKEN_KEY = 'finexa-token';
+// Legacy keys for migration
+const LEGACY_STORAGE_KEY = 'alfalah-server-url';
+const LEGACY_TOKEN_KEY = 'alfalah-token';
 
 /**
  * Get the configured server base URL
@@ -23,7 +26,16 @@ const TOKEN_KEY = 'alfalah-token';
 export function getServerUrl(): string {
   if (typeof window === 'undefined') return '';
   try {
-    return localStorage.getItem(STORAGE_KEY) || '';
+    const url = localStorage.getItem(STORAGE_KEY);
+    if (url) return url;
+    // Migration: check legacy key
+    const legacyUrl = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (legacyUrl) {
+      localStorage.setItem(STORAGE_KEY, legacyUrl);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      return legacyUrl;
+    }
+    return '';
   } catch {
     return '';
   }
@@ -58,7 +70,16 @@ export function hasServerUrl(): boolean {
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) return token;
+    // Migration: check legacy key
+    const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
+    if (legacyToken) {
+      localStorage.setItem(TOKEN_KEY, legacyToken);
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
+      return legacyToken;
+    }
+    return null;
   } catch {
     return null;
   }

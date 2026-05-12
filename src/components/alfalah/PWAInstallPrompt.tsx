@@ -162,7 +162,7 @@ export default function PWAInstallPrompt({ floating = true, className = '' }: PW
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-sm text-foreground">Install Al-Falah App</h3>
+            <h3 className="font-bold text-sm text-foreground">Install Finexa App</h3>
             <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
               Add to your home screen for quick access and offline support!
             </p>
@@ -218,7 +218,7 @@ export default function PWAInstallPrompt({ floating = true, className = '' }: PW
           <Smartphone className="h-5 w-5 text-white" />
         </div>
         <div className="flex-1">
-          <h3 className="font-semibold text-sm">Install Al-Falah App</h3>
+          <h3 className="font-semibold text-sm">Install Finexa App</h3>
           <p className="text-xs text-muted-foreground">Quick access + offline support</p>
         </div>
         <Button size="sm" onClick={handleInstall} className="bg-primary text-white">

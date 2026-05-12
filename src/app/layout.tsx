@@ -28,9 +28,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Al-Falah Traders | Smart Credit & Route Management",
-  description: "Professional credit management, recovery tracking, and route planning system for Al-Falah Traders. Streamline orderbooker workflows with real-time GPS tracking and financial reporting.",
-  keywords: ["Al-Falah Traders", "credit management", "recovery tracking", "orderbooker", "route management"],
+  title: "Finexa | Smart Credit & Route Management",
+  description: "Professional credit management, recovery tracking, and route planning system. Streamline orderbooker workflows with real-time GPS tracking and financial reporting.",
+  keywords: ["Finexa", "credit management", "recovery tracking", "orderbooker", "route management"],
   manifest: "/manifest.json",
   icons: {
     icon: "/icon-192.png",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Al-Falah Traders",
+    title: "Finexa",
   },
   other: {
     "mobile-web-app-capable": "yes",

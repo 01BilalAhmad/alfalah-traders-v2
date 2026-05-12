@@ -75,7 +75,7 @@ export async function GET() {
       version: '1.0',
       exportedAt: new Date().toISOString(),
       metadata: {
-        application: 'Al-Falah Traders - Smart Credit Management',
+        application: 'Finexa - Smart Credit Management',
         counts: {
           users: users.length,
           shops: shops.length,

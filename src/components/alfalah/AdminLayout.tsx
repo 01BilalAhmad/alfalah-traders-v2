@@ -195,8 +195,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <Building2 className="h-4.5 w-4.5 text-white" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-sm font-bold text-white leading-tight">Al-Falah Traders</h1>
-              <p className="text-[10px] text-blue-200 leading-tight">Credit Management System</p>
+              <h1 className="text-sm font-bold text-white leading-tight">Finexa</h1>
+              <p className="text-[10px] text-blue-200 leading-tight">Credit Management</p>
             </div>
           </div>
         </div>
@@ -263,7 +263,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <Separator orientation="vertical" className="h-8 bg-white/20 hidden sm:block" />
           <ShareMenu
             title="Share"
-            text="Al-Falah Traders - Smart Credit Management System"
+            text="Finexa - Smart Credit Management"
             className="h-9 w-9 text-blue-100 hover:bg-white/10 hover:text-white border-0 p-0"
           />
           <Button
@@ -303,7 +303,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   <Building2 className="h-5 w-5 text-blue-200" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white leading-tight">Al-Falah Traders</p>
+                  <p className="text-sm font-bold text-white leading-tight">Finexa</p>
                   <p className="text-[10px] text-blue-300/70 leading-tight">Management Portal</p>
                 </div>
               </div>
@@ -431,7 +431,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Footer */}
       <footer className="glass-strong dark:bg-slate-800/90 dark:border-slate-600/50 border-t border-border/50 px-6 py-3 flex items-center justify-between text-xs text-muted-foreground dark:text-slate-300 mt-auto">
-        <span>&copy; {new Date().getFullYear()} Al-Falah Traders. All rights reserved.</span>
+        <span>&copy; {new Date().getFullYear()} Finexa. All rights reserved.</span>
         <span>Smart Credit &amp; Route Management v1.0</span>
       </footer>
 

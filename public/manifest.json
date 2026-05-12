@@ -1,7 +1,7 @@
 {
-  "name": "Al-Falah Traders - Smart Credit Management",
-  "short_name": "Al-Falah",
-  "description": "Professional credit management, recovery tracking, and route planning system for Al-Falah Traders",
+  "name": "Finexa - Smart Credit Management",
+  "short_name": "Finexa",
+  "description": "Professional credit management, recovery tracking, and route planning system",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

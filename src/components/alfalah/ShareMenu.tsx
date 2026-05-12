@@ -28,7 +28,7 @@ interface ShareMenuProps {
 export default function ShareMenu({ title, text, url, trigger, className }: ShareMenuProps) {
   const [copied, setCopied] = useState(false);
 
-  const shareOptions = { title: title || 'Al-Falah Traders', text, url };
+  const shareOptions = { title: title || 'Finexa', text, url };
 
   const handleWhatsApp = () => {
     const link = shareViaWhatsApp(shareOptions);

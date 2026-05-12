@@ -80,7 +80,7 @@ export function generateLedgerPDF(ledger: LedgerData): jsPDF {
   // Subtitle
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('Smart Credit & Route Management System', pageWidth / 2, 23, { align: 'center' });
+  doc.text('Powered by Finexa', pageWidth / 2, 23, { align: 'center' });
 
   // Document title
   doc.setFontSize(13);
@@ -240,7 +240,7 @@ export function generateLedgerPDF(ledger: LedgerData): jsPDF {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.text(`Generated on ${new Date().toLocaleString('en-PK')}`, pageWidth / 2, footerY + 6, { align: 'center' });
-    doc.text('Al-Falah Traders - Confidential Document', pageWidth / 2, footerY + 11, { align: 'center' });
+    doc.text('Finexa - Confidential Document', pageWidth / 2, footerY + 11, { align: 'center' });
 
     doc.setFontSize(7);
     doc.text('This is a computer-generated document and does not require a signature.', pageWidth / 2, footerY + 16, { align: 'center' });
@@ -252,6 +252,6 @@ export function generateLedgerPDF(ledger: LedgerData): jsPDF {
 export function downloadLedgerPDF(ledger: LedgerData): void {
   const doc = generateLedgerPDF(ledger);
   const companySuffix = ledger.filteredCompanyName ? `_${ledger.filteredCompanyName.replace(/\s+/g, '_')}` : '';
-  const fileName = `AlFalah_Ledger_${ledger.shop.name.replace(/\s+/g, '_')}${companySuffix}_${new Date().toISOString().split('T')[0]}.pdf`;
+  const fileName = `Finexa_Ledger_${ledger.shop.name.replace(/\s+/g, '_')}${companySuffix}_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(fileName);
 }

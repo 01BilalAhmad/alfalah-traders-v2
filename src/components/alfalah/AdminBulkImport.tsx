@@ -126,7 +126,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
 
   const downloadTemplate = useCallback(() => {
     const templateData = [
-      { 'Shop Name': 'Al-Falah General Store', 'Owner Name': 'Muhammad Ali', 'Area': 'Saddar', 'Address': 'Shop #12, Main Market', 'Phone': '0300-1234567', 'Route Days': 'Monday', 'Credit Amount': 5000, 'Credit Limit': 20000 },
+      { 'Shop Name': 'Sample General Store', 'Owner Name': 'Muhammad Ali', 'Area': 'Saddar', 'Address': 'Shop #12, Main Market', 'Phone': '0300-1234567', 'Route Days': 'Monday', 'Credit Amount': 5000, 'Credit Limit': 20000 },
       { 'Shop Name': 'Madina Traders', 'Owner Name': 'Ahmed Khan', 'Area': 'Cantt', 'Address': '', 'Phone': '0312-9876543', 'Route Days': 'Tuesday', 'Credit Amount': 10000, 'Credit Limit': 30000 },
       { 'Shop Name': 'City Electronics', 'Owner Name': 'Bilal', 'Area': 'DHA', 'Address': 'Block-C, Shop 5', 'Phone': '', 'Route Days': 'Wednesday', 'Credit Amount': 0, 'Credit Limit': 0 },
     ];
@@ -138,7 +138,7 @@ export default function AdminBulkImport({ open, onOpenChange, orderbookers, comp
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Shops');
-    XLSX.writeFile(wb, 'Al-Falah_Bulk_Import_Template.xlsx');
+    XLSX.writeFile(wb, 'Finexa_Bulk_Import_Template.xlsx');
 
     toast({ title: 'Template Downloaded', description: 'Fill in the template and upload it here' });
   }, []);

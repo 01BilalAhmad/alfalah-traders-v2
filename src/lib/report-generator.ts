@@ -1,5 +1,5 @@
 /**
- * Al-Falah Traders — Print-Friendly PDF Report Generator
+ * Finexa — Print-Friendly PDF Report Generator
  *
  * Generates professional PDF reports using jsPDF + jspdf-autotable.
  * All reports share a consistent navy blue branded header and generation timestamp.
@@ -57,7 +57,7 @@ function todayStamp(): string {
   });
 }
 
-/** Draw the standard Al-Falah Traders header on a jsPDF doc and return the Y position after it. */
+/** Draw the standard header on a jsPDF doc and return the Y position after it. */
 function drawHeader(doc: jsPDF, title: string, subtitle?: string): number {
   const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -115,7 +115,7 @@ function drawFooter(doc: jsPDF): void {
   doc.setTextColor(...SLATE_GREY);
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.text('Al-Falah Traders — Confidential Document', pageWidth / 2, footerY, { align: 'center' });
+  doc.text('Finexa — Confidential Document', pageWidth / 2, footerY, { align: 'center' });
   doc.text('This is a computer-generated document and does not require a signature.', pageWidth / 2, footerY + 4, { align: 'center' });
 
   // Page number
@@ -341,7 +341,7 @@ export function generateRecoveryReportPDF(data: RecoveryReportData): jsPDF {
 
 export function downloadRecoveryReportPDF(data: RecoveryReportData): void {
   const doc = generateRecoveryReportPDF(data);
-  const fileName = `AlFalah_Recovery_${data.date}_${new Date().toISOString().split('T')[0]}.pdf`;
+  const fileName = `Finexa_Recovery_${data.date}_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(fileName);
 }
 
@@ -529,7 +529,7 @@ export function generateMonthlySummaryPDF(data: MonthlySummaryData): jsPDF {
 
 export function downloadMonthlySummaryPDF(data: MonthlySummaryData): void {
   const doc = generateMonthlySummaryPDF(data);
-  const fileName = `AlFalah_Monthly_${data.month}_${new Date().toISOString().split('T')[0]}.pdf`;
+  const fileName = `Finexa_Monthly_${data.month}_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(fileName);
 }
 
@@ -620,7 +620,7 @@ export function generateShopListPDF(shops: ShopData[]): jsPDF {
 
 export function downloadShopListPDF(shops: ShopData[]): void {
   const doc = generateShopListPDF(shops);
-  const fileName = `AlFalah_Shops_${new Date().toISOString().split('T')[0]}.pdf`;
+  const fileName = `Finexa_Shops_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(fileName);
 }
 
@@ -757,7 +757,7 @@ export function generateOBPerformancePDF(data: OBPerformanceData[]): jsPDF {
 
 export function downloadOBPerformancePDF(data: OBPerformanceData[]): void {
   const doc = generateOBPerformancePDF(data);
-  const fileName = `AlFalah_OB_Performance_${new Date().toISOString().split('T')[0]}.pdf`;
+  const fileName = `Finexa_OB_Performance_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(fileName);
 }
 

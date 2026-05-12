@@ -338,7 +338,7 @@ export default function AdminOBRecoveryReport() {
 
   <div class="footer">
     <span>Generated: ${now}</span>
-    <span>Al-Falah Traders - Recovery Report</span>
+    <span>Powered by Finexa</span>
   </div>
 
   <div class="no-print" style="text-align:center; margin-top:20px;">

@@ -320,7 +320,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
           title: 'Restore Failed',
           description:
             (errorData as { error?: string }).error ||
-            'Could not restore backup. Please ensure the file is a valid Al-Falah backup.',
+            'Could not restore backup. Please ensure the file is a valid Finexa backup.',
           variant: 'destructive',
         });
       }
@@ -950,7 +950,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
               v1.0
             </Badge>
             <span className="text-[10px] text-muted-foreground/60">
-              Al-Falah Traders Backup System
+              Finexa Backup System
             </span>
           </div>
         </div>

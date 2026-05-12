@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       metadata: {
         exportDate: new Date().toISOString(),
         version: '1.0',
-        application: 'Al-Falah Traders - Smart Credit Management',
+        application: 'Finexa - Smart Credit Management',
         counts: {
           users: users.length,
           shops: shops.length,
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Content-Disposition': `attachment; filename="alfalah-backup-${dateStr}.json"`,
+        'Content-Disposition': `attachment; filename="finexa-backup-${dateStr}.json"`,
       },
     });
   } catch (error) {

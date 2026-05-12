@@ -2372,7 +2372,7 @@ export default function AdminCreditPosting() {
               {/* Footer */}
               <div className="border-t border-dashed border-border/60 px-5 py-3 text-center">
                 <p className="text-xs text-muted-foreground italic">Thank you for your business!</p>
-                <p className="text-[10px] text-muted-foreground/60 mt-1">Al-Falah Traders — Smart Credit Management</p>
+                <p className="text-[10px] text-muted-foreground/60 mt-1">Powered by Finexa</p>
               </div>
 
               {/* Print-only decorative bottom */}

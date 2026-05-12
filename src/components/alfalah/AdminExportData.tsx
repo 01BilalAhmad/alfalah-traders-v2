@@ -361,7 +361,7 @@ export default function AdminExportData() {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `AlFalah_${option.key}_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `Finexa_${option.key}_${new Date().toISOString().split('T')[0]}.csv`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -376,11 +376,11 @@ export default function AdminExportData() {
       // Save XLSX workbook
       if (format === 'xlsx' && wb.SheetNames.length > 0) {
         const dateStr = new Date().toISOString().split('T')[0];
-        XLSX.writeFile(wb, `AlFalah_Export_${dateStr}.xlsx`);
+        XLSX.writeFile(wb, `Finexa_Export_${dateStr}.xlsx`);
 
         // Estimate file size (rough)
         const estimatedSize = wb.SheetNames.length * 15000;
-        addRecentExport(`AlFalah Export (${wb.SheetNames.length} sheets)`, 'XLSX', estimatedSize, 'success');
+        addRecentExport(`Finexa Export (${wb.SheetNames.length} sheets)`, 'XLSX', estimatedSize, 'success');
       } else if (format === 'csv') {
         addRecentExport(`${selectedExports.size} CSV files`, 'CSV', selectedExports.size * 5000, 'success');
       }

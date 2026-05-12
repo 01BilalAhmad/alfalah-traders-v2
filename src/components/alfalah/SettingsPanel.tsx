@@ -121,13 +121,13 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
 
   // Load last backup date from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('alfalah-last-backup');
+    const saved = localStorage.getItem('finexa-last-backup') || localStorage.getItem('alfalah-last-backup');
     if (saved) setLastBackupDate(saved);
   }, []);
 
   // Load compact mode from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('alfalah-compact-mode');
+    const saved = localStorage.getItem('finexa-compact-mode') || localStorage.getItem('alfalah-compact-mode');
     if (saved === 'true') {
       setCompactMode(true);
     }
@@ -136,7 +136,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
   // Save compact mode to localStorage
   const handleCompactToggle = useCallback((checked: boolean) => {
     setCompactMode(checked);
-    localStorage.setItem('alfalah-compact-mode', String(checked));
+    localStorage.setItem('finexa-compact-mode', String(checked));
     toast({
       title: checked ? 'Compact Mode Enabled' : 'Compact Mode Disabled',
       description: checked ? 'UI will use tighter spacing.' : 'UI will use default spacing.',
@@ -298,7 +298,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
       // Download the XLSX file
       if (wb.SheetNames.length > 0) {
         const dateStr = new Date().toISOString().split('T')[0];
-        XLSX.writeFile(wb, `AlFalah_AllData_${dateStr}.xlsx`);
+        XLSX.writeFile(wb, `Finexa_AllData_${dateStr}.xlsx`);
         toast({
           title: 'Export Complete',
           description: `Exported ${shopsCount} shops and ${obsCount} orderbookers to Excel file.`,
@@ -345,7 +345,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
       URL.revokeObjectURL(url);
       const now = new Date().toLocaleString('en-PK');
       setLastBackupDate(now);
-      localStorage.setItem('alfalah-last-backup', now);
+      localStorage.setItem('finexa-last-backup', now);
       toast({ title: 'Backup Downloaded', description: 'Full database backup saved successfully.' });
     } catch {
       toast({ title: 'Backup Failed', description: 'Network error. Please try again.', variant: 'destructive' });
@@ -468,7 +468,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('alfalah-')) {
+        if (key && (key.startsWith('finexa-') || key.startsWith('alfalah-'))) {
           keysToRemove.push(key);
         }
       }
@@ -1097,7 +1097,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                     <Building2 className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <p className="font-bold text-base text-foreground">Al-Falah Traders</p>
+                    <p className="font-bold text-base text-foreground">Finexa</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Smart Credit &amp; Route Management v1.0
                     </p>
@@ -1107,7 +1107,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                   </p>
                   <Separator />
                   <p className="text-[11px] text-muted-foreground">
-                    &copy; {new Date().getFullYear()} Al-Falah Traders. All rights reserved.
+                    &copy; {new Date().getFullYear()} Finexa. All rights reserved.
                   </p>
                 </div>
               </CardContent>

@@ -1,5 +1,5 @@
 /**
- * Shared PostgreSQL Client Factory for Al-Falah Traders
+ * Shared PostgreSQL Client Factory for Finexa
  *
  * All API routes should use getPgClient() instead of creating their own pg.Client.
  * This ensures consistent SSL configuration for Neon PostgreSQL.

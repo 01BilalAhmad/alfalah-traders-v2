@@ -9,7 +9,7 @@ const WARNING_BEFORE = 5 * 60 * 1000;      // 5 minutes before timeout
 const CHECK_INTERVAL = 30 * 1000;           // check every 30s
 const COUNTDOWN_INTERVAL = 1000;            // countdown every 1s
 
-const STORAGE_KEY = 'alfalah_last_activity';
+const STORAGE_KEY = 'finexa_last_activity';
 
 // ─── Helper: get/set last activity from localStorage ──────────────────────────
 function getLastActivity(): number {

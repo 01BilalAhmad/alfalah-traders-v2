@@ -7,9 +7,9 @@
 
 import { apiFetch } from '@/lib/api';
 
-const SHOP_CACHE_KEY = 'alfalah-offline-shops';
-const PENDING_QUEUE_KEY = 'alfalah-pending-txns';
-const CACHE_TIMESTAMP_KEY = 'alfalah-offline-ts';
+const SHOP_CACHE_KEY = 'finexa-offline-shops';
+const PENDING_QUEUE_KEY = 'finexa-pending-txns';
+const CACHE_TIMESTAMP_KEY = 'finexa-offline-ts';
 const CACHE_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface CachedShop {
@@ -165,9 +165,8 @@ export async function syncPendingTransactions(): Promise<{
   const errors: string[] = [];
 
   // Get auth token for API calls
-  const TOKEN_KEY = 'alfalah-token';
   let authToken: string | null = null;
-  try { authToken = localStorage.getItem(TOKEN_KEY); } catch { /* ignore */ }
+  try { authToken = localStorage.getItem('finexa-token') || localStorage.getItem('alfalah-token'); } catch { /* ignore */ }
 
   for (const txn of queue) {
     try {

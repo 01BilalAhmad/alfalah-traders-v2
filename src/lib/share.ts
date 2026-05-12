@@ -1,4 +1,4 @@
-// share.ts - Social sharing utilities for Al-Falah Traders
+// share.ts - Social sharing utilities for Finexa
 
 interface ShareOptions {
   title?: string;
@@ -16,7 +16,7 @@ export function shareViaWhatsApp(options: ShareOptions): string {
 
 export function shareViaEmail(options: ShareOptions): string {
   const { title, text, url } = options;
-  const subject = encodeURIComponent(title || 'Al-Falah Traders');
+  const subject = encodeURIComponent(title || 'Finexa');
   const body = encodeURIComponent(`${text || ''}\n\n${url || window.location.href}`);
   return `mailto:?subject=${subject}&body=${body}`;
 }
@@ -25,7 +25,7 @@ export async function nativeShare(options: ShareOptions): Promise<boolean> {
   if (navigator.share) {
     try {
       await navigator.share({
-        title: options.title || 'Al-Falah Traders',
+        title: options.title || 'Finexa',
         text: options.text || '',
         url: options.url || window.location.href,
       });

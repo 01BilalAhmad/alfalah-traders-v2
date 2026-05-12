@@ -36,8 +36,11 @@ export interface AppState {
 }
 
 // Session persistence helpers
-const STORAGE_KEY = 'alfalah-session';
-const TOKEN_KEY = 'alfalah-token';
+const STORAGE_KEY = 'finexa-session';
+const TOKEN_KEY = 'finexa-token';
+// Legacy keys for migration
+const LEGACY_STORAGE_KEY = 'alfalah-session';
+const LEGACY_TOKEN_KEY = 'alfalah-token';
 
 function saveSession(user: AppUser | null, token: string | null = null) {
   if (typeof window === 'undefined') return;
@@ -47,9 +50,14 @@ function saveSession(user: AppUser | null, token: string | null = null) {
       if (token) {
         localStorage.setItem(TOKEN_KEY, token);
       }
+      // Clean up legacy keys
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
     } else {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
     }
   } catch {
     // ignore storage errors
@@ -59,7 +67,16 @@ function saveSession(user: AppUser | null, token: string | null = null) {
 export function getStoredToken(): string | null {
   if (typeof window === 'undefined') return null;
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) return token;
+    // Migration: check legacy key
+    const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
+    if (legacyToken) {
+      localStorage.setItem(TOKEN_KEY, legacyToken);
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
+      return legacyToken;
+    }
+    return null;
   } catch {
     return null;
   }

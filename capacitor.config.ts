@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.alfalah.traders',
-  appName: 'Al-Falah Traders',
+  appId: 'com.finexa.app',
+  appName: 'Finexa',
   webDir: 'out',
   server: {
     androidScheme: 'https',
