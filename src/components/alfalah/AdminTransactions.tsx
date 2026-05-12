@@ -1248,7 +1248,7 @@ export default function AdminTransactions() {
                       {filteredShopOptions.length === 0 ? (
                         <p className="text-xs text-muted-foreground p-3 text-center">No shops found</p>
                       ) : (
-                        filteredShopOptions.slice(0, 20).map((shop) => (
+                        filteredShopOptions.map((shop) => (
                           <button
                             key={shop.id}
                             onClick={() => {
@@ -1287,7 +1287,7 @@ export default function AdminTransactions() {
                   </ScrollArea>
                   {filteredShopOptions.length > 20 && (
                     <p className="text-[10px] text-muted-foreground text-center">
-                      Showing 20 of {filteredShopOptions.length} shops — type to narrow results
+                      Scroll to see all {filteredShopOptions.length} shops
                     </p>
                   )}
                   {filteredShopOptions.length > 0 && (
