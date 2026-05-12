@@ -1073,7 +1073,7 @@ export default function AdminRecoveryReport() {
       <Dialog open={addDialogOpen} onOpenChange={(open) => {
         if (!open) { setAddDialogOpen(false); setAddStep(1); }
       }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Add Recovery</DialogTitle>
             <DialogDescription>
@@ -1101,6 +1101,7 @@ export default function AdminRecoveryReport() {
               <span className="ml-2 text-sm text-muted-foreground">Loading data...</span>
             </div>
           ) : (
+            <div className="overflow-y-auto flex-1 min-h-0">
             <>
               {/* Step 1: Select Orderbooker */}
               {addStep === 1 && (
@@ -1317,6 +1318,7 @@ export default function AdminRecoveryReport() {
                 </div>
               )}
             </>
+            </div>
           )}
 
           <DialogFooter>

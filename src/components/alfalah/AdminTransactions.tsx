@@ -999,7 +999,7 @@ export default function AdminTransactions() {
 
       {/* ─── Add Transaction Dialog ─── */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-primary" />
@@ -1036,7 +1036,7 @@ export default function AdminTransactions() {
             </button>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
             {/* Shop search/select */}
             <div className="space-y-1.5">
               <Label htmlFor="add-shop">Shop <span className="text-destructive">*</span></Label>
