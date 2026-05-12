@@ -390,36 +390,46 @@ export default function AdminRecoveryReport() {
     setAddDescription('');
     setAddRecoveryDate(getLocalDateString());
     setShopSearch('');
+    setShops([]);
     setAddDialogOpen(true);
     setFetchingDropdowns(true);
     try {
-      const [obRes, shopRes] = await Promise.all([
-        apiFetch('/api/orderbookers'),
-        apiFetch('/api/shops'),
-      ]);
+      const obRes = await apiFetch('/api/orderbookers');
       if (obRes.ok) {
         const obData = await obRes.json();
         setOrderbookers(Array.isArray(obData) ? obData : obData.orderbookers || []);
       }
-      if (shopRes.ok) {
-        const shopData = await shopRes.json();
-        setShops(Array.isArray(shopData) ? shopData : shopData.shops || []);
-      }
     } catch {
-      toast({ title: 'Error', description: 'Failed to load dropdown data', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to load orderbookers', variant: 'destructive' });
     } finally {
       setFetchingDropdowns(false);
     }
   };
 
-  const filteredShops = selectedOBId
+  // Fetch ALL shops for selected orderbooker (including zero-balance + secondary assignments)
+  const [obShopsLoading, setObShopsLoading] = useState(false);
+  const fetchOrderbookerShops = useCallback(async (obId: string) => {
+    setObShopsLoading(true);
+    setSelectedShopId('');
+    setShopSearch('');
+    try {
+      // showZeroBalance=true ensures admin sees ALL shops
+      const res = await apiFetch(`/api/shops?orderbookerId=${obId}&showZeroBalance=true&includeInactive=true`);
+      if (res.ok) {
+        const data = await res.json();
+        setShops(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load shops', variant: 'destructive' });
+    } finally {
+      setObShopsLoading(false);
+    }
+  }, []);
+
+  const filteredShops = shopSearch.trim()
     ? shops.filter((s) => {
-        if (s.orderbooker?.id !== selectedOBId) return false;
-        if (shopSearch.trim()) {
-          const q = shopSearch.trim().toLowerCase();
-          return s.name.toLowerCase().includes(q) || (s.area && s.area.toLowerCase().includes(q));
-        }
-        return true;
+        const q = shopSearch.trim().toLowerCase();
+        return s.name.toLowerCase().includes(q) || (s.area && s.area.toLowerCase().includes(q));
       })
     : shops;
 
@@ -1113,6 +1123,7 @@ export default function AdminRecoveryReport() {
                       onValueChange={(val) => {
                         setSelectedOBId(val);
                         setSelectedShopId('');
+                        fetchOrderbookerShops(val); // Fetch ALL shops for this orderbooker
                       }}
                     >
                       <SelectTrigger>
@@ -1133,8 +1144,12 @@ export default function AdminRecoveryReport() {
               {/* Step 2: Select Shop */}
               {addStep === 2 && (
                 <div className="space-y-3 py-2">
-                  {/* Selected shop card */}
-                  {selectedShopDetails && !shopSearch ? (
+                  {obShopsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      <span className="ml-2 text-sm text-muted-foreground">Loading shops...</span>
+                    </div>
+                  ) : selectedShopDetails && !shopSearch ? (
                     <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
