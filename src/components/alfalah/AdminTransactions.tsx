@@ -61,6 +61,7 @@ import {
   CalendarDays,
   AlertTriangle,
   Trash2,
+  Store,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -101,8 +102,13 @@ interface OrderbookerOption {
 interface ShopOption {
   id: string;
   name: string;
+  ownerName: string | null;
   area: string | null;
-  orderbooker: { id: string; name: string };
+  balance: number;
+  creditLimit: number;
+  status: string;
+  orderbooker: { id: string; name: string } | null;
+  companyBalances: { companyId: string; companyName: string; balance: number; creditLimit: number }[];
 }
 
 type DatePreset = '' | 'today' | 'yesterday' | 'this-week' | 'this-month';
@@ -446,9 +452,13 @@ export default function AdminTransactions() {
   const filteredShopOptions = addShopSearch.trim()
     ? shops.filter((s) =>
         s.name.toLowerCase().includes(addShopSearch.trim().toLowerCase()) ||
-        (s.area && s.area.toLowerCase().includes(addShopSearch.trim().toLowerCase()))
+        (s.area && s.area.toLowerCase().includes(addShopSearch.trim().toLowerCase())) ||
+        (s.ownerName && s.ownerName.toLowerCase().includes(addShopSearch.trim().toLowerCase()))
       )
     : shops;
+
+  // Selected shop details
+  const selectedShopDetails = addShopId ? shops.find((s) => s.id === addShopId) : null;
 
   // ─── Pagination helpers ───
   const startIdx = (page - 1) * limit;
@@ -989,7 +999,7 @@ export default function AdminTransactions() {
 
       {/* ─── Add Transaction Dialog ─── */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-primary" />
@@ -1030,60 +1040,129 @@ export default function AdminTransactions() {
             {/* Shop search/select */}
             <div className="space-y-1.5">
               <Label htmlFor="add-shop">Shop <span className="text-destructive">*</span></Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="add-shop"
-                  placeholder="Search shops..."
-                  value={addShopSearch}
-                  onChange={(e) => setAddShopSearch(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              {addShopSearch && (
-                <ScrollArea className="max-h-40 border rounded-lg">
-                  <div className="p-1">
-                    {filteredShopOptions.length === 0 ? (
-                      <p className="text-xs text-muted-foreground p-2 text-center">No shops found</p>
-                    ) : (
-                      filteredShopOptions.slice(0, 10).map((shop) => (
-                        <button
-                          key={shop.id}
-                          onClick={() => {
-                            setAddShopId(shop.id);
-                            setAddShopSearch(shop.name);
-                          }}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
-                            addShopId === shop.id
-                              ? 'bg-primary/10 text-primary'
-                              : 'hover:bg-muted'
-                          }`}
-                        >
-                          <div>
-                            <p className="font-medium">{shop.name}</p>
-                            {shop.area && (
-                              <p className="text-xs text-muted-foreground">{shop.area}</p>
-                            )}
-                          </div>
-                          {addShopId === shop.id && (
-                            <span className="text-xs font-semibold text-primary">Selected</span>
-                          )}
-                        </button>
-                      ))
+
+              {/* Selected shop card */}
+              {selectedShopDetails && !addShopSearch ? (
+                <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Store className="h-4 w-4 text-primary shrink-0" />
+                      <div>
+                        <p className="font-semibold text-sm">{selectedShopDetails.name}</p>
+                        {selectedShopDetails.area && (
+                          <p className="text-xs text-muted-foreground">{selectedShopDetails.area}</p>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => {
+                        setAddShopId('');
+                        setAddShopSearch('');
+                      }}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="flex items-center gap-1">
+                      <Banknote className="h-3 w-3 text-amber-500" />
+                      Balance: <span className="font-bold text-amber-600 dark:text-amber-400">{formatPKR(selectedShopDetails.balance)}</span>
+                    </span>
+                    {selectedShopDetails.orderbooker && (
+                      <span className="text-muted-foreground">
+                        OB: {selectedShopDetails.orderbooker.name}
+                      </span>
                     )}
                   </div>
-                </ScrollArea>
-              )}
-              {addShopId && !addShopSearch && (
-                <p className="text-xs text-primary font-medium">
-                  {shops.find((s) => s.id === addShopId)?.name || 'Shop selected'}
-                </p>
+                  {/* Recovery warning: if amount > balance */}
+                  {addTab === 'recovery' && addAmount && parseFloat(addAmount) > selectedShopDetails.balance && (
+                    <div className="flex items-center gap-1.5 text-xs text-destructive font-medium">
+                      <AlertTriangle className="h-3 w-3" />
+                      Amount exceeds shop balance ({formatPKR(selectedShopDetails.balance)})
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="add-shop"
+                      placeholder="Type to search shops by name, area or owner..."
+                      value={addShopSearch}
+                      onChange={(e) => {
+                        setAddShopSearch(e.target.value);
+                        if (addShopId) setAddShopId(''); // Clear selection when searching again
+                      }}
+                      className="pl-9"
+                      autoFocus
+                    />
+                    {addShopSearch && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                        onClick={() => { setAddShopSearch(''); setAddShopId(''); }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                  <ScrollArea className="max-h-52 border rounded-lg">
+                    <div className="p-1">
+                      {filteredShopOptions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground p-3 text-center">No shops found</p>
+                      ) : (
+                        filteredShopOptions.slice(0, 20).map((shop) => (
+                          <button
+                            key={shop.id}
+                            onClick={() => {
+                              setAddShopId(shop.id);
+                              setAddShopSearch(''); // Clear search to show selected card
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm transition-colors ${
+                              addShopId === shop.id
+                                ? 'bg-primary/10 text-primary'
+                                : 'hover:bg-muted'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <Store className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <div className="text-left min-w-0">
+                                <p className="font-medium truncate">{shop.name}</p>
+                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                  {shop.area && <span>{shop.area}</span>}
+                                  {shop.orderbooker && <span>OB: {shop.orderbooker.name}</span>}
+                                </div>
+                              </div>
+                            </div>
+                            <span className={`text-xs font-bold tabular-nums shrink-0 ${shop.balance > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                              {formatPKR(shop.balance)}
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                  {filteredShopOptions.length > 20 && (
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      Showing 20 of {filteredShopOptions.length} shops — type to narrow results
+                    </p>
+                  )}
+                </>
               )}
             </div>
 
-            {/* Amount */}
+            {/* Amount - only show when shop is selected */}
+            {addShopId && (
+            <>
             <div className="space-y-1.5">
-              <Label htmlFor="add-amount">Amount (Rs.) <span className="text-destructive">*</span></Label>
+              <Label htmlFor="add-amount">
+                {addTab === 'recovery' ? 'Recovery Amount (Rs.)' : 'Credit Amount (Rs.)'} <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="add-amount"
                 type="number"
@@ -1091,8 +1170,8 @@ export default function AdminTransactions() {
                 step="1"
                 value={addAmount}
                 onChange={(e) => setAddAmount(e.target.value)}
-                placeholder="Enter amount"
-                className="tabular-nums"
+                placeholder={addTab === 'recovery' ? 'Enter recovery amount' : 'Enter credit amount'}
+                className="tabular-nums text-base h-11"
               />
               {/* Quick preset amounts */}
               <div className="flex gap-1.5 flex-wrap">
@@ -1123,6 +1202,8 @@ export default function AdminTransactions() {
                 rows={2}
               />
             </div>
+            </>
+            )}
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
