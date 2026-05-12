@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  ChevronDown,
   Loader2,
   Search,
   Settings,
@@ -36,6 +37,10 @@ import {
   MapPin,
   FileDown,
   FileSpreadsheet,
+  Wallet,
+  Route,
+  UserCog,
+  ClipboardList,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -54,30 +59,74 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-const adminNavItems: NavItem[] = [
-  { id: 'admin-dashboard', label: 'Dashboard', icon: <Home className="h-5 w-5" /> },
-  { id: 'admin-credit', label: 'Credit Posting', icon: <CreditCard className="h-5 w-5" /> },
-  { id: 'admin-recovery', label: 'Recovery Report', icon: <TrendingUp className="h-5 w-5" /> },
-  { id: 'admin-approve-recovery', label: 'Approve Recovery', icon: <ShieldCheck className="h-5 w-5" /> },
-  { id: 'admin-transactions', label: 'Transactions', icon: <Receipt className="h-5 w-5" /> },
-  { id: 'admin-shops', label: 'Manage Shops', icon: <Store className="h-5 w-5" /> },
-  { id: 'admin-orderbookers', label: 'Manage Orderbookers', icon: <Users className="h-5 w-5" /> },
-  { id: 'admin-reconciliation', label: 'Reconciliation', icon: <FileText className="h-5 w-5" /> },
-  { id: 'admin-audit', label: 'Audit Log', icon: <Shield className="h-5 w-5" /> },
-  { id: 'admin-ob-analytics', label: 'OB Analytics', icon: <BarChart3 className="h-5 w-5" /> },
-  { id: 'admin-monthly-summary', label: 'Monthly Summary', icon: <CalendarDays className="h-5 w-5" /> },
-  { id: 'admin-activity', label: 'Activity', icon: <Activity className="h-5 w-5" /> },
-  { id: 'admin-daily-targets', label: 'Recovery Targets', icon: <Target className="h-5 w-5" /> },
-  { id: 'admin-overdue-shops', label: 'Overdue Shops', icon: <AlertTriangle className="h-5 w-5" /> },
-  { id: 'admin-visit-tracking', label: 'Visit Tracking', icon: <Navigation className="h-5 w-5" /> },
-  { id: 'admin-map-view', label: 'Map View', icon: <MapPin className="h-5 w-5" /> },
-  { id: 'admin-calendar', label: 'Route Calendar', icon: <CalendarDays className="h-5 w-5" /> },
-  { id: 'admin-ob-recovery-report', label: 'OB Recovery Report', icon: <FileText className="h-5 w-5" /> },
-  { id: 'admin-export-data', label: 'Export & Reports', icon: <FileDown className="h-5 w-5" /> },
-  { id: 'admin-companies', label: 'Manage Companies', icon: <Building2 className="h-5 w-5" /> },
-  { id: 'admin-balance-report', label: 'Balance Report', icon: <Banknote className="h-5 w-5" /> },
-  { id: 'admin-company-report', label: 'Company Report', icon: <FileSpreadsheet className="h-5 w-5" /> },
+interface NavSection {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  items: NavItem[];
+}
+
+const adminNavSections: NavSection[] = [
+  {
+    id: 'transactions',
+    label: 'Transactions',
+    icon: <Wallet className="h-4 w-4" />,
+    items: [
+      { id: 'admin-credit', label: 'Credit Posting', icon: <CreditCard className="h-5 w-5" /> },
+      { id: 'admin-recovery', label: 'Recovery Report', icon: <TrendingUp className="h-5 w-5" /> },
+      { id: 'admin-approve-recovery', label: 'Approve Recovery', icon: <ShieldCheck className="h-5 w-5" /> },
+      { id: 'admin-transactions', label: 'Transactions', icon: <Receipt className="h-5 w-5" /> },
+      { id: 'admin-reconciliation', label: 'Reconciliation', icon: <FileText className="h-5 w-5" /> },
+    ],
+  },
+  {
+    id: 'route-tracking',
+    label: 'Route & Tracking',
+    icon: <Route className="h-4 w-4" />,
+    items: [
+      { id: 'admin-calendar', label: 'Route Calendar', icon: <CalendarDays className="h-5 w-5" /> },
+      { id: 'admin-visit-tracking', label: 'Visit Tracking', icon: <Navigation className="h-5 w-5" /> },
+      { id: 'admin-map-view', label: 'Map View', icon: <MapPin className="h-5 w-5" /> },
+    ],
+  },
+  {
+    id: 'management',
+    label: 'Management',
+    icon: <UserCog className="h-4 w-4" />,
+    items: [
+      { id: 'admin-shops', label: 'Manage Shops', icon: <Store className="h-5 w-5" /> },
+      { id: 'admin-orderbookers', label: 'Manage Orderbookers', icon: <Users className="h-5 w-5" /> },
+      { id: 'admin-companies', label: 'Manage Companies', icon: <Building2 className="h-5 w-5" /> },
+    ],
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    icon: <ClipboardList className="h-4 w-4" />,
+    items: [
+      { id: 'admin-monthly-summary', label: 'Monthly Summary', icon: <CalendarDays className="h-5 w-5" /> },
+      { id: 'admin-ob-analytics', label: 'OB Analytics', icon: <BarChart3 className="h-5 w-5" /> },
+      { id: 'admin-ob-recovery-report', label: 'OB Recovery Report', icon: <FileText className="h-5 w-5" /> },
+      { id: 'admin-balance-report', label: 'Balance Report', icon: <Banknote className="h-5 w-5" /> },
+      { id: 'admin-company-report', label: 'Company Report', icon: <FileSpreadsheet className="h-5 w-5" /> },
+      { id: 'admin-activity', label: 'Activity', icon: <Activity className="h-5 w-5" /> },
+      { id: 'admin-daily-targets', label: 'Recovery Targets', icon: <Target className="h-5 w-5" /> },
+      { id: 'admin-overdue-shops', label: 'Overdue Shops', icon: <AlertTriangle className="h-5 w-5" /> },
+      { id: 'admin-export-data', label: 'Export & Reports', icon: <FileDown className="h-5 w-5" /> },
+    ],
+  },
+  {
+    id: 'admin',
+    label: 'Admin',
+    icon: <Shield className="h-4 w-4" />,
+    items: [
+      { id: 'admin-audit', label: 'Audit Log', icon: <Shield className="h-5 w-5" /> },
+    ],
+  },
 ];
+
+// Dashboard is always visible at top (not inside a section)
+const dashboardItem: NavItem = { id: 'admin-dashboard', label: 'Dashboard', icon: <Home className="h-5 w-5" /> };
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -86,6 +135,7 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { user, currentView, setCurrentView, logout } = useAppStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [miniStats, setMiniStats] = useState<{ totalShops: number; totalOBs: number }>({ totalShops: 0, totalOBs: 0 });
@@ -263,22 +313,70 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
             {/* Navigation */}
             <nav className="p-3 space-y-1 nav-stagger">
-              {adminNavItems.map((item) => {
-                const isActive = currentView === item.id;
+              {/* Dashboard - always visible */}
+              <button
+                key={dashboardItem.id}
+                onClick={() => handleNavClick(dashboardItem.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                  currentView === dashboardItem.id
+                    ? 'bg-white/15 text-white shadow-sm border border-white/10'
+                    : 'nav-item-inactive'
+                }`}
+              >
+                <span className={currentView === dashboardItem.id ? 'text-white' : ''}>{dashboardItem.icon}</span>
+                <span className="flex-1 text-left">{dashboardItem.label}</span>
+                {currentView === dashboardItem.id && <ChevronRight className="h-4 w-4 opacity-70" />}
+              </button>
+
+              <Separator className="bg-white/10 my-2" />
+
+              {/* Collapsible Sections */}
+              {adminNavSections.map((section) => {
+                const isCollapsed = collapsedSections[section.id] !== false; // default: expanded
+                const hasActiveItem = section.items.some((item) => currentView === item.id);
+                // Auto-expand section if it has active item
+                const effectivelyCollapsed = hasActiveItem ? false : isCollapsed;
+
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNavClick(item.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                      isActive
-                        ? 'bg-white/15 text-white shadow-sm border border-white/10'
-                        : 'nav-item-inactive'
-                    }`}
-                  >
-                    <span className={isActive ? 'text-white' : ''}>{item.icon}</span>
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {isActive && <ChevronRight className="h-4 w-4 opacity-70" />}
-                  </button>
+                  <div key={section.id}>
+                    {/* Section Header */}
+                    <button
+                      onClick={() => setCollapsedSections((prev) => ({ ...prev, [section.id]: prev[section.id] === false }))}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-[11px] font-semibold uppercase tracking-wider text-blue-300/60 hover:text-blue-200/80 transition-colors"
+                    >
+                      <span className="shrink-0">{section.icon}</span>
+                      <span className="flex-1 text-left">{section.label}</span>
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 transition-transform duration-200 ${effectivelyCollapsed ? '-rotate-90' : ''}`}
+                      />
+                    </button>
+
+                    {/* Section Items */}
+                    <div
+                      className={`space-y-0.5 overflow-hidden transition-all duration-200 ${
+                        effectivelyCollapsed ? 'max-h-0 opacity-0' : 'max-h-[500px] opacity-100'
+                      }`}
+                    >
+                      {section.items.map((item) => {
+                        const isActive = currentView === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => handleNavClick(item.id)}
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+                              isActive
+                                ? 'bg-white/15 text-white shadow-sm border border-white/10'
+                                : 'nav-item-inactive'
+                            }`}
+                          >
+                            <span className={`shrink-0 ${isActive ? 'text-white' : ''}`}>{item.icon}</span>
+                            <span className="flex-1 text-left">{item.label}</span>
+                            {isActive && <ChevronRight className="h-4 w-4 opacity-70" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </nav>
