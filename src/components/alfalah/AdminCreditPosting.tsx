@@ -307,9 +307,7 @@ export default function AdminCreditPosting() {
       if (selectedOrderbooker && selectedOrderbooker !== 'all') {
         params.set('orderbookerId', selectedOrderbooker);
       }
-      if (selectedDay) {
-        params.set('routeDay', selectedDay);
-      }
+      // Admin sees ALL shops regardless of route day — no routeDay filter
       if (debouncedSearch.trim()) {
         params.set('search', debouncedSearch.trim());
       }
@@ -325,7 +323,7 @@ export default function AdminCreditPosting() {
     } finally {
       setLoading(false);
     }
-  }, [selectedOrderbooker, selectedDay, debouncedSearch]);
+  }, [selectedOrderbooker, debouncedSearch]);
 
   // Fetch today's posting summary
   const fetchTodaySummary = useCallback(async () => {
