@@ -84,10 +84,12 @@ function formatDateTime(dateStr: string): string {
 interface Transaction {
   id: string;
   type: string;
+  status: string; // 'pending', 'approved', 'rejected'
   amount: number;
   previousBalance: number;
   newBalance: number;
   description: string | null;
+  rejectReason: string | null;
   createdAt: string;
   shop: { id: string; name: string; area: string | null };
   creator: { id: string; name: string; role: string } | null;
@@ -113,6 +115,7 @@ interface ShopOption {
 
 type DatePreset = '' | 'today' | 'yesterday' | 'this-week' | 'this-month';
 type TypeFilter = 'all' | 'credit' | 'recovery';
+type StatusFilter = 'all' | 'approved' | 'pending' | 'rejected';
 
 // ─── Skeleton ───
 function TransactionsSkeleton() {
@@ -179,6 +182,7 @@ export default function AdminTransactions() {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedOBFilter, setSelectedOBFilter] = useState<string>('');
   const [datePreset, setDatePreset] = useState<DatePreset>('');
   const [customDate, setCustomDate] = useState('');
@@ -239,6 +243,7 @@ export default function AdminTransactions() {
       params.set('limit', String(limit));
 
       if (typeFilter !== 'all') params.set('type', typeFilter);
+      if (statusFilter !== 'all') params.set('status', statusFilter);
       if (selectedOBFilter) params.set('orderbookerId', selectedOBFilter);
 
       // Date handling
@@ -275,7 +280,7 @@ export default function AdminTransactions() {
     } finally {
       setLoading(false);
     }
-  }, [page, typeFilter, selectedOBFilter, datePreset, customDate]);
+  }, [page, typeFilter, statusFilter, selectedOBFilter, datePreset, customDate]);
 
   // Client-side search filter (shop name)
   const filteredTransactions = searchQuery.trim()
@@ -288,17 +293,18 @@ export default function AdminTransactions() {
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
 
   // Reset page when filters change
-  useEffect(() => { setPage(1); }, [typeFilter, selectedOBFilter, datePreset, customDate]);
+  useEffect(() => { setPage(1); }, [typeFilter, statusFilter, selectedOBFilter, datePreset, customDate]);
 
   // Computed stats
   const totalCredits = filteredTransactions.filter((t) => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
   const totalRecoveries = filteredTransactions.filter((t) => t.type === 'recovery').reduce((s, t) => s + t.amount, 0);
 
-  const hasActiveFilters = typeFilter !== 'all' || selectedOBFilter || datePreset || customDate || searchQuery;
+  const hasActiveFilters = typeFilter !== 'all' || statusFilter !== 'all' || selectedOBFilter || datePreset || customDate || searchQuery;
 
   const resetFilters = () => {
     setSearchQuery('');
     setTypeFilter('all');
+    setStatusFilter('all');
     setSelectedOBFilter('');
     setDatePreset('');
     setCustomDate('');
@@ -604,6 +610,29 @@ export default function AdminTransactions() {
             {/* Separator */}
             <div className="w-px bg-border mx-1 shrink-0" />
 
+            {/* Status filter */}
+            {[
+              { value: 'all' as StatusFilter, label: 'All Status' },
+              { value: 'approved' as StatusFilter, label: 'Approved' },
+              { value: 'pending' as StatusFilter, label: 'Pending' },
+              { value: 'rejected' as StatusFilter, label: 'Rejected' },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setStatusFilter(tab.value)}
+                className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  statusFilter === tab.value
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-muted text-muted-foreground hover:bg-accent'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+
+            {/* Separator */}
+            <div className="w-px bg-border mx-1 shrink-0" />
+
             {/* Date presets */}
             {[
               { value: '' as DatePreset, label: 'All Time' },
@@ -708,7 +737,7 @@ export default function AdminTransactions() {
                   {filteredTransactions.map((txn, idx) => (
                     <TableRow
                       key={txn.id}
-                      className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} hover-scale-102 transition-colors`}
+                      className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} hover-scale-102 transition-colors ${txn.status === 'rejected' ? 'opacity-50' : ''}`}
                     >
                       <TableCell className="text-xs text-muted-foreground">
                         {startIdx + idx + 1}
@@ -725,17 +754,29 @@ export default function AdminTransactions() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {txn.type === 'credit' ? (
-                          <Badge className="badge-credit text-[10px]">
-                            <ArrowDownLeft className="h-3 w-3 mr-0.5" />
-                            Credit
-                          </Badge>
-                        ) : (
-                          <Badge className="badge-recovery text-[10px]">
-                            <TrendingUp className="h-3 w-3 mr-0.5" />
-                            Recovery
-                          </Badge>
-                        )}
+                        <div className="flex flex-col gap-1">
+                          {txn.type === 'credit' ? (
+                            <Badge className="badge-credit text-[10px] w-fit">
+                              <ArrowDownLeft className="h-3 w-3 mr-0.5" />
+                              Credit
+                            </Badge>
+                          ) : (
+                            <Badge className="badge-recovery text-[10px] w-fit">
+                              <TrendingUp className="h-3 w-3 mr-0.5" />
+                              Recovery
+                            </Badge>
+                          )}
+                          {txn.status === 'pending' && (
+                            <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 text-[9px] w-fit">
+                              Pending
+                            </Badge>
+                          )}
+                          {txn.status === 'rejected' && (
+                            <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 text-[9px] w-fit">
+                              Rejected
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <span className={`text-sm font-semibold ${txn.type === 'credit' ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>

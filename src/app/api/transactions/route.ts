@@ -52,9 +52,21 @@ export async function GET(request: NextRequest) {
       conditions.push(`t."createdBy" = $${paramIndex++}`);
       params.push(createdBy);
     }
-    if (status) {
+    if (status === 'rejected') {
+      // Explicitly requesting rejected transactions — show only rejected
       conditions.push(`t.status = $${paramIndex++}`);
-      params.push(status);
+      params.push('rejected');
+    } else if (status === 'pending') {
+      // Explicitly requesting pending transactions
+      conditions.push(`t.status = $${paramIndex++}`);
+      params.push('pending');
+    } else if (status === 'approved') {
+      // Explicitly requesting approved transactions
+      conditions.push(`t.status = $${paramIndex++}`);
+      params.push('approved');
+    } else {
+      // Default: exclude rejected transactions (show approved + pending only)
+      conditions.push(`t.status != 'rejected'`);
     }
     if (companyId) {
       conditions.push(`t."companyId" = $${paramIndex++}`);
