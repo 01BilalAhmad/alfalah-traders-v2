@@ -178,6 +178,7 @@ export default function AdminCreditPosting() {
   const [selectedDay, setSelectedDay] = useState<string>('');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [orderbookerCompanyIds, setOrderbookerCompanyIds] = useState<string[] | null>(null); // null = show all (no OB filter)
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -299,6 +300,29 @@ export default function AdminCreditPosting() {
       // silent
     }
   }, []);
+
+  // Fetch companies assigned to a specific orderbooker (for filtered company dropdown)
+  const fetchOrderbookerCompanies = useCallback(async (orderbookerId: string) => {
+    try {
+      const res = await apiFetch(`/api/companies?userId=${orderbookerId}`);
+      if (res.ok) {
+        const data = await res.json();
+        // The API returns UserCompany[] when userId is provided
+        const assignedCompanyIds: string[] = Array.isArray(data)
+          ? data.map((uc: { companyId: string }) => uc.companyId)
+          : [];
+        setOrderbookerCompanyIds(assignedCompanyIds);
+        // If current selected company is not in the assigned list, switch to first assigned
+        if (assignedCompanyIds.length > 0 && (!selectedCompany || !assignedCompanyIds.includes(selectedCompany))) {
+          setSelectedCompany(assignedCompanyIds[0]);
+        }
+      } else {
+        setOrderbookerCompanyIds(null);
+      }
+    } catch {
+      setOrderbookerCompanyIds(null);
+    }
+  }, [selectedCompany]);
 
   const fetchShops = useCallback(async () => {
     setLoading(true);
@@ -436,6 +460,16 @@ export default function AdminCreditPosting() {
     fetchOrderbookers();
     fetchCompanies();
   }, [fetchOrderbookers, fetchCompanies]);
+
+  // When selected orderbooker changes, fetch their assigned companies
+  useEffect(() => {
+    if (selectedOrderbooker && selectedOrderbooker !== 'all') {
+      fetchOrderbookerCompanies(selectedOrderbooker);
+    } else {
+      // No orderbooker selected (All) — show all companies
+      setOrderbookerCompanyIds(null);
+    }
+  }, [selectedOrderbooker, fetchOrderbookerCompanies]);
 
   useEffect(() => {
     fetchShops();
@@ -1000,38 +1034,49 @@ export default function AdminCreditPosting() {
       </div>
 
       {/* Company Selector Banner (if companies exist) */}
-      {companies.length > 0 && (
-        <Card className="border-primary/20 bg-primary/5 dark:bg-primary/10">
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="flex items-center gap-2 shrink-0">
-                <Building2 className="h-5 w-5 text-primary" />
-                <span className="text-sm font-semibold text-foreground">Company:</span>
+      {companies.length > 0 && (() => {
+        // Filter companies based on selected orderbooker's assignments
+        const filteredCompanies = orderbookerCompanyIds
+          ? companies.filter((c) => orderbookerCompanyIds.includes(c.id))
+          : companies;
+        return (
+          <Card className="border-primary/20 bg-primary/5 dark:bg-primary/10">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-2 shrink-0">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Company:</span>
+                  {selectedOrderbooker && selectedOrderbooker !== 'all' && (
+                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/30 text-primary">
+                      {filteredCompanies.length} of {companies.length}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {filteredCompanies.map((company) => (
+                    <button
+                      key={company.id}
+                      onClick={() => setSelectedCompany(company.id)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                        selectedCompany === company.id
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                      }`}
+                    >
+                      {company.name}
+                    </button>
+                  ))}
+                </div>
+                {selectedCompany && (
+                  <p className="text-xs text-muted-foreground ml-auto">
+                    Credits will be posted under <span className="font-semibold text-primary">{companies.find(c => c.id === selectedCompany)?.name}</span>
+                  </p>
+                )}
               </div>
-              <div className="flex flex-wrap gap-2">
-                {companies.map((company) => (
-                  <button
-                    key={company.id}
-                    onClick={() => setSelectedCompany(company.id)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      selectedCompany === company.id
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                    }`}
-                  >
-                    {company.name}
-                  </button>
-                ))}
-              </div>
-              {selectedCompany && (
-                <p className="text-xs text-muted-foreground ml-auto">
-                  Credits will be posted under <span className="font-semibold text-primary">{companies.find(c => c.id === selectedCompany)?.name}</span>
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Summary Cards + Quick Post Toggle */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1584,38 +1629,31 @@ export default function AdminCreditPosting() {
                     </p>
                   </div>
 
-                  {/* Company Selection (if companies exist) */}
-                  {companies.length > 0 && (
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-1.5 text-sm font-semibold">
-                        <Building2 className="h-4 w-4 text-primary" />
-                        Company
-                      </Label>
-                      <div className="flex flex-wrap gap-2">
-                        {companies.map((company) => (
-                          <button
-                            key={company.id}
-                            onClick={() => setQuickPostCompany(company.id)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                              quickPostCompany === company.id
-                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                            }`}
-                          >
-                            {company.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Orderbooker Selection */}
+                  {/* Orderbooker Selection (BEFORE company - so companies can be filtered) */}
                   <div className="space-y-2">
                     <Label className="flex items-center gap-1.5 text-sm font-semibold">
                       <Users className="h-4 w-4 text-primary" />
                       Orderbooker <span className="text-destructive">*</span>
                     </Label>
-                    <Select value={quickPostOrderbooker} onValueChange={setQuickPostOrderbooker}>
+                    <Select value={quickPostOrderbooker} onValueChange={(obId) => {
+                      setQuickPostOrderbooker(obId);
+                      // Fetch assigned companies for this orderbooker and filter
+                      if (obId) {
+                        apiFetch(`/api/companies?userId=${obId}`)
+                          .then(res => res.ok ? res.json() : null)
+                          .then(data => {
+                            if (Array.isArray(data)) {
+                              const assignedIds = data.map((uc: { companyId: string }) => uc.companyId);
+                              setOrderbookerCompanyIds(assignedIds);
+                              // Auto-select first assigned company if current selection isn't assigned
+                              if (assignedIds.length > 0 && (!quickPostCompany || !assignedIds.includes(quickPostCompany))) {
+                                setQuickPostCompany(assignedIds[0]);
+                              }
+                            }
+                          })
+                          .catch(() => {});
+                      }
+                    }}>
                       <SelectTrigger className="w-full h-10">
                         <SelectValue placeholder="Select orderbooker..." />
                       </SelectTrigger>
@@ -1629,6 +1667,51 @@ export default function AdminCreditPosting() {
                       <p className="text-xs text-destructive">Orderbooker is required to continue</p>
                     )}
                   </div>
+
+                  {/* Company Selection (filtered by selected orderbooker's assignments) */}
+                  {companies.length > 0 && (() => {
+                    const filteredComps = orderbookerCompanyIds
+                      ? companies.filter((c) => orderbookerCompanyIds.includes(c.id))
+                      : companies;
+                    return filteredComps.length > 0 ? (
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-1.5 text-sm font-semibold">
+                          <Building2 className="h-4 w-4 text-primary" />
+                          Company
+                          {quickPostOrderbooker && orderbookerCompanyIds && (
+                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/30 text-primary ml-1">
+                              {filteredComps.length} assigned
+                            </Badge>
+                          )}
+                        </Label>
+                        <div className="flex flex-wrap gap-2">
+                          {filteredComps.map((company) => (
+                            <button
+                              key={company.id}
+                              onClick={() => setQuickPostCompany(company.id)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                quickPostCompany === company.id
+                                  ? 'bg-primary text-primary-foreground shadow-sm'
+                                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                              }`}
+                            >
+                              {company.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
+                          <Building2 className="h-4 w-4" />
+                          No Company Assigned
+                        </Label>
+                        <p className="text-xs text-destructive/80">
+                          This orderbooker has no company assigned. Please assign companies in Manage Orderbookers first.
+                        </p>
+                      </div>
+                    );
+                  })()}
 
                   <Button
                     onClick={() => {
