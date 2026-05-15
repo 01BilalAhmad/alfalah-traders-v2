@@ -13,7 +13,7 @@ export function ThemeToggle() {
 
   if (!hydrated) {
     return (
-      <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-100 hover:bg-white/10">
+      <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground hover:bg-muted">
         <Sun className="h-4 w-4" />
       </Button>
     );
@@ -25,7 +25,10 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
-      className="h-8 w-8 text-blue-100 hover:bg-white/10 hover:text-white transition-colors"
+      className={isDark 
+        ? "h-8 w-8 text-blue-100 hover:bg-white/10 hover:text-white transition-colors" 
+        : "h-8 w-8 text-foreground hover:bg-muted hover:text-foreground transition-colors"
+      }
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
     >

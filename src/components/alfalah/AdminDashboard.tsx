@@ -721,7 +721,7 @@ export default function AdminDashboard() {
             <div className="flex gap-2 px-4 py-3 min-w-max">
               {/* Credit */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-foreground/70 font-medium">Credit:</span>
+                <span className="text-xs text-foreground font-medium">Credit:</span>
                 <span className="text-xs font-bold text-foreground tabular-nums">{formatPKR(monthSummary?.totalCredit ?? 0)}</span>
                 {monthSummary && monthSummary.prevTotalCredit > 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
@@ -737,7 +737,7 @@ export default function AdminDashboard() {
               <span className="text-border">|</span>
               {/* Recovery */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-foreground/70 font-medium">Recovery:</span>
+                <span className="text-xs text-foreground font-medium">Recovery:</span>
                 <span className="text-xs font-bold text-foreground tabular-nums">{formatPKR(monthSummary?.totalRecovery ?? 0)}</span>
                 {monthSummary && monthSummary.prevTotalRecovery > 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
@@ -753,7 +753,7 @@ export default function AdminDashboard() {
               <span className="text-border">|</span>
               {/* Net */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-foreground/70 font-medium">Net:</span>
+                <span className="text-xs text-foreground font-medium">Net:</span>
                 <span className={`text-xs font-bold tabular-nums text-foreground`}>
                   {formatPKR(monthSummary?.netPosition ?? 0)}
                 </span>
@@ -970,7 +970,7 @@ export default function AdminDashboard() {
               return (
                 <div className="text-center py-6">
                   <p className="text-sm text-muted-foreground">No recovery entries today</p>
-                  <p className="text-xs text-foreground/50 mt-1">Recovery from orderbookers will appear here in real-time</p>
+                  <p className="text-xs text-muted-foreground mt-1">Recovery from orderbookers will appear here in real-time</p>
                 </div>
               );
             }
@@ -1283,7 +1283,7 @@ export default function AdminDashboard() {
                 <Sparkles className="h-3 w-3 text-primary/50" />
                 7d Recovery Trend
               </span>
-              <span className="text-[10px] text-foreground/60 font-medium bg-foreground/5 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">
                 {data.orderbookers.length} orderbookers
               </span>
             </div>
@@ -1343,8 +1343,8 @@ export default function AdminDashboard() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <div className="h-6 w-16 flex items-center justify-center text-[10px] text-foreground/40">No data</div>
-                        <span className="text-[9px] text-foreground/40">No recovery in 7 days</span>
+                        <div className="h-6 w-16 flex items-center justify-center text-[10px] text-muted-foreground">No data</div>
+                        <span className="text-[9px] text-muted-foreground">No recovery in 7 days</span>
                       </div>
                     )}
                   </div>

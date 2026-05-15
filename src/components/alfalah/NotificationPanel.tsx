@@ -220,7 +220,7 @@ export default function NotificationPanel() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+          className="relative text-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 dark:text-white dark:hover:bg-white/10 dark:focus-visible:ring-white/30"
           aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
         >
           <Bell className="h-5 w-5" />

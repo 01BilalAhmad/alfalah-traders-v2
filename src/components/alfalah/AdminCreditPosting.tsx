@@ -2200,7 +2200,7 @@ export default function AdminCreditPosting() {
                           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                             <span>{formatPKR(selectedShop.balance)} of {formatPKR(selectedShop.creditLimit)}</span>
                             {creditAmount && !amountError && (
-                              <span className="text-foreground/60">
+                              <span className="text-muted-foreground">
                                 → {formatPKR(projectedBalance)} ({projectedStatus.percentage}%)
                               </span>
                             )}

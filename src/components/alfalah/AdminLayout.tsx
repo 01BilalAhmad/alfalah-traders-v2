@@ -172,7 +172,7 @@ function SidebarContent({
           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
             currentView === dashboardItem.id
               ? 'bg-primary/10 text-primary'
-              : 'text-foreground/75 hover:text-foreground hover:bg-muted'
+              : 'text-foreground/85 hover:text-foreground hover:bg-muted'
           }`}
         >
           <span className="shrink-0">{dashboardItem.icon}</span>
@@ -192,7 +192,7 @@ function SidebarContent({
             <div key={section.id}>
               <button
                 onClick={() => setCollapsedSections((prev) => ({ ...prev, [section.id]: prev[section.id] === false }))}
-                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wider text-foreground/40 hover:text-foreground/60 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wider text-foreground/60 hover:text-foreground/80 transition-colors"
               >
                 <span className="shrink-0">{section.icon}</span>
                 <span className="flex-1 text-left">{section.label}</span>
@@ -214,7 +214,7 @@ function SidebarContent({
                       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
                         isActive
                           ? 'bg-primary/10 text-primary font-medium'
-                          : 'text-foreground/70 hover:text-foreground hover:bg-muted'
+                          : 'text-foreground/85 hover:text-foreground hover:bg-muted'
                       }`}
                     >
                       <span className="shrink-0">{item.icon}</span>
@@ -329,7 +329,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden h-9 w-9 text-foreground/70 hover:text-foreground hover:bg-muted"
+            className="lg:hidden h-9 w-9 text-foreground hover:bg-muted"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
           >
@@ -346,17 +346,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {/* Search Button */}
           <button
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
-            className="hidden md:flex items-center gap-2 h-8 px-3 rounded-md border border-border bg-background hover:bg-muted text-foreground/70 hover:text-foreground text-xs transition-colors"
+            className="hidden md:flex items-center gap-2 h-8 px-3 rounded-md border border-border bg-background hover:bg-muted text-foreground hover:text-foreground text-xs transition-colors"
           >
             <Search className="h-3.5 w-3.5" />
             <span>Search</span>
-            <kbd className="ml-1.5 h-4 rounded border border-border bg-muted px-1 font-mono text-[10px] leading-none text-foreground/50">
+            <kbd className="ml-1.5 h-4 rounded border border-border bg-muted px-1 font-mono text-[10px] leading-none text-foreground/70">
               ⌘K
             </kbd>
           </button>
           <button
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
-            className="md:hidden h-9 w-9 rounded-md border border-border hover:bg-muted text-foreground/70 hover:text-foreground flex items-center justify-center transition-colors"
+            className="md:hidden h-9 w-9 rounded-md border border-border hover:bg-muted text-foreground hover:text-foreground flex items-center justify-center transition-colors"
           >
             <Search className="h-4 w-4" />
           </button>
@@ -366,13 +366,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <ShareMenu
             title="Share"
             text="Finexa - Smart Credit Management"
-            className="h-8 w-8 text-foreground/70 hover:text-foreground border-0 p-0"
+            className="h-8 w-8 text-foreground hover:text-foreground border-0 p-0"
           />
           <Separator orientation="vertical" className="h-6 hidden sm:block" />
           {/* Change Password */}
           <button
             onClick={() => setChangePasswordOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border hover:bg-muted text-foreground/70 hover:text-foreground text-xs font-medium transition-colors"
+            className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border hover:bg-muted text-foreground hover:text-foreground text-xs font-medium transition-colors"
             title="Change Password"
           >
             <KeyRound className="h-3.5 w-3.5" />
@@ -389,13 +389,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </div>
             <div className="text-left hidden sm:block">
               <p className="text-xs font-medium text-foreground leading-tight">{user.name}</p>
-              <p className="text-[10px] text-foreground/60 leading-tight">Admin</p>
+              <p className="text-[10px] text-foreground/80 leading-tight">Admin</p>
             </div>
           </button>
           <Button
             variant="ghost"
             size="sm"
-            className="text-foreground/70 hover:text-foreground h-8 px-2"
+            className="text-foreground hover:text-foreground h-8 px-2"
             onClick={handleLogout}
           >
             <LogOut className="h-4 w-4 sm:mr-1.5" />

@@ -390,6 +390,18 @@ textarea:focus-visible {
   animation: shimmer 2s ease-in-out infinite;
 }
 
+/* ====== Bottom Navigation Glass Effect ====== */
+.bottom-nav-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+}
+.dark .bottom-nav-glass {
+  background: rgba(15, 23, 42, 0.85);
+  border-top: 1px solid var(--border);
+}
+
 /* ====== Card subtle hover (minimal) ====== */
 .card-hover {
   transition: box-shadow 0.15s ease;
