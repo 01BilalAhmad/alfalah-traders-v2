@@ -304,7 +304,7 @@ interface SparklineData {
 }
 
 const ROUTE_DAYS = [...WORKING_DAYS];
-const ROUTE_COLORS = ['#475569', '#64748B', '#94A3B8', '#CBD5E1', '#334155', '#1E293B'];
+const ROUTE_COLORS = ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 function RecoverySparkline({ data, width = 100, height = 28 }: { data: number[]; width?: number; height?: number }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
@@ -332,8 +332,8 @@ function RecoverySparkline({ data, width = 100, height = 28 }: { data: number[];
   const isUp = secondAvg > firstAvg;
   const hasData = data.some(d => d > 0);
 
-  const strokeColor = '#475569';
-  const fillColor = 'rgba(71, 85, 105, 0.1)';
+  const strokeColor = isUp ? '#10B981' : '#EF4444';
+  const fillColor = isUp ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
 
   // Generate day labels for tooltip
   const today = new Date();
@@ -378,7 +378,7 @@ function RecoverySparkline({ data, width = 100, height = 28 }: { data: number[];
               {hoveredIdx === i && (
                 <>
                   <circle cx={cx} cy={cy} r={3.5} fill={strokeColor} stroke="white" strokeWidth={1.5} />
-                  <line x1={cx} y1={cy} x2={cx} y2={height} stroke={strokeColor} strokeWidth={0.5} strokeDasharray="2 2" opacity={0.5} />
+                  <line x1={cx} y1={cy} x2={cx} y2={height} stroke={strokeColor} strokeWidth={0.5} strokeDasharray="2 2" opacity={0.4} />
                 </>
               )}
             </g>
@@ -660,10 +660,10 @@ export default function AdminDashboard() {
           <Card className="kpi-card card-hover border border-border card-border-glow hover-scale-102 ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                  <ArrowUpRight className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+                <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shadow-sm">
+                  <ArrowUpRight className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                 </div>
-                <span className="text-[11px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold px-2.5 py-0.5 rounded-full">Today</span>
+                <span className="text-[11px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-bold px-2.5 py-0.5 rounded-full">Today</span>
               </div>
               <p className="text-sm text-foreground font-semibold mb-0.5">Today&apos;s Credit</p>
               <p className="text-2xl font-bold text-foreground tabular-nums number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
@@ -672,10 +672,10 @@ export default function AdminDashboard() {
           <Card className="kpi-card card-hover border border-border stat-pulse animate-fade-in card-border-glow hover-scale-102 ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                  <ArrowDownRight className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+                <div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shadow-sm">
+                  <ArrowDownRight className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <span className="text-[11px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold px-2.5 py-0.5 rounded-full">Today</span>
+                <span className="text-[11px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold px-2.5 py-0.5 rounded-full">Today</span>
               </div>
               <p className="text-sm text-foreground font-semibold mb-0.5">Today&apos;s Recovery</p>
               <p className="text-2xl font-bold text-foreground tabular-nums number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
@@ -684,10 +684,10 @@ export default function AdminDashboard() {
           <Card className="kpi-card card-hover border border-border card-border-glow hover-scale-102 ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                  <Wallet className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+                <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shadow-sm">
+                  <Wallet className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 </div>
-                <span className="text-[11px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold px-2.5 py-0.5 rounded-full">Alert</span>
+                <span className="text-[11px] bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-bold px-2.5 py-0.5 rounded-full">Alert</span>
               </div>
               <p className="text-sm text-foreground font-semibold mb-0.5">Total Outstanding</p>
               <p className="text-2xl font-bold text-foreground tabular-nums number-animate number-display">{formatPKR(animatedOutstanding)}</p>
@@ -696,10 +696,10 @@ export default function AdminDashboard() {
           <Card className="kpi-card card-hover border border-border card-border-glow hover-scale-102 ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                  <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+                <div className="h-10 w-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center shadow-sm">
+                  <Store className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
                 </div>
-                <span className="text-[11px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold px-2.5 py-0.5 rounded-full">All</span>
+                <span className="text-[11px] bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 font-bold px-2.5 py-0.5 rounded-full">All</span>
               </div>
               <p className="text-sm text-foreground font-semibold mb-0.5">Total Active Shops</p>
               <p className="text-2xl font-bold tabular-nums number-animate number-display">{animatedTotalShops}</p>
@@ -726,7 +726,9 @@ export default function AdminDashboard() {
                 {monthSummary && monthSummary.prevTotalCredit > 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                     monthSummary.creditChangePct !== 0
-                      ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      ? monthSummary.creditChangePct > 0
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-800'
                       : 'bg-muted text-muted-foreground'
                   }`}>
                     {monthSummary.creditChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
@@ -742,7 +744,9 @@ export default function AdminDashboard() {
                 {monthSummary && monthSummary.prevTotalRecovery > 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                     monthSummary.recoveryChangePct !== 0
-                      ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      ? monthSummary.recoveryChangePct > 0
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-800'
                       : 'bg-muted text-muted-foreground'
                   }`}>
                     {monthSummary.recoveryChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
@@ -760,7 +764,9 @@ export default function AdminDashboard() {
                 {monthSummary && monthSummary.prevNetPosition !== 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                     monthSummary.netChangePct !== 0
-                      ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      ? monthSummary.netChangePct > 0
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-800'
                       : 'bg-muted text-muted-foreground'
                   }`}>
                     {monthSummary.netChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
@@ -786,8 +792,8 @@ export default function AdminDashboard() {
           className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group "
           onClick={() => setCurrentView('admin-credit')}
         >
-          <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
-            <CreditCard className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+          <div className="h-9 w-9 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/60 transition-colors">
+            <CreditCard className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <span className="text-xs font-medium">Post Credit</span>
         </Button>
@@ -796,8 +802,8 @@ export default function AdminDashboard() {
           className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group "
           onClick={() => setCurrentView('admin-recovery')}
         >
-          <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
-            <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+          <div className="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/60 transition-colors">
+            <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <span className="text-xs font-medium">Recovery Report</span>
         </Button>
@@ -806,8 +812,8 @@ export default function AdminDashboard() {
           className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group "
           onClick={() => setCurrentView('admin-shops')}
         >
-          <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
-            <Plus className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+          <div className="h-9 w-9 rounded-lg bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center group-hover:bg-cyan-200 dark:group-hover:bg-cyan-800/60 transition-colors">
+            <Plus className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
           </div>
           <span className="text-xs font-medium">Add Shop</span>
         </Button>
@@ -819,9 +825,9 @@ export default function AdminDashboard() {
           <div className="overflow-x-auto">
             <div className="flex gap-3 min-w-max snap-x snap-mandatory pb-1">
               {/* Total Credit Today */}
-              <div className="flex items-center gap-2.5 rounded-full bg-slate-50 border border-slate-200/60 dark:bg-slate-900/40 dark:border-slate-700/60 px-4 py-2.5 snap-center">
-                <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                  <TrendingUp className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
+              <div className="flex items-center gap-2.5 rounded-full bg-indigo-50 border border-indigo-200/60 dark:bg-indigo-900/20 dark:border-indigo-700/40 px-4 py-2.5 snap-center">
+                <div className="h-7 w-7 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
+                  <TrendingUp className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-none">Total Credit Today</span>
@@ -829,9 +835,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
               {/* Total Recovery Today */}
-              <div className="flex items-center gap-2.5 rounded-full bg-slate-50 border border-slate-200/60 dark:bg-slate-900/40 dark:border-slate-700/60 px-4 py-2.5 snap-center">
-                <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                  <ArrowDownRight className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
+              <div className="flex items-center gap-2.5 rounded-full bg-emerald-50 border border-emerald-200/60 dark:bg-emerald-900/20 dark:border-emerald-700/40 px-4 py-2.5 snap-center">
+                <div className="h-7 w-7 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+                  <ArrowDownRight className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-none">Total Recovery Today</span>
@@ -839,9 +845,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
               {/* Transactions */}
-              <div className="flex items-center gap-2.5 rounded-full bg-slate-50 border border-slate-200/60 dark:bg-slate-900/40 dark:border-slate-700/60 px-4 py-2.5 snap-center">
-                <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                  <Hash className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
+              <div className="flex items-center gap-2.5 rounded-full bg-amber-50 border border-amber-200/60 dark:bg-amber-900/20 dark:border-amber-700/40 px-4 py-2.5 snap-center">
+                <div className="h-7 w-7 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+                  <Hash className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-none">Transactions</span>
@@ -1033,12 +1039,12 @@ export default function AdminDashboard() {
                 <AreaChart data={trends} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="creditGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#475569" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#475569" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0.02} />
                     </linearGradient>
                     <linearGradient id="recoveryGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#64748B" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#64748B" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
@@ -1072,20 +1078,20 @@ export default function AdminDashboard() {
                   <Area
                     type="monotone"
                     dataKey="credit"
-                    stroke="#475569"
-                    strokeWidth={2}
+                    stroke="#6366F1"
+                    strokeWidth={2.5}
                     fill="url(#creditGradient)"
-                    dot={{ r: 3, fill: '#64748B', strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: '#475569', strokeWidth: 2, stroke: '#fff' }}
+                    dot={{ r: 3, fill: '#6366F1', strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#6366F1', strokeWidth: 2, stroke: '#fff' }}
                   />
                   <Area
                     type="monotone"
                     dataKey="recovery"
-                    stroke="#64748B"
-                    strokeWidth={2}
+                    stroke="#10B981"
+                    strokeWidth={2.5}
                     fill="url(#recoveryGradient)"
-                    dot={{ r: 3, fill: '#94A3B8', strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: '#64748B', strokeWidth: 2, stroke: '#fff' }}
+                    dot={{ r: 3, fill: '#10B981', strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -1097,11 +1103,11 @@ export default function AdminDashboard() {
           )}
           <div className="flex items-center justify-center gap-6 mt-2">
             <div className="flex items-center gap-1.5">
-              <div className="h-2.5 w-2.5 rounded-full bg-slate-500" />
+              <div className="h-2.5 w-2.5 rounded-full bg-indigo-500" />
               <span className="text-xs text-muted-foreground">Credit</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="h-2.5 w-2.5 rounded-full bg-slate-400" />
+              <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
               <span className="text-xs text-muted-foreground">Recovery</span>
             </div>
           </div>
@@ -1123,12 +1129,12 @@ export default function AdminDashboard() {
                 <BarChart data={data.orderbookers} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="outstandingGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#475569" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#475569" stopOpacity={0.5} />
+                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.95} />
+                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.6} />
                     </linearGradient>
                     <linearGradient id="shopsGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#94A3B8" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#94A3B8" stopOpacity={0.5} />
+                      <stop offset="5%" stopColor="#06B6D4" stopOpacity={0.95} />
+                      <stop offset="95%" stopColor="#06B6D4" stopOpacity={0.6} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
@@ -1231,7 +1237,7 @@ export default function AdminDashboard() {
                     label={({ name, value }: { name: string; value: number }) =>
                       value > 0 ? `${name} (${value})` : ''
                     }
-                    labelLine={{ stroke: '#94A3B8', strokeWidth: 1 }}
+                    labelLine={{ stroke: '#64748B', strokeWidth: 1 }}
                   >
                     {routeData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -1296,7 +1302,7 @@ export default function AdminDashboard() {
               const pct = (ob.totalOutstanding / maxOutstanding) * 100;
               const colorClass = 'text-foreground';
               const progressClass = 'progress-gradient-green';
-              const avatarColors = ['bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300', 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200', 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400', 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300', 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'];
+              const avatarColors = ['bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300', 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300', 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300', 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'];
               const avatarIdx = ob.name.charCodeAt(0) % avatarColors.length;
               const spark = sparklineData.find(s => s.orderbookerId === ob.id);
               return (
@@ -1333,7 +1339,7 @@ export default function AdminDashboard() {
                           </span>
                         </div>
                         <span className={`text-[10px] font-bold tabular-nums shrink-0 flex items-center gap-0.5 ${
-                          spark.trend === 'up' ? 'text-slate-600 dark:text-slate-300' : spark.trend === 'down' ? 'text-slate-500 dark:text-slate-400' : 'text-muted-foreground'
+                          spark.trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : spark.trend === 'down' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
                         }`}>
                           {spark.trend === 'up' ? <ArrowUp className="h-3 w-3" /> : spark.trend === 'down' ? <ArrowDown className="h-3 w-3" /> : <span className="text-[8px]">—</span>}
                           {spark.trend !== 'stable' ? (
@@ -1413,11 +1419,13 @@ export default function AdminDashboard() {
                 {topDebtors.length > 0 && topDebtors.some(s => s.balance > 0) ? (
                   topDebtors.map((shop, idx) => {
                     const pct = maxDebt > 0 ? (shop.balance / maxDebt) * 100 : 0;
+                    const debtorColors = ['bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400', 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400', 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400', 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400', 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400'];
+                    const barColors = ['bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-yellow-500', 'bg-rose-500'];
                     return (
                       <div key={shop.id} className="space-y-1.5">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300`}>
+                            <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${debtorColors[idx] || debtorColors[0]}`}>
                               {idx + 1}
                             </span>
                             <div className="min-w-0">
@@ -1429,7 +1437,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-slate-300 transition-all duration-500"
+                            className={`h-full rounded-full ${barColors[idx] || barColors[0]} transition-all duration-500`}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
