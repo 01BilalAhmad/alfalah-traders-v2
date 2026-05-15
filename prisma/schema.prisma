@@ -16,13 +16,14 @@ model User {
   phone             String?
   status            String   @default("active") // "active" or "inactive"
   allRoutesEnabled  Boolean  @default(false) // admin can allow OB to see all days' shops
-  companyId         String?  // nullable - assigned company for orderbookers (null = all/no company)
+  companyId         String?  // nullable - PRIMARY company (backward compat, first company)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   company            Company?         @relation(fields: [companyId], references: [id])
   orderbookerShops   Shop[]
   shopAssignments    ShopOrderbooker[] // additional shop assignments (multi-OB per shop)
+  userCompanies      UserCompany[]    // multi-company assignments
   creditTransactions Transaction[] @relation("CreditBy")
   auditLogs          AuditLog[]
   shopNotes          ShopNote[]    @relation("NoteBy")
@@ -194,6 +195,7 @@ model Company {
   updatedAt        DateTime @updatedAt
 
   orderbookers       User[]
+  userCompanies      UserCompany[]     // multi-company assignments via junction
   companyBalances    ShopCompanyBalance[]
   transactions       Transaction[]
   shopOrderbookers   ShopOrderbooker[] // additional OB assignments for this company
@@ -216,6 +218,24 @@ model ShopCompanyBalance {
 
   @@unique([shopId, companyId]) // one balance per shop per company
   @@index([shopId])
+  @@index([companyId])
+}
+
+// --- User-Company Junction (Multi-Company Assignment) ---
+
+model UserCompany {
+  id          String   @id @default(cuid())
+  userId      String
+  companyId   String
+  isPrimary   Boolean  @default(false) // first assigned company is primary
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([userId, companyId]) // one assignment per user-company
+  @@index([userId])
   @@index([companyId])
 }
 

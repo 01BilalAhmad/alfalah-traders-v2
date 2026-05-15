@@ -146,6 +146,41 @@ export async function GET(request: NextRequest) {
     );
     const user = userRes.rows[0];
 
+    // 3b. Get user's companies from UserCompany junction table
+    let userCompanies: { companyId: string; companyName: string; isPrimary: boolean }[] = [];
+    try {
+      const ucRes = await client.query(
+        `SELECT uc."companyId", uc."isPrimary", c.name AS "companyName"
+         FROM "UserCompany" uc
+         JOIN "Company" c ON uc."companyId" = c.id
+         WHERE uc."userId" = $1 AND c.status = 'active'
+         ORDER BY uc."isPrimary" DESC, c.name ASC`,
+        [userId]
+      );
+      userCompanies = ucRes.rows.map((row: any) => ({
+        companyId: row.companyId,
+        companyName: row.companyName,
+        isPrimary: row.isPrimary,
+      }));
+    } catch {
+      // UserCompany table might not exist yet - fallback
+    }
+
+    // Fallback: if no UserCompany records, derive from User.companyId
+    if (userCompanies.length === 0 && user?.companyId) {
+      const primaryComp = await client.query(
+        'SELECT id, name FROM "Company" WHERE id = $1 AND status = \'active\'',
+        [user.companyId]
+      );
+      if (primaryComp.rows.length > 0) {
+        userCompanies.push({
+          companyId: primaryComp.rows[0].id,
+          companyName: primaryComp.rows[0].name,
+          isPrimary: true,
+        });
+      }
+    }
+
     // 4. Get shop notes for this orderbooker's shops
     let shopNotes: any[] = [];
     try {
@@ -220,6 +255,7 @@ export async function GET(request: NextRequest) {
         allRoutesEnabled: user.allRoutesEnabled ?? false,
         companyId: user.companyId || null,
         companyName: user.companyName || null,
+        companies: userCompanies,
       } : null,
       shopNotes,
       dailyTarget,

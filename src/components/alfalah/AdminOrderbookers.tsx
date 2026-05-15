@@ -52,6 +52,12 @@ import { apiFetch } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { formatPKR } from '@/lib/utils';
 
+interface UserCompany {
+  companyId: string;
+  companyName: string;
+  isPrimary: boolean;
+}
+
 interface Orderbooker {
   id: string;
   name: string;
@@ -61,6 +67,7 @@ interface Orderbooker {
   allRoutesEnabled: boolean;
   companyId: string | null;
   companyName: string | null;
+  companies: UserCompany[];
   totalShops: number;
   totalOutstanding: number;
   createdAt: string;
@@ -124,7 +131,7 @@ export default function AdminOrderbookers() {
 
   // Company assignment state
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
-  const [formCompanyId, setFormCompanyId] = useState<string>('');
+  const [formCompanyIds, setFormCompanyIds] = useState<string[]>([]);
   const [formAllRoutesEnabled, setFormAllRoutesEnabled] = useState(false);
 
   const fetchOrderbookers = useCallback(async () => {
@@ -309,7 +316,7 @@ export default function AdminOrderbookers() {
     setFormUsername('');
     setFormPassword('');
     setFormPhone('');
-    setFormCompanyId('');
+    setFormCompanyIds([]);
     setFormAllRoutesEnabled(false);
     setUsernameStatus('idle');
     setUsernameMessage('');
@@ -322,7 +329,8 @@ export default function AdminOrderbookers() {
     setFormUsername(ob.username);
     setFormPassword('');
     setFormPhone(ob.phone || '');
-    setFormCompanyId(ob.companyId || '');
+    // Set company IDs from the companies array (multi-company support)
+    setFormCompanyIds(ob.companies?.map(c => c.companyId) || (ob.companyId ? [ob.companyId] : []));
     setFormAllRoutesEnabled(ob.allRoutesEnabled ?? false);
     setUsernameStatus('idle');
     setUsernameMessage('');
@@ -350,7 +358,7 @@ export default function AdminOrderbookers() {
         payload.id = editingOB.id;
         payload.name = formName.trim();
         payload.phone = formPhone.trim() || '';
-        payload.companyId = formCompanyId || null;
+        payload.companyIds = formCompanyIds;
         payload.allRoutesEnabled = formAllRoutesEnabled;
         if (formPassword.trim()) payload.password = formPassword.trim();
       } else {
@@ -358,7 +366,7 @@ export default function AdminOrderbookers() {
         payload.username = formUsername.trim();
         payload.password = formPassword.trim();
         payload.phone = formPhone.trim() || '';
-        payload.companyId = formCompanyId || null;
+        payload.companyIds = formCompanyIds;
         payload.allRoutesEnabled = formAllRoutesEnabled;
       }
 
@@ -517,7 +525,18 @@ export default function AdminOrderbookers() {
                       <span>{ob.phone}</span>
                     </div>
                   )}
-                  {ob.companyName && (
+                  {ob.companies && ob.companies.length > 0 ? (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Building2 className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
+                      {ob.companies.map((c, idx) => (
+                        <Badge key={c.companyId} className={`${c.isPrimary ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800'} text-[10px] font-semibold gap-1`">
+                          <Shield className="h-2.5 w-2.5" />
+                          {c.companyName}
+                          {c.isPrimary && <span className="text-[8px] opacity-70">P</span>}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : ob.companyName ? (
                     <div className="flex items-center gap-2 text-xs">
                       <Building2 className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                       <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] font-semibold gap-1">
@@ -525,7 +544,7 @@ export default function AdminOrderbookers() {
                         {ob.companyName}
                       </Badge>
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Visit Streak Badge */}
@@ -691,20 +710,58 @@ export default function AdminOrderbookers() {
               <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="e.g., 0300-1234567" className="" />
             </div>
             <div className="space-y-2">
-              <Label>Assign Company</Label>
-              <select
-                value={formCompanyId}
-                onChange={(e) => setFormCompanyId(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <option value="">No Company (All Companies)</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <Label>Assign Companies</Label>
+              <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto bg-muted/30">
+                {companies.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No companies available</p>
+                ) : (
+                  companies.map((c) => {
+                    const isSelected = formCompanyIds.includes(c.id);
+                    const isFirst = formCompanyIds[0] === c.id;
+                    return (
+                      <label
+                        key={c.id}
+                        className={`flex items-center gap-2.5 p-2 rounded-md cursor-pointer transition-colors ${isSelected ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted/50 border border-transparent'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            if (isSelected) {
+                              setFormCompanyIds(formCompanyIds.filter(id => id !== c.id));
+                            } else {
+                              setFormCompanyIds([...formCompanyIds, c.id]);
+                            }
+                          }}
+                          className="h-4 w-4 rounded border-primary"
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium">{c.name}</span>
+                          {isFirst && isSelected && (
+                            <Badge className="ml-2 text-[8px] bg-primary/20 text-primary border-primary/30">Primary</Badge>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
               <p className="text-[10px] text-muted-foreground">
-                If assigned, this orderbooker will only see their company&apos;s credit data.
+                Select companies this orderbooker works for. First selected company is the primary. Balance &amp; recovery will be tracked separately per company.
               </p>
+              {formCompanyIds.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span className="text-[10px] text-muted-foreground mr-1">Selected:</span>
+                  {formCompanyIds.map((cid, idx) => {
+                    const comp = companies.find(c => c.id === cid);
+                    return comp ? (
+                      <Badge key={cid} className={`text-[9px] ${idx === 0 ? 'bg-primary/15 text-primary border-primary/30' : 'bg-muted text-muted-foreground'}`}>
+                        {idx === 0 ? '★ ' : ''}{comp.name}
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50 border">
               <div className="flex items-center gap-2">

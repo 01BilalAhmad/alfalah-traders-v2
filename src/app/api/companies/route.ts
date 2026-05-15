@@ -11,45 +11,70 @@ export async function GET(request: NextRequest) {
 
     // If userId is provided, return companies assigned to this user (for the mobile app)
     if (userId) {
-      // Get companies from ShopOrderbooker assignments (secondary assignments)
-      const assignments = await db.shopOrderbooker.findMany({
-        where: { orderbookerId: userId },
+      // PRIMARY SOURCE: Get companies from UserCompany junction table (direct assignments)
+      const userCompanyRecords = await db.userCompany.findMany({
+        where: { userId },
         select: {
           companyId: true,
+          isPrimary: true,
           company: { select: { id: true, name: true, status: true, distributorPhone: true } },
         },
-        distinct: ['companyId'],
-      });
-
-      // Get the user's primary company
-      const user = await db.user.findUnique({
-        where: { id: userId },
-        select: { companyId: true, company: { select: { id: true, name: true, status: true, distributorPhone: true } } },
+        orderBy: [{ isPrimary: 'desc' }, { companyId: 'asc' }],
       });
 
       const userCompanies: { id: string; companyId: string; companyName: string; isPrimary: boolean }[] = [];
 
-      // Add primary company if exists
-      if (user?.company) {
-        userCompanies.push({
-          id: `uc_${user.company.id}`,
-          companyId: user.company.id,
-          companyName: user.company.name,
-          isPrimary: true,
-        });
+      // Add companies from UserCompany junction table
+      for (const uc of userCompanyRecords) {
+        if (uc.company && uc.company.status === 'active') {
+          userCompanies.push({
+            id: `uc_${uc.company.id}`,
+            companyId: uc.company.id,
+            companyName: uc.company.name,
+            isPrimary: uc.isPrimary,
+          });
+        }
       }
 
-      // Add secondary companies from assignments
-      for (const assignment of assignments) {
-        if (assignment.company) {
-          // Skip if already added as primary
-          if (!userCompanies.find((uc) => uc.companyId === assignment.company!.id)) {
-            userCompanies.push({
-              id: `uc_${assignment.company.id}`,
-              companyId: assignment.company.id,
-              companyName: assignment.company.name,
-              isPrimary: false,
-            });
+      // FALLBACK: If no UserCompany records exist yet (migration in progress),
+      // derive from User.companyId + ShopOrderbooker assignments
+      if (userCompanies.length === 0) {
+        // Get the user's primary company
+        const user = await db.user.findUnique({
+          where: { id: userId },
+          select: { companyId: true, company: { select: { id: true, name: true, status: true, distributorPhone: true } } },
+        });
+
+        // Add primary company if exists
+        if (user?.company && user.company.status === 'active') {
+          userCompanies.push({
+            id: `uc_${user.company.id}`,
+            companyId: user.company.id,
+            companyName: user.company.name,
+            isPrimary: true,
+          });
+        }
+
+        // Add secondary companies from ShopOrderbooker assignments
+        const assignments = await db.shopOrderbooker.findMany({
+          where: { orderbookerId: userId },
+          select: {
+            companyId: true,
+            company: { select: { id: true, name: true, status: true, distributorPhone: true } },
+          },
+          distinct: ['companyId'],
+        });
+
+        for (const assignment of assignments) {
+          if (assignment.company && assignment.company.status === 'active') {
+            if (!userCompanies.find((uc) => uc.companyId === assignment.company!.id)) {
+              userCompanies.push({
+                id: `uc_${assignment.company.id}`,
+                companyId: assignment.company.id,
+                companyName: assignment.company.name,
+                isPrimary: false,
+              });
+            }
           }
         }
       }

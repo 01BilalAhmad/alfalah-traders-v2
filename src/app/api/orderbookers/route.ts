@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { getPgClient } from '@/lib/pg';
 
-// GET /api/orderbookers - List all orderbookers with their shop counts and balances
+// GET /api/orderbookers - List all orderbookers with their shop counts, balances, and companies
 export async function GET() {
   let client;
   try {
     client = getPgClient();
     await client.connect();
 
-    // Single query: Get all orderbookers with shop counts AND total outstanding (no N+1)
+    // Get all orderbookers with primary company and shop stats
     const obRes = await client.query(
       `SELECT u.id, u.username, u.name, u.phone, u.status, u."createdAt", u."allRoutesEnabled", u."companyId",
               c.name AS "companyName",
@@ -23,6 +23,25 @@ export async function GET() {
        ORDER BY u.name ASC`
     );
 
+    // Get all UserCompany assignments for all orderbookers in one query
+    const ucRes = await client.query(
+      `SELECT uc."userId", uc."companyId", uc."isPrimary", c.name AS "companyName"
+       FROM "UserCompany" uc
+       JOIN "Company" c ON uc."companyId" = c.id
+       ORDER BY uc."isPrimary" DESC, c.name ASC`
+    );
+
+    // Build a map: userId -> companies[]
+    const userCompaniesMap: Record<string, { companyId: string; companyName: string; isPrimary: boolean }[]> = {};
+    for (const row of ucRes.rows) {
+      if (!userCompaniesMap[row.userId]) userCompaniesMap[row.userId] = [];
+      userCompaniesMap[row.userId].push({
+        companyId: row.companyId,
+        companyName: row.companyName,
+        isPrimary: row.isPrimary,
+      });
+    }
+
     const orderbookersWithBalance = obRes.rows.map((ob: any) => ({
       id: ob.id,
       username: ob.username,
@@ -32,6 +51,7 @@ export async function GET() {
       allRoutesEnabled: ob.allRoutesEnabled ?? false,
       companyId: ob.companyId || null,
       companyName: ob.companyName || null,
+      companies: userCompaniesMap[ob.id] || [],
       createdAt: ob.createdAt instanceof Date ? ob.createdAt.toISOString() : ob.createdAt,
       totalShops: parseInt(ob.activeShopCount, 10),
       totalOutstanding: Math.round(Number(ob.totalOutstanding) * 100) / 100,
@@ -50,7 +70,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   let client;
   try {
-    const { username, password, name, phone, companyId } = await request.json();
+    const { username, password, name, phone, companyId, companyIds } = await request.json();
 
     if (!username || !password || !name) {
       return NextResponse.json({ error: 'Username, password, and name are required' }, { status: 400 });
@@ -75,16 +95,30 @@ export async function POST(request: NextRequest) {
     const bcrypt = await import('bcryptjs');
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Determine primary company: use companyIds[0] if provided, else companyId, else null
+    const effectiveCompanyIds: string[] = companyIds?.length > 0 ? companyIds : (companyId ? [companyId] : []);
+    const primaryCompanyId = effectiveCompanyIds.length > 0 ? effectiveCompanyIds[0] : null;
+
     const userId = `user_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
     const now = new Date().toISOString();
     const obRes = await client.query(
       `INSERT INTO "User" (id, username, password, name, phone, role, status, "companyId", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, $5, 'orderbooker', 'active', $6, $7, $8)
        RETURNING id, username, name, phone, role, status, "companyId", "createdAt", "updatedAt"`,
-      [userId, normalizedUsername, hashedPassword, name, phone || null, companyId || null, now, now]
+      [userId, normalizedUsername, hashedPassword, name, phone || null, primaryCompanyId, now, now]
     );
 
     const orderbooker = obRes.rows[0];
+
+    // Create UserCompany records for all assigned companies
+    for (let i = 0; i < effectiveCompanyIds.length; i++) {
+      const ucId = `uc_${Date.now().toString(36)}_${crypto.randomBytes(6).toString('hex')}_${i}`;
+      await client.query(
+        `INSERT INTO "UserCompany" (id, "userId", "companyId", "isPrimary", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [ucId, userId, effectiveCompanyIds[i], i === 0, now, now]
+      );
+    }
 
     // Audit log (best-effort)
     try {
@@ -92,7 +126,7 @@ export async function POST(request: NextRequest) {
       await client.query(
         `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "newValue", description)
          VALUES ($1, 'create', 'user', $2, $3, $4)`,
-        [auditId, orderbooker.id, JSON.stringify({ username: normalizedUsername, name, phone, role: 'orderbooker' }), `Created orderbooker: ${name}`]
+        [auditId, orderbooker.id, JSON.stringify({ username: normalizedUsername, name, phone, role: 'orderbooker', companyIds: effectiveCompanyIds }), `Created orderbooker: ${name}`]
       );
     } catch { /* non-blocking */ }
 
@@ -108,11 +142,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH /api/orderbookers - Update orderbooker (soft delete = status change)
+// PATCH /api/orderbookers - Update orderbooker (including multi-company assignment)
 export async function PATCH(request: NextRequest) {
   let client;
   try {
-    const { id, name, phone, status, password, allRoutesEnabled, companyId } = await request.json();
+    const { id, name, phone, status, password, allRoutesEnabled, companyId, companyIds } = await request.json();
 
     client = getPgClient();
     await client.connect();
@@ -138,13 +172,28 @@ export async function PATCH(request: NextRequest) {
       params.push(hashedPassword);
     }
     if (allRoutesEnabled !== undefined) { setClauses.push(`"allRoutesEnabled" = $${paramIndex++}`); params.push(allRoutesEnabled); }
-    if (companyId !== undefined) { setClauses.push(`"companyId" = $${paramIndex++}`); params.push(companyId || null); }
+
+    // Handle company assignment
+    const effectiveCompanyIds: string[] | null = companyIds !== undefined
+      ? (Array.isArray(companyIds) ? companyIds : [])
+      : null;
+
+    if (effectiveCompanyIds !== null) {
+      // Multi-company update: set primary companyId on User table
+      const primaryCompanyId = effectiveCompanyIds.length > 0 ? effectiveCompanyIds[0] : null;
+      setClauses.push(`"companyId" = $${paramIndex++}`);
+      params.push(primaryCompanyId);
+    } else if (companyId !== undefined) {
+      // Legacy single-company update
+      setClauses.push(`"companyId" = $${paramIndex++}`);
+      params.push(companyId || null);
+    }
 
     // Always update updatedAt timestamp
     setClauses.push(`"updatedAt" = $${paramIndex++}`);
     params.push(new Date().toISOString());
 
-    if (setClauses.length === 0) {
+    if (setClauses.length === 0 && effectiveCompanyIds === null) {
       await client.end();
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
@@ -157,13 +206,30 @@ export async function PATCH(request: NextRequest) {
     );
     const updated = updatedRes.rows[0];
 
+    // Sync UserCompany records if companyIds was provided
+    if (effectiveCompanyIds !== null) {
+      // Delete existing UserCompany records for this user
+      await client.query(`DELETE FROM "UserCompany" WHERE "userId" = $1`, [id]);
+
+      // Insert new UserCompany records
+      const now = new Date().toISOString();
+      for (let i = 0; i < effectiveCompanyIds.length; i++) {
+        const ucId = `uc_${Date.now().toString(36)}_${crypto.randomBytes(6).toString('hex')}_${i}`;
+        await client.query(
+          `INSERT INTO "UserCompany" (id, "userId", "companyId", "isPrimary", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [ucId, id, effectiveCompanyIds[i], i === 0, now, now]
+        );
+      }
+    }
+
     // Audit log (best-effort)
     try {
       const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
       await client.query(
         `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "oldValue", "newValue", description)
          VALUES ($1, 'edit', 'user', $2, $3, $4, $5)`,
-        [auditId, id, JSON.stringify({ name: existing.name, phone: existing.phone, status: existing.status }), JSON.stringify({ name, phone, status }), `Updated orderbooker: ${existing.name}`]
+        [auditId, id, JSON.stringify({ name: existing.name, phone: existing.phone, status: existing.status }), JSON.stringify({ name, phone, status, companyIds: effectiveCompanyIds }), `Updated orderbooker: ${existing.name}`]
       );
     } catch { /* non-blocking */ }
 

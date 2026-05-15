@@ -38,9 +38,67 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    // Fetch user's companies from UserCompany junction table
+    let userCompanies: { companyId: string; companyName: string; isPrimary: boolean }[] = [];
+    try {
+      const ucRes = await client.query(
+        `SELECT uc."companyId", uc."isPrimary", c.name AS "companyName"
+         FROM "UserCompany" uc
+         JOIN "Company" c ON uc."companyId" = c.id
+         WHERE uc."userId" = $1 AND c.status = 'active'
+         ORDER BY uc."isPrimary" DESC, c.name ASC`,
+        [user.id]
+      );
+      userCompanies = ucRes.rows.map((row: any) => ({
+        companyId: row.companyId,
+        companyName: row.companyName,
+        isPrimary: row.isPrimary,
+      }));
+    } catch {
+      // UserCompany table might not exist yet (migration in progress)
+      // Fallback: derive from User.companyId
+    }
+
+    // Fallback: if no UserCompany records, derive from User.companyId + ShopOrderbooker
+    if (userCompanies.length === 0 && user.companyId) {
+      // Add primary company from User.companyId
+      const primaryCompany = await client.query(
+        'SELECT id, name FROM "Company" WHERE id = $1 AND status = \'active\'',
+        [user.companyId]
+      );
+      if (primaryCompany.rows.length > 0) {
+        userCompanies.push({
+          companyId: primaryCompany.rows[0].id,
+          companyName: primaryCompany.rows[0].name,
+          isPrimary: true,
+        });
+      }
+
+      // Add secondary companies from ShopOrderbooker
+      try {
+        const soRes = await client.query(
+          `SELECT DISTINCT so."companyId", c.name AS "companyName"
+           FROM "ShopOrderbooker" so
+           JOIN "Company" c ON so."companyId" = c.id
+           WHERE so."orderbookerId" = $1 AND c.status = 'active' AND so."companyId" != $2`,
+          [user.id, user.companyId]
+        );
+        for (const row of soRes.rows) {
+          userCompanies.push({
+            companyId: row.companyId,
+            companyName: row.companyName,
+            isPrimary: false,
+          });
+        }
+      } catch { /* ShopOrderbooker might not exist */ }
+    }
+
     await client.end();
 
     const { password: _, ...safeUser } = user;
+    // Attach companies array to user object
+    (safeUser as any).companies = userCompanies;
+
     return NextResponse.json({ user: safeUser, token: `session-${user.id}-${Date.now()}` });
   } catch (error: unknown) {
     if (client) await client.end().catch(() => {});
