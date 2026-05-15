@@ -178,7 +178,7 @@ export default function AdminPendingCredits() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold flex items-center gap-2">
-            <Clock className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             Pending Credits
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -206,8 +206,8 @@ export default function AdminPendingCredits() {
         <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                <Clock className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shadow-sm">
+                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Pending</Badge>
             </div>
@@ -218,8 +218,8 @@ export default function AdminPendingCredits() {
         <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                <CreditCard className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shadow-sm">
+                <CreditCard className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Unapproved</Badge>
             </div>
@@ -230,8 +230,8 @@ export default function AdminPendingCredits() {
         <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-10 w-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center shadow-sm">
+                <Store className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Average</Badge>
             </div>
@@ -244,8 +244,8 @@ export default function AdminPendingCredits() {
         <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                <AlertTriangle className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-10 w-10 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shadow-sm">
+                <AlertTriangle className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">OBs</Badge>
             </div>
@@ -262,7 +262,7 @@ export default function AdminPendingCredits() {
         <Card className="card-elevated">
           <CardHeader className="pb-3 pt-4 px-5">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+              <AlertTriangle className="h-4 w-4 text-violet-600 dark:text-violet-400" />
               Pending by Orderbooker
             </CardTitle>
           </CardHeader>
@@ -298,7 +298,7 @@ export default function AdminPendingCredits() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-800 dark:bg-slate-900 hover:bg-slate-800 dark:hover:bg-slate-900">
+                <TableRow className="bg-amber-800 dark:bg-amber-950 hover:bg-amber-800 dark:hover:bg-amber-950">
                   <TableHead className="text-white font-semibold text-xs w-12">#</TableHead>
                   <TableHead className="text-white font-semibold text-xs">Shop</TableHead>
                   <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Area</TableHead>
@@ -324,7 +324,7 @@ export default function AdminPendingCredits() {
                       className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} table-row-hover-effect`}
                     >
                       <TableCell className="text-sm">
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-xs font-bold shrink-0">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-xs font-bold shrink-0">
                           {idx + 1}
                         </span>
                       </TableCell>

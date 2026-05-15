@@ -70,15 +70,15 @@ function PerformanceBadge({ rate }: { rate: number }) {
   if (rate >= 80) {
     variant = 'excellent';
     label = 'Excellent';
-    classes = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+    classes = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
   } else if (rate >= 50) {
     variant = 'good';
     label = 'Good';
-    classes = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+    classes = 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 border-amber-200 dark:border-amber-800';
   } else {
     variant = 'poor';
     label = 'Low';
-    classes = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+    classes = 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border-red-200 dark:border-red-800';
   }
 
   return (
@@ -296,8 +296,8 @@ export default function AdminOBAnalytics() {
         <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                <Users className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-10 w-10 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shadow-sm">
+                <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Total</Badge>
             </div>
@@ -308,8 +308,8 @@ export default function AdminOBAnalytics() {
         <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                <Wallet className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shadow-sm">
+                <Wallet className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">All Time</Badge>
             </div>
@@ -320,8 +320,8 @@ export default function AdminOBAnalytics() {
         <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shadow-sm">
+                <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">{periodLabels[period]}</Badge>
             </div>
@@ -332,8 +332,8 @@ export default function AdminOBAnalytics() {
         <Card className="card-elevated card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                <Trophy className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shadow-sm">
+                <Trophy className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Average</Badge>
             </div>
@@ -358,12 +358,12 @@ export default function AdminOBAnalytics() {
                 <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="perfRecoveryGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#64748B" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#64748B" stopOpacity={0.4} />
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0.4} />
                     </linearGradient>
                     <linearGradient id="perfOutstandingGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#475569" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#475569" stopOpacity={0.4} />
+                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.4} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
@@ -442,7 +442,7 @@ export default function AdminOBAnalytics() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-800 dark:bg-slate-900 hover:bg-slate-800 dark:hover:bg-slate-900">
+                <TableRow className="bg-indigo-800 dark:bg-indigo-950 hover:bg-indigo-800 dark:hover:bg-indigo-950">
                   <TableHead className="text-white font-semibold text-xs w-12">#</TableHead>
                   <TableHead className="text-white font-semibold text-xs">Name</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center hidden sm:table-cell">Shops</TableHead>
@@ -472,9 +472,9 @@ export default function AdminOBAnalytics() {
                     >
                       <TableCell className="text-sm">
                         <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
-                          idx === 0 ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                          : idx === 1 ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                          : idx === 2 ? 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-400'
+                          idx === 0 ? 'bg-amber-200 text-amber-700 dark:bg-amber-700 dark:text-amber-200'
+                          : idx === 1 ? 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                          : idx === 2 ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
                           : 'bg-muted text-muted-foreground'
                         }`}>
                           {idx + 1}
@@ -562,12 +562,12 @@ export default function AdminOBAnalytics() {
                   <BarChart data={dailyBreakdownData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="dailyCreditGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#94A3B8" stopOpacity={0.9} />
-                        <stop offset="95%" stopColor="#94A3B8" stopOpacity={0.4} />
+                        <stop offset="5%" stopColor="#6366F1" stopOpacity={0.9} />
+                        <stop offset="95%" stopColor="#6366F1" stopOpacity={0.4} />
                       </linearGradient>
                       <linearGradient id="dailyRecoveryGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#475569" stopOpacity={0.9} />
-                        <stop offset="95%" stopColor="#475569" stopOpacity={0.4} />
+                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.9} />
+                        <stop offset="95%" stopColor="#10B981" stopOpacity={0.4} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />

@@ -109,13 +109,13 @@ function DaysBadge({ days }: { days: number | null }) {
   }
   if (days >= 21) {
     return (
-      <Badge className="text-[10px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 font-semibold">
+      <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-800 font-semibold">
         {days}d — Urgent
       </Badge>
     );
   }
   return (
-    <Badge className="text-[10px] bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200 dark:border-slate-700 font-semibold">
+    <Badge className="text-[10px] bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-800 font-semibold">
       {days}d — Overdue
     </Badge>
   );
@@ -216,7 +216,7 @@ export default function AdminOverdueShops() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400" />
             Overdue Shops
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -259,8 +259,8 @@ export default function AdminOverdueShops() {
         <Card className="card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                <AlertTriangle className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-10 w-10 rounded-xl bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center shadow-sm">
+                <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">{minDays}+ Days</Badge>
             </div>
@@ -271,8 +271,8 @@ export default function AdminOverdueShops() {
         <Card className="card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shadow-sm">
+                <Store className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">At Risk</Badge>
             </div>
@@ -283,8 +283,8 @@ export default function AdminOverdueShops() {
         <Card className="card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                <Clock className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-10 w-10 rounded-xl bg-red-100 dark:bg-red-900/40 flex items-center justify-center shadow-sm">
+                <Clock className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Critical</Badge>
             </div>
@@ -295,8 +295,8 @@ export default function AdminOverdueShops() {
         <Card className="card-hover border border-border hover-scale-102">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-sm">
-                <AlertCircle className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-10 w-10 rounded-xl bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center shadow-sm">
+                <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
               <Badge variant="secondary" className="text-[10px] font-medium">Never</Badge>
             </div>
@@ -363,7 +363,7 @@ export default function AdminOverdueShops() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-800 dark:bg-slate-900 hover:bg-slate-800 dark:hover:bg-slate-900">
+                <TableRow className="bg-rose-800 dark:bg-rose-950 hover:bg-rose-800 dark:hover:bg-rose-950">
                   <TableHead className="text-white font-semibold text-xs w-12">#</TableHead>
                   <TableHead className="text-white font-semibold text-xs">Shop Name</TableHead>
                   <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Area</TableHead>

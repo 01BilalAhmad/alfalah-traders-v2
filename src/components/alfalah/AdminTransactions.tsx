@@ -561,8 +561,8 @@ export default function AdminTransactions() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
         <Card className="card-hover " style={{ animationDelay: '0ms' }}>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <ArrowDownLeft className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-11 w-11 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
+              <ArrowDownLeft className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Total Credits</p>
@@ -574,8 +574,8 @@ export default function AdminTransactions() {
         </Card>
         <Card className="card-hover " style={{ animationDelay: '50ms' }}>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Banknote className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-11 w-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+              <Banknote className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Total Recoveries</p>
@@ -587,12 +587,12 @@ export default function AdminTransactions() {
         </Card>
         <Card className="card-hover " style={{ animationDelay: '100ms' }}>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Receipt className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-11 w-11 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+              <Receipt className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Net Effect</p>
-              <p className={`text-xl font-bold number-display ${totalCredits - totalRecoveries >= 0 ? 'text-foreground' : 'text-slate-500 dark:text-slate-400'}`}>
+              <p className={`text-xl font-bold number-display ${totalCredits - totalRecoveries >= 0 ? 'text-foreground' : 'text-amber-600 dark:text-amber-400'}`}>
                 {totalCredits - totalRecoveries >= 0 ? '+' : ''}{formatPKR(totalCredits - totalRecoveries)}
               </p>
             </div>
@@ -741,8 +741,8 @@ export default function AdminTransactions() {
           {filteredTransactions.length === 0 ? (
             <div className="text-center py-14 text-muted-foreground">
               <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
-                <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                  <Receipt className="h-9 w-9 text-primary/50 animate-gentle-float" />
+                <div className="relative z-10 h-20 w-20 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                  <Receipt className="h-9 w-9 text-blue-600 dark:text-blue-400 animate-gentle-float" />
                 </div>
               </div>
               <p className="font-semibold text-muted-foreground text-sm">No transactions found</p>
@@ -764,7 +764,7 @@ export default function AdminTransactions() {
             <div className="overflow-x-auto">
               <Table className="min-w-[600px]">
                 <TableHeader>
-                  <TableRow className="bg-slate-800 dark:bg-slate-900 hover:bg-slate-800 dark:hover:bg-slate-900">
+                  <TableRow className="bg-indigo-800 dark:bg-indigo-950 hover:bg-indigo-800 dark:hover:bg-indigo-950">
                     <TableHead className="text-white font-semibold text-xs w-10">#</TableHead>
                     <TableHead className="text-white font-semibold text-xs">Date & Time</TableHead>
                     <TableHead className="text-white font-semibold text-xs">Shop</TableHead>
@@ -800,12 +800,12 @@ export default function AdminTransactions() {
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           {txn.type === 'credit' ? (
-                            <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] w-fit">
+                            <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-[10px] w-fit">
                               <ArrowDownLeft className="h-3 w-3 mr-0.5" />
                               Credit
                             </Badge>
                           ) : (
-                            <Badge className="bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200 dark:border-slate-700 text-[10px] w-fit">
+                            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[10px] w-fit">
                               <TrendingUp className="h-3 w-3 mr-0.5" />
                               Recovery
                             </Badge>
@@ -969,9 +969,9 @@ export default function AdminTransactions() {
                 <Label className="text-xs text-muted-foreground">Type</Label>
                 <div>
                   {editTransaction.type === 'credit' ? (
-                    <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700">Credit</Badge>
+                    <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">Credit</Badge>
                   ) : (
-                    <Badge className="bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200 dark:border-slate-700">Recovery</Badge>
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">Recovery</Badge>
                   )}
                 </div>
               </div>
@@ -1048,7 +1048,7 @@ export default function AdminTransactions() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">Type</span>
-                      <Badge className={`text-[10px] ${deleteTransaction.type === 'credit' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>
+                      <Badge className={`text-[10px] ${deleteTransaction.type === 'credit' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'}`}>
                         {deleteTransaction.type.charAt(0).toUpperCase() + deleteTransaction.type.slice(1)}
                       </Badge>
                     </div>

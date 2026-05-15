@@ -791,14 +791,14 @@ export default function AdminShops() {
         {/* Total Active Shops */}
         <Card className="card-hover border border-border">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center shrink-0">
+              <Store className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Active Shops</p>
               <p className="text-lg font-bold text-foreground">{activeShops.length}</p>
             </div>
-            <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+            <Badge className="bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800 text-[10px] font-bold">
               Live
             </Badge>
           </CardContent>
@@ -807,14 +807,14 @@ export default function AdminShops() {
         {/* Total Inactive Shops */}
         <Card className="card-hover border border-border">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Users className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shrink-0">
+              <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Inactive Shops</p>
               <p className="text-lg font-bold text-foreground">{inactiveShops.length}</p>
             </div>
-            <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+            <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300 border-violet-200 dark:border-violet-800 text-[10px] font-bold">
               Off
             </Badge>
           </CardContent>
@@ -823,8 +823,8 @@ export default function AdminShops() {
         {/* Total Outstanding Balance */}
         <Card className="card-hover border border-border">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Wallet className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+              <Wallet className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
@@ -836,8 +836,8 @@ export default function AdminShops() {
         {/* Average Balance */}
         <Card className="card-hover border border-border">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <TrendingDown className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center shrink-0">
+              <TrendingDown className="h-5 w-5 text-rose-600 dark:text-rose-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Average Balance</p>
@@ -849,8 +849,8 @@ export default function AdminShops() {
         {/* Highest Balance Shop */}
         <Card className="card-hover border border-border">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <BarChart3 className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+              <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Highest Balance</p>
@@ -871,8 +871,8 @@ export default function AdminShops() {
         {/* Area with Most Shops */}
         <Card className="card-hover border border-border">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <MapPin className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
+              <MapPin className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Top Area</p>
@@ -883,7 +883,7 @@ export default function AdminShops() {
               )}
             </div>
             {topArea && (
-              <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+              <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-[10px] font-bold">
                 {topArea[1]} shops
               </Badge>
             )}
@@ -970,12 +970,12 @@ export default function AdminShops() {
               <button
                 key={day}
                 onClick={() => setSelectedDay(day)}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 border border-dashed border-slate-300 dark:border-slate-600 ${selectedDay === day ? 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200' : 'bg-slate-50 text-slate-600 dark:bg-slate-900/30 hover:bg-slate-100 dark:hover:bg-slate-800/50'}`}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 border border-dashed border-indigo-300 dark:border-indigo-700 ${selectedDay === day ? 'bg-indigo-200 text-indigo-800 dark:bg-indigo-700 dark:text-indigo-200' : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-800/50'}`}
               >
                 <AlertTriangle className="h-3 w-3" />
                 {day.charAt(0).toUpperCase() + day.slice(1)}
                 {(count || 0) > 0 && (
-                  <span className="inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full text-[10px] font-bold px-1 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                  <span className="inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full text-[10px] font-bold px-1 bg-indigo-200 dark:bg-indigo-700 text-indigo-800 dark:text-indigo-200">
                     {count}
                   </span>
                 )}
@@ -1023,7 +1023,7 @@ export default function AdminShops() {
           ) : filteredShops.length === 0 ? (
             <div className="text-center py-14 text-muted-foreground">
               <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
-                <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <div className="relative z-10 h-20 w-20 rounded-full bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center">
                   <Store className="h-9 w-9 text-primary/50 animate-gentle-float" />
                 </div>
               </div>
@@ -1075,15 +1075,15 @@ export default function AdminShops() {
                     const creditPct = shop.creditLimit > 0 ? Math.min((shop.balance / shop.creditLimit) * 100, 100) : 0;
                     const isOverLimit = shop.creditLimit > 0 && shop.balance > shop.creditLimit;
                     const isNearLimit = shop.creditLimit > 0 && !isOverLimit && shop.balance > shop.creditLimit * 0.8;
-                    const progressColor = isOverLimit ? 'bg-red-500' : isNearLimit ? 'bg-slate-400' : 'bg-slate-300';
+                    const progressColor = isOverLimit ? 'bg-red-500' : isNearLimit ? 'bg-amber-400' : 'bg-emerald-400';
 
                     const dayColorMap: Record<string, string> = {
-                      monday: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-                      tuesday: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-                      wednesday: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-                      thursday: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-                      friday: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-                      saturday: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+                      monday: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+                      tuesday: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+                      wednesday: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+                      thursday: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+                      friday: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 border-violet-200 dark:border-violet-800',
+                      saturday: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
                     };
 
                     const initial = shop.name.charAt(0).toUpperCase();
@@ -1098,11 +1098,11 @@ export default function AdminShops() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-xl bg-slate-600 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 shadow-sm">
+                          <div className="h-9 w-9 rounded-xl bg-cyan-600 dark:bg-cyan-700 flex items-center justify-center flex-shrink-0 shadow-sm">
                             <span className="text-white font-bold text-sm">{initial}</span>
                           </div>
                           <div className="min-w-0">
-                            <p className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">{shop.name}</p>
+                            <p className="font-semibold text-sm text-foreground truncate">{shop.name}</p>
                             {shop.ownerName && (
                               <p className="text-[11px] text-muted-foreground truncate">{shop.ownerName}</p>
                             )}
@@ -1119,10 +1119,10 @@ export default function AdminShops() {
                         <div className="flex flex-wrap gap-1">
                           {shop.routeDays.map(day => {
                             const isToday = day === todayDay;
-                            const colors = dayColorMap[day] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700';
+                            const colors = dayColorMap[day] || 'bg-muted text-muted-foreground border-border';
                             return (
                               <span key={day} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium border ${colors}`}>
-                                {isToday && <span className="h-1.5 w-1.5 rounded-full bg-slate-500 animate-pulse" />}
+                                {isToday && <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />}
                                 {day.charAt(0).toUpperCase() + day.slice(1, 3)}
                               </span>
                             );
@@ -1131,19 +1131,19 @@ export default function AdminShops() {
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
                         <div className="flex items-center gap-1.5">
-                          <div className="h-5 w-5 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
-                            <User className="h-3 w-3 text-slate-600 dark:text-slate-300" />
+                          <div className="h-5 w-5 rounded-md bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center flex-shrink-0">
+                            <User className="h-3 w-3 text-violet-600 dark:text-violet-400" />
                           </div>
                           <span className="text-sm truncate">{shop.orderbooker.name}</span>
                           {shop.assignedOrderbookers && shop.assignedOrderbookers.length > 0 && (
-                            <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[9px] h-4 px-1" title={`${shop.assignedOrderbookers.length} additional orderbooker(s)`}>
+                            <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300 border-violet-200 dark:border-violet-800 text-[9px] h-4 px-1" title={`${shop.assignedOrderbookers.length} additional orderbooker(s)`}>
                               +{shop.assignedOrderbookers.length}
                             </Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}>{formatPKR(shop.balance)}</span>
+                        <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-foreground' : 'text-emerald-500 dark:text-emerald-400'}`}>{formatPKR(shop.balance)}</span>
                       </TableCell>
                       <TableCell>
                         {(() => {
@@ -1155,11 +1155,11 @@ export default function AdminShops() {
                               {isOverLimit ? (
                                 <span className="text-[10px] font-bold text-red-600 dark:text-red-400 animate-pulse">OVER LIMIT</span>
                               ) : isNearLimit ? (
-                                <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">Near Limit</span>
+                                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">Near Limit</span>
                               ) : (
-                                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Within Limit</span>
+                                <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">Within Limit</span>
                               )}
-                              <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                                 <div className={`h-full rounded-full transition-all duration-300 ${progressColor}`} style={{ width: `${isOverLimit ? 100 : creditPct}%` }} />
                               </div>
                               <span className="text-[9px] text-muted-foreground">{formatPKR(shop.balance)} / {formatPKR(shop.creditLimit)}</span>
@@ -1169,15 +1169,15 @@ export default function AdminShops() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5">
-                          <span className={`h-2 w-2 rounded-full flex-shrink-0 ${shop.status === 'active' ? 'bg-slate-700 dark:bg-slate-300' : 'bg-slate-300 dark:bg-slate-600'}`} />
-                          <Badge className={`text-[10px] ${shop.status === 'active' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500 border-slate-200 dark:border-slate-700'}`}>
+                          <span className={`h-2 w-2 rounded-full flex-shrink-0 ${shop.status === 'active' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                          <Badge className={`text-[10px] ${shop.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' : 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500 border-slate-200 dark:border-slate-700'}`}>
                             {shop.status.charAt(0).toUpperCase() + shop.status.slice(1)}
                           </Badge>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => openShopDetail(shop)} title="View Details">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/30" onClick={() => openShopDetail(shop)} title="View Details">
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
                           <DropdownMenu>
@@ -1257,7 +1257,7 @@ export default function AdminShops() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 text-xs gap-1.5 text-slate-600 hover:text-slate-700 hover:bg-slate-50 hover:border-slate-200"
+                  className="h-8 text-xs gap-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200"
                   onClick={openBulkRouteDays}
                 >
                   <CalendarDays className="h-3.5 w-3.5" />
@@ -1275,7 +1275,7 @@ export default function AdminShops() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 text-xs gap-1.5 text-slate-600 hover:text-slate-700 hover:bg-slate-50 hover:border-slate-200"
+                  className="h-8 text-xs gap-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200"
                   onClick={openBulkReactivate}
                 >
                   <UserX className="h-3.5 w-3.5" />
@@ -1322,7 +1322,7 @@ export default function AdminShops() {
                     <span className="flex items-center gap-2">
                       {ob.name}
                       {ob.status !== 'active' && (
-                        <Badge variant="outline" className="text-[10px] text-slate-600 border-slate-300 bg-slate-50">Inactive</Badge>
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground border-border bg-muted">Inactive</Badge>
                       )}
                     </span>
                   </SelectItem>
@@ -1563,7 +1563,7 @@ export default function AdminShops() {
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
           {/* Shop Header - Professional Slate */}
-          <div className="bg-slate-800 dark:bg-slate-900 px-6 py-5 shrink-0">
+          <div className="bg-gradient-to-r from-cyan-700 to-indigo-800 dark:from-cyan-900 dark:to-indigo-950 px-6 py-5 shrink-0">
             <DialogHeader>
               <div className="flex items-start justify-between">
                 <div>
@@ -1571,7 +1571,7 @@ export default function AdminShops() {
                     <Store className="h-5 w-5" />
                     {detailShop?.name || 'Shop Details'}
                   </DialogTitle>
-                  <DialogDescription className="text-slate-400 text-xs mt-1">
+                  <DialogDescription className="text-cyan-200 text-xs mt-1">
                     {detailShop?.area && (
                       <span className="flex items-center gap-1">
                         <MapPin className="h-3 w-3" /> {detailShop.area}
@@ -1581,11 +1581,11 @@ export default function AdminShops() {
                 </div>
                 <div className="flex items-center gap-2">
                   {detailShop?.routeDays && detailShop.routeDays.length > 0 && (
-                    <Badge className="bg-slate-700 text-slate-200 border-slate-600 text-[10px]">
+                    <Badge className="bg-cyan-800/60 text-cyan-100 border-cyan-700/50 text-[10px]">
                       {formatRouteDays(detailShop.routeDays)}
                     </Badge>
                   )}
-                  <Badge className={`text-[10px] ${detailShop?.status === 'active' ? 'bg-slate-700 text-slate-200 border-slate-600' : 'bg-slate-700 text-slate-400 border-slate-600'}`}>
+                  <Badge className={`text-[10px] ${detailShop?.status === 'active' ? 'bg-emerald-700 text-emerald-100 border-emerald-600' : 'bg-slate-700 text-slate-400 border-slate-600'}`}>
                     {detailShop?.status === 'active' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                     {detailShop?.status === 'active' ? 'Active' : 'Inactive'}
                   </Badge>
@@ -1606,8 +1606,8 @@ export default function AdminShops() {
                 {/* Owner & Phone Info */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex items-center gap-3 bg-muted/40 rounded-lg p-3">
-                    <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                      <User className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                    <div className="h-9 w-9 rounded-lg bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shrink-0">
+                      <User className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[10px] text-muted-foreground font-medium uppercase">Owner</p>
@@ -1615,8 +1615,8 @@ export default function AdminShops() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 bg-muted/40 rounded-lg p-3">
-                    <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                      <Phone className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                    <div className="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+                      <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[10px] text-muted-foreground font-medium uppercase">Phone</p>
@@ -1630,11 +1630,11 @@ export default function AdminShops() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-xs text-muted-foreground font-medium">Current Balance</p>
-                      <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px]">
+                      <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-[10px]">
                         {detailShop.orderbooker.name}
                       </Badge>
                     </div>
-                    <p className={`text-2xl font-bold tabular-nums ${detailShop.balance > 0 ? 'text-foreground' : 'text-slate-500 dark:text-slate-400'}`}>
+                    <p className={`text-2xl font-bold tabular-nums ${detailShop.balance > 0 ? 'text-foreground' : 'text-emerald-500 dark:text-emerald-400'}`}>
                       {formatPKR(detailShop.balance)}
                     </p>
 
@@ -1651,8 +1651,8 @@ export default function AdminShops() {
                               detailShop.balance > detailShop.creditLimit
                                 ? 'bg-red-500'
                                 : detailShop.balance > detailShop.creditLimit * 0.8
-                                  ? 'bg-slate-400'
-                                  : 'bg-slate-300'
+                                  ? 'bg-amber-400'
+                                  : 'bg-emerald-400'
                             }`}
                             style={{
                               width: `${Math.min((detailShop.balance / detailShop.creditLimit) * 100, 100)}%`,
@@ -1664,8 +1664,8 @@ export default function AdminShops() {
                             detailShop.balance > detailShop.creditLimit
                               ? 'text-red-600 dark:text-red-400'
                               : detailShop.balance > detailShop.creditLimit * 0.8
-                                ? 'text-slate-600 dark:text-slate-400'
-                                : 'text-slate-500 dark:text-slate-400'
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-emerald-500 dark:text-emerald-400'
                           }`}>
                             {detailShop.balance > detailShop.creditLimit
                               ? `${formatPKR(detailShop.balance)} — Over limit by ${formatPKR(detailShop.balance - detailShop.creditLimit)}`
@@ -1683,9 +1683,9 @@ export default function AdminShops() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                        <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                         <p className="text-xs text-muted-foreground font-medium">Assigned Orderbookers</p>
-                        <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] h-5">
+                        <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300 border-violet-200 dark:border-violet-800 text-[10px] h-5">
                           {1 + shopAssignments.length}
                         </Badge>
                       </div>
@@ -1706,14 +1706,14 @@ export default function AdminShops() {
 
                     <div className="space-y-2">
                       {/* Primary orderbooker */}
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                        <div className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                          <User className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+                        <div className="h-7 w-7 rounded-full bg-indigo-200 dark:bg-indigo-700 flex items-center justify-center shrink-0">
+                          <User className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-300" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <p className="text-sm font-medium text-foreground truncate">{detailShop.orderbooker.name}</p>
-                            <Badge className="bg-slate-800 text-white dark:bg-slate-600 text-[9px] h-4 px-1.5 font-bold">Primary</Badge>
+                            <Badge className="bg-indigo-700 text-white text-[9px] h-4 px-1.5 font-bold">Primary</Badge>
                           </div>
                         </div>
                       </div>
@@ -1724,13 +1724,13 @@ export default function AdminShops() {
                       ) : (
                         shopAssignments.map((assignment) => (
                           <div key={assignment.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border/50">
-                            <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                              <Users className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+                            <div className="h-7 w-7 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shrink-0">
+                              <Users className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <p className="text-sm font-medium text-foreground truncate">{assignment.orderbookerName}</p>
-                                <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[9px] h-4 px-1.5">
+                                <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300 border-violet-200 dark:border-violet-800 text-[9px] h-4 px-1.5">
                                   {assignment.companyName}
                                 </Badge>
                               </div>
@@ -1800,11 +1800,11 @@ export default function AdminShops() {
                             <Line
                               type="monotone"
                               dataKey="balance"
-                              stroke="#475569"
+                              stroke="#6366F1"
                               strokeWidth={2}
                               dot={(props: Record<string, unknown>) => {
                                 const { cx, cy, payload } = props as { cx: number; cy: number; payload: { type: string } };
-                                const fill = payload.type === 'credit' ? '#64748B' : '#94A3B8';
+                                const fill = payload.type === 'credit' ? '#6366F1' : '#10B981';
                                 return (
                                   <circle
                                     key={`dot-${cx}-${cy}`}
@@ -1817,17 +1817,17 @@ export default function AdminShops() {
                                   />
                                 );
                               }}
-                              activeDot={{ r: 6, stroke: '#475569', strokeWidth: 2, fill: 'white' }}
+                              activeDot={{ r: 6, stroke: '#6366F1', strokeWidth: 2, fill: 'white' }}
                             />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
                       <div className="flex items-center gap-4 mt-2">
                         <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                          <span className="h-2.5 w-2.5 rounded-full bg-slate-500" /> Credit
+                          <span className="h-2.5 w-2.5 rounded-full bg-indigo-500" /> Credit
                         </span>
                         <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                          <span className="h-2.5 w-2.5 rounded-full bg-slate-400" /> Recovery
+                          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Recovery
                         </span>
                       </div>
                     </CardContent>
@@ -1879,7 +1879,7 @@ export default function AdminShops() {
                     </div>
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-slate-800 dark:bg-slate-900 hover:bg-slate-800 dark:hover:bg-slate-900">
+                        <TableRow className="bg-indigo-800 dark:bg-indigo-950 hover:bg-indigo-800 dark:hover:bg-indigo-950">
                           <TableHead className="text-white font-semibold text-[10px]">Type</TableHead>
                           <TableHead className="text-white font-semibold text-[10px]">Amount</TableHead>
                           <TableHead className="text-white font-semibold text-[10px] hidden sm:table-cell">Description</TableHead>
@@ -1891,7 +1891,7 @@ export default function AdminShops() {
                         {[...detailLedgerData.transactions].reverse().slice(0, 10).map((txn, idx) => (
                           <TableRow key={txn.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} hover-scale-102 transition-colors`}>
                             <TableCell>
-                              <Badge className={`text-[9px] ${txn.type === 'credit' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>
+                              <Badge className={`text-[9px] ${txn.type === 'credit' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'}`}>
                                 {txn.type === 'credit' ? 'Credit' : 'Recovery'}
                               </Badge>
                             </TableCell>
@@ -1986,7 +1986,7 @@ export default function AdminShops() {
                             setFormRouteDays(formRouteDays.filter(d => d !== day));
                           }
                         }}
-                        className="rounded border-gray-300"
+                        className="rounded border-border"
                       />
                       <span className="text-sm">{day.charAt(0).toUpperCase() + day.slice(1)}</span>
                     </label>
@@ -2128,15 +2128,15 @@ export default function AdminShops() {
               )}
               {/* Summary */}
               <div className="grid grid-cols-3 gap-3 px-1">
-                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-center">
+                <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3 text-center">
                   <p className="text-[10px] text-muted-foreground">Total Credit</p>
                   <p className="text-sm font-bold text-foreground">{formatPKR(ledgerData.summary.totalCredit)}</p>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-center">
+                <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 text-center">
                   <p className="text-[10px] text-muted-foreground">Total Recovery</p>
                   <p className="text-sm font-bold text-foreground">{formatPKR(ledgerData.summary.totalRecovery)}</p>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-center">
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 text-center">
                   <p className="text-[10px] text-muted-foreground">Balance</p>
                   <p className="text-sm font-bold text-foreground">{formatPKR(ledgerData.summary.currentBalance)}</p>
                 </div>
@@ -2150,11 +2150,11 @@ export default function AdminShops() {
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Badge className={`text-[9px] ${txn.type === 'credit' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>
+                              <Badge className={`text-[9px] ${txn.type === 'credit' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'}`}>
                                 {txn.type === 'credit' ? 'Credit' : 'Recovery'}
                               </Badge>
                               {txn.company && (
-                                <Badge variant="outline" className="text-[8px] px-1.5 py-0 h-4 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400">
+                                <Badge variant="outline" className="text-[8px] px-1.5 py-0 h-4 border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400">
                                   {txn.company.name}
                                 </Badge>
                               )}
@@ -2302,7 +2302,7 @@ export default function AdminShops() {
         <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <StickyNote className="h-5 w-5 text-slate-600" />
+              <StickyNote className="h-5 w-5 text-amber-600" />
               Notes — {notesShop?.name}
             </DialogTitle>
             <DialogDescription>

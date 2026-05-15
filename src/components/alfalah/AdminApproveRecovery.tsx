@@ -238,7 +238,7 @@ export default function AdminApproveRecovery() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6 text-slate-600 dark:text-slate-300" />
+            <ShieldCheck className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
             Approve Transactions
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -283,8 +283,8 @@ export default function AdminApproveRecovery() {
         <Card className="border border-border">
           <CardContent className="p-4">
             <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <Clock className="h-4.5 w-4.5 text-slate-600 dark:text-slate-300" />
+              <div className="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                <Clock className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Pending</p>
@@ -296,8 +296,8 @@ export default function AdminApproveRecovery() {
         <Card className="border border-border">
           <CardContent className="p-4">
             <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <Banknote className="h-4.5 w-4.5 text-slate-600 dark:text-slate-300" />
+              <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                <Banknote className="h-4.5 w-4.5 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Total Amount</p>
@@ -309,8 +309,8 @@ export default function AdminApproveRecovery() {
         <Card className="hover-lift">
           <CardContent className="p-4">
             <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <Smartphone className="h-4.5 w-4.5 text-slate-600 dark:text-slate-300" />
+              <div className="h-9 w-9 rounded-lg bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+                <Smartphone className="h-4.5 w-4.5 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Orderbookers</p>
@@ -373,7 +373,7 @@ export default function AdminApproveRecovery() {
 
       {/* Bulk Actions Bar */}
       {selectedIds.size > 0 && (
-        <div className="rounded-lg border border-border bg-slate-50 dark:bg-slate-800/50 px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 animate-fade-in">
+        <div className="rounded-lg border border-border bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 animate-fade-in">
           <p className="text-sm text-foreground">
             <span className="font-bold">{selectedIds.size}</span> selected —{' '}
             <span className="font-bold">{formatPKR(selectedTotal)}</span>
@@ -415,8 +415,8 @@ export default function AdminApproveRecovery() {
       ) : !lastError && displayGroups.length === 0 ? (
         <Card>
           <CardContent className="p-10 flex flex-col items-center justify-center text-center">
-            <div className="h-16 w-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
-              <CircleCheck className="h-8 w-8 text-slate-400" />
+            <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center mb-3">
+              <CircleCheck className="h-8 w-8 text-emerald-500" />
             </div>
             <p className="text-base font-bold text-foreground">All Clear!</p>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">
@@ -443,8 +443,8 @@ export default function AdminApproveRecovery() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                        <Smartphone className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+                      <div className="h-10 w-10 rounded-lg bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+                        <Smartphone className="h-5 w-5 text-violet-600 dark:text-violet-400" />
                       </div>
                       <div>
                         <p className="text-sm font-bold text-foreground">{group.orderbooker.name}</p>
@@ -531,7 +531,7 @@ export default function AdminApproveRecovery() {
                                     {txn.shop.name}
                                   </span>
                                   {/* Type badge */}
-                                  <Badge variant={txn.type === 'credit' ? 'default' : 'secondary'} className={`text-[9px] h-4 px-1.5 ${txn.type === 'credit' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' : 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400'}`}>
+                                  <Badge variant={txn.type === 'credit' ? 'default' : 'secondary'} className={`text-[9px] h-4 px-1.5 ${txn.type === 'credit' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'}`}>
                                     {txn.type === 'credit' ? 'CREDIT' : 'RECOVERY'}
                                   </Badge>
                                   {txn.shop.area && (

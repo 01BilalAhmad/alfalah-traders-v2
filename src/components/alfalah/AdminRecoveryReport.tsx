@@ -589,8 +589,8 @@ export default function AdminRecoveryReport() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="card-hover " style={{ animationDelay: '0ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                <Banknote className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-11 w-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+                <Banknote className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Grand Total Recovery</p>
@@ -600,8 +600,8 @@ export default function AdminRecoveryReport() {
           </Card>
           <Card className="card-hover " style={{ animationDelay: '50ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                <Users className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-11 w-11 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shrink-0">
+                <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Active Orderbookers</p>
@@ -611,8 +611,8 @@ export default function AdminRecoveryReport() {
           </Card>
           <Card className="card-hover " style={{ animationDelay: '100ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                <MapPin className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-11 w-11 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
+                <MapPin className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Total Shops Visited</p>
@@ -635,7 +635,7 @@ export default function AdminRecoveryReport() {
         <Card className="card-hover">
           <CardHeader className="pb-2 px-5 pt-4">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Banknote className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+              <Banknote className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               Company Breakdown
             </CardTitle>
           </CardHeader>
@@ -645,7 +645,7 @@ export default function AdminRecoveryReport() {
                 <div key={idx} className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-muted/30">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm text-foreground">{cb.companyName}</span>
-                    <Badge className="text-[9px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                    <Badge className="text-[9px] bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 border-amber-200 dark:border-amber-800">
                       {cb.orderbookerCount} OB{cb.orderbookerCount !== 1 ? 's' : ''}
                     </Badge>
                   </div>
@@ -723,8 +723,8 @@ export default function AdminRecoveryReport() {
           {!summary || summary.orderbookers.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
-                <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                  <TrendingUp className="h-9 w-9 text-slate-400 animate-gentle-float" />
+                <div className="relative z-10 h-20 w-20 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                  <TrendingUp className="h-9 w-9 text-emerald-400 animate-gentle-float" />
                 </div>
               </div>
               <p className="font-semibold text-muted-foreground text-sm">No recovery data for this date</p>
@@ -764,12 +764,12 @@ export default function AdminRecoveryReport() {
                           <div className="flex items-center gap-2">
                             <p className="font-semibold text-sm">{ob.orderbookerName}</p>
                             {recoveryPct >= 80 ? (
-                              <Badge className="text-[10px] bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                              <Badge className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800">
                                 <CheckCircle className="h-3 w-3 mr-0.5" />
                                 80%+ {recoveryPct}%
                               </Badge>
                             ) : recoveryPct >= 50 ? (
-                              <Badge className="text-[10px] bg-slate-100 text-slate-700 hover:bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                              <Badge className="text-[10px] bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-800">
                                 <TrendingUp className="h-3 w-3 mr-0.5" />
                                 {recoveryPct}%
                               </Badge>
@@ -806,11 +806,11 @@ export default function AdminRecoveryReport() {
                           <>
                             <div className="w-full h-1 rounded-full bg-muted overflow-hidden flex">
                               <div
-                                className="h-full bg-slate-300 transition-all duration-500"
+                                className="h-full bg-emerald-400 transition-all duration-500"
                                 style={{ width: `${(obTotalRecovery / obTotalOutstanding) * 100}%` }}
                               />
                               <div
-                                className="h-full bg-slate-400 transition-all duration-500"
+                                className="h-full bg-indigo-400 transition-all duration-500"
                                 style={{ width: `${(obTotalCredit / obTotalOutstanding) * 100}%` }}
                               />
                             </div>
@@ -890,7 +890,7 @@ export default function AdminRecoveryReport() {
                                       <TableCell className="text-right text-sm">
                                         <div className="flex items-center justify-end gap-1.5">
                                           {shop.closingBalance === 0 ? (
-                                            <Badge className="text-[9px] bg-slate-50 text-slate-500 hover:bg-slate-50 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700">
+                                            <Badge className="text-[9px] bg-emerald-50 text-emerald-600 hover:bg-emerald-50 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400 dark:border-emerald-800">
                                               <CheckCircle className="h-3 w-3 mr-0.5" />
                                               Settled
                                             </Badge>
@@ -908,14 +908,14 @@ export default function AdminRecoveryReport() {
                                               href={`https://www.openstreetmap.org/?mlat=${shop.recoveryEntries[0].gpsLat}&mlon=${shop.recoveryEntries[0].gpsLng}#map=17/${shop.recoveryEntries[0].gpsLat}/${shop.recoveryEntries[0].gpsLng}`}
                                               target="_blank"
                                               rel="noopener noreferrer"
-                                              className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-slate-500 transition-colors"
+                                              className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 transition-colors"
                                               title="All recoveries GPS verified"
                                             >
                                               <Navigation className="h-3.5 w-3.5" />
                                               <ExternalLink className="h-3 w-3" />
                                             </a>
                                           ) : shop.recoveryEntries.some((e) => e.hasGps) ? (
-                                            <span className="inline-flex items-center gap-1 text-slate-500" title="Partial GPS verification">
+                                            <span className="inline-flex items-center gap-1 text-cyan-500" title="Partial GPS verification">
                                               <Navigation className="h-3.5 w-3.5" />
                                               <span className="text-[9px]">
                                                 {shop.recoveryEntries.filter((e) => e.hasGps).length}/{shop.recoveryEntries.length}
@@ -971,7 +971,7 @@ export default function AdminRecoveryReport() {
                                                       </TableCell>
                                                       <TableCell className="text-center hidden sm:table-cell">
                                                         {entry.hasGps ? (
-                                                          <Navigation className="h-3.5 w-3.5 text-slate-500 mx-auto" />
+                                                          <Navigation className="h-3.5 w-3.5 text-cyan-500 mx-auto" />
                                                         ) : (
                                                           <span className="text-muted-foreground text-xs">\u2014</span>
                                                         )}
@@ -1155,7 +1155,7 @@ export default function AdminRecoveryReport() {
               <div
                 key={step}
                 className={`h-1.5 flex-1 rounded-full transition-colors ${
-                  step <= addStep ? 'bg-slate-600' : 'bg-muted'
+                  step <= addStep ? 'bg-emerald-600' : 'bg-muted'
                 }`}
               />
             ))}
@@ -1230,7 +1230,7 @@ export default function AdminRecoveryReport() {
                         </Button>
                       </div>
                       <div className="flex items-center gap-1.5 text-xs">
-                        <Banknote className="h-3 w-3 text-slate-500" />
+                        <Banknote className="h-3 w-3 text-amber-500" />
                         Balance: <span className="font-bold text-foreground">{formatPKR(selectedShopDetails.balance)}</span>
                       </div>
                     </div>
@@ -1274,7 +1274,7 @@ export default function AdminRecoveryReport() {
                                 }}
                                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm transition-colors ${
                                   selectedShopId === shop.id
-                                    ? 'bg-slate-50 text-slate-700 dark:bg-slate-800/50 dark:text-slate-300'
+                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
                                     : 'hover:bg-muted'
                                 }`}
                               >
@@ -1287,7 +1287,7 @@ export default function AdminRecoveryReport() {
                                     )}
                                   </div>
                                 </div>
-                                <span className={`text-xs font-bold tabular-nums shrink-0 ${shop.balance > 0 ? 'text-foreground' : 'text-slate-500 dark:text-slate-400'}`}>
+                                <span className={`text-xs font-bold tabular-nums shrink-0 ${shop.balance > 0 ? 'text-foreground' : 'text-emerald-500 dark:text-emerald-400'}`}>
                                   {formatPKR(shop.balance)}
                                 </span>
                               </button>
@@ -1325,7 +1325,7 @@ export default function AdminRecoveryReport() {
                       </Button>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs">
-                      <Banknote className="h-3 w-3 text-slate-500" />
+                      <Banknote className="h-3 w-3 text-amber-500" />
                       Outstanding Balance: <span className="font-bold text-foreground">{formatPKR(selectedShopDetails.balance)}</span>
                     </div>
                     {selectedShopDetails.area && (
@@ -1357,7 +1357,7 @@ export default function AdminRecoveryReport() {
                       <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
                       Recovery Date
                       {addRecoveryDate !== getLocalDateString() && (
-                        <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0 border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-400">
+                        <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0 border-amber-300 text-amber-600 dark:border-amber-700 dark:text-amber-400">
                           Backdated
                         </Badge>
                       )}

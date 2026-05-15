@@ -278,8 +278,8 @@ export default function AdminCompanyReport() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print-hidden">
           <Card className="card-hover " style={{ animationDelay: '0ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                <FileSpreadsheet className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-11 w-11 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
+                <FileSpreadsheet className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Total Credit</p>
@@ -289,8 +289,8 @@ export default function AdminCompanyReport() {
           </Card>
           <Card className="card-hover " style={{ animationDelay: '50ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                <Building2 className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-11 w-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+                <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Total Recovery</p>
@@ -300,8 +300,8 @@ export default function AdminCompanyReport() {
           </Card>
           <Card className="card-hover " style={{ animationDelay: '100ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                <FileSpreadsheet className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-11 w-11 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+                <FileSpreadsheet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Working Days</p>
@@ -317,8 +317,8 @@ export default function AdminCompanyReport() {
         <Card>
           <CardContent className="text-center py-12">
             <div className="mx-auto mb-4 h-20 w-20">
-              <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <Building2 className="h-9 w-9 text-slate-400 animate-gentle-float" />
+              <div className="relative z-10 h-20 w-20 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
+                <Building2 className="h-9 w-9 text-indigo-600 dark:text-indigo-400 animate-gentle-float" />
               </div>
             </div>
             <p className="font-semibold text-muted-foreground text-sm">Select a company to view the report</p>
@@ -335,8 +335,8 @@ export default function AdminCompanyReport() {
         <Card>
           <CardContent className="text-center py-12">
             <div className="mx-auto mb-4 h-20 w-20">
-              <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <FileSpreadsheet className="h-9 w-9 text-slate-400 animate-gentle-float" />
+              <div className="relative z-10 h-20 w-20 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
+                <FileSpreadsheet className="h-9 w-9 text-indigo-600 dark:text-indigo-400 animate-gentle-float" />
               </div>
             </div>
             <p className="font-semibold text-muted-foreground text-sm">No orderbookers found for this company</p>
@@ -525,15 +525,15 @@ export default function AdminCompanyReport() {
       {data && data.orderbookers.length > 0 && (
         <div className="flex items-center gap-4 text-xs text-muted-foreground print:hidden">
           <div className="flex items-center gap-1.5">
-            <div className="h-3 w-3 rounded-sm bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600" />
+            <div className="h-3 w-3 rounded-sm bg-indigo-200 dark:bg-indigo-700 border border-indigo-300 dark:border-indigo-600" />
             <span>Credit = Credit Posted</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="h-3 w-3 rounded-sm bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600" />
+            <div className="h-3 w-3 rounded-sm bg-emerald-200 dark:bg-emerald-700 border border-emerald-300 dark:border-emerald-600" />
             <span>Recovery = Recovery Collected</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="h-3 w-3 rounded-sm bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600" />
+            <div className="h-3 w-3 rounded-sm bg-rose-200 dark:bg-rose-700 border border-rose-300 dark:border-rose-600" />
             <span>Bold amount = Outstanding Balance</span>
           </div>
           <span>|</span>

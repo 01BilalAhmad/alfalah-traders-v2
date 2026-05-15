@@ -427,7 +427,7 @@ function ProfileView({
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
-              <BarChart3 className="h-8 w-8 mb-2 opacity-20" />
+              <BarChart3 className="h-8 w-8 mb-2 text-blue-300 dark:text-blue-700" />
               <p className="text-xs font-medium">No weekly data available</p>
               <p className="text-[10px] mt-0.5">Start collecting recovery to see your weekly stats</p>
             </div>
@@ -457,8 +457,8 @@ function ProfileView({
             className="w-full justify-start gap-3 h-11"
             onClick={onOpenSettings}
           >
-            <div className="h-8 w-8 rounded-lg bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center">
-              <Settings className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+            <div className="h-8 w-8 rounded-lg bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+              <Settings className="h-4 w-4 text-violet-600 dark:text-violet-400" />
             </div>
             <div className="text-left">
               <span className="text-sm font-medium">Settings</span>
@@ -571,7 +571,7 @@ function RecoveryHistory() {
         </div>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Banknote className="h-10 w-10 mb-3 opacity-20" />
+            <Banknote className="h-10 w-10 mb-3 text-emerald-300 dark:text-emerald-700" />
             <p className="text-sm font-medium">No recovery history yet</p>
             <p className="text-xs mt-1">Start collecting recovery from shops to see your history here</p>
           </CardContent>
@@ -628,7 +628,7 @@ function RecoveryHistory() {
       {transactions.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-            <Clock className="h-8 w-8 mb-2 opacity-20" />
+            <Clock className="h-8 w-8 mb-2 text-amber-300 dark:text-amber-700" />
             <p className="text-sm">No recovery entries in this period</p>
             <p className="text-xs mt-1">Try selecting a different time range</p>
           </CardContent>
@@ -663,7 +663,7 @@ function RecoveryHistory() {
                                 {txn.gpsLat && txn.gpsLng ? (
                                   <div className="h-2 w-2 rounded-full bg-green-500 shrink-0" title="GPS captured" />
                                 ) : (
-                                  <div className="h-2 w-2 rounded-full bg-gray-300 dark:bg-gray-600 shrink-0" title="No GPS" />
+                                  <div className="h-2 w-2 rounded-full bg-red-300 dark:bg-red-600 shrink-0" title="No GPS" />
                                 )}
                               </div>
                               {txn.shop.area && (
@@ -905,7 +905,7 @@ export default function OrderbookerLayout() {
         <nav className="sticky bottom-0 bottom-nav-glass z-40 safe-area-bottom">
           <div className="flex items-center justify-around py-2 px-2">
             <button
-              className={`tab-indicator flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200 ${isDashboard ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+              className={`tab-indicator flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200 ${isDashboard ? 'text-primary active bg-primary/8' : 'text-emerald-500 dark:text-emerald-400/70 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`}
               onClick={() => setCurrentView('orderbooker-dashboard')}
             >
               <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${isDashboard ? 'bg-primary/10' : ''}`}>
@@ -914,7 +914,7 @@ export default function OrderbookerLayout() {
               <span className="text-[10px] font-semibold">My Route</span>
             </button>
             <button
-              className={`tab-indicator flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200 ${isHistory ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+              className={`tab-indicator flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200 ${isHistory ? 'text-primary active bg-primary/8' : 'text-blue-500 dark:text-blue-400/70 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}
               onClick={() => setCurrentView('orderbooker-history')}
             >
               <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${isHistory ? 'bg-primary/10' : ''}`}>
@@ -923,7 +923,7 @@ export default function OrderbookerLayout() {
               <span className="text-[10px] font-semibold">History</span>
             </button>
             <button
-              className={`tab-indicator flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200 ${isLedger ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+              className={`tab-indicator flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200 ${isLedger ? 'text-primary active bg-primary/8' : 'text-amber-500 dark:text-amber-400/70 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20'}`}
               onClick={() => setCurrentView('orderbooker-ledger')}
             >
               <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${isLedger ? 'bg-primary/10' : ''}`}>
@@ -932,7 +932,7 @@ export default function OrderbookerLayout() {
               <span className="text-[10px] font-semibold">Ledger</span>
             </button>
             <button
-              className={`tab-indicator flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200 ${isProfile ? 'text-primary active bg-primary/8' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+              className={`tab-indicator flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-all duration-200 ${isProfile ? 'text-primary active bg-primary/8' : 'text-violet-500 dark:text-violet-400/70 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20'}`}
               onClick={() => setCurrentView('orderbooker-profile')}
             >
               <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${isProfile ? 'bg-primary/10' : ''}`}>
@@ -1604,7 +1604,7 @@ function OrderbookerDashboard() {
       ) : shops.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-            <Store className="h-8 w-8 mb-2 opacity-30" />
+            <Store className="h-8 w-8 mb-2 text-cyan-300 dark:text-cyan-700" />
             <p className="text-sm font-medium">No shops assigned</p>
             <p className="text-xs mt-1">Contact admin to get shops assigned to your route</p>
           </CardContent>
@@ -2031,7 +2031,7 @@ function ShopDetailDialog({
               ) : transactions.length === 0 ? (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-6 text-muted-foreground">
-                    <FileText className="h-8 w-8 mb-2 opacity-20" />
+                    <FileText className="h-8 w-8 mb-2 text-blue-300 dark:text-blue-700" />
                     <p className="text-xs">No transactions yet</p>
                   </CardContent>
                 </Card>
@@ -2322,7 +2322,7 @@ function LedgerView() {
           ) : shops.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-                <FileText className="h-8 w-8 mb-2 opacity-30" />
+                <FileText className="h-8 w-8 mb-2 text-amber-300 dark:text-amber-700" />
                 <p className="text-sm">No shops assigned</p>
                 <p className="text-xs mt-1">Contact admin to get shops assigned to your route</p>
               </CardContent>

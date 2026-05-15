@@ -211,13 +211,13 @@ export default function AdminCompanies() {
       </div>
 
       {/* Info Banner */}
-      <Card className="border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
+      <Card className="border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <Building2 className="h-5 w-5 text-slate-600 dark:text-slate-400 shrink-0 mt-0.5" />
+            <Building2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-slate-900 dark:text-slate-200">Multi-Company Credit System</p>
-              <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 leading-relaxed">
+              <p className="text-sm font-medium text-indigo-900 dark:text-indigo-200">Multi-Company Credit System</p>
+              <p className="text-xs text-indigo-700 dark:text-indigo-300 mt-1 leading-relaxed">
                 Create companies (e.g., CBL, Cadbury, Shan Foods) and assign orderbookers to them.
                 Each orderbooker will only see their assigned company&apos;s balances.
                 Shops remain shared — their credit is tracked per company automatically when you post credits.
@@ -234,8 +234,8 @@ export default function AdminCompanies() {
       ) : companies.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <div className="h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
-              <Building2 className="h-9 w-9 text-primary/50 animate-gentle-float" />
+            <div className="h-20 w-20 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center mb-4">
+              <Building2 className="h-9 w-9 text-violet-600 dark:text-violet-400 animate-gentle-float" />
             </div>
             <p className="font-semibold text-muted-foreground text-sm">No companies yet</p>
             <p className="text-xs text-muted-foreground/70 mt-1.5 max-w-xs mx-auto leading-relaxed">
@@ -258,16 +258,16 @@ export default function AdminCompanies() {
               className={`group relative overflow-hidden card-hover ${company.status === 'inactive' ? 'opacity-60 grayscale-[30%]' : ''}`}
             >
               {/* Top accent gradient bar */}
-              <div className={`h-1.5 w-full ${company.status === 'active' ? 'bg-slate-600' : 'bg-slate-300 dark:bg-slate-700'}`} />
+              <div className={`h-1.5 w-full ${company.status === 'active' ? 'bg-violet-600' : 'bg-gray-300 dark:bg-gray-700'}`} />
 
               <CardContent className="p-5 pt-4">
                 {/* Header: Avatar + Name + Status */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center shadow-sm ${company.status === 'active' ? 'bg-slate-100 dark:bg-slate-800' : 'bg-muted'}`}>
-                      <Building2 className={`h-5 w-5 ${company.status === 'active' ? 'text-slate-600 dark:text-slate-300' : 'text-muted-foreground'}`} />
+                    <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center shadow-sm ${company.status === 'active' ? 'bg-violet-100 dark:bg-violet-900/40' : 'bg-muted'}`}>
+                      <Building2 className={`h-5 w-5 ${company.status === 'active' ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground'}`} />
                       {company.status === 'active' && (
-                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-slate-700 dark:bg-slate-300 border-2 border-white dark:border-gray-900" />
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-600 dark:bg-emerald-400 border-2 border-white dark:border-gray-900" />
                       )}
                     </div>
                     <div>
@@ -277,7 +277,7 @@ export default function AdminCompanies() {
                       )}
                     </div>
                   </div>
-                  <Badge className={`text-[10px] font-semibold animate-badge-pop shadow-sm ${company.status === 'active' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500 border-slate-200 dark:border-slate-700'}`}>
+                  <Badge className={`text-[10px] font-semibold animate-badge-pop shadow-sm ${company.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700'}`}>
                     {company.status === 'active' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                     {company.status.charAt(0).toUpperCase() + company.status.slice(1)}
                   </Badge>
@@ -287,21 +287,21 @@ export default function AdminCompanies() {
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   <div className="rounded-xl bg-muted/60 dark:bg-muted/30 border border-border/50 p-2.5 hover:bg-muted/80 transition-colors">
                     <div className="flex items-center gap-1 mb-1">
-                      <Users className="h-3 w-3 text-slate-500" />
+                      <Users className="h-3 w-3 text-violet-500" />
                       <span className="text-[9px] text-muted-foreground font-medium">OBs</span>
                     </div>
                     <p className="text-sm font-bold tabular-nums">{company._count?.orderbookers || 0}</p>
                   </div>
                   <div className="rounded-xl bg-muted/60 dark:bg-muted/30 border border-border/50 p-2.5 hover:bg-muted/80 transition-colors">
                     <div className="flex items-center gap-1 mb-1">
-                      <Store className="h-3 w-3 text-slate-500" />
+                      <Store className="h-3 w-3 text-cyan-500" />
                       <span className="text-[9px] text-muted-foreground font-medium">Shops</span>
                     </div>
                     <p className="text-sm font-bold tabular-nums">{company._count?.companyBalances || 0}</p>
                   </div>
                   <div className="rounded-xl bg-muted/60 dark:bg-muted/30 border border-border/50 p-2.5 hover:bg-muted/80 transition-colors">
                     <div className="flex items-center gap-1 mb-1">
-                      <Receipt className="h-3 w-3 text-slate-500" />
+                      <Receipt className="h-3 w-3 text-amber-500" />
                       <span className="text-[9px] text-muted-foreground font-medium">Txns</span>
                     </div>
                     <p className="text-sm font-bold tabular-nums">{company._count?.transactions || 0}</p>
@@ -310,13 +310,13 @@ export default function AdminCompanies() {
 
                 {/* Distributor Phone */}
                 {company.distributorPhone && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-900/15 border border-slate-200/50 dark:border-slate-800/30">
-                    <div className="h-6 w-6 rounded-lg bg-slate-500/10 flex items-center justify-center">
-                      <Phone className="h-3 w-3 text-slate-600 dark:text-slate-400" />
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 p-2.5 rounded-xl bg-rose-50/60 dark:bg-rose-900/15 border border-rose-200/50 dark:border-rose-800/30">
+                    <div className="h-6 w-6 rounded-lg bg-rose-500/10 flex items-center justify-center">
+                      <Phone className="h-3 w-3 text-rose-600 dark:text-rose-400" />
                     </div>
                     <div>
-                      <span className="text-[9px] text-slate-600/70 dark:text-slate-400/70 font-medium">Distributor</span>
-                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">{company.distributorPhone}</p>
+                      <span className="text-[9px] text-rose-600/70 dark:text-rose-400/70 font-medium">Distributor</span>
+                      <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">{company.distributorPhone}</p>
                     </div>
                   </div>
                 )}

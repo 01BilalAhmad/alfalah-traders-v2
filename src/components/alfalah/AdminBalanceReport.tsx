@@ -284,8 +284,8 @@ export default function AdminBalanceReport() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print-hidden">
           <Card className="card-hover " style={{ animationDelay: '0ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                <Banknote className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-11 w-11 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+                <Banknote className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">
@@ -297,8 +297,8 @@ export default function AdminBalanceReport() {
           </Card>
           <Card className="card-hover " style={{ animationDelay: '50ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-11 w-11 rounded-xl bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center shrink-0">
+                <Store className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">
@@ -310,8 +310,8 @@ export default function AdminBalanceReport() {
           </Card>
           <Card className="card-hover " style={{ animationDelay: '100ms' }}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                <Users className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <div className="h-11 w-11 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shrink-0">
+                <Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Orderbookers</p>
@@ -327,8 +327,8 @@ export default function AdminBalanceReport() {
         <Card>
           <CardContent className="text-center py-12">
             <div className="mx-auto mb-4 h-20 w-20">
-              <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <Banknote className="h-9 w-9 text-slate-400 animate-gentle-float" />
+              <div className="relative z-10 h-20 w-20 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                <Banknote className="h-9 w-9 text-amber-600 dark:text-amber-400 animate-gentle-float" />
               </div>
             </div>
             <p className="font-semibold text-muted-foreground text-sm">

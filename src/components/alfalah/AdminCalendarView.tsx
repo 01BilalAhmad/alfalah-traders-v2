@@ -84,53 +84,53 @@ interface DaySchedule {
 
 const ROUTE_DAY_COLORS: Record<string, { bg: string; text: string; border: string; light: string; dot: string }> = {
   saturday: {
-    bg: 'bg-slate-100 dark:bg-slate-800/40',
-    text: 'text-slate-700 dark:text-slate-300',
-    border: 'border-slate-200 dark:border-slate-700',
-    light: 'bg-slate-50 dark:bg-slate-800/30',
-    dot: 'bg-slate-500',
+    bg: 'bg-cyan-100 dark:bg-cyan-900/40',
+    text: 'text-cyan-700 dark:text-cyan-300',
+    border: 'border-cyan-200 dark:border-cyan-800',
+    light: 'bg-cyan-50 dark:bg-cyan-900/30',
+    dot: 'bg-cyan-500',
   },
   sunday: {
-    bg: 'bg-slate-100 dark:bg-slate-800/40',
-    text: 'text-slate-700 dark:text-slate-300',
-    border: 'border-slate-200 dark:border-slate-700',
-    light: 'bg-slate-50 dark:bg-slate-800/30',
-    dot: 'bg-slate-500',
+    bg: 'bg-indigo-100 dark:bg-indigo-900/40',
+    text: 'text-indigo-700 dark:text-indigo-300',
+    border: 'border-indigo-200 dark:border-indigo-800',
+    light: 'bg-indigo-50 dark:bg-indigo-900/30',
+    dot: 'bg-indigo-500',
   },
   monday: {
-    bg: 'bg-slate-100 dark:bg-slate-800/40',
-    text: 'text-slate-700 dark:text-slate-300',
-    border: 'border-slate-200 dark:border-slate-700',
-    light: 'bg-slate-50 dark:bg-slate-800/30',
-    dot: 'bg-slate-500',
+    bg: 'bg-emerald-100 dark:bg-emerald-900/40',
+    text: 'text-emerald-700 dark:text-emerald-300',
+    border: 'border-emerald-200 dark:border-emerald-800',
+    light: 'bg-emerald-50 dark:bg-emerald-900/30',
+    dot: 'bg-emerald-500',
   },
   tuesday: {
-    bg: 'bg-slate-100 dark:bg-slate-800/40',
-    text: 'text-slate-700 dark:text-slate-300',
-    border: 'border-slate-200 dark:border-slate-700',
-    light: 'bg-slate-50 dark:bg-slate-800/30',
-    dot: 'bg-slate-500',
+    bg: 'bg-amber-100 dark:bg-amber-900/40',
+    text: 'text-amber-700 dark:text-amber-300',
+    border: 'border-amber-200 dark:border-amber-800',
+    light: 'bg-amber-50 dark:bg-amber-900/30',
+    dot: 'bg-amber-500',
   },
   wednesday: {
-    bg: 'bg-slate-100 dark:bg-slate-800/40',
-    text: 'text-slate-700 dark:text-slate-300',
-    border: 'border-slate-200 dark:border-slate-700',
-    light: 'bg-slate-50 dark:bg-slate-800/30',
-    dot: 'bg-slate-500',
+    bg: 'bg-violet-100 dark:bg-violet-900/40',
+    text: 'text-violet-700 dark:text-violet-300',
+    border: 'border-violet-200 dark:border-violet-800',
+    light: 'bg-violet-50 dark:bg-violet-900/30',
+    dot: 'bg-violet-500',
   },
   thursday: {
-    bg: 'bg-slate-100 dark:bg-slate-800/40',
-    text: 'text-slate-700 dark:text-slate-300',
-    border: 'border-slate-200 dark:border-slate-700',
-    light: 'bg-slate-50 dark:bg-slate-800/30',
-    dot: 'bg-slate-500',
+    bg: 'bg-rose-100 dark:bg-rose-900/40',
+    text: 'text-rose-700 dark:text-rose-300',
+    border: 'border-rose-200 dark:border-rose-800',
+    light: 'bg-rose-50 dark:bg-rose-900/30',
+    dot: 'bg-rose-500',
   },
   friday: {
-    bg: 'bg-slate-100 dark:bg-slate-800/40',
-    text: 'text-slate-500 dark:text-slate-400',
-    border: 'border-slate-200 dark:border-slate-700',
-    light: 'bg-slate-50 dark:bg-slate-900/30',
-    dot: 'bg-slate-400',
+    bg: 'bg-blue-100 dark:bg-blue-900/40',
+    text: 'text-blue-700 dark:text-blue-300',
+    border: 'border-blue-200 dark:border-blue-800',
+    light: 'bg-blue-50 dark:bg-blue-900/30',
+    dot: 'bg-blue-500',
   },
 };
 
@@ -439,14 +439,14 @@ export default function AdminCalendarView() {
         {/* Working Days */}
         <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Calendar className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
+              <Calendar className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Working Days</p>
               <p className="text-lg font-bold text-foreground">{workingDaysInMonth}</p>
             </div>
-            <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+            <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-[10px] font-bold">
               This Month
             </Badge>
           </CardContent>
@@ -455,14 +455,14 @@ export default function AdminCalendarView() {
         {/* Total Scheduled Visits */}
         <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+              <Store className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Scheduled Visits</p>
               <p className="text-lg font-bold text-foreground">{totalScheduledVisits.toLocaleString()}</p>
             </div>
-            <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[10px] font-bold">
               / month
             </Badge>
           </CardContent>
@@ -471,8 +471,8 @@ export default function AdminCalendarView() {
         {/* OB with Most Assignments */}
         <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Briefcase className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shrink-0">
+              <Briefcase className="h-5 w-5 text-violet-600 dark:text-violet-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Top Orderbooker</p>
@@ -481,7 +481,7 @@ export default function AdminCalendarView() {
               </p>
             </div>
             {obWithMostAssignments && (
-              <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+              <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300 border-violet-200 dark:border-violet-800 text-[10px] font-bold">
                 {obWithMostAssignments.count} shops
               </Badge>
             )}
@@ -742,7 +742,7 @@ export default function AdminCalendarView() {
           ) : dayShops.length === 0 ? (
             <div className="text-center py-8">
               <div className="empty-state-illustration mx-auto mb-3 h-16 w-16">
-                <div className="relative z-10 h-16 w-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <div className="relative z-10 h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
                   <Store className="h-7 w-7 text-primary/50" />
                 </div>
               </div>
@@ -786,7 +786,7 @@ export default function AdminCalendarView() {
                               </p>
                             </div>
                           </div>
-                          <span className={`text-xs font-bold ${shop.balance > 0 ? 'text-foreground' : 'text-slate-500 dark:text-slate-400'}`}
+                          <span className={`text-xs font-bold ${shop.balance > 0 ? 'text-foreground' : 'text-emerald-500 dark:text-emerald-400'}`}
                           >
                             {formatPKR(shop.balance)}
                           </span>

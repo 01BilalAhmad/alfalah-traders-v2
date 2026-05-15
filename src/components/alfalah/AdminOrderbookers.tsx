@@ -446,8 +446,8 @@ export default function AdminOrderbookers() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
-              <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <Users className="h-9 w-9 text-primary/50 animate-gentle-float" />
+              <div className="relative z-10 h-20 w-20 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+                <Users className="h-9 w-9 text-violet-600 dark:text-violet-400 animate-gentle-float" />
               </div>
             </div>
             <p className="font-semibold text-muted-foreground text-sm">No orderbookers found</p>
@@ -474,18 +474,18 @@ export default function AdminOrderbookers() {
             return (
             <Card key={ob.id} className={`group relative overflow-hidden card-hover ${ob.status === 'inactive' ? 'opacity-60 grayscale-[30%]' : ''}`}>
               {/* Top accent gradient bar */}
-              <div className={`h-1.5 w-full ${ob.status === 'active' ? 'bg-slate-600' : 'bg-slate-300 dark:bg-slate-700'}`} />
+              <div className={`h-1.5 w-full ${ob.status === 'active' ? 'bg-violet-600' : 'bg-gray-300 dark:bg-gray-700'}`} />
 
               <CardContent className="p-5 pt-4">
                 {/* Header: Avatar + Name + Status */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center shadow-sm ${ob.status === 'active' ? 'bg-slate-100 dark:bg-slate-800' : 'bg-muted'}`}>
-                      <span className={`text-base font-bold ${ob.status === 'active' ? 'text-slate-800 dark:text-slate-100' : 'text-muted-foreground'}`}>
+                    <div className={`relative h-12 w-12 rounded-2xl flex items-center justify-center shadow-sm ${ob.status === 'active' ? 'bg-violet-100 dark:bg-violet-900/40' : 'bg-muted'}`}>
+                      <span className={`text-base font-bold ${ob.status === 'active' ? 'text-violet-800 dark:text-violet-100' : 'text-muted-foreground'}`}>
                         {ob.name.charAt(0).toUpperCase()}
                       </span>
                       {ob.status === 'active' && (
-                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-slate-700 dark:bg-slate-300 border-2 border-white dark:border-gray-900" />
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-600 dark:bg-emerald-400 border-2 border-white dark:border-gray-900" />
                       )}
                     </div>
                     <div>
@@ -493,7 +493,7 @@ export default function AdminOrderbookers() {
                       <p className="text-xs text-muted-foreground mt-0.5">@{ob.username}</p>
                     </div>
                   </div>
-                  <Badge className={`text-[10px] font-semibold animate-badge-pop shadow-sm ${ob.status === 'active' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500 border-slate-200 dark:border-slate-700'}`}>
+                  <Badge className={`text-[10px] font-semibold animate-badge-pop shadow-sm ${ob.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700'}`}>
                     {ob.status === 'active' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                     {ob.status.charAt(0).toUpperCase() + ob.status.slice(1)}
                   </Badge>
@@ -503,14 +503,14 @@ export default function AdminOrderbookers() {
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   <div className="rounded-xl bg-muted/60 dark:bg-muted/30 border border-border/50 p-2.5 hover:bg-muted/80 transition-colors">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Store className="h-3 w-3 text-slate-600 dark:text-slate-300" />
+                      <Store className="h-3 w-3 text-cyan-600 dark:text-cyan-400" />
                       <span className="text-[10px] text-muted-foreground font-medium">Shops</span>
                     </div>
                     <p className="text-sm font-bold tabular-nums">{ob.totalShops}</p>
                   </div>
                   <div className="rounded-xl bg-muted/60 dark:bg-muted/30 border border-border/50 p-2.5 hover:bg-muted/80 transition-colors">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Wallet className="h-3 w-3 text-slate-600 dark:text-slate-300" />
+                      <Wallet className="h-3 w-3 text-amber-600 dark:text-amber-400" />
                       <span className="text-[10px] text-muted-foreground font-medium">Outstanding</span>
                     </div>
                     <p className="text-sm font-bold text-foreground tabular-nums">{formatPKR(ob.totalOutstanding)}</p>
@@ -521,17 +521,17 @@ export default function AdminOrderbookers() {
                 <div className="space-y-2 mb-3">
                   {ob.phone && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Phone className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
+                      <Phone className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
                       <span>{ob.phone}</span>
                     </div>
                   )}
                   {ob.companies && ob.companies.length > 0 ? (
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <Building2 className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
+                      <Building2 className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
                       {ob.companies.map((c, idx) => (
                         <Badge key={c.companyId} className={
                           c.isPrimary
-                            ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] font-semibold gap-1'
+                            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-[10px] font-semibold gap-1'
                             : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-[10px] font-semibold gap-1'
                         }>
                           <Shield className="h-2.5 w-2.5" />
@@ -542,8 +542,8 @@ export default function AdminOrderbookers() {
                     </div>
                   ) : ob.companyName ? (
                     <div className="flex items-center gap-2 text-xs">
-                      <Building2 className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
-                      <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] font-semibold gap-1">
+                      <Building2 className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                      <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-[10px] font-semibold gap-1">
                         <Shield className="h-2.5 w-2.5" />
                         {ob.companyName}
                       </Badge>
@@ -556,10 +556,10 @@ export default function AdminOrderbookers() {
                   {streaksLoading ? (
                     <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                   ) : visitStreaks[ob.id] && visitStreaks[ob.id].currentStreak > 0 ? (
-                    <Badge className="bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 text-[10px] font-bold gap-1 shadow-sm">
+                    <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-800 text-[10px] font-bold gap-1 shadow-sm">
                       <Flame className="h-3 w-3" />
                       {visitStreaks[ob.id].currentStreak} Day Streak
-                      {visitStreaks[ob.id].currentStreak >= 7 && <Sparkles className="h-2.5 w-2.5 text-slate-600" />}
+                      {visitStreaks[ob.id].currentStreak >= 7 && <Sparkles className="h-2.5 w-2.5 text-amber-600" />}
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="text-[10px] font-medium">
@@ -570,7 +570,7 @@ export default function AdminOrderbookers() {
 
                 {/* Monthly Recovery Target Progress */}
                 {monthlyTargets[ob.id] && monthlyTargets[ob.id].target > 0 && (
-                  <div className={`mb-3 p-3 rounded-xl border transition-colors ${targetMet ? 'bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700' : 'bg-muted/50 border-border/50'}`}>
+                  <div className={`mb-3 p-3 rounded-xl border transition-colors ${targetMet ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800' : 'bg-muted/50 border-border/50'}`}>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
                         <TrendingUp className="h-3 w-3" /> Monthly Target
@@ -581,7 +581,7 @@ export default function AdminOrderbookers() {
                     </div>
                     <Progress
                       value={targetPct}
-                      className={`h-2 ${targetMet ? '[&>div]:bg-slate-300' : ''}`}
+                      className={`h-2 ${targetMet ? '[&>div]:bg-emerald-500' : ''}`}
                     />
                     <div className="flex items-center justify-between mt-1.5">
                       <span className="text-[9px] text-muted-foreground">
@@ -589,7 +589,7 @@ export default function AdminOrderbookers() {
                       </span>
                       <span className={`text-[9px] font-semibold ${
                         targetMet
-                          ? 'text-slate-500 dark:text-slate-400'
+                          ? 'text-emerald-600 dark:text-emerald-400'
                           : monthlyTargets[ob.id].achieved >= monthlyTargets[ob.id].target * 0.7
                             ? 'text-foreground'
                             : 'text-foreground'
@@ -605,8 +605,8 @@ export default function AdminOrderbookers() {
                 {/* All Routes Toggle */}
                 <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border/50 mb-3">
                   <div className="flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                      <Layers className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
+                    <div className="h-7 w-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
+                      <Layers className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                     </div>
                     <div>
                       <span className="text-xs font-medium">All Routes Access</span>

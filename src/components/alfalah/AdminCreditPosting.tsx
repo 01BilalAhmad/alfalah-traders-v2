@@ -1082,8 +1082,8 @@ export default function AdminCreditPosting() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="card-hover">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <PackagePlus className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-11 w-11 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
+              <PackagePlus className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Posted This Session</p>
@@ -1129,13 +1129,13 @@ export default function AdminCreditPosting() {
                     handleExitQuickPost();
                   }
                 }}
-                className="data-[state=checked]:bg-slate-600"
+                className="data-[state=checked]:bg-indigo-600"
               />
               <label
                 htmlFor="quickPostToggle"
                 className="flex items-center gap-1 text-xs font-semibold cursor-pointer select-none text-muted-foreground"
               >
-                <Zap className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+                <Zap className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
                 Quick Post
               </label>
             </div>
@@ -1143,8 +1143,8 @@ export default function AdminCreditPosting() {
         </Card>
         <Card className="card-hover">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Wallet className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-11 w-11 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+              <Wallet className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
@@ -1154,8 +1154,8 @@ export default function AdminCreditPosting() {
         </Card>
         <Card className="card-hover">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-11 w-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-11 w-11 rounded-xl bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center shrink-0">
+              <Store className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">Shops Listed</p>
@@ -1253,7 +1253,7 @@ export default function AdminCreditPosting() {
                   </span>
                 )}
                 {day === todayDay && (
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-400" />
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-400" />
                 )}
               </button>
             ))}
@@ -1262,16 +1262,16 @@ export default function AdminCreditPosting() {
               <button
                 key={day}
                 onClick={() => setSelectedDay(day)}
-                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 border border-dashed border-slate-300 dark:border-slate-700 ${
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 border border-dashed border-indigo-300 dark:border-indigo-700 ${
                   selectedDay === day
-                    ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                    : 'bg-slate-50 text-slate-600 dark:bg-slate-950/20 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
+                    : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/20 hover:bg-indigo-100 dark:hover:bg-indigo-800/50'
                 }`}
               >
                 <AlertTriangle className="h-3 w-3" />
                 {day.charAt(0).toUpperCase() + day.slice(1)}
                 {(count || 0) > 0 && (
-                  <span className="inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full text-[10px] font-bold px-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+                  <span className="inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full text-[10px] font-bold px-1 bg-indigo-200 dark:bg-indigo-700 text-indigo-700 dark:text-indigo-200">
                     {count}
                   </span>
                 )}
@@ -1372,7 +1372,7 @@ export default function AdminCreditPosting() {
                     const companyBal = shop.companyBalances?.find(cb => cb.companyId === selectedCompany);
                     const displayBalance = companyBal ? companyBal.balance : 0;
                     return (
-                      <span className={`font-semibold text-sm ${displayBalance > 0 ? 'text-foreground' : displayBalance < 0 ? 'text-foreground' : 'text-slate-500 dark:text-slate-400'}`}>
+                      <span className={`font-semibold text-sm ${displayBalance > 0 ? 'text-foreground' : displayBalance < 0 ? 'text-foreground' : 'text-emerald-500 dark:text-emerald-400'}`}>
                         {formatPKR(displayBalance)}
                       </span>
                     );
@@ -1384,7 +1384,7 @@ export default function AdminCreditPosting() {
                         /{formatPKR(shop.creditLimit)}
                       </span>
                     )}
-                    <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-foreground' : shop.balance < 0 ? 'text-foreground' : 'text-slate-500 dark:text-slate-400'}`}>
+                    <span className={`font-semibold text-sm ${shop.balance > 0 ? 'text-foreground' : shop.balance < 0 ? 'text-foreground' : 'text-emerald-500 dark:text-emerald-400'}`}>
                             {formatPKR(shop.balance)}
                     </span>
                   </>
@@ -1433,9 +1433,9 @@ export default function AdminCreditPosting() {
             <div className="space-y-4">
               {/* Summary KPIs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/30">
-                  <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                    <TrendingUp className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/30">
+                  <div className="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+                    <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground font-medium">Total Credit Posted</p>
@@ -1508,7 +1508,7 @@ export default function AdminCreditPosting() {
       {quickPostMode && quickPostShops > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up lg:left-64 mb-14">
           <div className="mx-auto max-w-3xl px-4 pb-4">
-            <div className="flex items-center justify-between rounded-xl bg-slate-600 dark:bg-slate-700 px-5 py-3 shadow-2xl text-white">
+            <div className="flex items-center justify-between rounded-xl bg-amber-600 dark:bg-amber-700 px-5 py-3 shadow-2xl text-white">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
                   <Zap className="h-4 w-4" />
@@ -1552,9 +1552,9 @@ export default function AdminCreditPosting() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-slate-400" />
+                  <Zap className="h-5 w-5 text-amber-400" />
                   Quick Post Credit
-                  <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] ml-1">
+                  <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-[10px] ml-1">
                     Quick Mode
                   </Badge>
                 </DialogTitle>
@@ -1567,9 +1567,9 @@ export default function AdminCreditPosting() {
 
               {/* Quick Post Session Stats Bar */}
               {quickPostShops > 0 && (
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/30">
-                  <CheckCircle2 className="h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0" />
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/30">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
+                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                     {quickPostShops} shop{quickPostShops > 1 ? 's' : ''} posted — Total: {formatPKR(quickPostTotal)}
                   </span>
                   <Badge variant="outline" className="ml-auto text-[9px] px-1.5 py-0 border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-400">
@@ -1582,22 +1582,22 @@ export default function AdminCreditPosting() {
 
               {/* Quick Post Success Indicator */}
               {quickPostJustPosted && (
-                <div className="flex items-center gap-2.5 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/30 animate-fade-in">
-                  <CheckCircle2 className="h-5 w-5 text-slate-500 dark:text-slate-400 shrink-0" />
+                <div className="flex items-center gap-2.5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/30 animate-fade-in">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500 dark:text-emerald-400 shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Credit Posted!</p>
-                    <p className="text-xs text-slate-500/70 dark:text-slate-400/70">Loading next shop...</p>
+                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Credit Posted!</p>
+                    <p className="text-xs text-red-500/70 dark:text-red-400/70">Loading next shop...</p>
                   </div>
                 </div>
               )}
 
               {/* Credit Limit Warning */}
               {creditLimitWarning && creditLimitWarning.exceeded && (
-                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50 animate-fade-in">
-                  <AlertTriangle className="h-5 w-5 text-slate-500 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/30 animate-fade-in">
+                  <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Credit Limit Exceeded!</p>
-                    <p className="text-xs text-slate-600/80 dark:text-slate-400/80 mt-0.5">
+                    <p className="text-sm font-semibold text-red-700 dark:text-red-300">Credit Limit Exceeded!</p>
+                    <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-0.5">
                       Balance ({formatPKR(creditLimitWarning.currentBalance)}) exceeds limit ({formatPKR(creditLimitWarning.limit)}). Credit posted.
                     </p>
                   </div>
@@ -1744,7 +1744,7 @@ export default function AdminCreditPosting() {
                   <div className="flex flex-wrap items-center gap-2 text-[10px]">
                     <button
                       onClick={() => setQuickPostStep('date')}
-                      className="flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium transition-colors"
+                      className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 font-medium transition-colors"
                     >
                       <CalendarDays className="h-3 w-3" />
                       {quickPostDate === getTodayDateString()
@@ -2156,13 +2156,13 @@ export default function AdminCreditPosting() {
 
               {/* Duplicate Credit Warning Banner */}
               {duplicateCreditWarning && (
-                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50 animate-fade-in">
-                  <AlertTriangle className="h-5 w-5 text-slate-500 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/30 animate-fade-in">
+                  <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    <p className="text-sm font-semibold text-red-700 dark:text-red-300">
                       ⚠ Credit already posted to {duplicateCreditWarning.shopName} today
                     </p>
-                    <p className="text-xs text-slate-600/80 dark:text-slate-400/80 mt-0.5">
+                    <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-0.5">
                       Total today: {formatPKR(duplicateCreditWarning.todayTotal)}. You can still proceed with posting.
                     </p>
                   </div>
@@ -2218,13 +2218,13 @@ export default function AdminCreditPosting() {
                 )}
                 {/* Credit Limit Warning Banner */}
                 {creditLimitWarning && creditLimitWarning.exceeded && (
-                  <div className="flex items-start gap-2.5 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50 animate-fade-in">
-                    <AlertTriangle className="h-5 w-5 text-slate-500 shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/30 animate-fade-in">
+                    <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      <p className="text-sm font-semibold text-red-700 dark:text-red-300">
                         Credit Limit Exceeded!
                       </p>
-                      <p className="text-xs text-slate-600/80 dark:text-slate-400/80 mt-0.5">
+                      <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-0.5">
                         This shop&apos;s balance ({formatPKR(creditLimitWarning.currentBalance)}) exceeds its credit limit ({formatPKR(creditLimitWarning.limit)}). The credit has been posted.
                       </p>
                     </div>
@@ -2336,7 +2336,7 @@ export default function AdminCreditPosting() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-slate-500" />
+              <AlertTriangle className="h-5 w-5 text-red-500" />
               Daily Credit Cap Exceeded
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
@@ -2369,7 +2369,7 @@ export default function AdminCreditPosting() {
       <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader className="no-print">
-            <DialogTitle className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+            <DialogTitle className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
               <CheckCircle2 className="h-5 w-5" />
               Credit Posted Successfully
             </DialogTitle>
@@ -2383,9 +2383,9 @@ export default function AdminCreditPosting() {
             <div className="receipt-content">
               {/* === Screen-only success badge === */}
               <div className="no-print flex items-center justify-center gap-2 py-3 mb-2">
-                <CheckCircle2 className="h-10 w-10 text-slate-500" />
+                <CheckCircle2 className="h-10 w-10 text-emerald-500" />
                 <div>
-                  <p className="font-semibold text-slate-700 dark:text-slate-300 text-sm">Transaction Successful</p>
+                  <p className="font-semibold text-emerald-700 dark:text-emerald-300 text-sm">Transaction Successful</p>
                   <p className="text-xs text-muted-foreground">Credit has been recorded</p>
                 </div>
               </div>
@@ -2428,9 +2428,9 @@ export default function AdminCreditPosting() {
                       <td className="px-5 py-2.5 text-muted-foreground font-medium">Previous Balance</td>
                       <td className="px-5 py-2.5 font-medium text-right">{formatPKR(postedReceipt.previousBalance)}</td>
                     </tr>
-                    <tr className="border-b border-border/40 bg-slate-50 dark:bg-slate-800/50">
-                      <td className="px-5 py-3 text-slate-800 dark:text-slate-300 font-semibold">Credit Amount</td>
-                      <td className="px-5 py-3 text-right font-bold text-slate-700 dark:text-slate-300 text-base">{formatPKR(postedReceipt.amount)}</td>
+                    <tr className="border-b border-border/40 bg-indigo-50 dark:bg-indigo-900/20">
+                      <td className="px-5 py-3 text-foreground font-semibold">Credit Amount</td>
+                      <td className="px-5 py-3 text-right font-bold text-indigo-700 dark:text-indigo-300 text-base">{formatPKR(postedReceipt.amount)}</td>
                     </tr>
                     <tr className="border-b border-border/40">
                       <td className="px-5 py-2.5 text-muted-foreground font-medium">New Balance</td>
@@ -2461,7 +2461,7 @@ export default function AdminCreditPosting() {
               {/* Print-only decorative bottom */}
               <div className="print-only">
                 <div className="text-center mt-4 pt-3 border-t border-dashed border-gray-300">
-                  <p className="text-[10px] text-gray-400">This is a computer-generated receipt and does not require a signature.</p>
+                  <p className="text-[10px] text-muted-foreground/50">This is a computer-generated receipt and does not require a signature.</p>
                 </div>
               </div>
             </div>
@@ -2600,7 +2600,7 @@ export default function AdminCreditPosting() {
                     const txn = editTransactions[editConfirmIndex];
                     const isCompanyChange = txn.companyName !== null && companies.find(c => c.id === txn.companyId)?.name !== txn.companyName;
                     return isCompanyChange ? (
-                      <span className="block mt-2 text-slate-600 dark:text-slate-400 font-medium">
+                      <span className="block mt-2 text-muted-foreground font-medium">
                         <ArrowRightLeft className="h-4 w-4 inline mr-1" />
                         Company will be changed — balances will be adjusted accordingly.
                       </span>
