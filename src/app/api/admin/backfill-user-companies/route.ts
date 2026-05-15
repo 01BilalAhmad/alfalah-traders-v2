@@ -33,10 +33,11 @@ export async function POST(request: NextRequest) {
 
         // Create UserCompany record
         const now = new Date().toISOString();
+        const ucId = `uc_${ob.id}_${ob.companyId}`;
         await client.query(
           `INSERT INTO "UserCompany" (id, "userId", "companyId", "isPrimary", "createdAt", "updatedAt")
-           VALUES (CONCAT('uc_', $1, '_', $2), $1, $2, true, $3, $3)`,
-          [ob.id, ob.companyId, now]
+           VALUES ($1, $2, $3, true, $4, $4)`,
+          [ucId, ob.id, ob.companyId, now]
         );
         created++;
       } catch (e: any) {
