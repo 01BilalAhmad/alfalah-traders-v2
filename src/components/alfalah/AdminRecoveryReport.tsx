@@ -205,10 +205,16 @@ export default function AdminRecoveryReport() {
   const [fetchingDropdowns, setFetchingDropdowns] = useState(false);
   const [shopSearch, setShopSearch] = useState('');
 
+  // Company filter state
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [companyFilter, setCompanyFilter] = useState<string>('');
+
   const fetchSummary = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch(`/api/reports/recovery-summary?date=${selectedDate}`);
+      const params = new URLSearchParams({ date: selectedDate });
+      if (companyFilter) params.set('companyId', companyFilter);
+      const res = await apiFetch(`/api/reports/recovery-summary?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setSummary(data);
@@ -218,11 +224,22 @@ export default function AdminRecoveryReport() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, companyFilter]);
 
   useEffect(() => {
     fetchSummary();
   }, [fetchSummary]);
+
+  // Fetch companies for the filter dropdown
+  useEffect(() => {
+    apiFetch('/api/companies')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setCompanies(data);
+        else if (data.companies) setCompanies(data.companies);
+      })
+      .catch(() => {});
+  }, []);
 
   const toggleExpand = (id: string) => {
     setExpandedOB((prev) => {
@@ -516,6 +533,18 @@ export default function AdminRecoveryReport() {
           >
             Yesterday
           </Button>
+          {/* Company Filter */}
+          <Select value={companyFilter} onValueChange={(v) => setCompanyFilter(v === '__all__' ? '' : v)}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="All Companies" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All Companies</SelectItem>
+              {companies.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" size="sm" onClick={fetchSummary} disabled={loading} className="">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><RefreshCw className="h-4 w-4 mr-1" />Refresh</>}
           </Button>
@@ -599,6 +628,33 @@ export default function AdminRecoveryReport() {
       {/* Subtle gradient divider between summary and accordion */}
       {summary && (
         <div className="divider-gradient" />
+      )}
+
+      {/* Company Breakdown */}
+      {summary && (summary as RecoverySummary & { companyBreakdown?: { companyName: string; totalRecovery: number; orderbookerCount: number }[] }).companyBreakdown && (summary as RecoverySummary & { companyBreakdown?: { companyName: string; totalRecovery: number; orderbookerCount: number }[] }).companyBreakdown!.length > 1 && (
+        <Card className="card-hover">
+          <CardHeader className="pb-2 px-5 pt-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Banknote className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+              Company Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-4">
+            <div className="space-y-2">
+              {((summary as RecoverySummary & { companyBreakdown?: { companyName: string; totalRecovery: number; orderbookerCount: number }[] }).companyBreakdown || []).map((cb, idx) => (
+                <div key={idx} className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm text-foreground">{cb.companyName}</span>
+                    <Badge className="text-[9px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                      {cb.orderbookerCount} OB{cb.orderbookerCount !== 1 ? 's' : ''}
+                    </Badge>
+                  </div>
+                  <span className="font-bold text-sm text-foreground number-display">{formatPKR(cb.totalRecovery)}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* GPS Filter */}

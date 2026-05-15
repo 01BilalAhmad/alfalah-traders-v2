@@ -181,10 +181,16 @@ export default function AdminShops() {
   // Bulk selection state
   const [selectedShopIds, setSelectedShopIds] = useState<Set<string>>(new Set());
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
-  const [bulkAction, setBulkAction] = useState<'assign' | 'deactivate' | 'reactivate' | 'route-days' | null>(null);
+  const [bulkAction, setBulkAction] = useState<'assign' | 'assign-secondary' | 'deactivate' | 'reactivate' | 'route-days' | null>(null);
   const [bulkOrderbookerId, setBulkOrderbookerId] = useState('');
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkRouteDays, setBulkRouteDays] = useState<string[]>([]);
+
+  // Secondary OB assignment state
+  const [secondaryOBId, setSecondaryOBId] = useState('');
+  const [secondaryCompanyId, setSecondaryCompanyId] = useState('');
+  const [secondaryRouteDays, setSecondaryRouteDays] = useState<string[]>([]);
+  const [createCompanyBalance, setCreateCompanyBalance] = useState(true);
 
   // Bulk import dialog state
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
@@ -680,6 +686,42 @@ export default function AdminShops() {
       }
     } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkAssignSecondary = async () => {
+    if (!secondaryOBId || !secondaryCompanyId) return;
+    setBulkLoading(true);
+    try {
+      const shopIds = Array.from(selectedShopIds);
+      const res = await apiFetch('/api/shops/bulk-assign-secondary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopIds,
+          orderbookerId: secondaryOBId,
+          companyId: secondaryCompanyId,
+          routeDays: secondaryRouteDays.length > 0 ? secondaryRouteDays : undefined,
+          createCompanyBalance,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: 'Secondary OB Assigned', description: `Assigned to ${data.assigned} shops (${data.skipped} skipped)` });
+        setBulkDialogOpen(false);
+        setBulkAction(null);
+        setSecondaryOBId('');
+        setSecondaryCompanyId('');
+        setSecondaryRouteDays([]);
+        clearSelection();
+        fetchShops();
+      } else {
+        toast({ title: 'Error', description: data.error || 'Failed to assign secondary orderbooker', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to assign secondary orderbooker', variant: 'destructive' });
     } finally {
       setBulkLoading(false);
     }
@@ -1206,6 +1248,15 @@ export default function AdminShops() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-8 text-xs gap-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 hover:border-blue-200"
+                  onClick={() => { setBulkAction('assign-secondary'); setBulkDialogOpen(true); }}
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  Assign Secondary OB
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="h-8 text-xs gap-1.5 text-slate-600 hover:text-slate-700 hover:bg-slate-50 hover:border-slate-200"
                   onClick={openBulkRouteDays}
                 >
@@ -1287,6 +1338,95 @@ export default function AdminShops() {
               onClick={handleBulkAction}
               disabled={!bulkOrderbookerId || bulkLoading}
               className="bg-primary hover:bg-primary/90 text-white"
+            >
+              {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Assign to {selectedShopIds.size} {selectedShopIds.size === 1 ? 'Shop' : 'Shops'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Assign Secondary Orderbooker Dialog */}
+      <Dialog open={bulkDialogOpen && bulkAction === 'assign-secondary'} onOpenChange={(open) => { setBulkDialogOpen(open); if (!open) setBulkAction(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600" />
+              Assign Secondary Orderbooker
+            </DialogTitle>
+            <DialogDescription>
+              Assign a secondary orderbooker (for a specific company) to {selectedShopIds.size} selected {selectedShopIds.size === 1 ? 'shop' : 'shops'}.
+              Secondary orderbookers handle a specific company&apos;s business at a shop.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Orderbooker</Label>
+              <Select value={secondaryOBId} onValueChange={setSecondaryOBId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose an orderbooker..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {orderbookers.map((ob) => (
+                    <SelectItem key={ob.id} value={ob.id} disabled={ob.status !== 'active'}>
+                      {ob.name} {ob.status !== 'active' ? '(Inactive)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Company</Label>
+              <Select value={secondaryCompanyId} onValueChange={setSecondaryCompanyId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a company..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Route Days (optional)</Label>
+              <div className="flex flex-wrap gap-2">
+                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                  <Badge
+                    key={day}
+                    variant={secondaryRouteDays.includes(day) ? 'default' : 'outline'}
+                    className="cursor-pointer capitalize"
+                    onClick={() => {
+                      setSecondaryRouteDays(prev => 
+                        prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+                      );
+                    }}
+                  >
+                    {day.slice(0, 3)}
+                  </Badge>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Leave empty to use each shop&apos;s default route days</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="createBalance"
+                checked={createCompanyBalance}
+                onChange={(e) => setCreateCompanyBalance(e.target.checked)}
+                className="rounded"
+              />
+              <Label htmlFor="createBalance" className="text-sm">Auto-create company balance (if not exists)</Label>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setBulkDialogOpen(false); setBulkAction(null); setSecondaryOBId(''); setSecondaryCompanyId(''); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkAssignSecondary}
+              disabled={!secondaryOBId || !secondaryCompanyId || bulkLoading}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Assign to {selectedShopIds.size} {selectedShopIds.size === 1 ? 'Shop' : 'Shops'}
