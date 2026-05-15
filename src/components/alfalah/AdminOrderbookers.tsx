@@ -529,7 +529,11 @@ export default function AdminOrderbookers() {
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <Building2 className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                       {ob.companies.map((c, idx) => (
-                        <Badge key={c.companyId} className={`${c.isPrimary ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800'} text-[10px] font-semibold gap-1`">
+                        <Badge key={c.companyId} className={
+                          c.isPrimary
+                            ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700 text-[10px] font-semibold gap-1'
+                            : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-[10px] font-semibold gap-1'
+                        }>
                           <Shield className="h-2.5 w-2.5" />
                           {c.companyName}
                           {c.isPrimary && <span className="text-[8px] opacity-70">P</span>}
