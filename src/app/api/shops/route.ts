@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-// GET /api/shops?orderbookerId=xxx&routeDay=xxx&search=xxx&balanceOnly=true&showZeroBalance=true
+// GET /api/shops?orderbookerId=xxx&routeDay=xxx&search=xxx&balanceOnly=true&showZeroBalance=true&companyId=yyy
 // When orderbookerId is present, zero-balance shops are hidden by default
 // (only shown if they had a transaction today, meaning the orderbooker visited them)
 // Use showZeroBalance=true to override and show all shops (for admin views)
+// When companyId is provided, only return shops that have a balance for that company
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -14,6 +15,7 @@ export async function GET(request: NextRequest) {
     const includeInactive = searchParams.get('includeInactive') === 'true';
     const balanceOnly = searchParams.get('balanceOnly') === 'true';
     const showZeroBalance = searchParams.get('showZeroBalance') === 'true';
+    const companyId = searchParams.get('companyId');
 
     // When orderbookerId is present (orderbooker view), hide zero-balance shops
     // unless showZeroBalance=true is explicitly passed (admin might need all shops)
@@ -120,6 +122,14 @@ export async function GET(request: NextRequest) {
         ];
       }
 
+      // Apply companyId filter for primary shops:
+      // Only include shops that have a ShopCompanyBalance entry for this company
+      if (companyId) {
+        primaryWhere.companyBalances = {
+          some: { companyId },
+        };
+      }
+
       const primaryShops = await db.shop.findMany({
         where: primaryWhere,
         include,
@@ -133,6 +143,11 @@ export async function GET(request: NextRequest) {
       };
       if (routeDay) {
         junctionWhere.routeDays = { has: routeDay.toLowerCase() };
+      }
+      // Apply companyId filter for secondary shops:
+      // Only include ShopOrderbooker entries for this company
+      if (companyId) {
+        junctionWhere.companyId = companyId;
       }
 
       const assignments = await db.shopOrderbooker.findMany({
@@ -177,7 +192,21 @@ export async function GET(request: NextRequest) {
       // Sort by name
       allShops.sort((a, b) => a.name.localeCompare(b.name));
 
-      return NextResponse.json(allShops.map(formatShop));
+      // When companyId is specified, filter out shops whose company-specific balance is 0
+      // (the shop may have total balance > 0 but 0 balance for the selected company)
+      let resultShops = allShops;
+      if (companyId) {
+        resultShops = allShops.filter((shop) => {
+          const companyBal = shop.companyBalances?.find(
+            (cb: any) => cb.companyId === companyId
+          );
+          // Include shop if it has a non-zero balance for this company, OR had a transaction today
+          const companyBalance = companyBal ? Number(companyBal.balance) : 0;
+          return companyBalance > 0 || todaysActiveShopIds.includes(shop.id);
+        });
+      }
+
+      return NextResponse.json(resultShops.map(formatShop));
     }
 
     // No orderbooker filter — return all shops normally
