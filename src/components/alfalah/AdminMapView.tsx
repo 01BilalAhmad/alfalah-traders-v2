@@ -129,14 +129,14 @@ function getRiskLevel(totalBalance: number): 'low' | 'medium' | 'high' {
 
 function getRiskColor(risk: 'low' | 'medium' | 'high') {
   switch (risk) {
-    case 'high': return { bg: 'bg-slate-100 dark:bg-slate-800', border: 'border-border', text: 'text-foreground', badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' };
-    case 'medium': return { bg: 'bg-slate-100 dark:bg-slate-800', border: 'border-border', text: 'text-foreground', badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' };
-    case 'low': return { bg: 'bg-slate-100 dark:bg-slate-800', border: 'border-border', text: 'text-foreground', badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' };
+    case 'high': return { bg: 'bg-red-50 dark:bg-red-950/50', border: 'border-red-200 dark:border-red-800', text: 'text-red-600 dark:text-red-400', badge: 'bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300 border-red-200 dark:border-red-800' };
+    case 'medium': return { bg: 'bg-amber-50 dark:bg-amber-950/50', border: 'border-amber-200 dark:border-amber-800', text: 'text-amber-600 dark:text-amber-400', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300 border-amber-200 dark:border-amber-800' };
+    case 'low': return { bg: 'bg-emerald-50 dark:bg-emerald-950/50', border: 'border-emerald-200 dark:border-emerald-800', text: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' };
   }
 }
 
 // Pie chart colors
-const PIE_COLORS = ['#475569', '#64748B', '#94A3B8', '#CBD5E1', '#334155', '#1E293B', '#475569', '#64748B', '#94A3B8', '#CBD5E1'];
+const PIE_COLORS = ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#EC4899', '#14B8A6', '#E11D48'];
 
 // ── View Tabs ──────────────────────────────────────────────────────────────
 type MapTab = 'areas' | 'map' | 'ob-routes';
@@ -186,8 +186,8 @@ function AreaCard({ group, expanded, onToggle, onSelectShop }: {
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1"><Store className="h-3 w-3" />{group.shops.length} shops</span>
-              <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-slate-500" />{group.activeShops}</span>
-              <span className="flex items-center gap-1"><XCircle className="h-3 w-3 text-slate-400" />{group.inactiveShops}</span>
+              <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-500" />{group.activeShops}</span>
+              <span className="flex items-center gap-1"><XCircle className="h-3 w-3 text-red-400" />{group.inactiveShops}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -227,7 +227,7 @@ function AreaCard({ group, expanded, onToggle, onSelectShop }: {
                         </span>
                       </TableCell>
                       <TableCell className="py-1.5 text-center">
-                        <Badge className={`text-[9px] px-1.5 h-4 font-bold ${shop.status === 'active' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500 border-slate-200 dark:border-slate-700'}`}>
+                        <Badge className={`text-[9px] px-1.5 h-4 font-bold ${shop.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' : 'bg-red-100 text-red-600 dark:bg-red-900/60 dark:text-red-400 border-red-200 dark:border-red-800'}`}>
                           {shop.status === 'active' ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
@@ -601,8 +601,8 @@ export default function AdminMapView() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in stagger-children">
         <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Store className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center shrink-0">
+              <Store className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Active Shops</p>
@@ -613,8 +613,8 @@ export default function AdminMapView() {
 
         <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <XCircle className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-red-50 dark:bg-red-950/50 flex items-center justify-center shrink-0">
+              <XCircle className="h-5 w-5 text-red-500 dark:text-red-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Inactive Shops</p>
@@ -625,8 +625,8 @@ export default function AdminMapView() {
 
         <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <Wallet className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center shrink-0">
+              <Wallet className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
@@ -637,8 +637,8 @@ export default function AdminMapView() {
 
         <Card className="card-hover border border-border ">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-              <MapPin className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+            <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center shrink-0">
+              <MapPin className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Areas Covered</p>
@@ -788,7 +788,7 @@ export default function AdminMapView() {
                                 <span className="text-xs text-muted-foreground w-28 truncate text-right shrink-0">{group.area}</span>
                                 <div className="flex-1 h-6 bg-muted/50 rounded-full overflow-hidden">
                                   <div
-                                    className={`h-full rounded-full ${group.riskLevel === 'high' ? 'bg-red-500' : group.riskLevel === 'medium' ? 'bg-slate-400' : 'bg-slate-300'} transition-all duration-500`}
+                                    className={`h-full rounded-full ${group.riskLevel === 'high' ? 'bg-gradient-to-r from-red-500 to-red-400' : group.riskLevel === 'medium' ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-emerald-500 to-emerald-400'} transition-all duration-500`}
                                     style={{ width: `${widthPct}%` }}
                                   />
                                 </div>
@@ -905,8 +905,8 @@ export default function AdminMapView() {
           {mapMarkers.length === 0 ? (
             <Card className="card-elevated border-border bg-slate-50 dark:bg-slate-800/50">
               <CardContent className="p-4 flex items-start gap-3">
-                <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
-                  <Info className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                <div className="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center shrink-0 mt-0.5">
+                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">No Shop Locations Yet</h4>
@@ -922,8 +922,8 @@ export default function AdminMapView() {
           ) : (
             <Card className="card-elevated border-border bg-slate-50 dark:bg-slate-800/50">
               <CardContent className="p-4 flex items-start gap-3">
-                <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
-                  <CheckCircle2 className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                <div className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">GPS Tracking Active</h4>
