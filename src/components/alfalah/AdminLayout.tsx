@@ -428,8 +428,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </aside>
 
         {/* ═══════ Main Content ═══════ */}
-        <main className="flex-1 overflow-y-auto" id="main-scroll-container">
-          <div className="p-4 lg:p-6 animate-fade-in" key={currentView}>
+        <main className="flex-1 overflow-y-auto print:overflow-visible print:p-0" id="main-scroll-container">
+          <div className="p-4 lg:p-6 animate-fade-in print:p-0 print:m-0" key={currentView}>
             {children}
           </div>
         </main>

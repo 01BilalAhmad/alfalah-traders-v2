@@ -148,7 +148,7 @@ export default function AdminReconciliation() {
   return (
     <div className="space-y-5">
       {/* Month-to-Date Overview */}
-      <div>
+      <div className="print-hidden">
         <div className="flex items-center gap-2 mb-3">
           <BarChart3 className="h-5 w-5 text-primary" />
           <h2 className="text-base font-bold text-foreground">Month-to-Date Overview</h2>
@@ -269,9 +269,9 @@ export default function AdminReconciliation() {
       </div>
 
       {/* Thin gradient divider */}
-      <div className="divider-gradient my-2" />
+      <div className="divider-gradient my-2 print-hidden" />
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print-hidden">
         <div className="animate-fade-in">
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />

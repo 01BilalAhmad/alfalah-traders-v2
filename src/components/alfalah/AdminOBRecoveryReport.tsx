@@ -364,7 +364,7 @@ export default function AdminOBRecoveryReport() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print-hidden">
         <div className="animate-fade-in">
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
@@ -375,7 +375,7 @@ export default function AdminOBRecoveryReport() {
       </div>
 
       {/* Filters */}
-      <Card className="animate-fade-in">
+      <Card className="animate-fade-in print-hidden">
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-3 items-end">
             <div className="flex-1 min-w-[200px]">
