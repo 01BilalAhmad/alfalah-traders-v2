@@ -53,7 +53,8 @@ export async function GET(request: NextRequest) {
     } catch { /* ShopCompanyBalance might not exist */ }
 
     // Fetch transactions with creator info + company info
-    const conditions: string[] = [`t."shopId" = $1`];
+    // Only show approved + pending transactions (exclude rejected)
+    const conditions: string[] = [`t."shopId" = $1`, `t.status != 'rejected'`];
     const txnParams: any[] = [shopId];
     let paramIndex = 2;
 
@@ -112,6 +113,7 @@ export async function GET(request: NextRequest) {
 
     const totalCredit = transactions.filter((t: any) => t.type === 'credit' && t.status === 'approved').reduce((s: number, t: any) => s + Number(t.amount), 0);
     const totalRecovery = transactions.filter((t: any) => t.type === 'recovery' && t.status === 'approved').reduce((s: number, t: any) => s + Number(t.amount), 0);
+    const approvedCount = transactions.filter((t: any) => t.status === 'approved').length;
 
     // If filtered by company, calculate the company-specific balance
     let currentBalance = Number(shop.balance);
@@ -141,7 +143,7 @@ export async function GET(request: NextRequest) {
       summary: {
         totalCredit: Math.round(totalCredit * 100) / 100,
         totalRecovery: Math.round(totalRecovery * 100) / 100,
-        totalTransactions: transactions.length,
+        totalTransactions: approvedCount,
         currentBalance: Math.round(currentBalance * 100) / 100,
       },
       companyBalances,
