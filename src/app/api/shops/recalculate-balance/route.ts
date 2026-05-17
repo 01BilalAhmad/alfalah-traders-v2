@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
       );
 
       // Also recalculate ShopCompanyBalance
+      // First, for transactions WITH companyId — use them directly
       const companyBalances = await client.query(
         `SELECT "companyId",
                 COALESCE(SUM(CASE WHEN type = 'credit' AND status = 'approved' THEN amount ELSE 0 END), 0) AS total_credits,
@@ -71,13 +72,70 @@ export async function POST(request: NextRequest) {
         [shop.id]
       );
 
-      // Build a map of correct balances from transactions
+      // Build a map of correct balances from transactions WITH companyId
       const correctBalances: Record<string, number> = {};
       for (const cb of companyBalances.rows) {
         const correctCompanyBalance = Math.round(
           (Number(cb.total_credits) - Number(cb.total_recoveries)) * 100
         ) / 100;
         correctBalances[cb.companyId] = correctCompanyBalance;
+      }
+
+      // For transactions WITHOUT companyId (e.g., old admin recoveries),
+      // try to infer the companyId from the shop's orderbooker or existing ShopCompanyBalance
+      const orphanTxns = await client.query(
+        `SELECT id, type, amount FROM "Transaction"
+         WHERE "shopId" = $1 AND "companyId" IS NULL AND status = 'approved'`,
+        [shop.id]
+      );
+
+      if (orphanTxns.rows.length > 0) {
+        // Try to find the shop's orderbooker's companyId
+        let inferredCompanyId: string | null = null;
+        try {
+          const obRes = await client.query(
+            `SELECT u."companyId" FROM "Shop" s
+             LEFT JOIN "User" u ON s."orderbookerId" = u.id
+             WHERE s.id = $1`,
+            [shop.id]
+          );
+          if (obRes.rows.length > 0 && obRes.rows[0].companyId) {
+            inferredCompanyId = obRes.rows[0].companyId;
+          }
+        } catch { /* non-blocking */ }
+
+        // Fallback: try existing ShopCompanyBalance
+        if (!inferredCompanyId) {
+          try {
+            const scbRes = await client.query(
+              'SELECT "companyId" FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND balance > 0 LIMIT 1',
+              [shop.id]
+            );
+            if (scbRes.rows.length > 0) {
+              inferredCompanyId = scbRes.rows[0].companyId;
+            }
+          } catch { /* non-blocking */ }
+        }
+
+        if (inferredCompanyId) {
+          // Apply orphan transactions to the inferred company
+          for (const txn of orphanTxns.rows) {
+            if (!correctBalances[inferredCompanyId]) {
+              correctBalances[inferredCompanyId] = 0;
+            }
+            if (txn.type === 'credit') {
+              correctBalances[inferredCompanyId] += Number(txn.amount);
+            } else if (txn.type === 'recovery') {
+              correctBalances[inferredCompanyId] -= Number(txn.amount);
+            }
+            // Also update the transaction record with the inferred companyId
+            await client.query(
+              'UPDATE "Transaction" SET "companyId" = $1 WHERE id = $2',
+              [inferredCompanyId, txn.id]
+            );
+          }
+          correctBalances[inferredCompanyId] = Math.round(correctBalances[inferredCompanyId] * 100) / 100;
+        }
       }
 
       // Delete ALL existing ShopCompanyBalance rows for this shop first (clean slate)

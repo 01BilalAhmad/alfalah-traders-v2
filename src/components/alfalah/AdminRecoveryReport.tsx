@@ -65,6 +65,7 @@ import {
   Store,
   Search,
   X,
+  Building2,
 } from 'lucide-react';
 import { exportToCSV } from '@/lib/csv-export';
 import { toast } from '@/hooks/use-toast';
@@ -204,6 +205,7 @@ export default function AdminRecoveryReport() {
   const [addSaving, setAddSaving] = useState(false);
   const [fetchingDropdowns, setFetchingDropdowns] = useState(false);
   const [shopSearch, setShopSearch] = useState('');
+  const [addCompanyId, setAddCompanyId] = useState<string>('');
 
   // Company filter state
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
@@ -407,6 +409,7 @@ export default function AdminRecoveryReport() {
     setAddDescription('');
     setAddRecoveryDate(getLocalDateString());
     setShopSearch('');
+    setAddCompanyId('');
     setShops([]);
     setAddDialogOpen(true);
     setFetchingDropdowns(true);
@@ -457,6 +460,23 @@ export default function AdminRecoveryReport() {
     if (!selectedShopId || !addAmount || !user) return;
     setAddSaving(true);
     try {
+      // Determine companyId: use selected company, or infer from orderbooker
+      let companyIdToUse = addCompanyId || undefined;
+      if (!companyIdToUse && selectedOBId) {
+        // Try to infer company from the selected orderbooker
+        try {
+          const obRes = await apiFetch(`/api/orderbookers`);
+          if (obRes.ok) {
+            const obData = await obRes.json();
+            const obs = Array.isArray(obData) ? obData : obData.orderbookers || [];
+            const selectedOB = obs.find((ob: any) => ob.id === selectedOBId);
+            if (selectedOB?.companyId) {
+              companyIdToUse = selectedOB.companyId;
+            }
+          }
+        } catch { /* non-blocking */ }
+      }
+
       const res = await apiFetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -466,6 +486,7 @@ export default function AdminRecoveryReport() {
           amount: parseFloat(addAmount),
           description: addDescription.trim() || undefined,
           createdBy: user.id,
+          companyId: companyIdToUse || undefined,
           customDate: addRecoveryDate !== getLocalDateString() ? addRecoveryDate : undefined,
         }),
       });
@@ -1376,6 +1397,32 @@ export default function AdminRecoveryReport() {
                       </p>
                     )}
                   </div>
+                  {/* Company Selector */}
+                  {companies.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        Company
+                      </Label>
+                      <Select
+                        value={addCompanyId || '_auto'}
+                        onValueChange={(val) => setAddCompanyId(val === '_auto' ? '' : val)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Auto-detect from orderbooker" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="_auto">Auto-detect from orderbooker</SelectItem>
+                          {companies.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[10px] text-muted-foreground">
+                        Select which company this recovery belongs to. If auto-detect is selected, the orderbooker&apos;s company will be used.
+                      </p>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="add-description">Description (optional)</Label>
                     <Input

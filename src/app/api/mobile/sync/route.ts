@@ -109,18 +109,35 @@ export async function GET(request: NextRequest) {
       // ShopOrderbooker table might not exist yet - just skip
     }
 
-    // 2. Get recent transactions for this orderbooker (last 200) - exclude rejected
-    const txRes = await client.query(
-      `SELECT t.*, s.name AS "shopName", u.name AS "createdByName"
-       FROM "Transaction" t
-       LEFT JOIN "Shop" s ON t."shopId" = s.id
-       LEFT JOIN "User" u ON t."createdBy" = u.id
-       WHERE t."createdBy" = $1
-         AND t.status != 'rejected'
-       ORDER BY t."createdAt" DESC
-       LIMIT 200`,
-      [userId]
-    );
+    // 2. Get recent transactions for this orderbooker's shops (last 200) - exclude rejected
+    // Include transactions created BY this orderbooker AND transactions on their shops by other users (e.g., admin recoveries)
+    const shopIds = shops.map((s: any) => s.id);
+    let txRes;
+    if (shopIds.length > 0) {
+      txRes = await client.query(
+        `SELECT t.*, s.name AS "shopName", u.name AS "createdByName"
+         FROM "Transaction" t
+         LEFT JOIN "Shop" s ON t."shopId" = s.id
+         LEFT JOIN "User" u ON t."createdBy" = u.id
+         WHERE t.status != 'rejected'
+           AND (t."createdBy" = $1 OR t."shopId" = ANY($2))
+         ORDER BY t."createdAt" DESC
+         LIMIT 200`,
+        [userId, shopIds]
+      );
+    } else {
+      txRes = await client.query(
+        `SELECT t.*, s.name AS "shopName", u.name AS "createdByName"
+         FROM "Transaction" t
+         LEFT JOIN "Shop" s ON t."shopId" = s.id
+         LEFT JOIN "User" u ON t."createdBy" = u.id
+         WHERE t."createdBy" = $1
+           AND t.status != 'rejected'
+         ORDER BY t."createdAt" DESC
+         LIMIT 200`,
+        [userId]
+      );
+    }
 
     const transactions = txRes.rows.map((t: any) => ({
       id: t.id,
@@ -128,6 +145,8 @@ export async function GET(request: NextRequest) {
       shopName: t.shopName,
       type: t.type,
       amount: Number(t.amount),
+      previousBalance: t.previousBalance ? Number(t.previousBalance) : null,
+      newBalance: t.newBalance ? Number(t.newBalance) : null,
       balanceAfter: t.balanceAfter ? Number(t.balanceAfter) : null,
       description: t.description,
       note: t.note,
@@ -135,6 +154,7 @@ export async function GET(request: NextRequest) {
       createdBy: t.createdBy,
       createdByName: t.createdByName,
       approvedBy: t.approvedBy,
+      companyId: t.companyId || null,
       createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : t.createdAt,
       updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : t.updatedAt,
     }));

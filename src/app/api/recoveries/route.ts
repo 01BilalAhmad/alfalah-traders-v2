@@ -180,11 +180,50 @@ export async function POST(request: NextRequest) {
         );
 
         // Update ShopCompanyBalance if transaction has companyId
-        if (txn.companyId) {
+        // If no companyId, try to infer from shop's orderbooker or existing ShopCompanyBalance
+        let effectiveCompanyId = txn.companyId || null;
+        if (!effectiveCompanyId) {
+          // Try to infer from shop's orderbooker
+          try {
+            const shopRes = await client.query(
+              `SELECT s."orderbookerId", u."companyId" AS "ob_companyId"
+               FROM "Shop" s
+               LEFT JOIN "User" u ON s."orderbookerId" = u.id
+               WHERE s.id = $1`,
+              [txn.shopId]
+            );
+            if (shopRes.rows.length > 0 && shopRes.rows[0].ob_companyId) {
+              effectiveCompanyId = shopRes.rows[0].ob_companyId;
+            }
+          } catch { /* non-blocking */ }
+
+          // Fallback: try ShopCompanyBalance
+          if (!effectiveCompanyId) {
+            try {
+              const scbFallbackRes = await client.query(
+                'SELECT "companyId" FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND balance > 0 LIMIT 1',
+                [txn.shopId]
+              );
+              if (scbFallbackRes.rows.length > 0) {
+                effectiveCompanyId = scbFallbackRes.rows[0].companyId;
+              }
+            } catch { /* ShopCompanyBalance table may not exist */ }
+          }
+
+          // If we inferred a companyId, update the transaction record too
+          if (effectiveCompanyId) {
+            await client.query(
+              `UPDATE "Transaction" SET "companyId" = $1 WHERE id = $2`,
+              [effectiveCompanyId, txn.id]
+            );
+          }
+        }
+
+        if (effectiveCompanyId) {
           try {
             const scbRes = await client.query(
               `SELECT id, balance FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND "companyId" = $2`,
-              [txn.shopId, txn.companyId]
+              [txn.shopId, effectiveCompanyId]
             );
             if (scbRes.rows.length > 0) {
               let newCompanyBalance: number;

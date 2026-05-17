@@ -310,13 +310,52 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ─── Determine if createdBy user is an admin (for auto-approval) ───
+    let creatorRole = 'orderbooker';
+    try {
+      const creatorRes = await client.query('SELECT id, role FROM "User" WHERE id = $1', [createdBy]);
+      if (creatorRes.rows.length > 0) {
+        creatorRole = creatorRes.rows[0].role || 'orderbooker';
+      }
+    } catch { /* non-blocking */ }
+
+    // Admin recoveries are auto-approved (no need for another admin to approve)
+    const isAdmin = creatorRole === 'admin' || creatorRole === 'super_admin';
+    const txnStatus = type === 'recovery' ? (isAdmin ? 'approved' : 'pending') : 'approved';
+
+    // If admin recovery and no companyId, try to infer from shop's orderbooker
+    let effectiveCompanyId = companyId || null;
+    if (type === 'recovery' && isAdmin && !effectiveCompanyId && shop.orderbookerId) {
+      try {
+        const obRes = await client.query('SELECT "companyId" FROM "User" WHERE id = $1', [shop.orderbookerId]);
+        if (obRes.rows.length > 0 && obRes.rows[0].companyId) {
+          effectiveCompanyId = obRes.rows[0].companyId;
+        }
+      } catch { /* non-blocking */ }
+    }
+    // Also try ShopCompanyBalance if still no companyId
+    if (type === 'recovery' && isAdmin && !effectiveCompanyId) {
+      try {
+        const scbRes = await client.query(
+          'SELECT "companyId" FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND balance > 0 LIMIT 1',
+          [shopId]
+        );
+        if (scbRes.rows.length > 0) {
+          effectiveCompanyId = scbRes.rows[0].companyId;
+        }
+      } catch { /* ShopCompanyBalance table may not exist */ }
+    }
+
     const previousBalance = Number(shop.balance);
     let newBalance: number;
 
     if (type === 'credit') {
       newBalance = previousBalance + amount;
+    } else if (txnStatus === 'approved') {
+      // Auto-approved recovery (admin): deduct balance immediately
+      newBalance = previousBalance - amount;
     } else {
-      // Recovery: if pending approval mode, don't deduct balance yet
+      // Pending recovery (orderbooker): don't deduct balance yet
       newBalance = previousBalance;
     }
 
@@ -330,9 +369,6 @@ export async function POST(request: NextRequest) {
         exceeded: projectedBalance > Number(shop.creditLimit),
       };
     }
-
-    // Recovery status: pending (awaiting admin approval)
-    const txnStatus = type === 'recovery' ? 'pending' : 'approved';
 
     // Create transaction record
     const txnId = `txn_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
@@ -356,43 +392,51 @@ export async function POST(request: NextRequest) {
       `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "gpsLat", "gpsLng", "gpsAddress", "companyId", "idempotencyKey", "createdAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
-      [txnId, shopId, type, txnStatus, amount, previousBalance, Math.round(newBalance * 100) / 100, description || null, createdBy, gpsLat || null, gpsLng || null, gpsAddress || null, companyId || null, idempotencyKey || null, createdAtIndex]
+      [txnId, shopId, type, txnStatus, amount, previousBalance, Math.round(newBalance * 100) / 100, description || null, createdBy, gpsLat || null, gpsLng || null, gpsAddress || null, effectiveCompanyId || null, idempotencyKey || null, createdAtIndex]
     );
 
     const transaction = txnRes.rows[0];
 
-    // Update shop balance only for credit transactions
-    if (type === 'credit') {
+    // Update shop balance for credit OR auto-approved recovery (admin)
+    if (type === 'credit' || (type === 'recovery' && txnStatus === 'approved')) {
       await client.query(
         `UPDATE "Shop" SET balance = $1 WHERE id = $2`,
         [Math.round(newBalance * 100) / 100, shopId]
       );
 
-      // Update ShopCompanyBalance if companyId is provided
-      if (companyId) {
+      // Update ShopCompanyBalance if effectiveCompanyId is available
+      if (effectiveCompanyId) {
         try {
           // Get current company balance for this shop
           const scbRes = await client.query(
             `SELECT id, balance, "creditLimit" FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND "companyId" = $2`,
-            [shopId, companyId]
+            [shopId, effectiveCompanyId]
           );
 
           if (scbRes.rows.length > 0) {
             // Update existing balance
             const currentCompanyBalance = Number(scbRes.rows[0].balance);
-            const newCompanyBalance = Math.round((currentCompanyBalance + amount) * 100) / 100;
+            let newCompanyBalance: number;
+            if (type === 'credit') {
+              newCompanyBalance = Math.round((currentCompanyBalance + amount) * 100) / 100;
+            } else {
+              // Recovery: deduct from company balance
+              newCompanyBalance = Math.round((currentCompanyBalance - amount) * 100) / 100;
+            }
             await client.query(
               `UPDATE "ShopCompanyBalance" SET balance = $1, "updatedAt" = $2 WHERE id = $3`,
               [newCompanyBalance, new Date().toISOString(), scbRes.rows[0].id]
             );
           } else {
-            // Create new ShopCompanyBalance entry
-            const scbId = `scb_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
-            await client.query(
-              `INSERT INTO "ShopCompanyBalance" (id, "shopId", "companyId", balance, "creditLimit", "createdAt", "updatedAt")
-               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-              [scbId, shopId, companyId, Math.round(amount * 100) / 100, 0, new Date().toISOString(), new Date().toISOString()]
-            );
+            // Create new ShopCompanyBalance entry (only for credits, recoveries need existing entry)
+            if (type === 'credit') {
+              const scbId = `scb_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
+              await client.query(
+                `INSERT INTO "ShopCompanyBalance" (id, "shopId", "companyId", balance, "creditLimit", "createdAt", "updatedAt")
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [scbId, shopId, effectiveCompanyId, Math.round(amount * 100) / 100, 0, new Date().toISOString(), new Date().toISOString()]
+              );
+            }
           }
         } catch (scbErr) {
           // ShopCompanyBalance table might not exist yet - non-blocking
@@ -423,7 +467,7 @@ export async function POST(request: NextRequest) {
             gpsLat,
             gpsLng,
           }),
-          `${type === 'credit' ? 'Credit posted' : 'Recovery submitted (pending approval)'}: Rs. ${amount} at ${shop.name}`,
+          `${type === 'credit' ? 'Credit posted' : txnStatus === 'approved' ? 'Recovery entered & auto-approved (admin)' : 'Recovery submitted (pending approval)'}: Rs. ${amount} at ${shop.name}`,
         ]
       );
     } catch { /* non-blocking */ }
@@ -432,11 +476,11 @@ export async function POST(request: NextRequest) {
     const shopInfoRes = await client.query('SELECT id, name FROM "Shop" WHERE id = $1', [shopId]);
     const creatorInfoRes = await client.query('SELECT id, name FROM "User" WHERE id = $1', [createdBy]);
 
-    // Fetch company name if companyId provided
+    // Fetch company name if effectiveCompanyId is available
     let companyInfo: { id: string; name: string } | null = null;
-    if (companyId) {
+    if (effectiveCompanyId) {
       try {
-        const companyInfoRes = await client.query('SELECT id, name FROM "Company" WHERE id = $1', [companyId]);
+        const companyInfoRes = await client.query('SELECT id, name FROM "Company" WHERE id = $1', [effectiveCompanyId]);
         if (companyInfoRes.rows.length > 0) {
           companyInfo = { id: companyInfoRes.rows[0].id, name: companyInfoRes.rows[0].name };
         }
