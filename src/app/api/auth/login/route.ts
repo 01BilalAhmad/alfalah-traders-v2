@@ -103,7 +103,11 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     if (client) await client.end().catch(() => {});
     const msg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Login error:', msg);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Login error:', msg, error instanceof Error ? error.stack : '');
+    // In development, show the real error message for easier debugging
+    const errorMsg = process.env.NODE_ENV === 'development'
+      ? `Internal server error: ${msg}`
+      : 'Internal server error';
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }

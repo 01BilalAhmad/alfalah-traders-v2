@@ -19,6 +19,7 @@ export default function LoginView() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState(false);
+  const [loginErrorMsg, setLoginErrorMsg] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('login');
 
@@ -84,13 +85,16 @@ export default function LoginView() {
       const data = await res.json();
 
       if (!res.ok) {
-        toast({ title: 'Login Failed', description: data.error || 'Invalid credentials', variant: 'destructive' });
+        const errorMsg = data.error || 'Invalid credentials';
+        toast({ title: 'Login Failed', description: errorMsg, variant: 'destructive' });
+        setLoginErrorMsg(errorMsg);
         setLoginError(true);
-        setTimeout(() => setLoginError(false), 3000);
+        setTimeout(() => { setLoginError(false); setLoginErrorMsg(''); }, 5000);
         return;
       }
 
       setLoginError(false);
+      setLoginErrorMsg('');
       setUser(data.user);
 
       if (data.token) {
@@ -106,6 +110,7 @@ export default function LoginView() {
 
       toast({ title: 'Welcome!', description: `Logged in as ${data.user.name}` });
     } catch {
+      setLoginErrorMsg('Network error. Please check your connection and try again.');
       setLoginError(true);
       toast({ title: 'Error', description: 'Network error. Please try again.', variant: 'destructive' });
     } finally {
@@ -210,7 +215,7 @@ export default function LoginView() {
             {loginError && (
               <div className="mt-4 p-3 rounded-2xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 animate-fade-in">
                 <p className="text-xs text-red-700 dark:text-red-400 font-medium text-center">
-                  Invalid credentials. Please try again.
+                  {loginErrorMsg || 'Invalid credentials. Please try again.'}
                 </p>
               </div>
             )}
