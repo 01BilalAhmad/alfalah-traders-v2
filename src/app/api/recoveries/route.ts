@@ -180,34 +180,36 @@ export async function POST(request: NextRequest) {
         );
 
         // Update ShopCompanyBalance if transaction has companyId
-        // If no companyId, try to infer from shop's orderbooker or existing ShopCompanyBalance
+        // If no companyId, try to infer from ShopCompanyBalance (highest balance first) or shop's orderbooker
         let effectiveCompanyId = txn.companyId || null;
         if (!effectiveCompanyId) {
-          // Try to infer from shop's orderbooker
+          // Step 1: Prefer the company with the HIGHEST balance in ShopCompanyBalance
+          // This is more reliable than the orderbooker's primary company because
+          // a recovery should reduce the balance of the company that has outstanding credit
           try {
-            const shopRes = await client.query(
-              `SELECT s."orderbookerId", u."companyId" AS "ob_companyId"
-               FROM "Shop" s
-               LEFT JOIN "User" u ON s."orderbookerId" = u.id
-               WHERE s.id = $1`,
+            const scbFallbackRes = await client.query(
+              'SELECT "companyId" FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND balance > 0 ORDER BY balance DESC LIMIT 1',
               [txn.shopId]
             );
-            if (shopRes.rows.length > 0 && shopRes.rows[0].ob_companyId) {
-              effectiveCompanyId = shopRes.rows[0].ob_companyId;
+            if (scbFallbackRes.rows.length > 0) {
+              effectiveCompanyId = scbFallbackRes.rows[0].companyId;
             }
-          } catch { /* non-blocking */ }
+          } catch { /* ShopCompanyBalance table may not exist */ }
 
-          // Fallback: try ShopCompanyBalance
+          // Step 2: Fallback to shop's orderbooker primary company only if no SCB entry
           if (!effectiveCompanyId) {
             try {
-              const scbFallbackRes = await client.query(
-                'SELECT "companyId" FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND balance > 0 LIMIT 1',
+              const shopRes = await client.query(
+                `SELECT s."orderbookerId", u."companyId" AS "ob_companyId"
+                 FROM "Shop" s
+                 LEFT JOIN "User" u ON s."orderbookerId" = u.id
+                 WHERE s.id = $1`,
                 [txn.shopId]
               );
-              if (scbFallbackRes.rows.length > 0) {
-                effectiveCompanyId = scbFallbackRes.rows[0].companyId;
+              if (shopRes.rows.length > 0 && shopRes.rows[0].ob_companyId) {
+                effectiveCompanyId = shopRes.rows[0].ob_companyId;
               }
-            } catch { /* ShopCompanyBalance table may not exist */ }
+            } catch { /* non-blocking */ }
           }
 
           // If we inferred a companyId, update the transaction record too

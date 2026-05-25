@@ -323,27 +323,31 @@ export async function POST(request: NextRequest) {
     const isAdmin = creatorRole === 'admin' || creatorRole === 'super_admin';
     const txnStatus = type === 'recovery' ? (isAdmin ? 'approved' : 'pending') : 'approved';
 
-    // If admin recovery and no companyId, try to infer from shop's orderbooker
+    // If recovery and no companyId, infer from ShopCompanyBalance (highest balance first) or shop's orderbooker
     let effectiveCompanyId = companyId || null;
-    if (type === 'recovery' && isAdmin && !effectiveCompanyId && shop.orderbookerId) {
-      try {
-        const obRes = await client.query('SELECT "companyId" FROM "User" WHERE id = $1', [shop.orderbookerId]);
-        if (obRes.rows.length > 0 && obRes.rows[0].companyId) {
-          effectiveCompanyId = obRes.rows[0].companyId;
-        }
-      } catch { /* non-blocking */ }
-    }
-    // Also try ShopCompanyBalance if still no companyId
-    if (type === 'recovery' && isAdmin && !effectiveCompanyId) {
+    if (type === 'recovery' && !effectiveCompanyId) {
+      // Step 1: Prefer the company with the HIGHEST balance in ShopCompanyBalance
+      // This is more reliable than the orderbooker's primary company because
+      // a recovery should reduce the balance of the company that has outstanding credit
       try {
         const scbRes = await client.query(
-          'SELECT "companyId" FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND balance > 0 LIMIT 1',
+          'SELECT "companyId" FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND balance > 0 ORDER BY balance DESC LIMIT 1',
           [shopId]
         );
         if (scbRes.rows.length > 0) {
           effectiveCompanyId = scbRes.rows[0].companyId;
         }
       } catch { /* ShopCompanyBalance table may not exist */ }
+
+      // Step 2: Fallback to shop's orderbooker primary company only if no SCB entry
+      if (!effectiveCompanyId && shop.orderbookerId) {
+        try {
+          const obRes = await client.query('SELECT "companyId" FROM "User" WHERE id = $1', [shop.orderbookerId]);
+          if (obRes.rows.length > 0 && obRes.rows[0].companyId) {
+            effectiveCompanyId = obRes.rows[0].companyId;
+          }
+        } catch { /* non-blocking */ }
+      }
     }
 
     const previousBalance = Number(shop.balance);

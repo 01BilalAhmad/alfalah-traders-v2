@@ -337,13 +337,38 @@ export async function POST(request: NextRequest) {
         const txnStatus = txType === 'credit' ? 'approved' : 'pending';
 
         // Fetch shop for balance calculation
-        const shopRes = await client.query('SELECT balance, status FROM "Shop" WHERE id = $1', [tx.shopId]);
+        const shopRes = await client.query('SELECT balance, status, "orderbookerId" FROM "Shop" WHERE id = $1', [tx.shopId]);
         if (shopRes.rows.length === 0) {
           await client.query('ROLLBACK');
           errors.push({ localId: tx.localId, error: 'Shop not found' });
           continue;
         }
         const shopBalance = Number(shopRes.rows[0].balance);
+
+        // Infer companyId if not provided by mobile client
+        // Step 1: Prefer the company with the HIGHEST balance in ShopCompanyBalance
+        // Step 2: Fallback to orderbooker's primary company
+        let effectiveCompanyId = tx.companyId || null;
+        if (!effectiveCompanyId) {
+          try {
+            const scbRes = await client.query(
+              'SELECT "companyId" FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND balance > 0 ORDER BY balance DESC LIMIT 1',
+              [tx.shopId]
+            );
+            if (scbRes.rows.length > 0) {
+              effectiveCompanyId = scbRes.rows[0].companyId;
+            }
+          } catch { /* ShopCompanyBalance table may not exist */ }
+
+          if (!effectiveCompanyId && shopRes.rows[0].orderbookerId) {
+            try {
+              const obRes = await client.query('SELECT "companyId" FROM "User" WHERE id = $1', [shopRes.rows[0].orderbookerId]);
+              if (obRes.rows.length > 0 && obRes.rows[0].companyId) {
+                effectiveCompanyId = obRes.rows[0].companyId;
+              }
+            } catch { /* non-blocking */ }
+          }
+        }
 
         let previousBalance = shopBalance;
         let newBalance = shopBalance;
@@ -355,12 +380,39 @@ export async function POST(request: NextRequest) {
             'UPDATE "Shop" SET balance = $1 WHERE id = $2',
             [newBalance, tx.shopId]
           );
+
+          // Update ShopCompanyBalance for credit if companyId is available
+          if (effectiveCompanyId) {
+            try {
+              const scbRes = await client.query(
+                `SELECT id, balance FROM "ShopCompanyBalance" WHERE "shopId" = $1 AND "companyId" = $2`,
+                [tx.shopId, effectiveCompanyId]
+              );
+              if (scbRes.rows.length > 0) {
+                const newCompanyBalance = Math.round((Number(scbRes.rows[0].balance) + Number(tx.amount)) * 100) / 100;
+                await client.query(
+                  `UPDATE "ShopCompanyBalance" SET balance = $1, "updatedAt" = $2 WHERE id = $3`,
+                  [newCompanyBalance, now, scbRes.rows[0].id]
+                );
+              } else {
+                // Create new ShopCompanyBalance entry for this company
+                const scbId = `scb_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
+                await client.query(
+                  `INSERT INTO "ShopCompanyBalance" (id, "shopId", "companyId", balance, "creditLimit", "createdAt", "updatedAt")
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                  [scbId, tx.shopId, effectiveCompanyId, Math.round(Number(tx.amount) * 100) / 100, 0, now, now]
+                );
+              }
+            } catch (scbErr) {
+              console.warn('ShopCompanyBalance update failed in mobile sync:', scbErr);
+            }
+          }
         }
         // Recovery: don't change balance yet (pending approval)
 
         const txRes = await client.query(
-          `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "idempotencyKey", "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "companyId", "idempotencyKey", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
            RETURNING *`,
           [
             txId,
@@ -372,6 +424,7 @@ export async function POST(request: NextRequest) {
             newBalance,
             tx.description || (txType === 'credit' ? 'Mobile sync credit' : 'Mobile sync recovery'),
             tx.createdBy,
+            effectiveCompanyId || null,
             tx.idempotencyKey || null,
             now,
             now,
