@@ -1817,7 +1817,14 @@ export default function AdminCreditPosting() {
                             >
                               <div className="min-w-0">
                                 <p className="text-sm font-semibold text-foreground truncate">{shop.name}</p>
-                                {shop.area && <p className="text-[10px] text-muted-foreground">{shop.area}</p>}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {shop.area && <p className="text-[10px] text-muted-foreground">{shop.area}</p>}
+                                  {shop.routeDays && shop.routeDays.length > 0 && (
+                                    <span className="text-[10px] font-medium text-primary/80 dark:text-primary/70">
+                                      {shop.routeDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <span className="text-sm font-bold text-foreground shrink-0 ml-2">
                                 {formatPKR(shop.balance)}
