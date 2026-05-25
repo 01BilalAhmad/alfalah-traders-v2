@@ -114,6 +114,81 @@ function ReportSkeleton() {
   );
 }
 
+/** Group recovery shops by company — each shop appears under the company that has its recovery */
+function groupShopsByCompany(recoveryShops: ShopRecovery[]): {
+  companyId: string;
+  companyName: string;
+  shops: ShopRecovery[];
+  totalRecovery: number;
+  totalPrevBalance: number;
+  totalCredit: number;
+  totalClosing: number;
+}[] {
+  const companyMap = new Map<string, {
+    companyId: string;
+    companyName: string;
+    shops: ShopRecovery[];
+    totalRecovery: number;
+    totalPrevBalance: number;
+    totalCredit: number;
+    totalClosing: number;
+  }>();
+
+  for (const shop of recoveryShops) {
+    // Determine which company this shop's recovery belongs to
+    // If shop has companyBreakdown, find the company with recovery
+    if (shop.companyBreakdown && shop.companyBreakdown.length > 0) {
+      // Shop has company breakdown — assign to each company that has recovery or credit
+      for (const comp of shop.companyBreakdown) {
+        if (comp.todayRecovery > 0 || comp.todayCredit > 0) {
+          const existing = companyMap.get(comp.companyId);
+          if (existing) {
+            existing.shops.push(shop);
+            existing.totalRecovery += comp.todayRecovery;
+            existing.totalPrevBalance += comp.previousBalance;
+            existing.totalCredit += comp.todayCredit;
+            existing.totalClosing += comp.closingBalance;
+          } else {
+            companyMap.set(comp.companyId, {
+              companyId: comp.companyId,
+              companyName: comp.companyName,
+              shops: [shop],
+              totalRecovery: comp.todayRecovery,
+              totalPrevBalance: comp.previousBalance,
+              totalCredit: comp.todayCredit,
+              totalClosing: comp.closingBalance,
+            });
+          }
+        }
+      }
+    } else {
+      // No company breakdown — put under "Other" / no company
+      const noCompKey = '_none_';
+      const existing = companyMap.get(noCompKey);
+      if (existing) {
+        existing.shops.push(shop);
+        existing.totalRecovery += shop.todayRecovery;
+        existing.totalPrevBalance += shop.previousBalance;
+        existing.totalCredit += shop.todayCredit;
+        existing.totalClosing += shop.closingBalance;
+      } else {
+        companyMap.set(noCompKey, {
+          companyId: noCompKey,
+          companyName: 'General',
+          shops: [shop],
+          totalRecovery: shop.todayRecovery,
+          totalPrevBalance: shop.previousBalance,
+          totalCredit: shop.todayCredit,
+          totalClosing: shop.closingBalance,
+        });
+      }
+    }
+  }
+
+  // Sort: companies with most recovery first
+  return Array.from(companyMap.values()).sort((a, b) => b.totalRecovery - a.totalRecovery);
+}
+
 export default function AdminOBRecoveryReport() {
   const { selectedDate, setSelectedDate } = useAppStore();
   const [orderbookers, setOrderbookers] = useState<OrderbookerOption[]>([]);
@@ -157,7 +232,6 @@ export default function AdminOBRecoveryReport() {
         if (obData) {
           setReportData(obData);
         } else {
-          // OB found but no recovery data for this date
           const obInfo = orderbookers.find((ob) => ob.id === selectedOB);
           setReportData({
             orderbookerId: selectedOB,
@@ -194,8 +268,8 @@ export default function AdminOBRecoveryReport() {
   const todayRecovery = reportData?.totalRecovery || 0;
   const remainingBalance = routeTotalBalance - todayRecovery;
 
-  // Company-wise recovery totals from API
-  const companyBreakdown = reportData?.companyBreakdown || [];
+  // Group shops by company
+  const companyGroups = groupShopsByCompany(recoveryShops);
 
   // Generate PDF
   const generatePDF = useCallback(() => {
@@ -222,45 +296,69 @@ export default function AdminOBRecoveryReport() {
       return;
     }
 
-    const shopRows = recoveryShops.map((shop, idx) => {
-      const mainRow = `
-      <tr class="${idx % 2 === 0 ? 'even-row' : 'odd-row'}">
-        <td class="center">${idx + 1}</td>
-        <td><strong>${shop.shopName}</strong></td>
-        <td>${shop.shopArea || '\u2014'}</td>
-        <td class="right">${formatCurrencyPDF(shop.previousBalance)}</td>
-        <td class="right">${shop.todayCredit > 0 ? formatCurrencyPDF(shop.todayCredit) : '\u2014'}</td>
-        <td class="right bold green">${formatCurrencyPDF(shop.todayRecovery)}</td>
-        <td class="right">${formatCurrencyPDF(shop.closingBalance)}</td>
-      </tr>`;
+    // Build company-grouped tables
+    const companySections = companyGroups.map((group) => {
+      const shopRows = group.shops.map((shop, idx) => {
+        // Get this shop's data for this specific company
+        const compData = shop.companyBreakdown?.find(c => c.companyId === group.companyId);
+        const showPrevBal = compData ? compData.previousBalance : shop.previousBalance;
+        const showCredit = compData ? compData.todayCredit : shop.todayCredit;
+        const showRecovery = compData ? compData.todayRecovery : shop.todayRecovery;
+        const showClosing = compData ? compData.closingBalance : shop.closingBalance;
 
-      // Add company sub-rows if shop has multiple companies
-      const companySubRows = (shop.companyBreakdown && shop.companyBreakdown.length > 1)
-        ? shop.companyBreakdown.map((comp) => `
-      <tr class="company-sub-row">
-        <td class="center"></td>
-        <td style="padding-left:20px;font-size:10px;color:#666;">${comp.companyName}</td>
-        <td></td>
-        <td class="right" style="font-size:10px;color:#888;">${formatCurrencyPDF(comp.previousBalance)}</td>
-        <td class="right" style="font-size:10px;color:#b45309;">${comp.todayCredit > 0 ? formatCurrencyPDF(comp.todayCredit) : '\u2014'}</td>
-        <td class="right" style="font-size:10px;color:#0d7a4f;">${comp.todayRecovery > 0 ? formatCurrencyPDF(comp.todayRecovery) : '\u2014'}</td>
-        <td class="right" style="font-size:10px;color:#888;">${formatCurrencyPDF(comp.closingBalance)}</td>
-      </tr>`).join('')
-        : '';
+        return `
+        <tr class="${idx % 2 === 0 ? 'even-row' : 'odd-row'}">
+          <td class="center">${idx + 1}</td>
+          <td><strong>${shop.shopName}</strong></td>
+          <td>${shop.shopArea || '\u2014'}</td>
+          <td class="right">${formatCurrencyPDF(showPrevBal)}</td>
+          <td class="right">${showCredit > 0 ? formatCurrencyPDF(showCredit) : '\u2014'}</td>
+          <td class="right bold green">${formatCurrencyPDF(showRecovery)}</td>
+          <td class="right">${formatCurrencyPDF(showClosing)}</td>
+        </tr>`;
+      }).join('');
 
-      return mainRow + companySubRows;
+      return `
+      <div class="company-section">
+        <div class="company-section-header">
+          <span class="company-section-name">${group.companyName}</span>
+          <span class="company-section-total">Recovery: Rs. ${formatCurrencyPDF(group.totalRecovery)} | ${group.shops.length} shop${group.shops.length !== 1 ? 's' : ''}</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:30px">#</th>
+              <th>Shop Name</th>
+              <th>Area</th>
+              <th style="text-align:right">Prev. Balance</th>
+              <th style="text-align:right">Credit</th>
+              <th style="text-align:right">Recovery</th>
+              <th style="text-align:right">Closing Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${shopRows}
+            <tr class="total-row">
+              <td colspan="3" style="text-align:right">TOTAL ${group.companyName}</td>
+              <td class="right">${formatCurrencyPDF(group.totalPrevBalance)}</td>
+              <td class="right">${group.totalCredit > 0 ? formatCurrencyPDF(group.totalCredit) : '\u2014'}</td>
+              <td class="right green">${formatCurrencyPDF(group.totalRecovery)}</td>
+              <td class="right">${formatCurrencyPDF(group.totalClosing)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`;
     }).join('');
 
-    const totalRecoveryShops = recoveryShops.length;
-    const totalCredit = recoveryShops.reduce((s, sh) => s + sh.todayCredit, 0);
-    const totalRecovery = recoveryShops.reduce((s, sh) => s + sh.todayRecovery, 0);
-    const totalClosing = recoveryShops.reduce((s, sh) => s + sh.closingBalance, 0);
-    const totalPrevBalance = recoveryShops.reduce((s, sh) => s + sh.previousBalance, 0);
+    // Grand total across all companies
+    const grandPrevBalance = companyGroups.reduce((s, g) => s + g.totalPrevBalance, 0);
+    const grandCredit = companyGroups.reduce((s, g) => s + g.totalCredit, 0);
+    const grandRecovery = companyGroups.reduce((s, g) => s + g.totalRecovery, 0);
+    const grandClosing = companyGroups.reduce((s, g) => s + g.totalClosing, 0);
 
-    // Route totals from ALL shops (not just recovery shops)
+    // Route totals from ALL shops
     const allShopsRouteBalance = reportData.shops.reduce((s, sh) => s + sh.previousBalance, 0);
-    const allShopsTotalRecovery = reportData.totalRecovery;
-    const allShopsRemaining = allShopsRouteBalance - allShopsTotalRecovery;
+    const allShopsRemaining = allShopsRouteBalance - todayRecovery;
 
     printWindow.document.write(`<!DOCTYPE html>
 <html>
@@ -284,8 +382,13 @@ export default function AdminOBRecoveryReport() {
     .summary-card.green .value { color: #0d7a4f; }
     .summary-card.blue .value { color: #1a56db; }
     .summary-card.amber .value { color: #b45309; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
-    th { background: #0d5c3e; color: white; padding: 8px 6px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .company-section { margin: 15px 0; page-break-inside: avoid; }
+    .company-section-header { background: #0d5c3e; color: white; padding: 8px 12px; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center; }
+    .company-section-name { font-size: 14px; font-weight: 700; }
+    .company-section-total { font-size: 11px; opacity: 0.9; }
+    .company-section table { border: 1px solid #ddd; border-top: none; border-radius: 0 0 4px 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th { background: #f0f7f4; color: #0d5c3e; padding: 8px 6px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 1px solid #ddd; }
     td { padding: 7px 6px; border-bottom: 1px solid #e5e5e5; }
     .even-row { background: #fafafa; }
     .odd-row { background: #fff; }
@@ -295,14 +398,8 @@ export default function AdminOBRecoveryReport() {
     .green { color: #0d7a4f; }
     .total-row { background: #f0f7f4 !important; font-weight: 700; border-top: 2px solid #0d5c3e; }
     .total-row td { padding: 10px 6px; font-size: 12px; }
-    .company-sub-row { background: #f8f9fa !important; }
-    .company-sub-row td { padding: 4px 6px; border-bottom: 1px dotted #e0e0e0; }
-    .company-breakdown-section { margin: 15px 0; }
-    .company-breakdown-title { font-size: 12px; font-weight: 700; color: #0d5c3e; margin-bottom: 8px; padding: 4px 8px; background: #f0f7f4; border-radius: 4px; }
-    .company-breakdown-table { width: 50%; border-collapse: collapse; font-size: 11px; }
-    .company-breakdown-table th { background: #0d5c3e; color: white; padding: 6px 8px; text-align: left; font-size: 10px; }
-    .company-breakdown-table td { padding: 6px 8px; border-bottom: 1px solid #e5e5e5; }
-    .company-breakdown-table .total-row { background: #f0f7f4 !important; font-weight: 700; border-top: 2px solid #0d5c3e; }
+    .grand-total-row { background: #e8f5e9 !important; font-weight: 700; border-top: 3px double #0d5c3e; }
+    .grand-total-row td { padding: 12px 6px; font-size: 13px; }
     .footer { margin-top: 25px; padding-top: 10px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 10px; color: #999; }
     .signature-section { margin-top: 40px; display: flex; justify-content: space-between; }
     .signature-box { text-align: center; width: 200px; }
@@ -339,7 +436,7 @@ export default function AdminOBRecoveryReport() {
     </div>
     <div class="summary-card green">
       <div class="label">Today's Recovery</div>
-      <div class="value">${formatCurrencyPDF(allShopsTotalRecovery)}</div>
+      <div class="value">${formatCurrencyPDF(todayRecovery)}</div>
     </div>
     <div class="summary-card amber">
       <div class="label">Remaining Balance</div>
@@ -347,64 +444,23 @@ export default function AdminOBRecoveryReport() {
     </div>
   </div>
 
-  ${companyBreakdown.length > 0 ? `
-  <div class="company-breakdown-section">
-    <div class="company-breakdown-title">Company-wise Recovery Breakdown</div>
-    <table class="company-breakdown-table">
-      <thead>
-        <tr>
-          <th>Company</th>
-          <th style="text-align:right">Recovery</th>
-          <th style="text-align:right">Shops</th>
-          <th style="text-align:right">% of Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${companyBreakdown.map((comp: { companyId: string; companyName: string; totalRecovery: number; shops: number }) => `
-        <tr>
-          <td><strong>${comp.companyName}</strong></td>
-          <td class="right green bold">${formatCurrencyPDF(comp.totalRecovery)}</td>
-          <td class="right">${comp.shops}</td>
-          <td class="right">${allShopsTotalRecovery > 0 ? Math.round((comp.totalRecovery / allShopsTotalRecovery) * 100) : 0}%</td>
-        </tr>`).join('')}
-        <tr class="total-row">
-          <td>TOTAL</td>
-          <td class="right green">${formatCurrencyPDF(allShopsTotalRecovery)}</td>
-          <td class="right">${companyBreakdown.reduce((s: number, c: { shops: number }) => s + c.shops, 0)}</td>
-          <td class="right">100%</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  ` : ''}
+  ${companyGroups.length > 0 ? companySections : `
+  <div class="no-data">No recovery data found for this date.</div>
+  `}
 
-  ${totalRecoveryShops > 0 ? `
-  <table>
-    <thead>
-      <tr>
-        <th style="width:30px">#</th>
-        <th>Shop Name</th>
-        <th>Area</th>
-        <th style="text-align:right">Prev. Balance</th>
-        <th style="text-align:right">Credit</th>
-        <th style="text-align:right">Recovery</th>
-        <th style="text-align:right">Closing Balance</th>
-      </tr>
-    </thead>
+  ${companyGroups.length > 1 ? `
+  <table style="margin-top:20px;">
     <tbody>
-      ${shopRows}
-      <tr class="total-row">
-        <td colspan="3" style="text-align:right">TOTAL</td>
-        <td class="right">${formatCurrencyPDF(totalPrevBalance)}</td>
-        <td class="right">${totalCredit > 0 ? formatCurrencyPDF(totalCredit) : '\u2014'}</td>
-        <td class="right green">${formatCurrencyPDF(totalRecovery)}</td>
-        <td class="right">${formatCurrencyPDF(totalClosing)}</td>
+      <tr class="grand-total-row">
+        <td style="text-align:right;width:60%"><strong>GRAND TOTAL (All Companies)</strong></td>
+        <td class="right">${formatCurrencyPDF(grandPrevBalance)}</td>
+        <td class="right">${grandCredit > 0 ? formatCurrencyPDF(grandCredit) : '\u2014'}</td>
+        <td class="right green bold">${formatCurrencyPDF(grandRecovery)}</td>
+        <td class="right">${formatCurrencyPDF(grandClosing)}</td>
       </tr>
     </tbody>
   </table>
-  ` : `
-  <div class="no-data">No recovery data found for this date.</div>
-  `}
+  ` : ''}
 
   <div class="signature-section">
     <div class="signature-box">
@@ -429,16 +485,122 @@ export default function AdminOBRecoveryReport() {
 </html>`);
 
     printWindow.document.close();
-    // Auto trigger print dialog after content loads
     printWindow.onload = () => {
       setTimeout(() => printWindow.print(), 500);
     };
-  }, [reportData, recoveryShops, selectedDate, companyBreakdown]);
+  }, [reportData, recoveryShops, selectedDate, companyGroups, todayRecovery]);
 
-  // Print current view
   const handlePrint = () => {
     generatePDF();
   };
+
+  // Render a company-grouped shop table
+  const renderCompanySection = (group: typeof companyGroups[0], startIdx: number) => (
+    <Card className="animate-fade-in">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <Building2 className="h-4 w-4" />
+          {group.companyName} Recovery
+          <Badge className="text-[10px] bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800 ml-1">
+            {formatPKR(group.totalRecovery)}
+          </Badge>
+          <Badge variant="outline" className="text-[10px] ml-auto">
+            {group.shops.length} shop{group.shops.length !== 1 ? 's' : ''}
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs font-semibold w-10">#</TableHead>
+                <TableHead className="text-xs font-semibold">Shop Name</TableHead>
+                <TableHead className="text-xs font-semibold hidden sm:table-cell">Area</TableHead>
+                <TableHead className="text-xs font-semibold text-right">Prev. Balance</TableHead>
+                <TableHead className="text-xs font-semibold text-right">Credit</TableHead>
+                <TableHead className="text-xs font-semibold text-right">Recovery</TableHead>
+                <TableHead className="text-xs font-semibold text-right">Closing</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {group.shops.map((shop, idx) => {
+                // Get this shop's data for this specific company
+                const compData = shop.companyBreakdown?.find(c => c.companyId === group.companyId);
+                const showPrevBal = compData ? compData.previousBalance : shop.previousBalance;
+                const showCredit = compData ? compData.todayCredit : shop.todayCredit;
+                const showRecovery = compData ? compData.todayRecovery : shop.todayRecovery;
+                const showClosing = compData ? compData.closingBalance : shop.closingBalance;
+
+                return (
+                  <TableRow
+                    key={`${shop.shopId}-${group.companyId}`}
+                    className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} table-row-hover-effect`}
+                  >
+                    <TableCell className="text-xs text-center">
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
+                        {startIdx + idx + 1}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="text-sm font-medium">{shop.shopName}</p>
+                        {shop.recoveryEntries.length > 1 && (
+                          <p className="text-[10px] text-muted-foreground">
+                            {shop.recoveryEntries.length} entries
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">
+                      {shop.shopArea || '\u2014'}
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      {formatPKR(showPrevBal)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm text-amber-600 font-medium">
+                      {showCredit > 0 ? `+${formatPKR(showCredit)}` : '\u2014'}
+                    </TableCell>
+                    <TableCell className="text-right text-sm text-green-600 font-bold">
+                      {formatPKR(showRecovery)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      {showClosing === 0 ? (
+                        <Badge className="text-[9px] bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
+                          <CheckCircle className="h-3 w-3 mr-0.5" />
+                          Settled
+                        </Badge>
+                      ) : (
+                        <span className="font-bold">{formatPKR(showClosing)}</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {/* Company Total Row */}
+              <TableRow className="bg-primary/5 border-t-2 border-primary/20">
+                <TableCell colSpan={3} className="text-right font-bold text-sm">
+                  TOTAL {group.companyName}
+                </TableCell>
+                <TableCell className="text-right font-bold text-sm">
+                  {formatPKR(group.totalPrevBalance)}
+                </TableCell>
+                <TableCell className="text-right font-bold text-sm text-amber-600">
+                  {group.totalCredit > 0 ? `+${formatPKR(group.totalCredit)}` : '\u2014'}
+                </TableCell>
+                <TableCell className="text-right font-bold text-sm text-green-600">
+                  {formatPKR(group.totalRecovery)}
+                </TableCell>
+                <TableCell className="text-right font-bold text-sm">
+                  {formatPKR(group.totalClosing)}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="space-y-5">
@@ -564,68 +726,6 @@ export default function AdminOBRecoveryReport() {
             </Card>
           </div>
 
-          {/* Company-wise Recovery Breakdown */}
-          {companyBreakdown.length > 0 && (
-            <Card className="animate-fade-in">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  Company-wise Recovery
-                  <Badge variant="outline" className="text-[10px] ml-auto">
-                    {selectedDate}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs font-semibold">Company</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Recovery</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Shops</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">% of Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {companyBreakdown.map((comp) => (
-                        <TableRow key={comp.companyId}>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs font-semibold px-2 py-0.5 border-primary/30 text-primary">
-                              {comp.companyName}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-bold text-green-600 text-sm">
-                            {formatPKR(comp.totalRecovery)}
-                          </TableCell>
-                          <TableCell className="text-right text-sm text-muted-foreground">
-                            {comp.shops}
-                          </TableCell>
-                          <TableCell className="text-right text-sm text-muted-foreground">
-                            {todayRecovery > 0
-                              ? Math.round((comp.totalRecovery / todayRecovery) * 100)
-                              : 0}%
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {/* Total Row */}
-                      <TableRow className="bg-primary/5 border-t-2 border-primary/20">
-                        <TableCell className="font-bold text-sm">Total</TableCell>
-                        <TableCell className="text-right font-bold text-sm text-green-600">
-                          {formatPKR(todayRecovery)}
-                        </TableCell>
-                        <TableCell className="text-right text-sm text-muted-foreground">
-                          {companyBreakdown.reduce((s, c) => s + c.shops, 0)}
-                        </TableCell>
-                        <TableCell className="text-right text-sm font-medium">100%</TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Action Buttons */}
           {recoveryShops.length > 0 && (
             <div className="flex gap-2">
@@ -642,40 +742,32 @@ export default function AdminOBRecoveryReport() {
                 size="sm"
                 onClick={() => {
                   const rows: Record<string, unknown>[] = [];
-                  recoveryShops.forEach((shop, idx) => {
-                    if (shop.companyBreakdown && shop.companyBreakdown.length > 1) {
-                      // Shop has multiple companies — add main row + company sub-rows
+                  companyGroups.forEach((group) => {
+                    rows.push({
+                      '#': '',
+                      'Shop Name': `--- ${group.companyName} ---`,
+                      Area: '',
+                      'Prev Balance': '',
+                      Credit: '',
+                      Recovery: group.totalRecovery,
+                      'Closing Balance': '',
+                    });
+                    group.shops.forEach((shop, idx) => {
+                      const compData = shop.companyBreakdown?.find(c => c.companyId === group.companyId);
+                      const showPrevBal = compData ? compData.previousBalance : shop.previousBalance;
+                      const showCredit = compData ? compData.todayCredit : shop.todayCredit;
+                      const showRecovery = compData ? compData.todayRecovery : shop.todayRecovery;
+                      const showClosing = compData ? compData.closingBalance : shop.closingBalance;
                       rows.push({
                         '#': idx + 1,
                         'Shop Name': shop.shopName,
                         Area: shop.shopArea || '',
-                        'Prev Balance': shop.previousBalance,
-                        Credit: shop.todayCredit,
-                        Recovery: shop.todayRecovery,
-                        'Closing Balance': shop.closingBalance,
+                        'Prev Balance': showPrevBal,
+                        Credit: showCredit,
+                        Recovery: showRecovery,
+                        'Closing Balance': showClosing,
                       });
-                      for (const comp of shop.companyBreakdown) {
-                        rows.push({
-                          '#': '',
-                          'Shop Name': `  → ${comp.companyName}`,
-                          Area: '',
-                          'Prev Balance': comp.previousBalance,
-                          Credit: comp.todayCredit,
-                          Recovery: comp.todayRecovery,
-                          'Closing Balance': comp.closingBalance,
-                        });
-                      }
-                    } else {
-                      rows.push({
-                        '#': idx + 1,
-                        'Shop Name': shop.shopName,
-                        Area: shop.shopArea || '',
-                        'Prev Balance': shop.previousBalance,
-                        Credit: shop.todayCredit,
-                        Recovery: shop.todayRecovery,
-                        'Closing Balance': shop.closingBalance,
-                      });
-                    }
+                    });
                   });
                   const csvContent = [
                     Object.keys(rows[0]).join(','),
@@ -695,147 +787,106 @@ export default function AdminOBRecoveryReport() {
             </div>
           )}
 
-          {/* Shop Recovery Table */}
-          <Card ref={reportRef} className="animate-fade-in">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Store className="h-4 w-4" />
-                Recovery Detail — {reportData.orderbookerName}
-                <Badge variant="outline" className="text-[10px] ml-auto">
-                  {selectedDate}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {recoveryShops.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <div className="h-16 w-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
-                    <Banknote className="h-8 w-8 text-muted-foreground/40" />
-                  </div>
-                  <p className="font-semibold text-sm">No recovery today</p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">
-                    This order booker has no recovery entries for {selectedDate}
-                  </p>
+          {/* Company-Grouped Shop Tables */}
+          {recoveryShops.length === 0 ? (
+            <Card ref={reportRef} className="animate-fade-in">
+              <CardContent className="py-12 text-center">
+                <div className="h-16 w-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
+                  <Banknote className="h-8 w-8 text-muted-foreground/40" />
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs font-semibold w-10">#</TableHead>
-                        <TableHead className="text-xs font-semibold">Shop Name</TableHead>
-                        <TableHead className="text-xs font-semibold hidden sm:table-cell">Area</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Prev. Balance</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Credit</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Recovery</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Closing</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {recoveryShops.map((shop, idx) => (
-                        <>
-                          <TableRow
-                            key={shop.shopId}
-                            className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} table-row-hover-effect`}
-                          >
-                            <TableCell className="text-xs text-center">
-                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-                                {idx + 1}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="text-sm font-medium">{shop.shopName}</p>
-                                {shop.recoveryEntries.length > 1 && (
-                                  <p className="text-[10px] text-muted-foreground">
-                                    {shop.recoveryEntries.length} entries
-                                  </p>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">
-                              {shop.shopArea || '\u2014'}
-                            </TableCell>
-                            <TableCell className="text-right text-sm">
-                              {formatPKR(shop.previousBalance)}
-                            </TableCell>
-                            <TableCell className="text-right text-sm text-amber-600 font-medium">
-                              {shop.todayCredit > 0 ? `+${formatPKR(shop.todayCredit)}` : '\u2014'}
-                            </TableCell>
-                            <TableCell className="text-right text-sm text-green-600 font-bold">
-                              {formatPKR(shop.todayRecovery)}
-                            </TableCell>
-                            <TableCell className="text-right text-sm">
-                              {shop.closingBalance === 0 ? (
-                                <Badge className="text-[9px] bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
-                                  <CheckCircle className="h-3 w-3 mr-0.5" />
-                                  Settled
-                                </Badge>
-                              ) : (
-                                <span className="font-bold">{formatPKR(shop.closingBalance)}</span>
-                              )}
-                            </TableCell>
+                <p className="font-semibold text-sm">No recovery today</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">
+                  This order booker has no recovery entries for {selectedDate}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {companyGroups.map((group, gIdx) => {
+                const startIdx = companyGroups.slice(0, gIdx).reduce((s, g) => s + g.shops.length, 0);
+                return renderCompanySection(group, startIdx);
+              })}
+
+              {/* Grand Total Card — only if multiple companies */}
+              {companyGroups.length > 1 && (
+                <Card className="animate-fade-in border-2 border-primary/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Store className="h-4 w-4" />
+                      Grand Total — All Companies
+                      <Badge variant="outline" className="text-[10px] ml-auto">
+                        {selectedDate}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs font-semibold">Company</TableHead>
+                            <TableHead className="text-xs font-semibold text-right">Shops</TableHead>
+                            <TableHead className="text-xs font-semibold text-right">Prev. Balance</TableHead>
+                            <TableHead className="text-xs font-semibold text-right">Credit</TableHead>
+                            <TableHead className="text-xs font-semibold text-right">Recovery</TableHead>
+                            <TableHead className="text-xs font-semibold text-right">Closing</TableHead>
                           </TableRow>
-                          {/* Company-wise sub-rows */}
-                          {shop.companyBreakdown && shop.companyBreakdown.length > 1 && shop.companyBreakdown.map((comp) => (
-                            <TableRow
-                              key={`${shop.shopId}-${comp.companyId}`}
-                              className="bg-muted/30"
-                            >
-                              <TableCell className="text-xs text-center"></TableCell>
+                        </TableHeader>
+                        <TableBody>
+                          {companyGroups.map((group) => (
+                            <TableRow key={group.companyId}>
                               <TableCell>
-                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-medium border-primary/30 text-primary/70 dark:text-primary/60">
-                                  {comp.companyName}
+                                <Badge variant="outline" className="text-xs font-semibold px-2 py-0.5 border-primary/30 text-primary">
+                                  {group.companyName}
                                 </Badge>
                               </TableCell>
-                              <TableCell className="text-[10px] text-muted-foreground hidden sm:table-cell"></TableCell>
-                              <TableCell className="text-right text-[11px] text-muted-foreground">
-                                {formatPKR(comp.previousBalance)}
+                              <TableCell className="text-right text-sm text-muted-foreground">
+                                {group.shops.length}
                               </TableCell>
-                              <TableCell className="text-right text-[11px] text-amber-600/70">
-                                {comp.todayCredit > 0 ? `+${formatPKR(comp.todayCredit)}` : '\u2014'}
+                              <TableCell className="text-right text-sm">
+                                {formatPKR(group.totalPrevBalance)}
                               </TableCell>
-                              <TableCell className="text-right text-[11px] text-green-600/80 font-medium">
-                                {comp.todayRecovery > 0 ? formatPKR(comp.todayRecovery) : '\u2014'}
+                              <TableCell className="text-right text-sm text-amber-600 font-medium">
+                                {group.totalCredit > 0 ? `+${formatPKR(group.totalCredit)}` : '\u2014'}
                               </TableCell>
-                              <TableCell className="text-right text-[11px] text-muted-foreground">
-                                {comp.closingBalance === 0 ? (
-                                  <span className="text-green-600">Settled</span>
-                                ) : (
-                                  formatPKR(comp.closingBalance)
-                                )}
+                              <TableCell className="text-right text-sm text-green-600 font-bold">
+                                {formatPKR(group.totalRecovery)}
+                              </TableCell>
+                              <TableCell className="text-right text-sm">
+                                {formatPKR(group.totalClosing)}
                               </TableCell>
                             </TableRow>
                           ))}
-                        </>
-                      ))}
-                      {/* Total Row */}
-                      <TableRow className="bg-primary/5 border-t-2 border-primary/20">
-                        <TableCell colSpan={3} className="text-right font-bold text-sm">
-                          TOTAL
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-sm">
-                          {formatPKR(recoveryShops.reduce((s, sh) => s + sh.previousBalance, 0))}
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-sm text-amber-600">
-                          {(() => {
-                            const t = recoveryShops.reduce((s, sh) => s + sh.todayCredit, 0);
-                            return t > 0 ? `+${formatPKR(t)}` : '\u2014';
-                          })()}
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-sm text-green-600">
-                          {formatPKR(reportData.totalRecovery)}
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-sm">
-                          {formatPKR(recoveryShops.reduce((s, sh) => s + sh.closingBalance, 0))}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
+                          {/* Grand Total Row */}
+                          <TableRow className="bg-primary/5 border-t-2 border-primary/20">
+                            <TableCell className="font-bold text-sm">GRAND TOTAL</TableCell>
+                            <TableCell className="text-right font-bold text-sm text-muted-foreground">
+                              {companyGroups.reduce((s, g) => s + g.shops.length, 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-sm">
+                              {formatPKR(companyGroups.reduce((s, g) => s + g.totalPrevBalance, 0))}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-sm text-amber-600">
+                              {(() => {
+                                const t = companyGroups.reduce((s, g) => s + g.totalCredit, 0);
+                                return t > 0 ? `+${formatPKR(t)}` : '\u2014';
+                              })()}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-sm text-green-600">
+                              {formatPKR(todayRecovery)}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-sm">
+                              {formatPKR(companyGroups.reduce((s, g) => s + g.totalClosing, 0))}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
-            </CardContent>
-          </Card>
+            </>
+          )}
         </>
       )}
     </div>
