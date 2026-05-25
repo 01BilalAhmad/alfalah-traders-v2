@@ -52,6 +52,15 @@ interface RecoveryEntry {
   hasGps: boolean;
 }
 
+interface ShopCompanyBreakdown {
+  companyId: string;
+  companyName: string;
+  previousBalance: number;
+  todayCredit: number;
+  todayRecovery: number;
+  closingBalance: number;
+}
+
 interface ShopRecovery {
   shopId: string;
   shopName: string;
@@ -61,6 +70,7 @@ interface ShopRecovery {
   todayRecovery: number;
   closingBalance: number;
   visited: boolean;
+  companyBreakdown: ShopCompanyBreakdown[];
   recoveryEntries: RecoveryEntry[];
 }
 
@@ -199,7 +209,8 @@ export default function AdminOBRecoveryReport() {
       return;
     }
 
-    const shopRows = recoveryShops.map((shop, idx) => `
+    const shopRows = recoveryShops.map((shop, idx) => {
+      const mainRow = `
       <tr class="${idx % 2 === 0 ? 'even-row' : 'odd-row'}">
         <td class="center">${idx + 1}</td>
         <td><strong>${shop.shopName}</strong></td>
@@ -208,8 +219,24 @@ export default function AdminOBRecoveryReport() {
         <td class="right">${shop.todayCredit > 0 ? formatCurrencyPDF(shop.todayCredit) : '\u2014'}</td>
         <td class="right bold green">${formatCurrencyPDF(shop.todayRecovery)}</td>
         <td class="right">${formatCurrencyPDF(shop.closingBalance)}</td>
-      </tr>
-    `).join('');
+      </tr>`;
+
+      // Add company sub-rows if shop has multiple companies
+      const companySubRows = (shop.companyBreakdown && shop.companyBreakdown.length > 1)
+        ? shop.companyBreakdown.map((comp) => `
+      <tr class="company-sub-row">
+        <td class="center"></td>
+        <td style="padding-left:20px;font-size:10px;color:#666;">${comp.companyName}</td>
+        <td></td>
+        <td class="right" style="font-size:10px;color:#888;">${formatCurrencyPDF(comp.previousBalance)}</td>
+        <td class="right" style="font-size:10px;color:#b45309;">${comp.todayCredit > 0 ? formatCurrencyPDF(comp.todayCredit) : '\u2014'}</td>
+        <td class="right" style="font-size:10px;color:#0d7a4f;">${comp.todayRecovery > 0 ? formatCurrencyPDF(comp.todayRecovery) : '\u2014'}</td>
+        <td class="right" style="font-size:10px;color:#888;">${formatCurrencyPDF(comp.closingBalance)}</td>
+      </tr>`).join('')
+        : '';
+
+      return mainRow + companySubRows;
+    }).join('');
 
     const totalRecoveryShops = recoveryShops.length;
     const totalCredit = recoveryShops.reduce((s, sh) => s + sh.todayCredit, 0);
@@ -255,6 +282,8 @@ export default function AdminOBRecoveryReport() {
     .green { color: #0d7a4f; }
     .total-row { background: #f0f7f4 !important; font-weight: 700; border-top: 2px solid #0d5c3e; }
     .total-row td { padding: 10px 6px; font-size: 12px; }
+    .company-sub-row { background: #f8f9fa !important; }
+    .company-sub-row td { padding: 4px 6px; border-bottom: 1px dotted #e0e0e0; }
     .footer { margin-top: 25px; padding-top: 10px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 10px; color: #999; }
     .signature-section { margin-top: 40px; display: flex; justify-content: space-between; }
     .signature-box { text-align: center; width: 200px; }
@@ -500,15 +529,42 @@ export default function AdminOBRecoveryReport() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const rows: Record<string, unknown>[] = recoveryShops.map((shop, idx) => ({
-                    '#': idx + 1,
-                    'Shop Name': shop.shopName,
-                    Area: shop.shopArea || '',
-                    'Prev Balance': shop.previousBalance,
-                    Credit: shop.todayCredit,
-                    Recovery: shop.todayRecovery,
-                    'Closing Balance': shop.closingBalance,
-                  }));
+                  const rows: Record<string, unknown>[] = [];
+                  recoveryShops.forEach((shop, idx) => {
+                    if (shop.companyBreakdown && shop.companyBreakdown.length > 1) {
+                      // Shop has multiple companies — add main row + company sub-rows
+                      rows.push({
+                        '#': idx + 1,
+                        'Shop Name': shop.shopName,
+                        Area: shop.shopArea || '',
+                        'Prev Balance': shop.previousBalance,
+                        Credit: shop.todayCredit,
+                        Recovery: shop.todayRecovery,
+                        'Closing Balance': shop.closingBalance,
+                      });
+                      for (const comp of shop.companyBreakdown) {
+                        rows.push({
+                          '#': '',
+                          'Shop Name': `  → ${comp.companyName}`,
+                          Area: '',
+                          'Prev Balance': comp.previousBalance,
+                          Credit: comp.todayCredit,
+                          Recovery: comp.todayRecovery,
+                          'Closing Balance': comp.closingBalance,
+                        });
+                      }
+                    } else {
+                      rows.push({
+                        '#': idx + 1,
+                        'Shop Name': shop.shopName,
+                        Area: shop.shopArea || '',
+                        'Prev Balance': shop.previousBalance,
+                        Credit: shop.todayCredit,
+                        Recovery: shop.todayRecovery,
+                        'Closing Balance': shop.closingBalance,
+                      });
+                    }
+                  });
                   const csvContent = [
                     Object.keys(rows[0]).join(','),
                     ...rows.map((r) => Object.values(r).join(',')),
@@ -565,48 +621,81 @@ export default function AdminOBRecoveryReport() {
                     </TableHeader>
                     <TableBody>
                       {recoveryShops.map((shop, idx) => (
-                        <TableRow
-                          key={shop.shopId}
-                          className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} table-row-hover-effect`}
-                        >
-                          <TableCell className="text-xs text-center">
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-                              {idx + 1}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="text-sm font-medium">{shop.shopName}</p>
-                              {shop.recoveryEntries.length > 1 && (
-                                <p className="text-[10px] text-muted-foreground">
-                                  {shop.recoveryEntries.length} entries
-                                </p>
+                        <>
+                          <TableRow
+                            key={shop.shopId}
+                            className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} table-row-hover-effect`}
+                          >
+                            <TableCell className="text-xs text-center">
+                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
+                                {idx + 1}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="text-sm font-medium">{shop.shopName}</p>
+                                {shop.recoveryEntries.length > 1 && (
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {shop.recoveryEntries.length} entries
+                                  </p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">
+                              {shop.shopArea || '\u2014'}
+                            </TableCell>
+                            <TableCell className="text-right text-sm">
+                              {formatPKR(shop.previousBalance)}
+                            </TableCell>
+                            <TableCell className="text-right text-sm text-amber-600 font-medium">
+                              {shop.todayCredit > 0 ? `+${formatPKR(shop.todayCredit)}` : '\u2014'}
+                            </TableCell>
+                            <TableCell className="text-right text-sm text-green-600 font-bold">
+                              {formatPKR(shop.todayRecovery)}
+                            </TableCell>
+                            <TableCell className="text-right text-sm">
+                              {shop.closingBalance === 0 ? (
+                                <Badge className="text-[9px] bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
+                                  <CheckCircle className="h-3 w-3 mr-0.5" />
+                                  Settled
+                                </Badge>
+                              ) : (
+                                <span className="font-bold">{formatPKR(shop.closingBalance)}</span>
                               )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">
-                            {shop.shopArea || '\u2014'}
-                          </TableCell>
-                          <TableCell className="text-right text-sm">
-                            {formatPKR(shop.previousBalance)}
-                          </TableCell>
-                          <TableCell className="text-right text-sm text-amber-600 font-medium">
-                            {shop.todayCredit > 0 ? `+${formatPKR(shop.todayCredit)}` : '\u2014'}
-                          </TableCell>
-                          <TableCell className="text-right text-sm text-green-600 font-bold">
-                            {formatPKR(shop.todayRecovery)}
-                          </TableCell>
-                          <TableCell className="text-right text-sm">
-                            {shop.closingBalance === 0 ? (
-                              <Badge className="text-[9px] bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
-                                <CheckCircle className="h-3 w-3 mr-0.5" />
-                                Settled
-                              </Badge>
-                            ) : (
-                              <span className="font-bold">{formatPKR(shop.closingBalance)}</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
+                            </TableCell>
+                          </TableRow>
+                          {/* Company-wise sub-rows */}
+                          {shop.companyBreakdown && shop.companyBreakdown.length > 1 && shop.companyBreakdown.map((comp) => (
+                            <TableRow
+                              key={`${shop.shopId}-${comp.companyId}`}
+                              className="bg-muted/30"
+                            >
+                              <TableCell className="text-xs text-center"></TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-medium border-primary/30 text-primary/70 dark:text-primary/60">
+                                  {comp.companyName}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-[10px] text-muted-foreground hidden sm:table-cell"></TableCell>
+                              <TableCell className="text-right text-[11px] text-muted-foreground">
+                                {formatPKR(comp.previousBalance)}
+                              </TableCell>
+                              <TableCell className="text-right text-[11px] text-amber-600/70">
+                                {comp.todayCredit > 0 ? `+${formatPKR(comp.todayCredit)}` : '\u2014'}
+                              </TableCell>
+                              <TableCell className="text-right text-[11px] text-green-600/80 font-medium">
+                                {comp.todayRecovery > 0 ? formatPKR(comp.todayRecovery) : '\u2014'}
+                              </TableCell>
+                              <TableCell className="text-right text-[11px] text-muted-foreground">
+                                {comp.closingBalance === 0 ? (
+                                  <span className="text-green-600">Settled</span>
+                                ) : (
+                                  formatPKR(comp.closingBalance)
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </>
                       ))}
                       {/* Total Row */}
                       <TableRow className="bg-primary/5 border-t-2 border-primary/20">

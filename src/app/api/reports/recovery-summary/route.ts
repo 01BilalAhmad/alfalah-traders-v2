@@ -45,6 +45,15 @@ export async function GET(request: NextRequest) {
   }
 }
 
+interface ShopCompanyBreakdown {
+  companyId: string;
+  companyName: string;
+  previousBalance: number;
+  todayCredit: number;
+  todayRecovery: number;
+  closingBalance: number;
+}
+
 interface ShopRecovery {
   shopId: string;
   shopName: string;
@@ -55,6 +64,7 @@ interface ShopRecovery {
   todayRecovery: number;
   closingBalance: number;
   visited: boolean;
+  companyBreakdown: ShopCompanyBreakdown[];
   recoveryEntries: Array<{
     id: string;
     amount: number;
@@ -188,6 +198,89 @@ async function generateReport(
           gpsLng: t.gpsLng,
         }));
 
+        // ── Build company-wise breakdown for this shop ──
+        // 1. Get ShopCompanyBalance entries for per-company current balances
+        const scbRes = await client.query(
+          `SELECT "companyId", balance FROM "ShopCompanyBalance" WHERE "shopId" = $1`,
+          [shop.id]
+        );
+        const shopCompanyBalances: Record<string, number> = {};
+        for (const row of scbRes.rows) {
+          shopCompanyBalances[row.companyId] = Number(row.balance);
+        }
+
+        // 2. Group today's transactions by companyId
+        const txnByCompany = new Map<string, { credit: number; recovery: number }>();
+        for (const t of dayTxns) {
+          const cid = t.companyId || '_none_';
+          const existing = txnByCompany.get(cid) || { credit: 0, recovery: 0 };
+          if (t.type === 'credit') existing.credit += Number(t.amount);
+          else if (t.type === 'recovery') existing.recovery += Number(t.amount);
+          txnByCompany.set(cid, existing);
+        }
+
+        // 3. Build company breakdown array
+        const companyBreakdown: ShopCompanyBreakdown[] = [];
+
+        // Get company names for this shop's companies
+        const shopCompanyIds = Object.keys(shopCompanyBalances);
+        if (shopCompanyIds.length > 0) {
+          const compNameRes = await client.query(
+            `SELECT id, name FROM "Company" WHERE id = ANY($1::text[])`,
+            [shopCompanyIds]
+          );
+          const compNameMap: Record<string, string> = {};
+          for (const row of compNameRes.rows) {
+            compNameMap[row.id] = row.name;
+          }
+
+          for (const cid of shopCompanyIds) {
+            const compTxns = txnByCompany.get(cid) || { credit: 0, recovery: 0 };
+            const currentBal = shopCompanyBalances[cid] || 0;
+            // True previous balance = current balance - today's credit + today's recovery
+            const compPrevBalance = Math.round((currentBal - compTxns.credit + compTxns.recovery) * 100) / 100;
+            const compClosing = Math.round((compPrevBalance + compTxns.credit - compTxns.recovery) * 100) / 100;
+
+            companyBreakdown.push({
+              companyId: cid,
+              companyName: compNameMap[cid] || cid,
+              previousBalance: compPrevBalance,
+              todayCredit: Math.round(compTxns.credit * 100) / 100,
+              todayRecovery: Math.round(compTxns.recovery * 100) / 100,
+              closingBalance: compClosing,
+            });
+          }
+        } else {
+          // No ShopCompanyBalance entries — check if transactions have companyId
+          const txnCompanyIds = [...new Set(
+            dayTxns.map((t: { companyId: string | null }) => t.companyId).filter(Boolean)
+          )] as string[];
+
+          if (txnCompanyIds.length > 0) {
+            const compNameRes = await client.query(
+              `SELECT id, name FROM "Company" WHERE id = ANY($1::text[])`,
+              [txnCompanyIds]
+            );
+            const compNameMap: Record<string, string> = {};
+            for (const row of compNameRes.rows) {
+              compNameMap[row.id] = row.name;
+            }
+
+            for (const cid of txnCompanyIds) {
+              const compTxns = txnByCompany.get(cid) || { credit: 0, recovery: 0 };
+              // Without ShopCompanyBalance, use transaction data to estimate
+              companyBreakdown.push({
+                companyId: cid,
+                companyName: compNameMap[cid] || cid,
+                previousBalance: 0, // Can't determine without ShopCompanyBalance
+                todayCredit: Math.round(compTxns.credit * 100) / 100,
+                todayRecovery: Math.round(compTxns.recovery * 100) / 100,
+                closingBalance: 0,
+              });
+            }
+          }
+        }
+
         shopRecoveries.push({
           shopId: shop.id,
           shopName: shop.name,
@@ -198,6 +291,7 @@ async function generateReport(
           todayRecovery: Math.round(todayRecovery * 100) / 100,
           closingBalance: Math.round((prevBalance + todayCredit - todayRecovery) * 100) / 100,
           visited: recoveryTxns.length > 0 || hasPendingRecovery,
+          companyBreakdown,
           recoveryEntries,
         });
       }
