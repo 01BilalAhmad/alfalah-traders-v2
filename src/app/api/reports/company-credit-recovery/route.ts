@@ -51,8 +51,18 @@ export async function GET(request: NextRequest) {
     const companyName = companyRes.rows[0].name;
 
     // 2. Get all orderbookers for this company
+    // Check UserCompany junction table (multi-company), ShopOrderbooker, AND legacy User.companyId
     const obRes = await client.query(
-      `SELECT id, name FROM "User" WHERE role = 'orderbooker' AND "companyId" = $1 AND status = 'active' ORDER BY name ASC`,
+      `SELECT DISTINCT u.id, u.name
+       FROM "User" u
+       WHERE u.role = 'orderbooker'
+         AND u.status = 'active'
+         AND (
+           u."companyId" = $1
+           OR EXISTS (SELECT 1 FROM "UserCompany" uc WHERE uc."userId" = u.id AND uc."companyId" = $1)
+           OR EXISTS (SELECT 1 FROM "ShopOrderbooker" so WHERE so."orderbookerId" = u.id AND so."companyId" = $1)
+         )
+       ORDER BY u.name ASC`,
       [companyId]
     );
     const orderbookers = obRes.rows.map((r: { id: string; name: string }) => ({
