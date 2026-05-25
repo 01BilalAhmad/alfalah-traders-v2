@@ -36,6 +36,7 @@ import {
   CheckCircle,
   TrendingDown,
   Scale,
+  Building2,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -74,6 +75,13 @@ interface ShopRecovery {
   recoveryEntries: RecoveryEntry[];
 }
 
+interface CompanyTotal {
+  companyId: string;
+  companyName: string;
+  totalRecovery: number;
+  shops: number;
+}
+
 interface OrderbookerRecovery {
   orderbookerId: string;
   orderbookerName: string;
@@ -81,6 +89,7 @@ interface OrderbookerRecovery {
   totalRecovery: number;
   totalShops: number;
   visitedShops: number;
+  companyBreakdown: CompanyTotal[];
   shops: ShopRecovery[];
 }
 
@@ -157,6 +166,7 @@ export default function AdminOBRecoveryReport() {
             totalRecovery: 0,
             totalShops: 0,
             visitedShops: 0,
+            companyBreakdown: [],
             shops: [],
           });
         }
@@ -183,6 +193,9 @@ export default function AdminOBRecoveryReport() {
     : 0;
   const todayRecovery = reportData?.totalRecovery || 0;
   const remainingBalance = routeTotalBalance - todayRecovery;
+
+  // Company-wise recovery totals from API
+  const companyBreakdown = reportData?.companyBreakdown || [];
 
   // Generate PDF
   const generatePDF = useCallback(() => {
@@ -284,6 +297,12 @@ export default function AdminOBRecoveryReport() {
     .total-row td { padding: 10px 6px; font-size: 12px; }
     .company-sub-row { background: #f8f9fa !important; }
     .company-sub-row td { padding: 4px 6px; border-bottom: 1px dotted #e0e0e0; }
+    .company-breakdown-section { margin: 15px 0; }
+    .company-breakdown-title { font-size: 12px; font-weight: 700; color: #0d5c3e; margin-bottom: 8px; padding: 4px 8px; background: #f0f7f4; border-radius: 4px; }
+    .company-breakdown-table { width: 50%; border-collapse: collapse; font-size: 11px; }
+    .company-breakdown-table th { background: #0d5c3e; color: white; padding: 6px 8px; text-align: left; font-size: 10px; }
+    .company-breakdown-table td { padding: 6px 8px; border-bottom: 1px solid #e5e5e5; }
+    .company-breakdown-table .total-row { background: #f0f7f4 !important; font-weight: 700; border-top: 2px solid #0d5c3e; }
     .footer { margin-top: 25px; padding-top: 10px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 10px; color: #999; }
     .signature-section { margin-top: 40px; display: flex; justify-content: space-between; }
     .signature-box { text-align: center; width: 200px; }
@@ -327,6 +346,37 @@ export default function AdminOBRecoveryReport() {
       <div class="value">${formatCurrencyPDF(allShopsRemaining)}</div>
     </div>
   </div>
+
+  ${companyBreakdown.length > 0 ? `
+  <div class="company-breakdown-section">
+    <div class="company-breakdown-title">Company-wise Recovery Breakdown</div>
+    <table class="company-breakdown-table">
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th style="text-align:right">Recovery</th>
+          <th style="text-align:right">Shops</th>
+          <th style="text-align:right">% of Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${companyBreakdown.map((comp: { companyId: string; companyName: string; totalRecovery: number; shops: number }) => `
+        <tr>
+          <td><strong>${comp.companyName}</strong></td>
+          <td class="right green bold">${formatCurrencyPDF(comp.totalRecovery)}</td>
+          <td class="right">${comp.shops}</td>
+          <td class="right">${allShopsTotalRecovery > 0 ? Math.round((comp.totalRecovery / allShopsTotalRecovery) * 100) : 0}%</td>
+        </tr>`).join('')}
+        <tr class="total-row">
+          <td>TOTAL</td>
+          <td class="right green">${formatCurrencyPDF(allShopsTotalRecovery)}</td>
+          <td class="right">${companyBreakdown.reduce((s: number, c: { shops: number }) => s + c.shops, 0)}</td>
+          <td class="right">100%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  ` : ''}
 
   ${totalRecoveryShops > 0 ? `
   <table>
@@ -383,7 +433,7 @@ export default function AdminOBRecoveryReport() {
     printWindow.onload = () => {
       setTimeout(() => printWindow.print(), 500);
     };
-  }, [reportData, recoveryShops, selectedDate]);
+  }, [reportData, recoveryShops, selectedDate, companyBreakdown]);
 
   // Print current view
   const handlePrint = () => {
@@ -513,6 +563,68 @@ export default function AdminOBRecoveryReport() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Company-wise Recovery Breakdown */}
+          {companyBreakdown.length > 0 && (
+            <Card className="animate-fade-in">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Company-wise Recovery
+                  <Badge variant="outline" className="text-[10px] ml-auto">
+                    {selectedDate}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs font-semibold">Company</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Recovery</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Shops</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">% of Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {companyBreakdown.map((comp) => (
+                        <TableRow key={comp.companyId}>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs font-semibold px-2 py-0.5 border-primary/30 text-primary">
+                              {comp.companyName}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-green-600 text-sm">
+                            {formatPKR(comp.totalRecovery)}
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-muted-foreground">
+                            {comp.shops}
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-muted-foreground">
+                            {todayRecovery > 0
+                              ? Math.round((comp.totalRecovery / todayRecovery) * 100)
+                              : 0}%
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {/* Total Row */}
+                      <TableRow className="bg-primary/5 border-t-2 border-primary/20">
+                        <TableCell className="font-bold text-sm">Total</TableCell>
+                        <TableCell className="text-right font-bold text-sm text-green-600">
+                          {formatPKR(todayRecovery)}
+                        </TableCell>
+                        <TableCell className="text-right text-sm text-muted-foreground">
+                          {companyBreakdown.reduce((s, c) => s + c.shops, 0)}
+                        </TableCell>
+                        <TableCell className="text-right text-sm font-medium">100%</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Action Buttons */}
           {recoveryShops.length > 0 && (
