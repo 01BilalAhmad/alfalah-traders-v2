@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // POST /api/setup — Create tables using raw pg (no Prisma)
 export async function POST() {
-  let client;
   try {
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Create User table
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS "User" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "username" TEXT NOT NULL UNIQUE,
@@ -26,11 +24,11 @@ export async function POST() {
 
     // Add allRoutesEnabled column if it doesn't exist (migration for existing databases)
     try {
-      await client.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "allRoutesEnabled" BOOLEAN NOT NULL DEFAULT false`);
+      await pool.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "allRoutesEnabled" BOOLEAN NOT NULL DEFAULT false`);
     } catch { /* column already exists, ignore */ }
 
     // Create Shop table
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS "Shop" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "name" TEXT NOT NULL,
@@ -50,7 +48,7 @@ export async function POST() {
     `);
 
     // Create Transaction table
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS "Transaction" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "shopId" TEXT NOT NULL,
@@ -76,7 +74,7 @@ export async function POST() {
     `);
 
     // Create AuditLog table
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS "AuditLog" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "action" TEXT NOT NULL,
@@ -96,7 +94,7 @@ export async function POST() {
     // ============================================
 
     // ShopNote table - shop notes/remarks
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS "ShopNote" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "shopId" TEXT NOT NULL,
@@ -111,12 +109,12 @@ export async function POST() {
 
     // ShopNote indexes
     try {
-      await client.query(`CREATE INDEX IF NOT EXISTS "ShopNote_shopId_idx" ON "ShopNote"("shopId")`);
-      await client.query(`CREATE INDEX IF NOT EXISTS "ShopNote_createdBy_idx" ON "ShopNote"("createdBy")`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS "ShopNote_shopId_idx" ON "ShopNote"("shopId")`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS "ShopNote_createdBy_idx" ON "ShopNote"("createdBy")`);
     } catch { /* index already exists, ignore */ }
 
     // ShopVisit table - GPS visit verification
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS "ShopVisit" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "shopId" TEXT NOT NULL,
@@ -133,13 +131,13 @@ export async function POST() {
 
     // ShopVisit indexes
     try {
-      await client.query(`CREATE INDEX IF NOT EXISTS "ShopVisit_shopId_idx" ON "ShopVisit"("shopId")`);
-      await client.query(`CREATE INDEX IF NOT EXISTS "ShopVisit_orderbookerId_idx" ON "ShopVisit"("orderbookerId")`);
-      await client.query(`CREATE INDEX IF NOT EXISTS "ShopVisit_createdAt_idx" ON "ShopVisit"("createdAt")`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS "ShopVisit_shopId_idx" ON "ShopVisit"("shopId")`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS "ShopVisit_orderbookerId_idx" ON "ShopVisit"("orderbookerId")`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS "ShopVisit_createdAt_idx" ON "ShopVisit"("createdAt")`);
     } catch { /* index already exists, ignore */ }
 
     // DailyTarget table - monthly recovery targets
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS "DailyTarget" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "orderbookerId" TEXT NOT NULL,
@@ -156,12 +154,12 @@ export async function POST() {
 
     // DailyTarget indexes
     try {
-      await client.query(`CREATE INDEX IF NOT EXISTS "DailyTarget_orderbookerId_idx" ON "DailyTarget"("orderbookerId")`);
-      await client.query(`CREATE INDEX IF NOT EXISTS "DailyTarget_month_idx" ON "DailyTarget"("month")`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS "DailyTarget_orderbookerId_idx" ON "DailyTarget"("orderbookerId")`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS "DailyTarget_month_idx" ON "DailyTarget"("month")`);
     } catch { /* index already exists, ignore */ }
 
     // UserPreference table - app preferences (tour completed etc)
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS "UserPreference" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "userId" TEXT NOT NULL UNIQUE,
@@ -175,51 +173,51 @@ export async function POST() {
 
     // UserPreference index
     try {
-      await client.query(`CREATE INDEX IF NOT EXISTS "UserPreference_userId_idx" ON "UserPreference"("userId")`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS "UserPreference_userId_idx" ON "UserPreference"("userId")`);
     } catch { /* index already exists, ignore */ }
 
     // Check if users exist
-    const userRes = await client.query('SELECT COUNT(*) as count FROM "User"');
+    const userRes = await pool.query('SELECT COUNT(*) as count FROM "User"');
     const userCount = parseInt(userRes.rows[0].count);
 
     // Always run migrations for existing databases
     try {
-      await client.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "allRoutesEnabled" BOOLEAN NOT NULL DEFAULT false`);
+      await pool.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "allRoutesEnabled" BOOLEAN NOT NULL DEFAULT false`);
     } catch { /* column already exists, ignore */ }
 
     // Migration: Convert routeDay (TEXT) to routeDays (TEXT[]) — safe, no data loss
     try {
       // Step 1: Add routeDays column if it doesn't exist
-      const routeDaysColRes = await client.query(`
+      const routeDaysColRes = await pool.query(`
         SELECT column_name FROM information_schema.columns
         WHERE table_name = 'Shop' AND column_name = 'routeDays'
       `);
       if (routeDaysColRes.rows.length === 0) {
         // Step 2: Check if old routeDay column exists
-        const routeDayColRes = await client.query(`
+        const routeDayColRes = await pool.query(`
           SELECT column_name FROM information_schema.columns
           WHERE table_name = 'Shop' AND column_name = 'routeDay'
         `);
         if (routeDayColRes.rows.length > 0) {
           // Step 3: Add new routeDays column, copy data from routeDay
-          await client.query(`ALTER TABLE "Shop" ADD COLUMN "routeDays" TEXT[]`);
+          await pool.query(`ALTER TABLE "Shop" ADD COLUMN "routeDays" TEXT[]`);
           // Copy each shop's routeDay to routeDays as single-element array
-          await client.query(`UPDATE "Shop" SET "routeDays" = ARRAY[LOWER("routeDay")] WHERE "routeDay" IS NOT NULL`);
+          await pool.query(`UPDATE "Shop" SET "routeDays" = ARRAY[LOWER("routeDay")] WHERE "routeDay" IS NOT NULL`);
           // Set default for any nulls
-          await client.query(`UPDATE "Shop" SET "routeDays" = ARRAY['monday'] WHERE "routeDays" IS NULL`);
+          await pool.query(`UPDATE "Shop" SET "routeDays" = ARRAY['monday'] WHERE "routeDays" IS NULL`);
           // Make column NOT NULL
-          await client.query(`ALTER TABLE "Shop" ALTER COLUMN "routeDays" SET NOT NULL`);
+          await pool.query(`ALTER TABLE "Shop" ALTER COLUMN "routeDays" SET NOT NULL`);
           // Drop old column
-          await client.query(`ALTER TABLE "Shop" DROP COLUMN "routeDay"`);
+          await pool.query(`ALTER TABLE "Shop" DROP COLUMN "routeDay"`);
           console.log('Migration: routeDay → routeDays completed successfully');
         } else {
           // No routeDay column exists, just add routeDays
-          await client.query(`ALTER TABLE "Shop" ADD COLUMN IF NOT EXISTS "routeDays" TEXT[] NOT NULL DEFAULT ARRAY['monday']`);
+          await pool.query(`ALTER TABLE "Shop" ADD COLUMN IF NOT EXISTS "routeDays" TEXT[] NOT NULL DEFAULT ARRAY['monday']`);
         }
       }
       // Add GIN index for array containment queries
       try {
-        await client.query(`CREATE INDEX IF NOT EXISTS "Shop_routeDays_idx" ON "Shop" USING GIN ("routeDays")`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS "Shop_routeDays_idx" ON "Shop" USING GIN ("routeDays")`);
       } catch { /* index might already exist */ }
     } catch (migrateErr) {
       console.error('routeDay → routeDays migration error:', migrateErr);
@@ -228,22 +226,22 @@ export async function POST() {
 
     // Migration: Add companyId column to User if it doesn't exist
     try {
-      await client.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "companyId" TEXT`);
+      await pool.query(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "companyId" TEXT`);
     } catch { /* column already exists, ignore */ }
 
     // Migration: Add companyId column to Transaction if it doesn't exist
     try {
-      await client.query(`ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "companyId" TEXT`);
+      await pool.query(`ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "companyId" TEXT`);
     } catch { /* column already exists, ignore */ }
 
     // Migration: Add idempotencyKey column to Transaction for duplicate prevention
     try {
-      await client.query(`ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "idempotencyKey" TEXT UNIQUE`);
+      await pool.query(`ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "idempotencyKey" TEXT UNIQUE`);
     } catch { /* column already exists, ignore */ }
 
     // Migration: Create ShopCompanyBalance table if it doesn't exist
     try {
-      await client.query(`
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS "ShopCompanyBalance" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "shopId" TEXT NOT NULL,
@@ -261,7 +259,7 @@ export async function POST() {
 
     // Migration: Create Company table if it doesn't exist
     try {
-      await client.query(`
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS "Company" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "name" TEXT NOT NULL,
@@ -273,7 +271,6 @@ export async function POST() {
     } catch { /* table already exists, ignore */ }
 
     if (userCount > 0) {
-      await client.end();
       return NextResponse.json({ success: true, message: 'Tables exist, migrations applied', userCount });
     }
 
@@ -284,32 +281,29 @@ export async function POST() {
 
     // Insert users
     const now = new Date().toISOString();
-    await client.query(
+    await pool.query(
       'INSERT INTO "User" (id, username, password, name, role, phone, status, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
       ['admin-001', 'al-falah trader', adminPass, 'AL-FALAH TRADER', 'admin', '', 'active', now, now]
     );
-    await client.query(
+    await pool.query(
       'INSERT INTO "User" (id, username, password, name, role, phone, status, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
       ['ob-ahmed', 'ahmed', obPass, 'Ahmed Khan', 'orderbooker', '', 'active', now, now]
     );
-    await client.query(
+    await pool.query(
       'INSERT INTO "User" (id, username, password, name, role, phone, status, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
       ['ob-bilal', 'bilal', obPass, 'Bilal Ali', 'orderbooker', '', 'active', now, now]
     );
-    await client.query(
+    await pool.query(
       'INSERT INTO "User" (id, username, password, name, role, phone, status, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
       ['ob-danish', 'ob01', obPass, 'Danish Ramzan', 'orderbooker', '', 'active', now, now]
     );
-    await client.query(
+    await pool.query(
       'INSERT INTO "User" (id, username, password, name, role, phone, status, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
       ['ob-kashif', 'ob02', obPass, 'Kashif Khan', 'orderbooker', '', 'active', now, now]
     );
 
-    await client.end();
-
     return NextResponse.json({ success: true, message: 'All tables created + 5 users seeded!' });
   } catch (error: unknown) {
-    if (client) await client.end().catch(() => {});
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Setup error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -317,16 +311,12 @@ export async function POST() {
 }
 
 export async function GET() {
-  let client;
   try {
-    client = getPgClient();
-    await client.connect();
-    const res = await client.query('SELECT COUNT(*) as count FROM "User"');
-    await client.end();
+    const pool = getPool();
+    const res = await pool.query('SELECT COUNT(*) as count FROM "User"');
     const count = parseInt(res.rows[0].count);
     return NextResponse.json({ needsSetup: count === 0, userCount: count });
   } catch (error: unknown) {
-    if (client) await client.end().catch(() => {});
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: msg, needsSetup: true }, { status: 500 });
   }

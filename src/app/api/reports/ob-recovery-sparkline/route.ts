@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLocalDateString, getLocalStartOfDay, getLocalEndOfDay } from '@/lib/utils';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/reports/ob-recovery-sparkline?days=7
 // Returns per-orderbooker recovery trend data for the last N days
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const days = Math.min(Math.max(parseInt(searchParams.get('days') || '7', 10), 1), 30);
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Query all active orderbookers
-    const obRes = await client.query(
+    const obRes = await pool.query(
       `SELECT id, name FROM "User" WHERE role = 'orderbooker' AND status = 'active' ORDER BY name ASC`
     );
     const orderbookers: any[] = obRes.rows;
@@ -32,7 +30,7 @@ export async function GET(request: NextRequest) {
     const results = await Promise.all(
       orderbookers.map(async (ob: any) => {
         // Get shop IDs for this orderbooker (active only)
-        const shopRes = await client!.query(
+        const shopRes = await pool.query(
           `SELECT id FROM "Shop" WHERE "orderbookerId" = $1 AND status = 'active'`,
           [ob.id]
         );
@@ -57,7 +55,7 @@ export async function GET(request: NextRequest) {
 
             // Build placeholder string for IN clause
             const placeholders = shopIds.map((_, idx: number) => `$${idx + 3}`).join(', ');
-            const sumRes = await client!.query(
+            const sumRes = await pool.query(
               `SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction"
                WHERE "shopId" IN (${placeholders}) AND type = 'recovery' AND status = 'approved' AND "createdAt" >= $1 AND "createdAt" <= $2`,
               [startOfDay.toISOString(), endOfDay.toISOString(), ...shopIds]
@@ -102,10 +100,8 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    await client.end();
     return NextResponse.json(results);
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error generating OB recovery sparkline data:', error);
     return NextResponse.json({ error: 'Failed to generate sparkline data' }, { status: 500 });
   }

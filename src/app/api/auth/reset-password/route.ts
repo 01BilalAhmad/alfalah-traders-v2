@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pg from 'pg';
+import { getPool } from '@/lib/pg';
 import bcrypt from 'bcryptjs';
 import { requireAdmin } from '@/lib/auth-guard';
-
-const { Client } = pg;
 
 // POST /api/auth/reset-password — Reset any user's password (Admin only)
 export async function POST(request: NextRequest) {
@@ -13,7 +11,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: 401 });
   }
 
-  let client;
   try {
     const { username, newPassword } = await request.json();
 
@@ -21,19 +18,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username and new password required' }, { status: 400 });
     }
 
-    client = new Client({ connectionString: process.env.DATABASE_URL });
-    await client.connect();
+    const pool = getPool();
 
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update user password
-    const result = await client.query(
+    const result = await pool.query(
       'UPDATE "User" SET password = $1 WHERE LOWER(username) = LOWER($2) RETURNING id, username, name, role',
       [hashedPassword, username.trim()]
     );
-
-    await client.end();
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -45,7 +39,6 @@ export async function POST(request: NextRequest) {
       message: `Password reset for ${username}`
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Reset password error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

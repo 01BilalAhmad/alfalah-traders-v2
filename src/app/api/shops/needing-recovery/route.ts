@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/shops/needing-recovery?minDays=14&orderbookerId=xxx
 // Returns shops where the last CREDIT is older than minDays AND recovery hasn't been done since
 // A shop is "overdue" only if it received credit 14+ days ago and still hasn't recovered
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const minDays = parseInt(searchParams.get('minDays') || '14');
     const orderbookerId = searchParams.get('orderbookerId');
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     const conditions: string[] = [`s.status = 'active'`, `s.balance > 0`];
     const params: any[] = [];
@@ -26,7 +24,7 @@ export async function GET(request: NextRequest) {
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
     // Get shops with both their last credit date AND last recovery date
-    const shopsRes = await client.query(
+    const shopsRes = await pool.query(
       `SELECT s.id, s.name, s.area, s.balance, s."orderbookerId", s.phone,
               u.name AS "orderbookerName",
               lc.last_credit_date,
@@ -91,14 +89,12 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    await client.end();
     return NextResponse.json({
       minDays,
       count: needingRecovery.length,
       shops: needingRecovery,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error fetching shops needing recovery:', error);
     return NextResponse.json({ error: 'Failed to fetch shops needing recovery' }, { status: 500 });
   }

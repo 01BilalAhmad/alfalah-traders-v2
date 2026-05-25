@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLocalDateString, getLocalStartOfDay, getLocalEndOfDay } from '@/lib/utils';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/reports/shop-balance-trend?shopId=xxx&days=30
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const shopId = searchParams.get('shopId');
@@ -18,17 +17,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Days must be between 1 and 365' }, { status: 400 });
     }
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Fetch shop info
-    const shopRes = await client.query(
+    const shopRes = await pool.query(
       `SELECT id, name, balance FROM "Shop" WHERE id = $1`,
       [shopId]
     );
 
     if (shopRes.rows.length === 0) {
-      await client.end();
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
 
@@ -43,7 +40,7 @@ export async function GET(request: NextRequest) {
     endDate.setHours(23, 59, 59, 999);
 
     // Fetch all transactions for this shop before the range to calculate starting balance
-    const beforeRes = await client.query(
+    const beforeRes = await pool.query(
       `SELECT type, amount FROM "Transaction" WHERE "shopId" = $1 AND "createdAt" < $2 AND status = 'approved' ORDER BY "createdAt" ASC`,
       [shopId, startDate.toISOString()]
     );
@@ -57,7 +54,7 @@ export async function GET(request: NextRequest) {
     }, 0);
 
     // Fetch all transactions within the range, ordered by date
-    const rangeRes = await client.query(
+    const rangeRes = await pool.query(
       `SELECT type, amount, "createdAt" FROM "Transaction" WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'approved' ORDER BY "createdAt" ASC`,
       [shopId, startDate.toISOString(), endDate.toISOString()]
     );
@@ -99,7 +96,6 @@ export async function GET(request: NextRequest) {
       ? Math.round((change / Math.abs(startBalanceRounded)) * 1000) / 10
       : (change !== 0 ? 100 : 0);
 
-    await client.end();
     return NextResponse.json({
       shopId: shop.id,
       shopName: shop.name,
@@ -110,7 +106,6 @@ export async function GET(request: NextRequest) {
       data,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error fetching shop balance trend:', error);
     return NextResponse.json({ error: 'Failed to fetch balance trend' }, { status: 500 });
   }

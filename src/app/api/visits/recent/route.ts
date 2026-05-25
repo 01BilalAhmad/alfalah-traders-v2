@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/visits/recent - Get recent visit activity combining ShopVisit + Transaction data
 // Query params: date (YYYY-MM-DD), orderbookerId, limit (default 100), source (all|gps|transaction)
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get('date'); // YYYY-MM-DD
@@ -33,8 +32,7 @@ export async function GET(request: NextRequest) {
       endDate = new Date(Date.UTC(year, month, day, 23, 59, 59, 999) - pkOffset * 60 * 1000);
     }
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     const allVisits: any[] = [];
 
@@ -49,7 +47,7 @@ export async function GET(request: NextRequest) {
         gpsParams.push(orderbookerId);
       }
 
-      const gpsRes = await client.query(
+      const gpsRes = await pool.query(
         `SELECT sv.id, sv."shopId", sv."orderbookerId", sv."gpsLat", sv."gpsLng",
                 sv."gpsAddress", sv."inRange", sv."createdAt",
                 s.name AS "shopName", u.name AS "orderbookerName"
@@ -93,7 +91,7 @@ export async function GET(request: NextRequest) {
         txParams.push(orderbookerId);
       }
 
-      const txRes = await client.query(
+      const txRes = await pool.query(
         `SELECT t.id, t."shopId", t."createdBy" AS "orderbookerId",
                 t.type, t.amount, t."gpsLat", t."gpsLng", t."createdAt",
                 s.name AS "shopName", u.name AS "orderbookerName"
@@ -155,10 +153,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    await client.end();
     return NextResponse.json(dedupedVisits.slice(0, limit));
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error fetching recent visits:', error);
     return NextResponse.json({ error: 'Failed to fetch recent visits' }, { status: 500 });
   }

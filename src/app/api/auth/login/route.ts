@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // POST /api/auth/login — Raw pg login (no Prisma)
 export async function POST(request: Request) {
-  let client;
   try {
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     const { username, password } = await request.json();
 
@@ -16,7 +14,7 @@ export async function POST(request: Request) {
 
     const normalizedUsername = username.trim().toLowerCase();
 
-    const res = await client.query(
+    const res = await pool.query(
       'SELECT u.id, u.username, u.name, u.role, u.phone, u.status, u.password, u."createdAt", u."allRoutesEnabled", u."companyId", c.name AS "companyName" FROM "User" u LEFT JOIN "Company" c ON u."companyId" = c.id WHERE LOWER(u.username) = $1',
       [normalizedUsername]
     );
@@ -41,7 +39,7 @@ export async function POST(request: Request) {
     // Fetch user's companies from UserCompany junction table
     let userCompanies: { companyId: string; companyName: string; isPrimary: boolean }[] = [];
     try {
-      const ucRes = await client.query(
+      const ucRes = await pool.query(
         `SELECT uc."companyId", uc."isPrimary", c.name AS "companyName"
          FROM "UserCompany" uc
          JOIN "Company" c ON uc."companyId" = c.id
@@ -62,7 +60,7 @@ export async function POST(request: Request) {
     // Fallback: if no UserCompany records, derive from User.companyId + ShopOrderbooker
     if (userCompanies.length === 0 && user.companyId) {
       // Add primary company from User.companyId
-      const primaryCompany = await client.query(
+      const primaryCompany = await pool.query(
         'SELECT id, name FROM "Company" WHERE id = $1 AND status = \'active\'',
         [user.companyId]
       );
@@ -76,7 +74,7 @@ export async function POST(request: Request) {
 
       // Add secondary companies from ShopOrderbooker
       try {
-        const soRes = await client.query(
+        const soRes = await pool.query(
           `SELECT DISTINCT so."companyId", c.name AS "companyName"
            FROM "ShopOrderbooker" so
            JOIN "Company" c ON so."companyId" = c.id
@@ -93,15 +91,12 @@ export async function POST(request: Request) {
       } catch { /* ShopOrderbooker might not exist */ }
     }
 
-    await client.end();
-
     const { password: _, ...safeUser } = user;
     // Attach companies array to user object
     (safeUser as any).companies = userCompanies;
 
     return NextResponse.json({ user: safeUser, token: `session-${user.id}-${Date.now()}` });
   } catch (error: unknown) {
-    if (client) await client.end().catch(() => {});
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Login error:', msg, error instanceof Error ? error.stack : '');
     // In development, show the real error message for easier debugging

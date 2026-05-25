@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/shops/locations
 // Returns shops with their latest GPS coordinates from ShopVisit table,
 // falling back to Transaction table (recovery entries with GPS) when no visit exists
 export async function GET(request: NextRequest) {
-  let client;
   try {
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Strategy:
     // 1. Get latest ShopVisit GPS coordinates per shop
     // 2. Get latest Transaction GPS coordinates per shop (for shops without visits)
     // 3. Combine them (visits take priority, transactions fill the gaps)
 
-    const res = await client.query(
+    const res = await pool.query(
       `WITH visit_locations AS (
         SELECT DISTINCT ON (sv."shopId")
           sv."shopId",
@@ -90,10 +88,8 @@ export async function GET(request: NextRequest) {
       source: row.source,
     }));
 
-    await client.end();
     return NextResponse.json(locations);
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error fetching shop locations:', error);
     return NextResponse.json({ error: 'Failed to fetch shop locations' }, { status: 500 });
   }

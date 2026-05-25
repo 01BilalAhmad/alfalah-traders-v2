@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 export async function GET() {
-  let client;
   try {
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     const [
       totalUsersRes,
@@ -15,12 +13,12 @@ export async function GET() {
       recoveryAggRes,
       netBalanceAggRes,
     ] = await Promise.all([
-      client.query('SELECT COUNT(*) FROM "User"'),
-      client.query('SELECT COUNT(*) FROM "Shop"'),
-      client.query('SELECT COUNT(*) FROM "Transaction"'),
-      client.query('SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type = \'credit\' AND status = \'approved\''),
-      client.query('SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type = \'recovery\' AND status = \'approved\''),
-      client.query('SELECT COALESCE(SUM(balance), 0) AS total FROM "Shop"'),
+      pool.query('SELECT COUNT(*) FROM "User"'),
+      pool.query('SELECT COUNT(*) FROM "Shop"'),
+      pool.query('SELECT COUNT(*) FROM "Transaction"'),
+      pool.query('SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type = \'credit\' AND status = \'approved\''),
+      pool.query('SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type = \'recovery\' AND status = \'approved\''),
+      pool.query('SELECT COALESCE(SUM(balance), 0) AS total FROM "Shop"'),
     ]);
 
     const totalUsers = parseInt(totalUsersRes.rows[0].count, 10);
@@ -30,7 +28,6 @@ export async function GET() {
     const totalRecovery = Number(recoveryAggRes.rows[0].total);
     const netBalance = Number(netBalanceAggRes.rows[0].total);
 
-    await client.end();
     return NextResponse.json({
       totalUsers,
       totalShops,
@@ -40,7 +37,6 @@ export async function GET() {
       netBalance,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Summary API error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch summary' },

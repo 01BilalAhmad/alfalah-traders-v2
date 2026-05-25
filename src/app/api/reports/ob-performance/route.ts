@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/reports/ob-performance?period=week|month|quarter
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'month';
@@ -38,11 +37,10 @@ export async function GET(request: NextRequest) {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Get all orderbookers (including inactive for comparison)
-    const obRes = await client.query(
+    const obRes = await pool.query(
       `SELECT id, name, phone, status FROM "User" WHERE role = 'orderbooker' ORDER BY name ASC`
     );
     const orderbookers: any[] = obRes.rows;
@@ -51,7 +49,7 @@ export async function GET(request: NextRequest) {
     const performanceData = await Promise.all(
       orderbookers.map(async (ob: any) => {
         // Get shops assigned to this orderbooker
-        const shopRes = await client!.query(
+        const shopRes = await pool.query(
           `SELECT id, balance, status FROM "Shop" WHERE "orderbookerId" = $1`,
           [ob.id]
         );
@@ -61,21 +59,21 @@ export async function GET(request: NextRequest) {
         const totalOutstanding = shops.reduce((sum: number, shop: any) => sum + Number(shop.balance), 0);
 
         // Today's recovery
-        const todayRecoveryRes = await client!.query(
+        const todayRecoveryRes = await pool.query(
           `SELECT amount FROM "Transaction" WHERE type = 'recovery' AND status = 'approved' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3`,
           [ob.id, todayStart.toISOString(), todayEnd.toISOString()]
         );
         const todayRecovery = todayRecoveryRes.rows.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
         // Period recovery
-        const periodRecoveryRes = await client!.query(
+        const periodRecoveryRes = await pool.query(
           `SELECT amount FROM "Transaction" WHERE type = 'recovery' AND status = 'approved' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3`,
           [ob.id, startDate.toISOString(), endDate.toISOString()]
         );
         const periodRecovery = periodRecoveryRes.rows.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
         // Last active date (last transaction by this orderbooker)
-        const lastTxnRes = await client!.query(
+        const lastTxnRes = await pool.query(
           `SELECT "createdAt" FROM "Transaction" WHERE "createdBy" = $1 ORDER BY "createdAt" DESC LIMIT 1`,
           [ob.id]
         );
@@ -119,10 +117,8 @@ export async function GET(request: NextRequest) {
     // Sort by periodRecovery descending
     performanceData.sort((a, b) => b.periodRecovery - a.periodRecovery);
 
-    await client.end();
     return NextResponse.json(performanceData);
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error generating OB performance analytics:', error);
     return NextResponse.json({ error: 'Failed to generate OB performance analytics' }, { status: 500 });
   }

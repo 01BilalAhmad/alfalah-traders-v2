@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // PATCH /api/shops/phone - Update shop phone number and/or owner name (lightweight endpoint for mobile)
 export async function PATCH(request: NextRequest) {
-  let client;
   try {
     const { shopId, phone, ownerName } = await request.json();
 
@@ -21,13 +20,11 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 });
     }
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Check if shop exists
-    const shopRes = await client.query('SELECT id, name, phone, "ownerName" FROM "Shop" WHERE id = $1', [shopId]);
+    const shopRes = await pool.query('SELECT id, name, phone, "ownerName" FROM "Shop" WHERE id = $1', [shopId]);
     if (shopRes.rows.length === 0) {
-      await client.end();
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
 
@@ -37,18 +34,16 @@ export async function PATCH(request: NextRequest) {
     // Build update query dynamically based on what fields are provided
     if (ownerName !== undefined && ownerName !== null) {
       const trimmedOwner = String(ownerName).trim();
-      await client.query(
+      await pool.query(
         'UPDATE "Shop" SET phone = $1, "ownerName" = $2, "updatedAt" = $3 WHERE id = $4',
         [trimmedPhone || null, trimmedOwner || null, now, shopId]
       );
     } else {
-      await client.query(
+      await pool.query(
         'UPDATE "Shop" SET phone = $1, "updatedAt" = $2 WHERE id = $3',
         [trimmedPhone || null, now, shopId]
       );
     }
-
-    await client.end();
 
     return NextResponse.json({
       success: true,
@@ -57,7 +52,6 @@ export async function PATCH(request: NextRequest) {
       newPhone: trimmedPhone || null,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error updating shop phone:', error);
     return NextResponse.json({ error: 'Failed to update phone number' }, { status: 500 });
   }

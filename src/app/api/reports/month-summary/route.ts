@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/reports/month-summary?month=2025-01
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const monthParam = searchParams.get('month');
@@ -30,11 +29,10 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
     const endDate = new Date(year, month, 0, 23, 59, 59, 999); // Last day of month
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Fetch all transactions in the month
-    const monthTxnRes = await client.query(
+    const monthTxnRes = await pool.query(
       `SELECT type, amount, "createdAt" FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND status = 'approved' ORDER BY "createdAt" DESC`,
       [startDate.toISOString(), endDate.toISOString()]
     );
@@ -91,7 +89,7 @@ export async function GET(request: NextRequest) {
     const prevStartDate = new Date(prevYear, prevMonth - 1, 1, 0, 0, 0, 0);
     const prevEndDate = new Date(prevYear, prevMonth, 0, 23, 59, 59, 999);
 
-    const prevTxnRes = await client.query(
+    const prevTxnRes = await pool.query(
       `SELECT type, amount FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND status = 'approved'`,
       [prevStartDate.toISOString(), prevEndDate.toISOString()]
     );
@@ -113,7 +111,6 @@ export async function GET(request: NextRequest) {
       return Math.round(((current - previous) / previous) * 1000) / 10;
     }
 
-    await client.end();
     return NextResponse.json({
       month: `${year}-${String(month).padStart(2, '0')}`,
       monthLabel: new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
@@ -142,7 +139,6 @@ export async function GET(request: NextRequest) {
       netChangePct: pctChange(netPosition, prevNetPosition),
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error generating month summary:', error);
     return NextResponse.json({ error: 'Failed to generate month summary' }, { status: 500 });
   }

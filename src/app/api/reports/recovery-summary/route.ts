@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pg from 'pg';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/reports/recovery-summary?date=xxx&companyId=yyy
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get('date');
@@ -32,14 +31,10 @@ export async function GET(request: NextRequest) {
       displayDate = `${String(year)}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
 
-    client = getPgClient();
-    await client.connect();
-
-    const result = await generateReport(client, startDate, endDate, displayDate, companyId);
-    await client.end();
+    const pool = getPool();
+    const result = await generateReport(pool, startDate, endDate, displayDate, companyId);
     return NextResponse.json(result);
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error generating recovery summary:', error);
     return NextResponse.json({ error: 'Failed to generate recovery summary' }, { status: 500 });
   }
@@ -84,14 +79,14 @@ interface CompanyBreakdown {
 }
 
 async function generateReport(
-  client: pg.Client,
+  pool: pg.Pool,
   startDate: Date,
   endDate: Date,
   displayDate: string,
   companyId?: string
 ) {
   // Get all active orderbookers
-  const obRes = await client.query(
+  const obRes = await pool.query(
     'SELECT id, name, phone FROM "User" WHERE role = \'orderbooker\' AND status = \'active\' ORDER BY name ASC'
   );
   const orderbookers = obRes.rows;
@@ -99,7 +94,7 @@ async function generateReport(
   const recoverySummary = await Promise.all(
     orderbookers.map(async (ob) => {
       // Get primary shops for this orderbooker
-      const primaryShopRes = await client.query(
+      const primaryShopRes = await pool.query(
         'SELECT id, name, area, balance FROM "Shop" WHERE "orderbookerId" = $1 AND status = \'active\' ORDER BY name ASC',
         [ob.id]
       );
@@ -110,7 +105,7 @@ async function generateReport(
       }));
 
       // Get secondary shops for this orderbooker (via ShopOrderbooker)
-      const secondaryShopRes = await client.query(
+      const secondaryShopRes = await pool.query(
         `SELECT s.id, s.name, s.area, s.balance, so."companyId", so."routeDays"
          FROM "ShopOrderbooker" so
          JOIN "Shop" s ON s.id = so."shopId"
@@ -165,7 +160,7 @@ async function generateReport(
 
         txnQuery += ` ORDER BY "createdAt" DESC`;
 
-        const txnRes = await client.query(txnQuery, txnParams);
+        const txnRes = await pool.query(txnQuery, txnParams);
         const dayTxns = txnRes.rows;
 
         // Also fetch pending transactions to determine visited status
@@ -180,7 +175,7 @@ async function generateReport(
 
         pendingQuery += ` LIMIT 1`;
 
-        const pendingRes = await client.query(pendingQuery, pendingParams);
+        const pendingRes = await pool.query(pendingQuery, pendingParams);
         const hasPendingRecovery = pendingRes.rows.length > 0;
 
         const todayCredit = dayTxns.filter((t: { type: string; amount: number }) => t.type === 'credit').reduce((s: number, t: { amount: number }) => s + t.amount, 0);
@@ -200,7 +195,7 @@ async function generateReport(
 
         // ── Build company-wise breakdown for this shop ──
         // 1. Get ShopCompanyBalance entries for per-company current balances
-        const scbRes = await client.query(
+        const scbRes = await pool.query(
           `SELECT "companyId", balance FROM "ShopCompanyBalance" WHERE "shopId" = $1`,
           [shop.id]
         );
@@ -225,7 +220,7 @@ async function generateReport(
         // Get company names for this shop's companies
         const shopCompanyIds = Object.keys(shopCompanyBalances);
         if (shopCompanyIds.length > 0) {
-          const compNameRes = await client.query(
+          const compNameRes = await pool.query(
             `SELECT id, name FROM "Company" WHERE id = ANY($1::text[])`,
             [shopCompanyIds]
           );
@@ -257,7 +252,7 @@ async function generateReport(
           )] as string[];
 
           if (txnCompanyIds.length > 0) {
-            const compNameRes = await client.query(
+            const compNameRes = await pool.query(
               `SELECT id, name FROM "Company" WHERE id = ANY($1::text[])`,
               [txnCompanyIds]
             );
@@ -307,7 +302,7 @@ async function generateReport(
       let companyNames: Record<string, string> = {};
 
       if (companyIds.length > 0) {
-        const compRes = await client.query(
+        const compRes = await pool.query(
           `SELECT id, name FROM "Company" WHERE id = ANY($1::text[])`,
           [companyIds]
         );
@@ -355,7 +350,7 @@ async function generateReport(
 
         breakdownQuery += ` GROUP BY "companyId"`;
 
-        const breakdownRes = await client.query(breakdownQuery, breakdownParams);
+        const breakdownRes = await pool.query(breakdownQuery, breakdownParams);
 
         for (const row of breakdownRes.rows) {
           const cid = row.companyId;
@@ -378,7 +373,7 @@ async function generateReport(
         const allCompanyIds = Array.from(companyMap.keys());
         const missingCompanyIds = allCompanyIds.filter(id => !companyNames[id]);
         if (missingCompanyIds.length > 0) {
-          const compRes = await client.query(
+          const compRes = await pool.query(
             `SELECT id, name FROM "Company" WHERE id = ANY($1::text[])`,
             [missingCompanyIds]
           );

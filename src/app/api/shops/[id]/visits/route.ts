@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 import crypto from 'crypto';
 
 // POST /api/shops/:id/visits - Record a GPS-verified shop visit
@@ -7,7 +7,6 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let client;
   try {
     const { id: shopId } = await params;
     const { orderbookerId, gpsLat, gpsLng, gpsAddress, inRange } = await request.json();
@@ -16,18 +15,16 @@ export async function POST(
       return NextResponse.json({ error: 'shopId and orderbookerId are required' }, { status: 400 });
     }
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Verify shop exists
-    const shopRes = await client.query('SELECT id, name FROM "Shop" WHERE id = $1', [shopId]);
+    const shopRes = await pool.query('SELECT id, name FROM "Shop" WHERE id = $1', [shopId]);
     if (shopRes.rows.length === 0) {
-      await client.end();
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
 
     const visitId = `visit_${Date.now().toString(36)}_${crypto.randomBytes(6).toString('hex')}`;
-    const visitRes = await client.query(
+    const visitRes = await pool.query(
       `INSERT INTO "ShopVisit" (id, "shopId", "orderbookerId", "gpsLat", "gpsLng", "gpsAddress", "inRange", "createdAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
        RETURNING *`,
@@ -36,7 +33,6 @@ export async function POST(
 
     const visit = visitRes.rows[0];
 
-    await client.end();
     return NextResponse.json({
       id: visit.id,
       shopId: visit.shopId,
@@ -48,7 +44,6 @@ export async function POST(
       createdAt: visit.createdAt instanceof Date ? visit.createdAt.toISOString() : visit.createdAt,
     }, { status: 201 });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error recording shop visit:', error);
     return NextResponse.json({ error: 'Failed to record visit' }, { status: 500 });
   }
@@ -59,7 +54,6 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let client;
   try {
     const { id: shopId } = await params;
     const { searchParams } = new URL(request.url);
@@ -67,16 +61,15 @@ export async function GET(
     const orderbookerId = searchParams.get('orderbookerId');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     const conditions: string[] = [`v."shopId" = $1`];
-    const params: any[] = [shopId];
+    const sqlParams: any[] = [shopId];
     let paramIndex = 2;
 
     if (orderbookerId) {
       conditions.push(`v."orderbookerId" = $${paramIndex++}`);
-      params.push(orderbookerId);
+      sqlParams.push(orderbookerId);
     }
 
     if (date) {
@@ -85,21 +78,21 @@ export async function GET(
       const start = new Date(Date.UTC(year, month - 1, day, -5, 0, 0, 0));
       const end = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
       conditions.push(`v."createdAt" >= $${paramIndex++}`);
-      params.push(start.toISOString());
+      sqlParams.push(start.toISOString());
       conditions.push(`v."createdAt" <= $${paramIndex++}`);
-      params.push(end.toISOString());
+      sqlParams.push(end.toISOString());
     }
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
-    const visitsRes = await client.query(
+    const visitsRes = await pool.query(
       `SELECT v.*, u.name AS "orderbookerName"
        FROM "ShopVisit" v
        LEFT JOIN "User" u ON v."orderbookerId" = u.id
        ${whereClause}
        ORDER BY v."createdAt" DESC
        LIMIT $${paramIndex++}`,
-      [...params, limit]
+      [...sqlParams, limit]
     );
 
     const visits = visitsRes.rows.map((v: any) => ({
@@ -114,10 +107,8 @@ export async function GET(
       createdAt: v.createdAt instanceof Date ? v.createdAt.toISOString() : v.createdAt,
     }));
 
-    await client.end();
     return NextResponse.json(visits);
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error fetching shop visits:', error);
     return NextResponse.json({ error: 'Failed to fetch visits' }, { status: 500 });
   }

@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // POST /api/admin/backfill-user-companies
 // One-time migration: populate UserCompany table from existing User.companyId
 export async function POST(request: NextRequest) {
-  let client;
   try {
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Get all orderbookers with a companyId
-    const obRes = await client.query(
+    const obRes = await pool.query(
       `SELECT id, "companyId" FROM "User" WHERE role = 'orderbooker' AND "companyId" IS NOT NULL`
     );
 
@@ -21,7 +19,7 @@ export async function POST(request: NextRequest) {
     for (const ob of obRes.rows) {
       try {
         // Check if UserCompany record already exists
-        const existing = await client.query(
+        const existing = await pool.query(
           `SELECT id FROM "UserCompany" WHERE "userId" = $1 AND "companyId" = $2`,
           [ob.id, ob.companyId]
         );
@@ -34,7 +32,7 @@ export async function POST(request: NextRequest) {
         // Create UserCompany record
         const now = new Date().toISOString();
         const ucId = `uc_${ob.id}_${ob.companyId}`;
-        await client.query(
+        await pool.query(
           `INSERT INTO "UserCompany" (id, "userId", "companyId", "isPrimary", "createdAt", "updatedAt")
            VALUES ($1, $2, $3, true, $4, $4)`,
           [ucId, ob.id, ob.companyId, now]
@@ -45,7 +43,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await client.end();
     return NextResponse.json({
       success: true,
       total: obRes.rows.length,
@@ -54,7 +51,6 @@ export async function POST(request: NextRequest) {
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error: any) {
-    if (client) await client.end().catch(() => {});
     console.error('Backfill error:', error);
     return NextResponse.json({ error: error.message || 'Backfill failed' }, { status: 500 });
   }

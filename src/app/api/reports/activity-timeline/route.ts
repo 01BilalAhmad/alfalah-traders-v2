@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 function getTimeAgo(date: Date): string {
   const now = new Date();
@@ -19,7 +19,6 @@ function getTimeAgo(date: Date): string {
 
 // GET /api/reports/activity-timeline?limit=50&offset=0&type=all
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
@@ -43,8 +42,7 @@ export async function GET(request: NextRequest) {
     let recoveryCount = 0;
     let editCount = 0;
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Fetch transactions (credit + recovery)
     if (type === 'all' || type === 'credit' || type === 'recovery') {
@@ -71,7 +69,7 @@ export async function GET(request: NextRequest) {
       txnQuery += ` ORDER BY t."createdAt" DESC LIMIT $${txnParams.length + 1}`;
       txnParams.push(fetchLimit);
 
-      const txnRes = await client.query(txnQuery, txnParams);
+      const txnRes = await pool.query(txnQuery, txnParams);
       const transactions: any[] = txnRes.rows;
 
       for (const txn of transactions) {
@@ -101,7 +99,7 @@ export async function GET(request: NextRequest) {
     // Fetch audit log edits
     if (type === 'all' || type === 'edit') {
       const editLimit = type === 'all' ? limit + offset : Math.ceil((limit + offset) * 0.6);
-      const editRes = await client.query(
+      const editRes = await pool.query(
         `SELECT a.id, a.action, a."entityType", a."entityId", a.description, a."createdAt",
                 u.id AS "performer_id", u.name AS "performer_name", u.role AS "performer_role"
          FROM "AuditLog" a
@@ -120,7 +118,7 @@ export async function GET(request: NextRequest) {
         // Try to extract shop name from description or entity
         if (log.entityType === 'shop' && log.entityId) {
           try {
-            const shopRes = await client.query(
+            const shopRes = await pool.query(
               'SELECT name, area FROM "Shop" WHERE id = $1',
               [log.entityId]
             );
@@ -152,9 +150,9 @@ export async function GET(request: NextRequest) {
     // If fetching 'all', also get counts for types we might not have fully loaded
     if (type === 'all') {
       const [creditCountRes, recoveryCountRes, editCountRes] = await Promise.all([
-        client.query('SELECT COUNT(*) FROM "Transaction" WHERE type = \'credit\' AND status = \'approved\''),
-        client.query('SELECT COUNT(*) FROM "Transaction" WHERE type = \'recovery\' AND status = \'approved\''),
-        client.query('SELECT COUNT(*) FROM "AuditLog" WHERE action = \'edit\''),
+        pool.query('SELECT COUNT(*) FROM "Transaction" WHERE type = \'credit\' AND status = \'approved\''),
+        pool.query('SELECT COUNT(*) FROM "Transaction" WHERE type = \'recovery\' AND status = \'approved\''),
+        pool.query('SELECT COUNT(*) FROM "AuditLog" WHERE action = \'edit\''),
       ]);
       creditCount = parseInt(creditCountRes.rows[0].count, 10);
       recoveryCount = parseInt(recoveryCountRes.rows[0].count, 10);
@@ -168,7 +166,6 @@ export async function GET(request: NextRequest) {
     const totalCount = activities.length;
     const paginatedActivities = activities.slice(offset, offset + limit);
 
-    await client.end();
     return NextResponse.json({
       activities: paginatedActivities,
       counts: {
@@ -181,7 +178,6 @@ export async function GET(request: NextRequest) {
       hasMore: offset + limit < totalCount,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error fetching activity timeline:', error);
     return NextResponse.json({ error: 'Failed to fetch activity timeline' }, { status: 500 });
   }

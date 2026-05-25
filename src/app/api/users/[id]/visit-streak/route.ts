@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/users/:id/visit-streak - Get visit streak for an orderbooker
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let client;
   try {
     const { id: orderbookerId } = await params;
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Calculate visit streak from actual visit records
     // A "visit day" is any day where the orderbooker has at least one ShopVisit
-    const visitsRes = await client.query(
+    const visitsRes = await pool.query(
       `SELECT DATE("createdAt") AS visit_date
        FROM "ShopVisit"
        WHERE "orderbookerId" = $1
@@ -33,7 +31,7 @@ export async function GET(
     });
 
     // Also check recovery transactions as visits (for backward compat before ShopVisit table existed)
-    const txVisitsRes = await client.query(
+    const txVisitsRes = await pool.query(
       `SELECT DATE("createdAt") AS visit_date
        FROM "Transaction"
        WHERE "createdBy" = $1 AND type = 'recovery' AND status = 'approved'
@@ -98,7 +96,6 @@ export async function GET(
       longestStreak = Math.max(longestStreak, tempStreak, currentStreak);
     }
 
-    await client.end();
     return NextResponse.json({
       orderbookerId,
       currentStreak,
@@ -107,7 +104,6 @@ export async function GET(
       totalVisitDays: allDates.length,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error fetching visit streak:', error);
     return NextResponse.json({ error: 'Failed to fetch visit streak' }, { status: 500 });
   }

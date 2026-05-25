@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient, toPgArray } from '@/lib/pg';
+import { getClient, toPgArray } from '@/lib/pg';
 import crypto from 'crypto';
 
 // POST /api/shops/bulk-assign-secondary - Bulk assign a secondary orderbooker to multiple shops for a specific company
 export async function POST(request: NextRequest) {
-  let client;
+  const client = await getClient();
   try {
     const { shopIds, orderbookerId, companyId, routeDays, createCompanyBalance } = await request.json();
 
@@ -21,8 +21,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'companyId is required' }, { status: 400 });
     }
 
-    client = getPgClient();
-    await client.connect();
+    await client.query('BEGIN');
 
     // Verify the orderbooker exists and is active
     const obRes = await client.query(
@@ -31,13 +30,13 @@ export async function POST(request: NextRequest) {
     );
 
     if (obRes.rows.length === 0) {
-      await client.end();
+      await client.query('ROLLBACK');
       return NextResponse.json({ error: 'Orderbooker not found. Please select a valid orderbooker.' }, { status: 404 });
     }
 
     const orderbooker = obRes.rows[0];
     if (orderbooker.status !== 'active') {
-      await client.end();
+      await client.query('ROLLBACK');
       return NextResponse.json({ error: `"${orderbooker.name}" is currently inactive. Please activate them first or choose a different orderbooker.` }, { status: 400 });
     }
 
@@ -48,7 +47,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (compRes.rows.length === 0) {
-      await client.end();
+      await client.query('ROLLBACK');
       return NextResponse.json({ error: 'Company not found. Please select a valid company.' }, { status: 404 });
     }
 
@@ -162,14 +161,16 @@ export async function POST(request: NextRequest) {
       console.error('Audit log creation failed (non-blocking):', auditError);
     }
 
-    await client.end();
+    await client.query('COMMIT');
     return NextResponse.json({ success: true, assigned, skipped, errors });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Error bulk assigning secondary orderbooker:', error);
     return NextResponse.json(
       { error: `Failed to bulk assign secondary orderbooker: ${(error as Error)?.message || 'Unknown error'}` },
       { status: 500 }
     );
+  } finally {
+    client.release();
   }
 }

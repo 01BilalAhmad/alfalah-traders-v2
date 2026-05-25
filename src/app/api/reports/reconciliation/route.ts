@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // Helper: Convert a date string (YYYY-MM-DD) to UTC day boundaries
 function getDayRange(dateStr: string): { start: Date; end: Date } {
@@ -11,7 +11,6 @@ function getDayRange(dateStr: string): { start: Date; end: Date } {
 
 // GET /api/reports/reconciliation?date=xxx
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get('date');
@@ -36,11 +35,10 @@ export async function GET(request: NextRequest) {
       displayDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     }
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Get all transactions for the day with shop and creator info
-    const dayTxnRes = await client.query(
+    const dayTxnRes = await pool.query(
       `SELECT t.id, t.type, t.amount, t."shopId", t."createdAt", t.description,
               s.id AS "shop_id", s.name AS "shop_name", s.area AS "shop_area", s."orderbookerId" AS "shop_orderbookerId",
               c.id AS "creator_id", c.name AS "creator_name", c.role AS "creator_role"
@@ -67,7 +65,7 @@ export async function GET(request: NextRequest) {
     const orderbookerIds = [...new Set(dayTransactions.map((t: any) => t.shop_orderbookerId).filter(Boolean))];
     const orderbookerStats = await Promise.all(
       orderbookerIds.map(async (obId: string) => {
-        const obRes = await client!.query(
+        const obRes = await pool.query(
           'SELECT id, name FROM "User" WHERE id = $1',
           [obId]
         );
@@ -79,7 +77,7 @@ export async function GET(request: NextRequest) {
         // Get shop-level details
         const shopDetails = await Promise.all(
           [...new Set(obTransactions.map((t: any) => t.shopId))].map(async (shopId: string) => {
-            const shopRes = await client!.query(
+            const shopRes = await pool.query(
               'SELECT id, name, area, balance FROM "Shop" WHERE id = $1',
               [shopId]
             );
@@ -110,7 +108,6 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    await client.end();
     return NextResponse.json({
       date: displayDate,
       totalCredit: Math.round(totalCredit * 100) / 100,
@@ -120,7 +117,6 @@ export async function GET(request: NextRequest) {
       orderbookers: orderbookerStats,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error generating reconciliation report:', error);
     return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 });
   }

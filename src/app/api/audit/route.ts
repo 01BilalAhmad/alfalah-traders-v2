@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/audit?action=xxx&entityType=xxx&page=1&limit=50
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
@@ -12,8 +11,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100');
     const search = searchParams.get('search');
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     const conditions: string[] = [];
     const params: any[] = [];
@@ -36,7 +34,7 @@ export async function GET(request: NextRequest) {
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     // Count total
-    const countRes = await client.query(
+    const countRes = await pool.query(
       `SELECT COUNT(*) FROM "AuditLog" a ${whereClause}`,
       params
     );
@@ -44,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch paginated logs
     const offset = (page - 1) * limit;
-    const logsRes = await client.query(
+    const logsRes = await pool.query(
       `SELECT a.*, u.id AS "performer_id", u.name AS "performer_name", u.role AS "performer_role"
        FROM "AuditLog" a
        LEFT JOIN "User" u ON a."performedBy" = u.id
@@ -71,7 +69,6 @@ export async function GET(request: NextRequest) {
       } : null,
     }));
 
-    await client.end();
     return NextResponse.json({
       logs,
       total,
@@ -79,7 +76,6 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error fetching audit logs:', error);
     return NextResponse.json({ error: 'Failed to fetch audit logs' }, { status: 500 });
   }

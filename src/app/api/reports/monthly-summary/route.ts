@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/reports/monthly-summary?month=2026-04
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const monthParam = searchParams.get('month');
@@ -30,11 +29,10 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Fetch all transactions in the month with shop and creator info
-    const monthTxnRes = await client.query(
+    const monthTxnRes = await pool.query(
       `SELECT t.id, t.type, t.amount, t."shopId", t."createdBy", t."createdAt",
               s.id AS "shop_id", s.name AS "shop_name", s.area AS "shop_area",
               c.id AS "creator_id", c.name AS "creator_name"
@@ -151,7 +149,6 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.credit - a.credit);
 
-    await client.end();
     return NextResponse.json({
       month: `${year}-${String(month).padStart(2, '0')}`,
       monthLabel: new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
@@ -166,7 +163,6 @@ export async function GET(request: NextRequest) {
       orderbookerBreakdown,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error generating monthly summary:', error);
     return NextResponse.json({ error: 'Failed to generate monthly summary' }, { status: 500 });
   }

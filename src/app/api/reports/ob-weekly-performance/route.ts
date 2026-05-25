@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLocalDateString } from '@/lib/utils';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/reports/ob-weekly-performance?orderbookerId=xxx&weeks=4
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const orderbookerId = searchParams.get('orderbookerId');
@@ -17,17 +16,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Fetch orderbooker info
-    const obRes = await client.query(
+    const obRes = await pool.query(
       `SELECT id, name FROM "User" WHERE id = $1`,
       [orderbookerId]
     );
 
     if (obRes.rows.length === 0) {
-      await client.end();
       return NextResponse.json(
         { error: 'Orderbooker not found' },
         { status: 404 }
@@ -73,7 +70,7 @@ export async function GET(request: NextRequest) {
     const overallStart = weekRanges[0].start;
     const overallEnd = weekRanges[weekRanges.length - 1].end;
 
-    const txnRes = await client.query(
+    const txnRes = await pool.query(
       `SELECT amount, "createdAt", "shopId" FROM "Transaction"
        WHERE type = 'recovery' AND status = 'approved' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3
        ORDER BY "createdAt" ASC`,
@@ -151,7 +148,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    await client.end();
     return NextResponse.json({
       orderbookerName: orderbooker.name,
       totalRecovered: Math.round(totalRecovered),
@@ -163,7 +159,6 @@ export async function GET(request: NextRequest) {
       weeklyData,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error generating weekly performance:', error);
     return NextResponse.json(
       { error: 'Failed to generate weekly performance report' },

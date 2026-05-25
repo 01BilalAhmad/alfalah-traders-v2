@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getClient } from '@/lib/pg';
 import crypto from 'crypto';
 
 // POST /api/shops/recalculate-balance
 // Recalculates shop balance from actual transactions (fixes corrupted balances)
 export async function POST(request: NextRequest) {
-  let client;
+  const client = await getClient();
   try {
     const body = await request.json();
     const { shopId, shopName } = body;
@@ -14,8 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Provide shopId or shopName' }, { status: 400 });
     }
 
-    client = getPgClient();
-    await client.connect();
+    await client.query('BEGIN');
 
     // Find the shop
     let shopQuery: string;
@@ -30,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     const shopRes = await client.query(shopQuery, shopParams);
     if (shopRes.rows.length === 0) {
-      await client.end();
+      await client.query('ROLLBACK');
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
 
@@ -167,17 +166,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    await client.end();
+    await client.query('COMMIT');
     return NextResponse.json({ success: true, results });
   } catch (error: any) {
-    if (client) {
-      await client.end().catch(() => {});
-    }
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Error recalculating balance:', error);
     return NextResponse.json({ 
       error: 'Failed to recalculate balance', 
       detail: error?.message || String(error),
       stack: error?.code || undefined
     }, { status: 500 });
+  } finally {
+    client.release();
   }
 }

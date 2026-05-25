@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/reports/shop-detail?shopId=xxx
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const shopId = searchParams.get('shopId');
@@ -12,11 +11,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Shop ID is required' }, { status: 400 });
     }
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Fetch shop with orderbooker
-    const shopRes = await client.query(
+    const shopRes = await pool.query(
       `SELECT s.*, u.id AS "ob_id", u.name AS "ob_name"
        FROM "Shop" s
        LEFT JOIN "User" u ON s."orderbookerId" = u.id
@@ -25,14 +23,13 @@ export async function GET(request: NextRequest) {
     );
 
     if (shopRes.rows.length === 0) {
-      await client.end();
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
 
     const shop = shopRes.rows[0];
 
     // Fetch all transactions for this shop with creator info
-    const txnRes = await client.query(
+    const txnRes = await pool.query(
       `SELECT t.*, u.id AS "creator_id", u.name AS "creator_name", u.role AS "creator_role"
        FROM "Transaction" t
        LEFT JOIN "User" u ON t."createdBy" = u.id
@@ -117,7 +114,6 @@ export async function GET(request: NextRequest) {
       createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : t.createdAt,
     }));
 
-    await client.end();
     return NextResponse.json({
       shop: {
         id: shop.id,
@@ -150,7 +146,6 @@ export async function GET(request: NextRequest) {
       recoveryRate: Math.round(recoveryRate * 10) / 10,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error fetching shop detail analytics:', error);
     return NextResponse.json({ error: 'Failed to fetch shop detail analytics' }, { status: 500 });
   }

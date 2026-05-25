@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 import crypto from 'crypto';
 
 // PATCH /api/shops/bulk-status
 export async function PATCH(request: NextRequest) {
-  let client;
   try {
     const { shopIds, status } = await request.json();
 
@@ -16,12 +15,11 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'status must be "active" or "inactive"' }, { status: 400 });
     }
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Update all shops
     const placeholders = shopIds.map((_: unknown, idx: number) => `$${idx + 1}`).join(', ');
-    const updateRes = await client.query(
+    const updateRes = await pool.query(
       `UPDATE "Shop" SET status = $${shopIds.length + 1} WHERE id IN (${placeholders})`,
       [...shopIds, status]
     );
@@ -31,7 +29,7 @@ export async function PATCH(request: NextRequest) {
     // Create audit log entry (best-effort)
     try {
       const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
-      await client.query(
+      await pool.query(
         `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "newValue", description)
          VALUES ($1, 'edit', 'shop', 'bulk', $2, $3)`,
         [
@@ -44,10 +42,8 @@ export async function PATCH(request: NextRequest) {
       console.error('Audit log creation failed (non-blocking):', auditError);
     }
 
-    await client.end();
     return NextResponse.json({ success: true, updated: resultCount });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error bulk updating shop status:', error);
     return NextResponse.json({ error: 'Failed to bulk update shop status' }, { status: 500 });
   }

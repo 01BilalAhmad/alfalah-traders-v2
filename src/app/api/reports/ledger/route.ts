@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/reports/ledger?shopId=xxx&companyId=xxx
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const shopId = searchParams.get('shopId');
@@ -15,11 +14,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Shop ID is required' }, { status: 400 });
     }
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Fetch shop with orderbooker info + company balances
-    const shopRes = await client.query(
+    const shopRes = await pool.query(
       `SELECT s.*, u.id AS "ob_id", u.name AS "ob_name", u.phone AS "ob_phone"
        FROM "Shop" s
        LEFT JOIN "User" u ON s."orderbookerId" = u.id
@@ -28,7 +26,6 @@ export async function GET(request: NextRequest) {
     );
 
     if (shopRes.rows.length === 0) {
-      await client.end();
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
 
@@ -37,7 +34,7 @@ export async function GET(request: NextRequest) {
     // Fetch company balances for this shop
     let companyBalances: { companyId: string; companyName: string; balance: number }[] = [];
     try {
-      const scbRes = await client.query(
+      const scbRes = await pool.query(
         `SELECT scb."companyId", c.name AS "companyName", scb.balance
          FROM "ShopCompanyBalance" scb
          LEFT JOIN "Company" c ON scb."companyId" = c.id
@@ -78,7 +75,7 @@ export async function GET(request: NextRequest) {
       txnParams.push(limit);
     }
 
-    const txnRes = await client.query(txnQuery, txnParams);
+    const txnRes = await pool.query(txnQuery, txnParams);
     const transactions: any[] = txnRes.rows;
 
     // Map transactions to match the previous Prisma output shape
@@ -122,7 +119,6 @@ export async function GET(request: NextRequest) {
       currentBalance = companyBal ? companyBal.balance : 0;
     }
 
-    await client.end();
     return NextResponse.json({
       shop: {
         id: shop.id,
@@ -149,7 +145,6 @@ export async function GET(request: NextRequest) {
       companyBalances,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error generating ledger:', error);
     return NextResponse.json({ error: 'Failed to generate ledger' }, { status: 500 });
   }

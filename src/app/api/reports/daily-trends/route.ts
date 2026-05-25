@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/reports/daily-trends
 // Returns last 7 days: [{ date, credit, recovery, net }]
 export async function GET() {
-  let client;
   try {
     const today = new Date();
     const days: { date: string; label: string; credit: number; recovery: number; net: number }[] = [];
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
@@ -22,7 +20,7 @@ export async function GET() {
 
       const dateStr = startOfDay.toISOString().split('T')[0];
 
-      const txnRes = await client.query(
+      const txnRes = await pool.query(
         `SELECT type, amount FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND status = 'approved'`,
         [startOfDay.toISOString(), endOfDay.toISOString()]
       );
@@ -49,10 +47,8 @@ export async function GET() {
       });
     }
 
-    await client.end();
     return NextResponse.json(days);
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error generating daily trends:', error);
     return NextResponse.json({ error: 'Failed to generate daily trends' }, { status: 500 });
   }

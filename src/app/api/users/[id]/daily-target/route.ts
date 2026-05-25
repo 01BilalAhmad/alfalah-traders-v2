@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 import crypto from 'crypto';
 
 // GET /api/users/:id/daily-target?month=YYYY-MM
@@ -7,14 +7,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let client;
   try {
     const { id: userId } = await params;
     const { searchParams } = new URL(request.url);
     const month = searchParams.get('month'); // YYYY-MM format
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     const conditions: string[] = [`"orderbookerId" = $1`];
     const queryParams: any[] = [userId];
@@ -27,7 +25,7 @@ export async function GET(
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
-    const targetRes = await client.query(
+    const targetRes = await pool.query(
       `SELECT * FROM "DailyTarget" ${whereClause} ORDER BY month DESC`,
       queryParams
     );
@@ -42,15 +40,12 @@ export async function GET(
       updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : t.updatedAt,
     }));
 
-    await client.end();
-
     // If specific month requested, return single target or null
     if (month) {
       return NextResponse.json(targets[0] || null);
     }
     return NextResponse.json(targets);
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error fetching daily target:', error);
     return NextResponse.json({ error: 'Failed to fetch target' }, { status: 500 });
   }
@@ -61,7 +56,6 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let client;
   try {
     const { id: orderbookerId } = await params;
     const { target, month, createdBy } = await request.json();
@@ -78,11 +72,10 @@ export async function POST(
       return NextResponse.json({ error: 'Target must be greater than 0' }, { status: 400 });
     }
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Upsert: if target exists for this orderbooker+month, update it
-    const existingRes = await client.query(
+    const existingRes = await pool.query(
       'SELECT id FROM "DailyTarget" WHERE "orderbookerId" = $1 AND month = $2',
       [orderbookerId, month]
     );
@@ -90,7 +83,7 @@ export async function POST(
     let result;
     if (existingRes.rows.length > 0) {
       // Update
-      const updateRes = await client.query(
+      const updateRes = await pool.query(
         `UPDATE "DailyTarget" SET target = $1, "createdBy" = $2, "updatedAt" = NOW()
          WHERE "orderbookerId" = $3 AND month = $4
          RETURNING *`,
@@ -100,7 +93,7 @@ export async function POST(
     } else {
       // Insert
       const targetId = `target_${Date.now().toString(36)}_${crypto.randomBytes(6).toString('hex')}`;
-      const insertRes = await client.query(
+      const insertRes = await pool.query(
         `INSERT INTO "DailyTarget" (id, "orderbookerId", target, month, "createdBy", "createdAt", "updatedAt")
          VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
          RETURNING *`,
@@ -109,7 +102,6 @@ export async function POST(
       result = insertRes.rows[0];
     }
 
-    await client.end();
     return NextResponse.json({
       id: result.id,
       orderbookerId: result.orderbookerId,
@@ -120,7 +112,6 @@ export async function POST(
       updatedAt: result.updatedAt instanceof Date ? result.updatedAt.toISOString() : result.updatedAt,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error saving daily target:', error);
     return NextResponse.json({ error: 'Failed to save target' }, { status: 500 });
   }
@@ -131,7 +122,6 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let client;
   try {
     const { id: orderbookerId } = await params;
     const { searchParams } = new URL(request.url);
@@ -141,23 +131,19 @@ export async function DELETE(
       return NextResponse.json({ error: 'month query param is required' }, { status: 400 });
     }
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
-    const deleteRes = await client.query(
+    const deleteRes = await pool.query(
       'DELETE FROM "DailyTarget" WHERE "orderbookerId" = $1 AND month = $2 RETURNING id',
       [orderbookerId, month]
     );
 
     if (deleteRes.rows.length === 0) {
-      await client.end();
       return NextResponse.json({ error: 'Target not found' }, { status: 404 });
     }
 
-    await client.end();
     return NextResponse.json({ success: true });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error deleting daily target:', error);
     return NextResponse.json({ error: 'Failed to delete target' }, { status: 500 });
   }

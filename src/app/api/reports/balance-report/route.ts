@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 const DAYS_ORDER = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -7,15 +7,13 @@ const DAYS_ORDER = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'fri
 // Returns shops with remaining balance > 0, grouped by orderbooker and company
 // routeDay filter: when provided, only shows shops that have that route day
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const orderbookerId = searchParams.get('orderbookerId') || '';
     const companyId = searchParams.get('companyId') || '';
     const routeDay = searchParams.get('routeDay') || '';
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Build the query for shops with remaining balance
     // Using ShopCompanyBalance for per-company balance
@@ -49,7 +47,7 @@ export async function GET(request: NextRequest) {
     const whereClause = whereConditions.join(' AND ');
 
     // Fetch shop balances grouped by orderbooker and company
-    const balanceRes = await client.query(
+    const balanceRes = await pool.query(
       `SELECT
         s.id as "shopId",
         s.name as "shopName",
@@ -74,12 +72,12 @@ export async function GET(request: NextRequest) {
     );
 
     // Also fetch all orderbookers for filter dropdown
-    const obRes = await client.query(
+    const obRes = await pool.query(
       'SELECT id, name FROM "User" WHERE role = \'orderbooker\' AND status = \'active\' ORDER BY name ASC'
     );
 
     // Fetch all companies for filter dropdown
-    const compRes = await client.query(
+    const compRes = await pool.query(
       'SELECT id, name FROM "Company" WHERE status = \'active\' ORDER BY name ASC'
     );
 
@@ -186,7 +184,7 @@ export async function GET(request: NextRequest) {
 
       const junctionWhereClause = junctionWhereConditions.join(' AND ');
 
-      const junctionRes = await client.query(
+      const junctionRes = await pool.query(
         `SELECT
           s.id as "shopId",
           so."routeDays" as "junctionRouteDays",
@@ -252,8 +250,6 @@ export async function GET(request: NextRequest) {
     // Grand total
     const grandTotal = Math.round(orderbookers.reduce((s, ob) => s + ob.totalBalance, 0) * 100) / 100;
 
-    await client.end();
-
     return NextResponse.json({
       orderbookers,
       grandTotal,
@@ -264,7 +260,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error generating balance report:', error);
     return NextResponse.json({ error: 'Failed to generate balance report' }, { status: 500 });
   }

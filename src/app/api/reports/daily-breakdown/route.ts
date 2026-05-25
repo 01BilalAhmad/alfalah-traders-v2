@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/reports/daily-breakdown?userId=xxx&days=28
 // Returns pre-aggregated daily credit/recovery totals for chart (solves 70-request problem)
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -14,8 +13,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Calculate date range in Pakistan timezone
     const pkOffset = 5 * 60; // UTC+5
@@ -25,7 +23,7 @@ export async function GET(request: NextRequest) {
     startDate.setHours(0, 0, 0, 0);
 
     // Single query to get all daily totals
-    const breakdownRes = await client.query(
+    const breakdownRes = await pool.query(
       `SELECT
          DATE(t."createdAt") AS date,
          t.type,
@@ -82,7 +80,6 @@ export async function GET(request: NextRequest) {
     const totalCredit = breakdown.reduce((s, d) => s + d.credit, 0);
     const totalRecovery = breakdown.reduce((s, d) => s + d.recovery, 0);
 
-    await client.end();
     return NextResponse.json({
       days,
       totalCredit: Math.round(totalCredit * 100) / 100,
@@ -90,7 +87,6 @@ export async function GET(request: NextRequest) {
       breakdown,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error generating daily breakdown:', error);
     return NextResponse.json({ error: 'Failed to generate daily breakdown' }, { status: 500 });
   }

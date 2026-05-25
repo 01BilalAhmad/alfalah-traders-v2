@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/companies/distributor-phone?companyId=xxx
 // Mobile app calls this to get the distributor phone for receipts
 // If companyId is provided, returns that company's distributor phone
 // If not, returns the first active company's distributor phone
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     let query: string;
     let params: string[];
@@ -25,8 +23,7 @@ export async function GET(request: NextRequest) {
       params = ['active'];
     }
 
-    const res = await client.query(query, params);
-    await client.end();
+    const res = await pool.query(query, params);
 
     if (res.rows.length === 0) {
       return NextResponse.json({ distributorPhone: null, companyName: null });
@@ -39,7 +36,6 @@ export async function GET(request: NextRequest) {
       companyId: company.id,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error fetching distributor phone:', error);
     return NextResponse.json({ distributorPhone: null, companyName: null }, { status: 500 });
   }

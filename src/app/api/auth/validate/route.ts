@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/auth/validate — Validates if the current session token is valid
 export async function GET(request: NextRequest) {
@@ -38,17 +38,13 @@ export async function GET(request: NextRequest) {
   }
 
   // Verify user exists in database
-  let client;
   try {
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
-    const res = await client.query(
+    const res = await pool.query(
       'SELECT id, username, name, role, status FROM "User" WHERE id = $1',
       [userId]
     );
-
-    await client.end();
 
     if (res.rows.length === 0) {
       return NextResponse.json({
@@ -70,7 +66,6 @@ export async function GET(request: NextRequest) {
       message: `Authenticated as ${user.name} (${user.role})`,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Token validation error:', error);
     // Still return valid for connectivity check, but note DB issue
     return NextResponse.json({

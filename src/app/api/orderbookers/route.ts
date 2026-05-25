@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/orderbookers - List all orderbookers with their shop counts, balances, and companies
 export async function GET() {
-  let client;
   try {
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Get all orderbookers with primary company and shop stats
-    const obRes = await client.query(
+    const obRes = await pool.query(
       `SELECT u.id, u.username, u.name, u.phone, u.status, u."createdAt", u."allRoutesEnabled", u."companyId",
               c.name AS "companyName",
               COUNT(s.id) AS "activeShopCount",
@@ -24,7 +22,7 @@ export async function GET() {
     );
 
     // Get all UserCompany assignments for all orderbookers in one query
-    const ucRes = await client.query(
+    const ucRes = await pool.query(
       `SELECT uc."userId", uc."companyId", uc."isPrimary", c.name AS "companyName"
        FROM "UserCompany" uc
        JOIN "Company" c ON uc."companyId" = c.id
@@ -57,10 +55,8 @@ export async function GET() {
       totalOutstanding: Math.round(Number(ob.totalOutstanding) * 100) / 100,
     }));
 
-    await client.end();
     return NextResponse.json(orderbookersWithBalance);
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error fetching orderbookers:', error);
     return NextResponse.json({ error: 'Failed to fetch orderbookers' }, { status: 500 });
   }
@@ -68,7 +64,6 @@ export async function GET() {
 
 // POST /api/orderbookers - Create a new orderbooker
 export async function POST(request: NextRequest) {
-  let client;
   try {
     const { username, password, name, phone, companyId, companyIds } = await request.json();
 
@@ -79,16 +74,14 @@ export async function POST(request: NextRequest) {
     // Normalize username to lowercase
     const normalizedUsername = username.trim().toLowerCase();
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // Check if username already exists (case-insensitive)
-    const existingRes = await client.query(
+    const existingRes = await pool.query(
       `SELECT id, name FROM "User" WHERE LOWER(username) = LOWER($1)`,
       [normalizedUsername]
     );
     if (existingRes.rows.length > 0) {
-      await client.end();
       return NextResponse.json({ error: `Username already exists (used by ${existingRes.rows[0].name})` }, { status: 409 });
     }
 
@@ -101,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     const userId = `user_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
     const now = new Date().toISOString();
-    const obRes = await client.query(
+    const obRes = await pool.query(
       `INSERT INTO "User" (id, username, password, name, phone, role, status, "companyId", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, $5, 'orderbooker', 'active', $6, $7, $8)
        RETURNING id, username, name, phone, role, status, "companyId", "createdAt", "updatedAt"`,
@@ -113,7 +106,7 @@ export async function POST(request: NextRequest) {
     // Create UserCompany records for all assigned companies
     for (let i = 0; i < effectiveCompanyIds.length; i++) {
       const ucId = `uc_${Date.now().toString(36)}_${crypto.randomBytes(6).toString('hex')}_${i}`;
-      await client.query(
+      await pool.query(
         `INSERT INTO "UserCompany" (id, "userId", "companyId", "isPrimary", "createdAt", "updatedAt")
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [ucId, userId, effectiveCompanyIds[i], i === 0, now, now]
@@ -123,17 +116,15 @@ export async function POST(request: NextRequest) {
     // Audit log (best-effort)
     try {
       const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
-      await client.query(
+      await pool.query(
         `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "newValue", description)
          VALUES ($1, 'create', 'user', $2, $3, $4)`,
         [auditId, orderbooker.id, JSON.stringify({ username: normalizedUsername, name, phone, role: 'orderbooker', companyIds: effectiveCompanyIds }), `Created orderbooker: ${name}`]
       );
     } catch { /* non-blocking */ }
 
-    await client.end();
     return NextResponse.json(orderbooker, { status: 201 });
   } catch (error: unknown) {
-    if (client) await client.end().catch(() => {});
     if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === '23505') {
       return NextResponse.json({ error: 'Username already exists' }, { status: 409 });
     }
@@ -144,16 +135,13 @@ export async function POST(request: NextRequest) {
 
 // PATCH /api/orderbookers - Update orderbooker (including multi-company assignment)
 export async function PATCH(request: NextRequest) {
-  let client;
   try {
     const { id, name, phone, status, password, allRoutesEnabled, companyId, companyIds } = await request.json();
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
-    const existingRes = await client.query('SELECT * FROM "User" WHERE id = $1', [id]);
+    const existingRes = await pool.query('SELECT * FROM "User" WHERE id = $1', [id]);
     if (existingRes.rows.length === 0) {
-      await client.end();
       return NextResponse.json({ error: 'Orderbooker not found' }, { status: 404 });
     }
     const existing = existingRes.rows[0];
@@ -194,12 +182,11 @@ export async function PATCH(request: NextRequest) {
     params.push(new Date().toISOString());
 
     if (setClauses.length === 0 && effectiveCompanyIds === null) {
-      await client.end();
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
     params.push(id);
-    const updatedRes = await client.query(
+    const updatedRes = await pool.query(
       `UPDATE "User" SET ${setClauses.join(', ')} WHERE id = $${paramIndex}
        RETURNING id, username, name, phone, role, status, "allRoutesEnabled", "companyId", "createdAt", "updatedAt"`,
       params
@@ -209,13 +196,13 @@ export async function PATCH(request: NextRequest) {
     // Sync UserCompany records if companyIds was provided
     if (effectiveCompanyIds !== null) {
       // Delete existing UserCompany records for this user
-      await client.query(`DELETE FROM "UserCompany" WHERE "userId" = $1`, [id]);
+      await pool.query(`DELETE FROM "UserCompany" WHERE "userId" = $1`, [id]);
 
       // Insert new UserCompany records
       const now = new Date().toISOString();
       for (let i = 0; i < effectiveCompanyIds.length; i++) {
         const ucId = `uc_${Date.now().toString(36)}_${crypto.randomBytes(6).toString('hex')}_${i}`;
-        await client.query(
+        await pool.query(
           `INSERT INTO "UserCompany" (id, "userId", "companyId", "isPrimary", "createdAt", "updatedAt")
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [ucId, id, effectiveCompanyIds[i], i === 0, now, now]
@@ -226,17 +213,15 @@ export async function PATCH(request: NextRequest) {
     // Audit log (best-effort)
     try {
       const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
-      await client.query(
+      await pool.query(
         `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "oldValue", "newValue", description)
          VALUES ($1, 'edit', 'user', $2, $3, $4, $5)`,
         [auditId, id, JSON.stringify({ name: existing.name, phone: existing.phone, status: existing.status }), JSON.stringify({ name, phone, status, companyIds: effectiveCompanyIds }), `Updated orderbooker: ${existing.name}`]
       );
     } catch { /* non-blocking */ }
 
-    await client.end();
     return NextResponse.json(updated);
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error updating orderbooker:', error);
     return NextResponse.json({ error: 'Failed to update orderbooker' }, { status: 500 });
   }

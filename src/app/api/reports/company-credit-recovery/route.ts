@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPgClient } from '@/lib/pg';
+import { getPool } from '@/lib/pg';
 
 // GET /api/reports/company-credit-recovery?companyId=xxx&month=2026-05
 // Returns days-wise credit & recovery grouped by orderbooker for a specific company
 export async function GET(request: NextRequest) {
-  let client;
   try {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
@@ -36,23 +35,21 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(Date.UTC(year, month - 1, 1, -5, 0, 0, 0));
     const endDate = new Date(Date.UTC(year, month, 0, 18, 59, 59, 999));
 
-    client = getPgClient();
-    await client.connect();
+    const pool = getPool();
 
     // 1. Verify company exists
-    const companyRes = await client.query(
+    const companyRes = await pool.query(
       'SELECT id, name FROM "Company" WHERE id = $1',
       [companyId]
     );
     if (companyRes.rows.length === 0) {
-      await client.end();
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
     const companyName = companyRes.rows[0].name;
 
     // 2. Get all orderbookers for this company
     // Check UserCompany junction table (multi-company), ShopOrderbooker, AND legacy User.companyId
-    const obRes = await client.query(
+    const obRes = await pool.query(
       `SELECT DISTINCT u.id, u.name
        FROM "User" u
        WHERE u.role = 'orderbooker'
@@ -73,7 +70,6 @@ export async function GET(request: NextRequest) {
     const orderbookerIds = orderbookers.map((ob: { id: string }) => ob.id);
 
     if (orderbookerIds.length === 0) {
-      await client.end();
       const daysInMonth = new Date(year, month, 0).getDate();
       const days: { date: string; label: string }[] = [];
       for (let d = 1; d <= daysInMonth; d++) {
@@ -98,7 +94,7 @@ export async function GET(request: NextRequest) {
     // This is the sum of ShopCompanyBalance for ACTIVE shops belonging to each OB
     // NOTE: This is the CURRENT balance (includes all transactions up to now)
     // We will calculate the TRUE opening balance later by subtracting this month's transactions
-    const openingBalRes = await client.query(
+    const openingBalRes = await pool.query(
       `SELECT s."orderbookerId", COALESCE(SUM(scb.balance), 0) AS "currentBalance"
        FROM "ShopCompanyBalance" scb
        JOIN "Shop" s ON s.id = scb."shopId"
@@ -120,7 +116,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 4. Fetch all CREDIT transactions for this company in the month
-    const creditRes = await client.query(
+    const creditRes = await pool.query(
       `SELECT t."shopId", t."createdBy", t.amount, t."createdAt",
               s."orderbookerId" AS "shop_orderbookerId"
        FROM "Transaction" t
@@ -137,7 +133,7 @@ export async function GET(request: NextRequest) {
     // 5. Fetch all RECOVERY transactions for this company's orderbookers in the month
     // IMPORTANT: Filter by companyId so recovery from OTHER companies is NOT included
     const obPlaceholders = orderbookerIds.map((_: string, idx: number) => `$${idx + 4}`).join(', ');
-    const recoveryRes = await client.query(
+    const recoveryRes = await pool.query(
       `SELECT t."shopId", t."createdBy", t.amount, t."createdAt"
        FROM "Transaction" t
        WHERE t."companyId" = $3
@@ -274,8 +270,6 @@ export async function GET(request: NextRequest) {
       orderbookers.reduce((sum, ob) => sum + obTotals[ob.id].balance, 0) * 100
     ) / 100;
 
-    await client.end();
-
     return NextResponse.json({
       company: { id: companyId, name: companyName },
       month: `${year}-${String(month).padStart(2, '0')}`,
@@ -294,7 +288,6 @@ export async function GET(request: NextRequest) {
       workingDays,
     });
   } catch (error) {
-    if (client) await client.end().catch(() => {});
     console.error('Error generating company credit-recovery report:', error);
     return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 });
   }
