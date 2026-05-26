@@ -86,7 +86,10 @@ const globalForPool = globalThis as unknown as {
 };
 
 function createPool(): pg.Pool {
-  const connectionString = process.env.DATABASE_URL;
+  // Use POOLED connection for runtime queries (faster), fall back to DATABASE_URL
+  // DATABASE_URL should be the DIRECT connection (needed by prisma db push during build)
+  // DATABASE_URL_POOLED is the Neon pooler connection (for fast runtime queries)
+  const connectionString = process.env.DATABASE_URL_POOLED || process.env.DATABASE_URL;
 
   // Check if using Neon pooled connection
   const isPooled = connectionString?.includes('-pooler');
