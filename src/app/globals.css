@@ -330,6 +330,94 @@ textarea:focus-visible {
     color: black !important;
   }
 
+  /* ─── Hide Radix UI dialog overlays, backdrops, and portal wrappers ─── */
+  [data-radix-popper-content-wrapper],
+  [data-radix-overlay],
+  [data-radix-backdrop],
+  [data-state="open"][role="dialog"]:not(:has(.receipt-content)) {
+    display: none !important;
+  }
+
+  /* Hide the Dialog overlay/viewport container but keep receipt-content visible */
+  [data-radix-dialog-overlay],
+  [data-radix-dialog-viewport] {
+    display: none !important;
+  }
+
+  /* ─── Receipt isolation: when .receipt-root-wrapper is present ─── */
+  /* Hide everything in body except the receipt root wrapper */
+  body.printing-receipt > *:not(.receipt-root-wrapper) {
+    display: none !important;
+  }
+
+  /* Make receipt content the only visible element */
+  .receipt-content {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 600px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Force all receipt text to dark on white */
+  .receipt-content,
+  .receipt-content * {
+    color: #111827 !important;
+  }
+  /* Preserve white text on branded header */
+  .receipt-content .bg-primary,
+  .receipt-content .bg-primary * {
+    color: #ffffff !important;
+  }
+  /* Muted text should be gray, not invisible */
+  .receipt-content .text-muted-foreground {
+    color: #6B7280 !important;
+  }
+  /* Keep the branded header background */
+  .receipt-content .bg-primary {
+    background-color: #4F46E5 !important;
+  }
+  .receipt-content .bg-indigo-50 {
+    background-color: #EEF2FF !important;
+  }
+  .receipt-content .border-border\/40,
+  .receipt-content .border-border\/60 {
+    border-color: #E5E7EB !important;
+  }
+  /* Card bg in receipt should be white */
+  .receipt-content .dark\:bg-card {
+    background-color: #ffffff !important;
+  }
+
+  /* ─── Fix hidden sm:table-cell columns for print ─── */
+  .hidden.sm\:table-cell {
+    display: table-cell !important;
+  }
+  .hidden.sm\:inline {
+    display: inline !important;
+  }
+  .hidden.sm\:block {
+    display: block !important;
+  }
+
+  /* ─── Force black text on common dark: variants ─── */
+  .dark\:text-indigo-400,
+  .dark\:text-emerald-400,
+  .dark\:text-amber-400,
+  .dark\:text-violet-400,
+  .dark\:text-blue-400,
+  .dark\:text-green-400,
+  .dark\:text-red-400,
+  .dark\:text-indigo-300,
+  .dark\:text-emerald-300,
+  .dark\:text-slate-100,
+  .dark\:text-slate-300,
+  .dark\:text-cyan-400,
+  .dark\:text-amber-400 {
+    color: #111827 !important;
+  }
+
   /* Remove shadows and borders for cleaner print */
   * {
     box-shadow: none !important;
