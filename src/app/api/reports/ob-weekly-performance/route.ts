@@ -66,14 +66,16 @@ export async function GET(request: NextRequest) {
       weekRanges.push({ start: weekStart, end: weekEnd });
     }
 
-    // Fetch ALL recovery transactions for this orderbooker across all weeks
+    // Fetch ALL recovery transactions for this orderbooker's shops across all weeks
+    // FIX: Include admin-posted recoveries by filtering on shop's orderbookerId instead of createdBy
     const overallStart = weekRanges[0].start;
     const overallEnd = weekRanges[weekRanges.length - 1].end;
 
     const txnRes = await pool.query(
-      `SELECT amount, "createdAt", "shopId" FROM "Transaction"
-       WHERE type = 'recovery' AND status = 'approved' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3
-       ORDER BY "createdAt" ASC`,
+      `SELECT t.amount, t."createdAt", t."shopId" FROM "Transaction" t
+       LEFT JOIN "Shop" s ON t."shopId" = s.id
+       WHERE t.type = 'recovery' AND t.status = 'approved' AND s."orderbookerId" = $1 AND t."createdAt" >= $2 AND t."createdAt" <= $3
+       ORDER BY t."createdAt" ASC`,
       [orderbookerId, overallStart.toISOString(), overallEnd.toISOString()]
     );
     const transactions: any[] = txnRes.rows;

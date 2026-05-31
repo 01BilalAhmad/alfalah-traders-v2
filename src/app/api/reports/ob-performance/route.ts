@@ -58,16 +58,20 @@ export async function GET(request: NextRequest) {
         const totalShops = shops.length;
         const totalOutstanding = shops.reduce((sum: number, shop: any) => sum + Number(shop.balance), 0);
 
-        // Today's recovery
+        // Today's recovery (including admin-posted recoveries for this OB's shops)
         const todayRecoveryRes = await pool.query(
-          `SELECT amount FROM "Transaction" WHERE type = 'recovery' AND status = 'approved' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3`,
+          `SELECT t.amount FROM "Transaction" t
+           LEFT JOIN "Shop" s ON t."shopId" = s.id
+           WHERE t.type = 'recovery' AND t.status = 'approved' AND s."orderbookerId" = $1 AND t."createdAt" >= $2 AND t."createdAt" <= $3`,
           [ob.id, todayStart.toISOString(), todayEnd.toISOString()]
         );
         const todayRecovery = todayRecoveryRes.rows.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
-        // Period recovery
+        // Period recovery (including admin-posted recoveries for this OB's shops)
         const periodRecoveryRes = await pool.query(
-          `SELECT amount FROM "Transaction" WHERE type = 'recovery' AND status = 'approved' AND "createdBy" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3`,
+          `SELECT t.amount FROM "Transaction" t
+           LEFT JOIN "Shop" s ON t."shopId" = s.id
+           WHERE t.type = 'recovery' AND t.status = 'approved' AND s."orderbookerId" = $1 AND t."createdAt" >= $2 AND t."createdAt" <= $3`,
           [ob.id, startDate.toISOString(), endDate.toISOString()]
         );
         const periodRecovery = periodRecoveryRes.rows.reduce((sum: number, t: any) => sum + Number(t.amount), 0);

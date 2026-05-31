@@ -132,12 +132,17 @@ export async function GET(request: NextRequest) {
 
     // 5. Fetch all RECOVERY transactions for this company's orderbookers in the month
     // IMPORTANT: Filter by companyId so recovery from OTHER companies is NOT included
+    // FIX: Join with Shop table and filter by shop's orderbookerId instead of transaction's createdBy
+    // This ensures admin-posted recoveries (where createdBy = admin) are also included,
+    // attributed to the correct orderbooker based on the shop's assignment
     const obPlaceholders = orderbookerIds.map((_: string, idx: number) => `$${idx + 4}`).join(', ');
     const recoveryRes = await pool.query(
-      `SELECT t."shopId", t."createdBy", t.amount, t."createdAt"
+      `SELECT t."shopId", t."createdBy", t.amount, t."createdAt",
+              s."orderbookerId" AS "shop_orderbookerId"
        FROM "Transaction" t
+       LEFT JOIN "Shop" s ON t."shopId" = s.id
        WHERE t."companyId" = $3
-         AND t."createdBy" IN (${obPlaceholders})
+         AND s."orderbookerId" IN (${obPlaceholders})
          AND t.type = 'recovery'
          AND t.status = 'approved'
          AND t."createdAt" >= $1
@@ -180,9 +185,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Fill recovery data
+    // FIX: Use shop's orderbookerId for attribution instead of createdBy
+    // This way admin-posted recoveries are attributed to the correct orderbooker
     for (const row of recoveryRes.rows) {
       const dateStr = getPakistanDate(row.createdAt);
-      const obId = row.createdBy;
+      const obId = row.shop_orderbookerId || row.createdBy;
       if (dataMap[dateStr] && dataMap[dateStr][obId] !== undefined) {
         dataMap[dateStr][obId].recovery += Number(row.amount);
       }
