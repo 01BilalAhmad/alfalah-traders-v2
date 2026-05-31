@@ -366,81 +366,101 @@ export default function AdminOBRecoveryReport() {
   <title>Recovery Report - ${reportData.orderbookerName}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Arial', sans-serif; color: #1a1a1a; padding: 20px; font-size: 12px; }
-    .header { text-align: center; margin-bottom: 20px; border-bottom: 3px double #333; padding-bottom: 15px; }
-    .company-name { font-size: 22px; font-weight: bold; letter-spacing: 1px; color: #0d5c3e; }
-    .company-sub { font-size: 11px; color: #666; margin-top: 2px; }
-    .report-title { font-size: 16px; font-weight: bold; margin-top: 10px; color: #333; background: #f0f7f4; padding: 6px 15px; display: inline-block; border-radius: 4px; }
-    .info-row { display: flex; justify-content: space-between; margin-top: 12px; font-size: 12px; }
-    .info-item { display: flex; gap: 5px; }
-    .info-label { font-weight: 600; color: #555; }
+    @page { size: A4; margin: 8mm; }
+    body { font-family: 'Arial', sans-serif; color: #1a1a1a; padding: 10px; font-size: 11px; line-height: 1.3; }
+    .report-top { page-break-inside: avoid; break-inside: avoid; }
+    .header { text-align: center; margin-bottom: 8px; border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .company-name { font-size: 18px; font-weight: bold; letter-spacing: 1px; color: #0d5c3e; }
+    .company-sub { font-size: 9px; color: #333; margin-top: 1px; }
+    .report-title { font-size: 13px; font-weight: bold; margin-top: 6px; color: #333; background: #f0f7f4; padding: 4px 12px; display: inline-block; border-radius: 3px; }
+    .info-row { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; }
+    .info-item { display: flex; gap: 4px; }
+    .info-label { font-weight: 700; color: #222; }
     .info-value { color: #000; }
-    .summary-cards { display: flex; gap: 15px; margin: 15px 0; justify-content: center; }
-    .summary-card { border: 1px solid #ddd; border-radius: 6px; padding: 10px 20px; text-align: center; min-width: 140px; }
-    .summary-card .label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
-    .summary-card .value { font-size: 18px; font-weight: bold; margin-top: 3px; }
+    .summary-cards { display: flex; gap: 10px; margin: 8px 0; justify-content: center; }
+    .summary-card { border: 1px solid #ddd; border-radius: 4px; padding: 6px 14px; text-align: center; min-width: 120px; }
+    .summary-card .label { font-size: 8px; color: #444; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600; }
+    .summary-card .value { font-size: 15px; font-weight: bold; margin-top: 2px; }
     .summary-card.green .value { color: #0d7a4f; }
     .summary-card.blue .value { color: #1a56db; }
     .summary-card.amber .value { color: #b45309; }
-    .company-section { margin: 15px 0; page-break-inside: avoid; }
-    .company-section-header { background: #0d5c3e; color: white; padding: 8px 12px; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center; }
-    .company-section-name { font-size: 14px; font-weight: 700; }
-    .company-section-total { font-size: 11px; opacity: 0.9; }
-    .company-section table { border: 1px solid #ddd; border-top: none; border-radius: 0 0 4px 4px; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    th { background: #f0f7f4; color: #0d5c3e; padding: 8px 6px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 1px solid #ddd; }
-    td { padding: 7px 6px; border-bottom: 1px solid #e5e5e5; }
-    .even-row { background: #fafafa; }
+    .company-section { margin: 8px 0; page-break-inside: avoid; }
+    .company-section-header { background: #0d5c3e; color: white; padding: 5px 10px; border-radius: 3px 3px 0 0; display: flex; justify-content: space-between; align-items: center; }
+    .company-section-name { font-size: 12px; font-weight: 700; }
+    .company-section-total { font-size: 10px; opacity: 1; font-weight: 600; }
+    .company-section table { border: 1px solid #999; border-top: none; border-radius: 0 0 4px 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; }
+    th { background: #e0ede8; color: #000; padding: 5px 5px; text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.2px; border-bottom: 1px solid #999; font-weight: 700; }
+    td { padding: 4px 5px; border-bottom: 1px solid #bbb; color: #000; }
+    .even-row { background: #f5f5f5; }
     .odd-row { background: #fff; }
     .center { text-align: center; }
     .right { text-align: right; }
     .bold { font-weight: 700; }
-    .green { color: #0d7a4f; }
+    .green { color: #065f36; font-weight: 700; }
     .total-row { background: #f0f7f4 !important; font-weight: 700; border-top: 2px solid #0d5c3e; }
-    .total-row td { padding: 10px 6px; font-size: 12px; }
+    .total-row td { padding: 6px 5px; font-size: 11px; }
     .grand-total-row { background: #e8f5e9 !important; font-weight: 700; border-top: 3px double #0d5c3e; }
-    .grand-total-row td { padding: 12px 6px; font-size: 13px; }
-    .footer { margin-top: 25px; padding-top: 10px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 10px; color: #999; }
-    .signature-section { margin-top: 40px; display: flex; justify-content: space-between; }
-    .signature-box { text-align: center; width: 200px; }
-    .signature-line { border-top: 1px solid #333; margin-top: 50px; padding-top: 5px; font-size: 11px; }
+    .grand-total-row td { padding: 8px 5px; font-size: 11px; }
+    .footer { margin-top: 15px; padding-top: 6px; border-top: 1px solid #888; display: flex; justify-content: space-between; font-size: 9px; color: #555; }
+    .signature-section { margin-top: 25px; display: flex; justify-content: space-between; }
+    .signature-box { text-align: center; width: 180px; }
+    .signature-line { border-top: 1px solid #000; margin-top: 40px; padding-top: 4px; font-size: 10px; color: #000; font-weight: 600; }
     .no-data { text-align: center; padding: 40px; color: #888; font-size: 14px; }
     @media print {
-      body { padding: 10px; }
+      body { padding: 5px; color: #000 !important; }
       .no-print { display: none !important; }
+      .report-top { page-break-inside: avoid !important; break-inside: avoid !important; }
+      .company-section { page-break-inside: avoid !important; break-inside: avoid !important; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+      td, th, span, div, p { color: #000 !important; }
+      .company-name { color: #0d5c3e !important; }
+      .green { color: #065f36 !important; }
+      .summary-card.blue .value { color: #0a3d91 !important; }
+      .summary-card.amber .value { color: #7c2d12 !important; }
+      .company-section-header { background: #0d5c3e !important; color: #fff !important; }
+      .company-section-header * { color: #fff !important; }
+      .report-title { background: #e0ede8 !important; color: #000 !important; }
+      th { background: #e0ede8 !important; color: #000 !important; }
+      .total-row { background: #e0ede8 !important; }
+      .total-row td { color: #000 !important; }
+      .grand-total-row { background: #d5ead9 !important; }
+      .grand-total-row td { color: #000 !important; }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="company-name">AL-FALAH TRADERS</div>
-    <div class="company-sub">Credit & Route Management System</div>
-    <div class="report-title">DAILY RECOVERY REPORT</div>
-    <div class="info-row">
-      <div class="info-item">
-        <span class="info-label">Order Booker:</span>
-        <span class="info-value">${reportData.orderbookerName}</span>
+  <div class="report-top">
+    <div class="header">
+      <div class="company-name">AL-FALAH TRADERS</div>
+      <div class="company-sub">Credit & Route Management System</div>
+      <div class="report-title">DAILY RECOVERY REPORT</div>
+      <div class="info-row">
+        <div class="info-item">
+          <span class="info-label">Order Booker:</span>
+          <span class="info-value">${reportData.orderbookerName}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Date:</span>
+          <span class="info-value">${dateFormatted}</span>
+        </div>
       </div>
-      <div class="info-item">
-        <span class="info-label">Date:</span>
-        <span class="info-value">${dateFormatted}</span>
-      </div>
+      ${reportData.orderbookerPhone ? `<div class="info-row"><div class="info-item"><span class="info-label">Phone:</span><span class="info-value">${reportData.orderbookerPhone}</span></div></div>` : ''}
     </div>
-    ${reportData.orderbookerPhone ? `<div class="info-row"><div class="info-item"><span class="info-label">Phone:</span><span class="info-value">${reportData.orderbookerPhone}</span></div></div>` : ''}
-  </div>
 
-  <div class="summary-cards">
-    <div class="summary-card blue">
-      <div class="label">Route Total Balance</div>
-      <div class="value">${formatCurrencyPDF(allShopsRouteBalance)}</div>
-    </div>
-    <div class="summary-card green">
-      <div class="label">Today's Recovery</div>
-      <div class="value">${formatCurrencyPDF(todayRecovery)}</div>
-    </div>
-    <div class="summary-card amber">
-      <div class="label">Remaining Balance</div>
-      <div class="value">${formatCurrencyPDF(allShopsRemaining)}</div>
+    <div class="summary-cards">
+      <div class="summary-card blue">
+        <div class="label">Route Total Balance</div>
+        <div class="value">${formatCurrencyPDF(allShopsRouteBalance)}</div>
+      </div>
+      <div class="summary-card green">
+        <div class="label">Today's Recovery</div>
+        <div class="value">${formatCurrencyPDF(todayRecovery)}</div>
+      </div>
+      <div class="summary-card amber">
+        <div class="label">Remaining Balance</div>
+        <div class="value">${formatCurrencyPDF(allShopsRemaining)}</div>
+      </div>
     </div>
   </div>
 
