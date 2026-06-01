@@ -8,13 +8,19 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(request);
     if (!auth.authorized) {
+      console.warn('[RouteTracking/Start] Auth failed:', auth.error);
       return NextResponse.json({ error: auth.error }, { status: 401 });
     }
 
+    console.log('[RouteTracking/Start] User authenticated:', auth.userId);
+
     // Check if tables exist - auto-create if possible
     let tablesReady = await areRouteTrackingTablesReady();
+    console.log('[RouteTracking/Start] Tables ready:', tablesReady);
+
     if (!tablesReady) {
       const result = await createRouteTrackingTables();
+      console.log('[RouteTracking/Start] Auto-create tables result:', result);
       if (result.created) {
         resetTableReadinessCache();
         tablesReady = true;
@@ -34,6 +40,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    console.log('[RouteTracking/Start] Starting route for OB:', orderbookerId, 'at:', lat, lng);
 
     // Verify the orderbooker exists and is active
     const orderbooker = await db.user.findUnique({
@@ -58,10 +66,19 @@ export async function POST(request: NextRequest) {
     });
 
     if (ongoingRoute) {
-      return NextResponse.json(
-        { error: 'Orderbooker already has an ongoing route', ongoingRouteId: ongoingRoute.id },
-        { status: 409 }
-      );
+      console.log('[RouteTracking/Start] OB already has ongoing route:', ongoingRoute.id);
+      // Instead of returning error, end the existing route first
+      await db.routeTracking.update({
+        where: { id: ongoingRoute.id },
+        data: {
+          endLat: lat,
+          endLng: lng,
+          endTime: new Date(),
+          status: 'completed',
+          totalDistance: 0,
+        },
+      });
+      console.log('[RouteTracking/Start] Auto-ended previous route:', ongoingRoute.id);
     }
 
     // Verify company if provided
@@ -94,9 +111,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log('[RouteTracking/Start] Route created:', route.id);
     return NextResponse.json({ route }, { status: 201 });
   } catch (error) {
-    console.error('Error starting route:', error);
+    console.error('[RouteTracking/Start] Error:', error);
     return NextResponse.json(
       { error: `Failed to start route: ${(error as Error)?.message || 'Unknown error'}` },
       { status: 500 }

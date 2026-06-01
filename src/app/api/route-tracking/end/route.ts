@@ -23,6 +23,7 @@ export async function PUT(request: NextRequest) {
   try {
     const auth = await requireAuth(request);
     if (!auth.authorized) {
+      console.warn('[RouteTracking/End] Auth failed:', auth.error);
       return NextResponse.json({ error: auth.error }, { status: 401 });
     }
 
@@ -44,6 +45,8 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    console.log('[RouteTracking/End] Ending route:', routeId, 'at:', lat, lng);
+
     // Find the route
     const route = await db.routeTracking.findUnique({
       where: { id: routeId },
@@ -55,11 +58,13 @@ export async function PUT(request: NextRequest) {
     });
 
     if (!route) {
+      console.warn('[RouteTracking/End] Route not found:', routeId);
       return NextResponse.json({ error: 'Route not found' }, { status: 404 });
     }
 
     if (route.status === 'completed') {
-      return NextResponse.json({ error: 'Route is already completed' }, { status: 400 });
+      console.log('[RouteTracking/End] Route already completed:', routeId);
+      return NextResponse.json({ route, message: 'Route was already completed' });
     }
 
     // Calculate total distance
@@ -98,9 +103,10 @@ export async function PUT(request: NextRequest) {
       },
     });
 
+    console.log('[RouteTracking/End] Route ended successfully:', routeId, 'Distance:', totalDistance.toFixed(2), 'km');
     return NextResponse.json({ route: updatedRoute });
   } catch (error) {
-    console.error('Error ending route:', error);
+    console.error('[RouteTracking/End] Error:', error);
     return NextResponse.json(
       { error: `Failed to end route: ${(error as Error)?.message || 'Unknown error'}` },
       { status: 500 }
