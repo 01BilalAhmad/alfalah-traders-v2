@@ -30,12 +30,30 @@ export async function POST(request: NextRequest) {
 
     const routeId = `rt_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
 
-    const result = await query(
-      `INSERT INTO "RouteTracking" (id, "orderbookerId", "companyId", status, "startLat", "startLng", "startTime", "routeDate", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, NOW(), CURRENT_DATE, NOW(), NOW())
-       RETURNING *`,
-      [routeId, orderbookerId, companyId || null, 'ongoing', lat, lng]
-    );
+    // Try INSERT with routeDate column first; if column doesn't exist, fall back to without it
+    let result;
+    try {
+      result = await query(
+        `INSERT INTO "RouteTracking" (id, "orderbookerId", "companyId", status, "startLat", "startLng", "startTime", "routeDate", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), CURRENT_DATE, NOW(), NOW())
+         RETURNING *`,
+        [routeId, orderbookerId, companyId || null, 'ongoing', lat, lng]
+      );
+    } catch (insertError: unknown) {
+      const insertMsg = insertError instanceof Error ? insertError.message : '';
+      // If routeDate column doesn't exist, try without it
+      if (insertMsg.includes('routeDate') || insertMsg.includes('column') || insertMsg.includes('does not exist')) {
+        console.warn('[RouteTracking] routeDate column not found, inserting without it. Will be added by create-tables endpoint.');
+        result = await query(
+          `INSERT INTO "RouteTracking" (id, "orderbookerId", "companyId", status, "startLat", "startLng", "startTime", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), NOW())
+           RETURNING *`,
+          [routeId, orderbookerId, companyId || null, 'ongoing', lat, lng]
+        );
+      } else {
+        throw insertError; // re-throw if it's a different error
+      }
+    }
 
     const route = result.rows[0];
 
