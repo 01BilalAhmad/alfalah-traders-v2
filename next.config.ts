@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
   allowedDevOrigins: ["*.space.z.ai", "*.z.ai"],
+  // CRITICAL: Prevent Vercel 307 redirects on API POST requests
+  // Without this, POST /api/route-tracking/start gets redirected (307) 
+  // and mobile app/Capacitor can't follow POST redirects, causing "Server did not return route ID" error
+  skipTrailingSlashRedirect: true,
   turbopack: {
     root: path.resolve(__dirname),
   },
