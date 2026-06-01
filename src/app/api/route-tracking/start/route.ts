@@ -8,7 +8,10 @@ import crypto from 'crypto';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orderbookerId, companyId, lat, lng } = body;
+    // Use orderbookerId from body, or fall back to x-auth-userid set by middleware
+    const authUserId = request.headers.get('x-auth-userid');
+    const { orderbookerId: bodyOrderbookerId, companyId, lat, lng } = body;
+    const orderbookerId = bodyOrderbookerId || authUserId;
 
     if (!orderbookerId || lat === undefined || lng === undefined) {
       return NextResponse.json(

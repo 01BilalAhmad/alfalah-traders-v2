@@ -52,6 +52,12 @@ const PROTECTED_PATHS = [
   '/api/route-tracking',
 ];
 
+// Paths that are public even under a protected prefix
+// e.g. /api/route-tracking/create-tables should be accessible without auth for initial setup
+const PUBLIC_SUBPATHS = [
+  '/api/route-tracking/create-tables',
+];
+
 // ─── Token Parsing ────────────────────────────────────────────────────────────
 // Current token format: session-{userId}-{timestamp}
 // We parse the userId from the token and pass it to route handlers
@@ -105,7 +111,12 @@ export function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(path)
   );
 
-  if (isProtected) {
+  // Check if this specific path is in the public subpaths list (even under a protected prefix)
+  const isPublicSubpath = PUBLIC_SUBPATHS.some((path) =>
+    request.nextUrl.pathname === path
+  );
+
+  if (isProtected && !isPublicSubpath) {
     const authHeader = request.headers.get('Authorization');
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

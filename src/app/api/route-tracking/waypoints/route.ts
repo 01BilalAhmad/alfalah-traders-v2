@@ -8,7 +8,6 @@ async function ensureWaypointTable(pool: ReturnType<typeof getPool>): Promise<vo
     await pool.query(`SELECT 1 FROM "RouteWaypoint" LIMIT 1`);
   } catch {
     console.log('[Waypoints] RouteWaypoint table not found, creating...');
-    // Create table matching Prisma schema (NO createdAt column)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "RouteWaypoint" (
         "id" TEXT NOT NULL PRIMARY KEY,
@@ -31,6 +30,7 @@ async function ensureWaypointTable(pool: ReturnType<typeof getPool>): Promise<vo
           IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'RouteWaypoint_routeId_fkey') THEN
             ALTER TABLE "RouteWaypoint" ADD CONSTRAINT "RouteWaypoint_routeId_fkey" FOREIGN KEY ("routeId") REFERENCES "RouteTracking"("id") ON DELETE CASCADE;
           END IF;
+        EXCEPTION WHEN OTHERS THEN NULL;
         END $$;
       `);
     } catch { /* ignore FK error */ }
@@ -38,7 +38,7 @@ async function ensureWaypointTable(pool: ReturnType<typeof getPool>): Promise<vo
     console.log('[Waypoints] RouteWaypoint table created successfully');
   }
 
-  // Ensure createdAt column exists (some versions of the table may have it)
+  // Ensure createdAt column exists
   try {
     await pool.query(`ALTER TABLE "RouteWaypoint" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
   } catch { /* column may already exist or table may not exist, ignore */ }
