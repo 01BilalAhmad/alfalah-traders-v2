@@ -32,6 +32,7 @@ model User {
   dailyTargetsFor    DailyTarget[] @relation("TargetsFor")
   dailyTargetsBy     DailyTarget[] @relation("TargetsBy")
   preferences        UserPreference?
+  routes             RouteTracking[] @relation("RoutesBy")
 
   @@index([username])
   @@index([role])
@@ -59,6 +60,7 @@ model Shop {
   visits           ShopVisit[]
   companyBalances  ShopCompanyBalance[]
   assignedOrderbookers ShopOrderbooker[] // additional orderbooker assignments
+  routeStops           RouteStop[]
 
   @@index([orderbookerId])
   @@index([routeDays])
@@ -259,4 +261,67 @@ model ShopOrderbooker {
   @@index([shopId])
   @@index([orderbookerId])
   @@index([companyId])
+}
+
+// --- Route Tracking ---
+
+model RouteTracking {
+  id             String   @id @default(cuid())
+  orderbookerId  String   // userId
+  companyId      String?  // optional - which company route
+  routeDate      DateTime @default(now())
+  startLat       Float
+  startLng       Float
+  startTime      DateTime
+  endLat         Float?   // nullable until route ends
+  endLng         Float?
+  endTime        DateTime?
+  totalDistance  Float?   // meters - calculated at route end
+  totalDuration  Int?     // seconds - calculated at route end
+  status         String   @default("ongoing") // "ongoing" or "completed"
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orderbooker User            @relation("RoutesBy", fields: [orderbookerId], references: [id])
+  waypoints   RouteWaypoint[]
+  stops       RouteStop[]
+
+  @@index([orderbookerId])
+  @@index([status])
+  @@index([routeDate])
+  @@index([companyId])
+}
+
+model RouteWaypoint {
+  id        String   @id @default(cuid())
+  routeId   String
+  lat       Float
+  lng       Float
+  accuracy  Float?   // GPS accuracy in meters
+  timestamp DateTime @default(now())
+
+  route RouteTracking @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@index([routeId])
+  @@index([timestamp])
+}
+
+model RouteStop {
+  id             String    @id @default(cuid())
+  routeId        String
+  shopId         String
+  arrivalTime    DateTime
+  departureTime  DateTime? // nullable until checkout
+  timeSpent      Int?      // seconds - calculated on departure
+  lat            Float
+  lng            Float
+  recoveryAmount Float?    // if recovery was done at this shop
+  createdAt      DateTime  @default(now())
+
+  route RouteTracking @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  shop  Shop          @relation(fields: [shopId], references: [id])
+
+  @@index([routeId])
+  @@index([shopId])
+  @@index([arrivalTime])
 }
