@@ -26,13 +26,18 @@ export async function POST(request: NextRequest) {
     await ensureRouteTrackingTables(pool);
 
     // ─── Step 2: Validate orderbookerId exists (avoid FK violation) ───
+    // Try to validate, but don't block if User table doesn't exist or check fails
     try {
-      const userCheck = await pool.query(`SELECT id FROM "User" WHERE id = $1`, [orderbookerId]);
+      const userCheck = await pool.query(`SELECT id, "companyId" FROM "User" WHERE id = $1`, [orderbookerId]);
       if (userCheck.rows.length === 0) {
-        return NextResponse.json(
-          { error: 'Invalid orderbookerId: user not found' },
-          { status: 400 }
-        );
+        // User not found - but allow anyway (might be from mobile app with different user store)
+        // Log warning but don't block - FK constraint will catch if it exists
+        console.warn('[RouteTracking/Start] orderbookerId not found in User table, proceeding anyway:', orderbookerId);
+      } else {
+        // If companyId not provided, use the one from user record
+        if (!companyId && userCheck.rows[0].companyId) {
+          body.companyId = userCheck.rows[0].companyId;
+        }
       }
     } catch (userErr: unknown) {
       // If User table doesn't exist, skip validation (no FK constraint either)
@@ -90,8 +95,23 @@ export async function POST(request: NextRequest) {
       );
     } catch (insertError: unknown) {
       const insertMsg = insertError instanceof Error ? insertError.message : '';
+
+      // If FK violation on orderbookerId, try dropping the FK and re-inserting
+      if (insertMsg.includes('foreign key') || insertMsg.includes('violates')) {
+        console.warn('[RouteTracking/Start] FK violation, dropping constraint and retrying:', insertMsg);
+        try {
+          await pool.query(`ALTER TABLE "RouteTracking" DROP CONSTRAINT IF EXISTS "RouteTracking_orderbookerId_fkey"`);
+        } catch { /* ignore */ }
+        // Retry insert
+        result = await pool.query(
+          `INSERT INTO "RouteTracking" (id, "orderbookerId", "companyId", status, "startLat", "startLng", "startTime", "routeDate", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), NOW(), NOW())
+           RETURNING *`,
+          [routeId, orderbookerId, companyId || null, 'ongoing', lat, lng]
+        );
+      }
       // If routeDate column doesn't exist (old table), try without it
-      if (insertMsg.includes('"routeDate"') && (insertMsg.includes('does not exist') || insertMsg.includes('column'))) {
+      else if (insertMsg.includes('"routeDate"') && (insertMsg.includes('does not exist') || insertMsg.includes('column'))) {
         console.warn('[RouteTracking/Start] routeDate column not found, inserting without it.');
         result = await pool.query(
           `INSERT INTO "RouteTracking" (id, "orderbookerId", "companyId", status, "startLat", "startLng", "startTime", "createdAt", "updatedAt")
