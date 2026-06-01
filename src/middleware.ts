@@ -53,9 +53,19 @@ const PROTECTED_PATHS = [
 ];
 
 // Paths that are public even under a protected prefix
-// e.g. /api/route-tracking/create-tables should be accessible without auth for initial setup
+// These route-tracking endpoints are called by the mobile app which may not send Bearer tokens.
+// The mobile app authenticates via orderbookerId in the request body instead.
+// Admin-only endpoints (setup, settings) still require auth.
 const PUBLIC_SUBPATHS = [
   '/api/route-tracking/create-tables',
+  '/api/route-tracking/start',
+  '/api/route-tracking/stop',
+  '/api/route-tracking/end',
+  '/api/route-tracking/waypoints',
+  '/api/route-tracking/checkin',
+  '/api/route-tracking/checkout',
+  '/api/route-tracking/stop-checkin',
+  '/api/route-tracking/stop-checkout',
 ];
 
 // ─── Token Parsing ────────────────────────────────────────────────────────────
