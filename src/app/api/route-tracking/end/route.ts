@@ -3,7 +3,7 @@ import { getPool } from '@/lib/pg';
 
 // Helper: Haversine distance between two lat/lng points (meters)
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000; // Earth's radius in meters
+  const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
@@ -16,7 +16,6 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number): numb
 }
 
 // PUT /api/route-tracking/end - End a route
-// Rewritten to use raw SQL (pg) instead of Prisma to avoid schema mismatch issues
 export async function PUT(request: NextRequest) {
   try {
     const { routeId, lat, lng } = await request.json();
@@ -46,11 +45,16 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Route already completed' }, { status: 400 });
     }
 
-    // Calculate total distance from all waypoints
-    const wpRes = await pool.query(
-      `SELECT lat, lng FROM "RouteWaypoint" WHERE "routeId" = $1 ORDER BY "timestamp" ASC, "createdAt" ASC`,
-      [routeId]
-    );
+    // Calculate total distance from waypoints (gracefully handle if table doesn't exist)
+    let wpRes = { rows: [] as Array<{ lat: number; lng: number }> };
+    try {
+      wpRes = await pool.query(
+        `SELECT lat, lng FROM "RouteWaypoint" WHERE "routeId" = $1 ORDER BY "timestamp" ASC, "createdAt" ASC`,
+        [routeId]
+      );
+    } catch {
+      console.warn('[RouteTracking/End] Could not fetch waypoints, using straight-line distance');
+    }
 
     let totalDistanceMeters = 0;
     const allPoints: { lat: number; lng: number }[] = [];
@@ -83,7 +87,7 @@ export async function PUT(request: NextRequest) {
 
     const totalDistanceKm = Math.round(totalDistanceMeters / 1000 * 100) / 100;
 
-    // Update the route: set end coordinates, end time, total duration, total distance, status
+    // Update the route
     const result = await pool.query(
       `UPDATE "RouteTracking"
        SET "endLat" = $1,
@@ -100,16 +104,21 @@ export async function PUT(request: NextRequest) {
 
     const updatedRoute = result.rows[0];
 
-    // Fetch stops with shop details for the response
-    const stopsRes = await pool.query(
-      `SELECT rs.id, rs."shopId", rs.lat, rs.lng, rs."arrivalTime", rs."departureTime", rs."timeSpent", rs."recoveryAmount",
-              s.name AS "shopName", s.area AS "shopArea"
-       FROM "RouteStop" rs
-       LEFT JOIN "Shop" s ON rs."shopId" = s.id
-       WHERE rs."routeId" = $1
-       ORDER BY rs."arrivalTime" ASC`,
-      [routeId]
-    );
+    // Fetch stops with shop details (gracefully handle if table doesn't exist)
+    let stopsRes = { rows: [] as Record<string, unknown>[] };
+    try {
+      stopsRes = await pool.query(
+        `SELECT rs.id, rs."shopId", rs.lat, rs.lng, rs."arrivalTime", rs."departureTime", rs."timeSpent", rs."recoveryAmount",
+                s.name AS "shopName", s.area AS "shopArea"
+         FROM "RouteStop" rs
+         LEFT JOIN "Shop" s ON rs."shopId" = s.id
+         WHERE rs."routeId" = $1
+         ORDER BY rs."arrivalTime" ASC`,
+        [routeId]
+      );
+    } catch {
+      console.warn('[RouteTracking/End] Could not fetch stops');
+    }
 
     return NextResponse.json({
       route: {

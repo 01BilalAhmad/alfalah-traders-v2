@@ -3,7 +3,7 @@ import { getPool } from '@/lib/pg';
 
 // Helper: Haversine distance between two lat/lng points (meters)
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000; // Earth's radius in meters
+  const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
@@ -15,8 +15,7 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number): numb
   return R * c;
 }
 
-// POST /api/route-tracking/stop
-// End a route tracking session and calculate total distance from waypoints
+// POST /api/route-tracking/stop - End a route tracking session
 export async function POST(request: NextRequest) {
   try {
     const { routeId, lat, lng } = await request.json();
@@ -49,11 +48,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate total distance from all waypoints
-    const wpRes = await pool.query(
-      `SELECT lat, lng FROM "RouteWaypoint" WHERE "routeId" = $1 ORDER BY "timestamp" ASC, "createdAt" ASC`,
-      [routeId]
-    );
+    // Calculate total distance from waypoints (gracefully handle if table doesn't exist)
+    let wpRes = { rows: [] as Array<{ lat: number; lng: number }> };
+    try {
+      wpRes = await pool.query(
+        `SELECT lat, lng FROM "RouteWaypoint" WHERE "routeId" = $1 ORDER BY "timestamp" ASC, "createdAt" ASC`,
+        [routeId]
+      );
+    } catch {
+      console.warn('[RouteTracking/Stop] Could not fetch waypoints, using straight-line distance');
+    }
 
     let totalDistanceMeters = 0;
     const allPoints: { lat: number; lng: number }[] = [];
@@ -86,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     const totalDistanceKm = Math.round(totalDistanceMeters / 1000 * 100) / 100;
 
-    // Update the route: set end coordinates, end time, total duration, total distance, status
+    // Update the route
     const result = await pool.query(
       `UPDATE "RouteTracking"
        SET "endLat" = $1,

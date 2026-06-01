@@ -2,6 +2,43 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg';
 import crypto from 'crypto';
 
+// Ensure RouteWaypoint table exists (called before any waypoint operations)
+async function ensureWaypointTable(pool: ReturnType<typeof getPool>): Promise<void> {
+  try {
+    await pool.query(`SELECT 1 FROM "RouteWaypoint" LIMIT 1`);
+  } catch {
+    console.log('[Waypoints] RouteWaypoint table not found, creating...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "RouteWaypoint" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "routeId" TEXT NOT NULL,
+        "lat" DOUBLE PRECISION NOT NULL,
+        "lng" DOUBLE PRECISION NOT NULL,
+        "accuracy" DOUBLE PRECISION,
+        "timestamp" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    try {
+      await pool.query(`CREATE INDEX IF NOT EXISTS "RouteWaypoint_routeId_idx" ON "RouteWaypoint"("routeId")`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS "RouteWaypoint_timestamp_idx" ON "RouteWaypoint"("timestamp")`);
+    } catch { /* indexes may already exist */ }
+
+    // Try adding foreign key constraint
+    try {
+      await pool.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'RouteWaypoint_routeId_fkey') THEN
+            ALTER TABLE "RouteWaypoint" ADD CONSTRAINT "RouteWaypoint_routeId_fkey" FOREIGN KEY ("routeId") REFERENCES "RouteTracking"("id") ON DELETE CASCADE;
+          END IF;
+        END $$;
+      `);
+    } catch { /* ignore FK error */ }
+
+    console.log('[Waypoints] RouteWaypoint table created successfully');
+  }
+}
+
 // POST /api/route-tracking/waypoints
 // Save GPS waypoints collected during route (batch upload)
 export async function POST(request: NextRequest) {
@@ -15,8 +52,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the route exists
     const pool = getPool();
+
+    // Ensure RouteWaypoint table exists
+    await ensureWaypointTable(pool);
+
+    // Verify the route exists
     const routeRes = await pool.query(
       `SELECT id, status FROM "RouteTracking" WHERE id = $1`,
       [routeId]
@@ -27,7 +68,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Build batch insert query
-    // Each waypoint: { lat, lng, accuracy?, timestamp? }
     const values: unknown[] = [];
     const placeholders: string[] = [];
     let paramIndex = 1;
@@ -92,6 +132,10 @@ export async function GET(request: NextRequest) {
     }
 
     const pool = getPool();
+
+    // Ensure RouteWaypoint table exists
+    await ensureWaypointTable(pool);
+
     const result = await pool.query(
       `SELECT id, "routeId", lat, lng, accuracy, "timestamp", "createdAt"
        FROM "RouteWaypoint"
