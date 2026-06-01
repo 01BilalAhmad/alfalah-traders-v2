@@ -304,7 +304,22 @@ export default function AdminRouteTracking() {
       if (res.ok) {
         const data = await res.json();
         setRoutes(data.routes || []);
+        // BUG FIX: Update tablesReady from route response so admin knows if setup is needed
+        if (data.setupNeeded !== undefined) {
+          setTablesReady(!data.setupNeeded);
+        }
+        // If routes were returned, tables must be ready
+        if (data.routes && data.routes.length > 0) {
+          setTablesReady(true);
+        }
       } else {
+        // BUG FIX: On non-OK response, check if it's a setup issue
+        try {
+          const errorData = await res.json();
+          if (errorData.setupNeeded) {
+            setTablesReady(false);
+          }
+        } catch { /* ignore parse error */ }
         toast({ title: 'Error', description: 'Failed to load routes', variant: 'destructive' });
       }
     } catch {
@@ -326,6 +341,14 @@ export default function AdminRouteTracking() {
       if (res.ok) {
         const data = await res.json();
         setSummary(data.summary || null);
+        // BUG FIX: Update tablesReady from summary response
+        if (data.setupNeeded !== undefined) {
+          setTablesReady(!data.setupNeeded);
+        }
+        // If summary has data, tables must be ready
+        if (data.summary && data.summary.totalRoutes > 0) {
+          setTablesReady(true);
+        }
       }
     } catch {
       // silent
@@ -444,11 +467,25 @@ export default function AdminRouteTracking() {
     init();
   }, [fetchFilters, fetchSettings]);
 
-  // Fetch routes + summary when filters change
+  // BUG FIX: Fetch routes + summary after settings are loaded
+  // This ensures tablesReady is known before we fetch data
   useEffect(() => {
-    fetchRoutes();
-    fetchSummary();
-  }, [fetchRoutes, fetchSummary]);
+    // Only fetch after initial loading is done
+    if (!loading) {
+      fetchRoutes();
+      fetchSummary();
+    }
+  }, [fetchRoutes, fetchSummary, loading]);
+
+  // BUG FIX: Re-fetch routes when tablesReady becomes true
+  // If tables were just created (via setup or auto-create), refresh the data
+  useEffect(() => {
+    if (tablesReady && !loading) {
+      fetchRoutes();
+      fetchSummary();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tablesReady]);
 
   // Clear filters
   const clearFilters = () => {

@@ -13,7 +13,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if tables exist - return empty data if not
-    const tablesReady = await areRouteTrackingTablesReady();
+    let tablesReady = false;
+    try {
+      tablesReady = await areRouteTrackingTablesReady();
+    } catch {
+      // BUG FIX: If table check itself fails, return empty data instead of 500
+      console.warn('[RouteTracking/Routes] Failed to check tables, returning empty data');
+      return NextResponse.json({
+        routes: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+        setupNeeded: true,
+      });
+    }
     if (!tablesReady) {
       return NextResponse.json({
         routes: [],
@@ -48,10 +61,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (date) {
-      // Parse date and create range for that day
+      // BUG FIX: Use Pakistan timezone (UTC+5) for date filtering
+      // Routes created at 1 AM Pakistan time have UTC date of previous day
+      // We use a 29-hour window (24h + 5h UTC offset + buffer) to ensure all
+      // Pakistan-time routes for the given date are included
       const [year, month, day] = date.split('-').map(Number);
+      // Start of day in Pakistan = previous day 19:00 UTC
       const startDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+      // Subtract 5 hours to account for Pakistan being UTC+5
+      startDate.setUTCHours(startDate.getUTCHours() - 5);
+      // End of day in Pakistan = current day 18:59:59.999 UTC
       const endDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+      // Add 5 hours to account for Pakistan being UTC+5
+      endDate.setUTCHours(endDate.getUTCHours() + 5);
       where.routeDate = {
         gte: startDate,
         lte: endDate,

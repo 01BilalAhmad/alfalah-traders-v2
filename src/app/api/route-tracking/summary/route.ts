@@ -13,7 +13,26 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if tables exist - return empty summary if not
-    const tablesReady = await areRouteTrackingTablesReady();
+    let tablesReady = false;
+    try {
+      tablesReady = await areRouteTrackingTablesReady();
+    } catch {
+      // BUG FIX: If table check itself fails, return empty summary instead of 500
+      console.warn('[RouteTracking/Summary] Failed to check tables, returning empty summary');
+      return NextResponse.json({
+        summary: {
+          totalRoutes: 0,
+          completedRoutes: 0,
+          ongoingRoutes: 0,
+          totalShopsVisited: 0,
+          totalDistance: 0,
+          avgTimePerShop: 0,
+          totalRecovery: 0,
+        },
+        byOrderbooker: [],
+        setupNeeded: true,
+      });
+    }
     if (!tablesReady) {
       return NextResponse.json({
         summary: {
@@ -43,15 +62,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Date range filter
+    // BUG FIX: Use Pakistan timezone (UTC+5) for date filtering
     if (from || to) {
       routeWhere.routeDate = {};
       if (from) {
         const [y, m, d] = from.split('-').map(Number);
-        routeWhere.routeDate.gte = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+        const startDate = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+        startDate.setUTCHours(startDate.getUTCHours() - 5); // Pakistan UTC+5
+        routeWhere.routeDate.gte = startDate;
       }
       if (to) {
         const [y, m, d] = to.split('-').map(Number);
-        routeWhere.routeDate.lte = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
+        const endDate = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
+        endDate.setUTCHours(endDate.getUTCHours() + 5); // Pakistan UTC+5
+        routeWhere.routeDate.lte = endDate;
       }
     }
 

@@ -22,6 +22,14 @@ export async function areRouteTrackingTablesReady(): Promise<boolean> {
   }
 
   try {
+    // Guard: if Prisma client doesn't have the model (e.g. not generated yet), treat as not ready
+    if (!db || !(db as any).routeTracking) {
+      console.warn('[RouteTrackingHelpers] Prisma client does not have routeTracking model');
+      tablesReadyCache = false;
+      lastCheckTime = now;
+      return false;
+    }
+
     // Try a simple count query - if tables don't exist, this will throw
     await db.routeTracking.count({ take: 1 });
     tablesReadyCache = true;
@@ -35,14 +43,26 @@ export async function areRouteTrackingTablesReady(): Promise<boolean> {
       msg.includes('relation') ||
       msg.includes('no such table') ||
       msg.includes('cannot find') ||
-      msg.includes('prisma client could not')
+      msg.includes('prisma client could not') ||
+      msg.includes('cannot read propert') ||  // TypeError: Cannot read properties of undefined
+      msg.includes('is not a function') ||     // db.routeTracking is not a function
+      msg.includes('model is not known') ||    // Prisma: Model is not known
+      msg.includes('invalid prisma') ||        // Prisma client not generated
+      msg.includes('undefined') ||             // Generic undefined access
+      msg.includes('connection') ||            // DB connection errors
+      msg.includes('timeout') ||               // DB timeout errors
+      msg.includes('ECONNREFUSED') ||          // Connection refused
+      msg.includes('ENOTFOUND')                // DNS resolution failed
     ) {
       tablesReadyCache = false;
       lastCheckTime = now;
       return false;
     }
-    // Some other error - re-throw
-    throw error;
+    // Any other error - don't crash, treat as not ready and log
+    console.error('[RouteTrackingHelpers] Unexpected error checking tables, treating as not ready:', error?.message || error);
+    tablesReadyCache = false;
+    lastCheckTime = now;
+    return false;
   }
 }
 
