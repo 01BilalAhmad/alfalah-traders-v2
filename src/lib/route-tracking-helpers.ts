@@ -116,7 +116,7 @@ export async function createRouteTrackingTables(): Promise<{ created: boolean; e
       CREATE INDEX IF NOT EXISTS "RouteTracking_startTime_idx" ON "RouteTracking"("startTime");
     `);
 
-    // Create RouteWaypoint table
+    // Create RouteWaypoint table (matches Prisma schema - no createdAt initially)
     await db.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "RouteWaypoint" (
         "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -124,10 +124,14 @@ export async function createRouteTrackingTables(): Promise<{ created: boolean; e
         "lat" DOUBLE PRECISION NOT NULL,
         "lng" DOUBLE PRECISION NOT NULL,
         "accuracy" DOUBLE PRECISION,
-        "timestamp" TIMESTAMP(3),
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Add createdAt column if needed (for compatibility with some deployments)
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "RouteWaypoint" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+    } catch { /* ignore */ }
 
     // Create indexes for RouteWaypoint
     await db.$executeRawUnsafe(`

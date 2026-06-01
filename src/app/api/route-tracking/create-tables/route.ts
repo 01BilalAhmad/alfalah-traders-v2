@@ -53,7 +53,7 @@ export async function POST() {
       await pool.query(`CREATE INDEX IF NOT EXISTS "RouteTracking_routeDate_idx" ON "RouteTracking"("routeDate")`);
     } catch { /* indexes may already exist, ignore */ }
 
-    // Create RouteWaypoint table
+    // Create RouteWaypoint table (matches Prisma schema - no createdAt initially)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "RouteWaypoint" (
         "id" TEXT NOT NULL PRIMARY KEY,
@@ -61,11 +61,15 @@ export async function POST() {
         "lat" DOUBLE PRECISION NOT NULL,
         "lng" DOUBLE PRECISION NOT NULL,
         "accuracy" DOUBLE PRECISION,
-        "timestamp" TIMESTAMP(3),
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "RouteWaypoint_routeId_fkey" FOREIGN KEY ("routeId") REFERENCES "RouteTracking"("id") ON DELETE CASCADE
       );
     `);
+
+    // Add createdAt column if needed (for compatibility)
+    try {
+      await pool.query(`ALTER TABLE "RouteWaypoint" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+    } catch { /* ignore */ }
 
     // RouteWaypoint indexes
     try {

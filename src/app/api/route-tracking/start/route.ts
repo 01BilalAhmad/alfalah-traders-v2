@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
     } catch {
       console.log('[RouteTracking/Start] RouteWaypoint table not found, creating...');
       try {
+        // Create table matching Prisma schema (NO createdAt column)
         await pool.query(`
           CREATE TABLE IF NOT EXISTS "RouteWaypoint" (
             "id" TEXT NOT NULL PRIMARY KEY,
@@ -90,8 +91,7 @@ export async function POST(request: NextRequest) {
             "lat" DOUBLE PRECISION NOT NULL,
             "lng" DOUBLE PRECISION NOT NULL,
             "accuracy" DOUBLE PRECISION,
-            "timestamp" TIMESTAMP(3),
-            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+            "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
           );
         `);
         try {
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
           await pool.query(`CREATE INDEX IF NOT EXISTS "RouteWaypoint_timestamp_idx" ON "RouteWaypoint"("timestamp")`);
         } catch { /* indexes may already exist */ }
 
-        // Try adding foreign key (will fail silently if RouteTracking table just got created without issue)
+        // Try adding foreign key
         try {
           await pool.query(`
             DO $$ BEGIN
@@ -116,6 +116,11 @@ export async function POST(request: NextRequest) {
         // Don't fail — route can still start without waypoints table
       }
     }
+
+    // Ensure createdAt column exists on RouteWaypoint (some deployments may have it)
+    try {
+      await pool.query(`ALTER TABLE "RouteWaypoint" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+    } catch { /* ignore */ }
 
     // ─── Step 3: Ensure RouteStop table exists ────────────────────────────────
     try {

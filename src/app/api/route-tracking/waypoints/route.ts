@@ -8,6 +8,7 @@ async function ensureWaypointTable(pool: ReturnType<typeof getPool>): Promise<vo
     await pool.query(`SELECT 1 FROM "RouteWaypoint" LIMIT 1`);
   } catch {
     console.log('[Waypoints] RouteWaypoint table not found, creating...');
+    // Create table matching Prisma schema (NO createdAt column)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "RouteWaypoint" (
         "id" TEXT NOT NULL PRIMARY KEY,
@@ -15,8 +16,7 @@ async function ensureWaypointTable(pool: ReturnType<typeof getPool>): Promise<vo
         "lat" DOUBLE PRECISION NOT NULL,
         "lng" DOUBLE PRECISION NOT NULL,
         "accuracy" DOUBLE PRECISION,
-        "timestamp" TIMESTAMP(3),
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
     try {
@@ -37,6 +37,11 @@ async function ensureWaypointTable(pool: ReturnType<typeof getPool>): Promise<vo
 
     console.log('[Waypoints] RouteWaypoint table created successfully');
   }
+
+  // Ensure createdAt column exists (some versions of the table may have it)
+  try {
+    await pool.query(`ALTER TABLE "RouteWaypoint" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+  } catch { /* column may already exist or table may not exist, ignore */ }
 }
 
 // POST /api/route-tracking/waypoints
@@ -67,6 +72,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Route not found' }, { status: 404 });
     }
 
+    // Check if createdAt column exists in RouteWaypoint table
+    let hasCreatedAt = false;
+    try {
+      const colCheck = await pool.query(
+        `SELECT column_name FROM information_schema.columns WHERE table_name = 'RouteWaypoint' AND column_name = 'createdAt'`
+      );
+      hasCreatedAt = colCheck.rows.length > 0;
+    } catch { /* ignore, assume no createdAt */ }
+
     // Build batch insert query
     const values: unknown[] = [];
     const placeholders: string[] = [];
@@ -76,19 +90,36 @@ export async function POST(request: NextRequest) {
       if (wp.lat === undefined || wp.lng === undefined) continue;
 
       const wpId = `wp_${Date.now().toString(36)}_${crypto.randomBytes(6).toString('hex')}_${paramIndex}`;
-      placeholders.push(
-        `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6})`
-      );
-      values.push(
-        wpId,
-        routeId,
-        wp.lat,
-        wp.lng,
-        wp.accuracy ?? null,
-        wp.timestamp ?? null,
-        new Date().toISOString() // createdAt
-      );
-      paramIndex += 7;
+
+      if (hasCreatedAt) {
+        placeholders.push(
+          `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6})`
+        );
+        values.push(
+          wpId,
+          routeId,
+          wp.lat,
+          wp.lng,
+          wp.accuracy ?? null,
+          wp.timestamp ?? new Date().toISOString(),
+          new Date().toISOString() // createdAt
+        );
+        paramIndex += 7;
+      } else {
+        // Without createdAt column (matches Prisma schema)
+        placeholders.push(
+          `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5})`
+        );
+        values.push(
+          wpId,
+          routeId,
+          wp.lat,
+          wp.lng,
+          wp.accuracy ?? null,
+          wp.timestamp ?? new Date().toISOString()
+        );
+        paramIndex += 6;
+      }
     }
 
     if (placeholders.length === 0) {
@@ -98,12 +129,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const insertQuery = `
-      INSERT INTO "RouteWaypoint" (id, "routeId", lat, lng, accuracy, "timestamp", "createdAt")
-      VALUES ${placeholders.join(', ')}
-    `;
+    let insertQuery: string;
+    if (hasCreatedAt) {
+      insertQuery = `
+        INSERT INTO "RouteWaypoint" (id, "routeId", lat, lng, accuracy, "timestamp", "createdAt")
+        VALUES ${placeholders.join(', ')}
+      `;
+    } else {
+      insertQuery = `
+        INSERT INTO "RouteWaypoint" (id, "routeId", lat, lng, accuracy, "timestamp")
+        VALUES ${placeholders.join(', ')}
+      `;
+    }
 
     await pool.query(insertQuery, values);
+
+    console.log(`[Waypoints] Saved ${placeholders.length} waypoints for route ${routeId}`);
 
     return NextResponse.json({
       success: true,
@@ -136,13 +177,33 @@ export async function GET(request: NextRequest) {
     // Ensure RouteWaypoint table exists
     await ensureWaypointTable(pool);
 
-    const result = await pool.query(
-      `SELECT id, "routeId", lat, lng, accuracy, "timestamp", "createdAt"
-       FROM "RouteWaypoint"
-       WHERE "routeId" = $1
-       ORDER BY "timestamp" ASC, "createdAt" ASC`,
-      [routeId]
-    );
+    // Check if createdAt column exists
+    let hasCreatedAt = false;
+    try {
+      const colCheck = await pool.query(
+        `SELECT column_name FROM information_schema.columns WHERE table_name = 'RouteWaypoint' AND column_name = 'createdAt'`
+      );
+      hasCreatedAt = colCheck.rows.length > 0;
+    } catch { /* ignore */ }
+
+    let result;
+    if (hasCreatedAt) {
+      result = await pool.query(
+        `SELECT id, "routeId", lat, lng, accuracy, "timestamp", "createdAt"
+         FROM "RouteWaypoint"
+         WHERE "routeId" = $1
+         ORDER BY "timestamp" ASC, "createdAt" ASC`,
+        [routeId]
+      );
+    } else {
+      result = await pool.query(
+        `SELECT id, "routeId", lat, lng, accuracy, "timestamp"
+         FROM "RouteWaypoint"
+         WHERE "routeId" = $1
+         ORDER BY "timestamp" ASC`,
+        [routeId]
+      );
+    }
 
     const waypoints = result.rows.map((wp: Record<string, unknown>) => ({
       id: wp.id,
@@ -151,7 +212,7 @@ export async function GET(request: NextRequest) {
       lng: Number(wp.lng),
       accuracy: wp.accuracy != null ? Number(wp.accuracy) : null,
       timestamp: wp.timestamp instanceof Date ? wp.timestamp.toISOString() : wp.timestamp,
-      createdAt: wp.createdAt instanceof Date ? (wp.createdAt as Date).toISOString() : wp.createdAt,
+      ...(hasCreatedAt && wp.createdAt ? { createdAt: wp.createdAt instanceof Date ? (wp.createdAt as Date).toISOString() : wp.createdAt } : {}),
     }));
 
     return NextResponse.json({ routeId, waypoints, count: waypoints.length });
