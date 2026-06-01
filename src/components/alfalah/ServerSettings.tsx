@@ -176,7 +176,7 @@ export default function ServerSettings({ open, onOpenChange }: ServerSettingsPro
               <button
                 type="button"
                 onClick={() => {
-                  setServerUrlState('https://finexa.vercel.app');
+                  setServerUrlState('https://alfalah-traders.vercel.app');
                   setTestStatus('idle');
                 }}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 text-[11px] font-medium hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors border border-blue-200 dark:border-blue-800"
