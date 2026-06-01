@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth-guard';
+import { areRouteTrackingTablesReady } from '@/lib/route-tracking-helpers';
 
 // POST /api/route-tracking/checkin - Check into a shop
 export async function POST(request: NextRequest) {
@@ -8,6 +9,15 @@ export async function POST(request: NextRequest) {
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
+
+    // Check if tables exist
+    const tablesReady = await areRouteTrackingTablesReady();
+    if (!tablesReady) {
+      return NextResponse.json(
+        { error: 'Route tracking is not set up yet', setupNeeded: true },
+        { status: 503 }
+      );
     }
 
     const { routeId, shopId, lat, lng } = await request.json();
@@ -75,7 +85,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(stop, { status: 201 });
+    return NextResponse.json({ stop }, { status: 201 });
   } catch (error) {
     console.error('Error checking into shop:', error);
     return NextResponse.json(

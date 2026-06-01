@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth-guard';
+import { areRouteTrackingTablesReady } from '@/lib/route-tracking-helpers';
 
 // Helper: Haversine distance between two lat/lng points (km)
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -23,6 +24,15 @@ export async function PUT(request: NextRequest) {
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
+
+    // Check if tables exist
+    const tablesReady = await areRouteTrackingTablesReady();
+    if (!tablesReady) {
+      return NextResponse.json(
+        { error: 'Route tracking is not set up yet', setupNeeded: true },
+        { status: 503 }
+      );
     }
 
     const { routeId, lat, lng } = await request.json();
@@ -52,33 +62,17 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Route is already completed' }, { status: 400 });
     }
 
-    // Calculate total distance: sum of distances between consecutive stops + start to first stop + last stop to end
+    // Calculate total distance
     let totalDistance = 0;
     const stops = route.stops;
 
     if (stops.length > 0) {
-      // Distance from start to first stop
       totalDistance += haversineDistance(route.startLat, route.startLng, stops[0].lat, stops[0].lng);
-
-      // Distance between consecutive stops
       for (let i = 1; i < stops.length; i++) {
-        totalDistance += haversineDistance(
-          stops[i - 1].lat,
-          stops[i - 1].lng,
-          stops[i].lat,
-          stops[i].lng
-        );
+        totalDistance += haversineDistance(stops[i - 1].lat, stops[i - 1].lng, stops[i].lat, stops[i].lng);
       }
-
-      // Distance from last stop to end point
-      totalDistance += haversineDistance(
-        stops[stops.length - 1].lat,
-        stops[stops.length - 1].lng,
-        lat,
-        lng
-      );
+      totalDistance += haversineDistance(stops[stops.length - 1].lat, stops[stops.length - 1].lng, lat, lng);
     } else {
-      // No stops: distance from start to end
       totalDistance = haversineDistance(route.startLat, route.startLng, lat, lng);
     }
 
@@ -89,7 +83,7 @@ export async function PUT(request: NextRequest) {
         endLat: lat,
         endLng: lng,
         endTime: now,
-        totalDistance: Math.round(totalDistance * 100) / 100, // Round to 2 decimal places
+        totalDistance: Math.round(totalDistance * 100) / 100,
         status: 'completed',
       },
       include: {
@@ -104,7 +98,7 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(updatedRoute);
+    return NextResponse.json({ route: updatedRoute });
   } catch (error) {
     console.error('Error ending route:', error);
     return NextResponse.json(

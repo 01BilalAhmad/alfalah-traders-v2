@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth-guard';
+import { areRouteTrackingTablesReady } from '@/lib/route-tracking-helpers';
 
 // GET /api/route-tracking/routes - List routes with filtering
 // Query params: orderbookerId?, date?, companyId?, status?, limit?, offset?
@@ -9,6 +10,18 @@ export async function GET(request: NextRequest) {
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
+
+    // Check if tables exist - return empty data if not
+    const tablesReady = await areRouteTrackingTablesReady();
+    if (!tablesReady) {
+      return NextResponse.json({
+        routes: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+        setupNeeded: true,
+      });
     }
 
     const { searchParams } = new URL(request.url);
@@ -49,7 +62,7 @@ export async function GET(request: NextRequest) {
       db.routeTracking.findMany({
         where,
         include: {
-          orderbooker: { select: { id: true, name: true, username: true } },
+          orderbooker: { select: { id: true, name: true, username: true, phone: true } },
           company: { select: { id: true, name: true } },
           stops: {
             include: {
@@ -105,9 +118,14 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching routes:', error);
-    return NextResponse.json(
-      { error: `Failed to fetch routes: ${(error as Error)?.message || 'Unknown error'}` },
-      { status: 500 }
-    );
+    // Return empty data instead of 500 error so the page doesn't crash
+    return NextResponse.json({
+      routes: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+      setupNeeded: true,
+      error: `Failed to fetch routes: ${(error as Error)?.message || 'Unknown error'}`,
+    });
   }
 }
