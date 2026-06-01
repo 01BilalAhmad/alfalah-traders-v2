@@ -66,6 +66,7 @@ const PUBLIC_SUBPATHS = [
   '/api/route-tracking/checkout',
   '/api/route-tracking/stop-checkin',
   '/api/route-tracking/stop-checkout',
+  '/api/route-tracking/summary',
 ];
 
 // ─── Token Parsing ────────────────────────────────────────────────────────────
