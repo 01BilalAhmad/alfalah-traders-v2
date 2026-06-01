@@ -2,10 +2,11 @@
  * Route Tracking Helpers
  * 
  * Graceful handling for when RouteTracking/RouteStop/RouteWaypoint tables don't exist yet.
- * These tables are created after the first `prisma db push` or via the setup endpoint.
+ * Uses raw pg pool instead of Prisma for resilience.
  */
 
-import { db } from '@/lib/db';
+import { getPool } from '@/lib/pg';
+import { ensureRouteTrackingTables } from '@/app/api/route-tracking/start/route';
 
 let tablesReadyCache: boolean | null = null;
 let lastCheckTime = 0;
@@ -22,16 +23,9 @@ export async function areRouteTrackingTablesReady(): Promise<boolean> {
   }
 
   try {
-    // Guard: if Prisma client doesn't have the model (e.g. not generated yet), treat as not ready
-    if (!db || !(db as any).routeTracking) {
-      console.warn('[RouteTrackingHelpers] Prisma client does not have routeTracking model');
-      tablesReadyCache = false;
-      lastCheckTime = now;
-      return false;
-    }
-
-    // Try a simple count query - if tables don't exist, this will throw
-    await db.routeTracking.count({ take: 1 });
+    const pool = getPool();
+    // Try a simple SELECT query - if tables don't exist, this will throw
+    await pool.query(`SELECT 1 FROM "RouteTracking" LIMIT 1`);
     tablesReadyCache = true;
     lastCheckTime = now;
     return true;
@@ -43,16 +37,10 @@ export async function areRouteTrackingTablesReady(): Promise<boolean> {
       msg.includes('relation') ||
       msg.includes('no such table') ||
       msg.includes('cannot find') ||
-      msg.includes('prisma client could not') ||
-      msg.includes('cannot read propert') ||  // TypeError: Cannot read properties of undefined
-      msg.includes('is not a function') ||     // db.routeTracking is not a function
-      msg.includes('model is not known') ||    // Prisma: Model is not known
-      msg.includes('invalid prisma') ||        // Prisma client not generated
-      msg.includes('undefined') ||             // Generic undefined access
-      msg.includes('connection') ||            // DB connection errors
-      msg.includes('timeout') ||               // DB timeout errors
-      msg.includes('ECONNREFUSED') ||          // Connection refused
-      msg.includes('ENOTFOUND')                // DNS resolution failed
+      msg.includes('connection') ||
+      msg.includes('timeout') ||
+      msg.includes('ECONNREFUSED') ||
+      msg.includes('ENOTFOUND')
     ) {
       tablesReadyCache = false;
       lastCheckTime = now;
@@ -68,7 +56,8 @@ export async function areRouteTrackingTablesReady(): Promise<boolean> {
 
 /**
  * Create RouteTracking, RouteWaypoint, and RouteStop tables using raw SQL.
- * This is called from the setup endpoint when tables don't exist.
+ * Uses the canonical ensureRouteTrackingTables function from start/route.ts
+ * for consistent Prisma-compatible schema.
  */
 export async function createRouteTrackingTables(): Promise<{ created: boolean; error?: string }> {
   try {
@@ -78,153 +67,16 @@ export async function createRouteTrackingTables(): Promise<{ created: boolean; e
       return { created: false, error: 'Tables already exist' };
     }
 
-    // Create RouteTracking table
-    await db.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "RouteTracking" (
-        "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-        "orderbookerId" TEXT NOT NULL,
-        "companyId" TEXT,
-        "routeDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "startLat" DOUBLE PRECISION NOT NULL,
-        "startLng" DOUBLE PRECISION NOT NULL,
-        "startTime" TIMESTAMP(3) NOT NULL,
-        "endLat" DOUBLE PRECISION,
-        "endLng" DOUBLE PRECISION,
-        "endTime" TIMESTAMP(3),
-        "totalDistance" DOUBLE PRECISION,
-        "totalDuration" INTEGER,
-        "status" TEXT NOT NULL DEFAULT 'ongoing',
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
+    const pool = getPool();
+    await ensureRouteTrackingTables(pool);
 
-    // Create indexes for RouteTracking
-    await db.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "RouteTracking_orderbookerId_idx" ON "RouteTracking"("orderbookerId");
-    `);
-    await db.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "RouteTracking_routeDate_idx" ON "RouteTracking"("routeDate");
-    `);
-    await db.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "RouteTracking_status_idx" ON "RouteTracking"("status");
-    `);
-    await db.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "RouteTracking_companyId_idx" ON "RouteTracking"("companyId");
-    `);
-    await db.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "RouteTracking_startTime_idx" ON "RouteTracking"("startTime");
-    `);
-
-    // Create RouteWaypoint table (matches Prisma schema - no createdAt initially)
-    await db.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "RouteWaypoint" (
-        "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-        "routeId" TEXT NOT NULL,
-        "lat" DOUBLE PRECISION NOT NULL,
-        "lng" DOUBLE PRECISION NOT NULL,
-        "accuracy" DOUBLE PRECISION,
-        "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // Add createdAt column if needed (for compatibility with some deployments)
-    try {
-      await db.$executeRawUnsafe(`ALTER TABLE "RouteWaypoint" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
-    } catch { /* ignore */ }
-
-    // Create indexes for RouteWaypoint
-    await db.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "RouteWaypoint_routeId_idx" ON "RouteWaypoint"("routeId");
-    `);
-    await db.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "RouteWaypoint_timestamp_idx" ON "RouteWaypoint"("timestamp");
-    `);
-
-    // Create RouteStop table
-    await db.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "RouteStop" (
-        "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-        "routeId" TEXT NOT NULL,
-        "shopId" TEXT NOT NULL,
-        "arrivalTime" TIMESTAMP(3) NOT NULL,
-        "departureTime" TIMESTAMP(3),
-        "timeSpent" INTEGER,
-        "lat" DOUBLE PRECISION NOT NULL,
-        "lng" DOUBLE PRECISION NOT NULL,
-        "recoveryAmount" DOUBLE PRECISION,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // Create indexes for RouteStop
-    await db.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "RouteStop_routeId_idx" ON "RouteStop"("routeId");
-    `);
-    await db.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "RouteStop_shopId_idx" ON "RouteStop"("shopId");
-    `);
-    await db.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS "RouteStop_arrivalTime_idx" ON "RouteStop"("arrivalTime");
-    `);
-
-    // Add foreign key constraints
-    await db.$executeRawUnsafe(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints 
-          WHERE constraint_name = 'RouteWaypoint_routeId_fkey'
-        ) THEN
-          ALTER TABLE "RouteWaypoint" 
-          ADD CONSTRAINT "RouteWaypoint_routeId_fkey" 
-          FOREIGN KEY ("routeId") REFERENCES "RouteTracking"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-        END IF;
-        
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints 
-          WHERE constraint_name = 'RouteStop_routeId_fkey'
-        ) THEN
-          ALTER TABLE "RouteStop" 
-          ADD CONSTRAINT "RouteStop_routeId_fkey" 
-          FOREIGN KEY ("routeId") REFERENCES "RouteTracking"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-        END IF;
-        
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints 
-          WHERE constraint_name = 'RouteStop_shopId_fkey'
-        ) THEN
-          ALTER TABLE "RouteStop" 
-          ADD CONSTRAINT "RouteStop_shopId_fkey" 
-          FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-        END IF;
-        
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints 
-          WHERE constraint_name = 'RouteTracking_orderbookerId_fkey'
-        ) THEN
-          ALTER TABLE "RouteTracking" 
-          ADD CONSTRAINT "RouteTracking_orderbookerId_fkey" 
-          FOREIGN KEY ("orderbookerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-        END IF;
-        
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints 
-          WHERE constraint_name = 'RouteTracking_companyId_fkey'
-        ) THEN
-          ALTER TABLE "RouteTracking" 
-          ADD CONSTRAINT "RouteTracking_companyId_fkey" 
-          FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-        END IF;
-      END $$;
-    `);
-
-    // Reset cache so next check re-validates
-    tablesReadyCache = true;
-    lastCheckTime = Date.now();
-
-    return { created: true };
+    // Verify tables were created
+    const verifyReady = await areRouteTrackingTablesReady();
+    if (verifyReady) {
+      return { created: true };
+    } else {
+      return { created: false, error: 'Tables were not created successfully' };
+    }
   } catch (error: any) {
     console.error('Failed to create RouteTracking tables:', error);
     return { created: false, error: error?.message || 'Unknown error' };

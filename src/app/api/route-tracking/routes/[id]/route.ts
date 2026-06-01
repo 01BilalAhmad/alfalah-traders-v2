@@ -40,10 +40,10 @@ export async function GET(
 
     try {
       const waypointsRes = await pool.query(
-        `SELECT id, lat, lng, accuracy, "timestamp", "createdAt"
+        `SELECT id, lat, lng, accuracy, "timestamp"
          FROM "RouteWaypoint"
          WHERE "routeId" = $1
-         ORDER BY "timestamp" ASC, "createdAt" ASC`,
+         ORDER BY "timestamp" ASC`,
         [routeId]
       );
 

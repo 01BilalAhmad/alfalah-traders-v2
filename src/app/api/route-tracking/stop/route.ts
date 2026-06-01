@@ -48,11 +48,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Ensure createdAt column exists on RouteWaypoint (for ORDER BY)
+    try {
+      await pool.query(`ALTER TABLE "RouteWaypoint" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+    } catch { /* ignore */ }
+
     // Calculate total distance from waypoints (gracefully handle if table doesn't exist)
     let wpRes = { rows: [] as Array<{ lat: number; lng: number }> };
     try {
       wpRes = await pool.query(
-        `SELECT lat, lng FROM "RouteWaypoint" WHERE "routeId" = $1 ORDER BY "timestamp" ASC, "createdAt" ASC`,
+        `SELECT lat, lng FROM "RouteWaypoint" WHERE "routeId" = $1 ORDER BY "timestamp" ASC`,
         [routeId]
       );
     } catch {

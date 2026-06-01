@@ -8,6 +8,10 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// NOTE: DIRECT_URL is optional for local dev (SQLite fallback).
+// On Vercel/Neon, set both DATABASE_URL (pooled) and DIRECT_URL (direct) in the dashboard.
+// If DIRECT_URL is not set, Prisma falls back to DATABASE_URL.
+
 model User {
   id        String   @id @default(cuid())
   username  String   @unique

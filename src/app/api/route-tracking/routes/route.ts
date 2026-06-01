@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
           `SELECT "routeId", lat, lng, "timestamp"
            FROM "RouteWaypoint"
            WHERE "routeId" = ANY($1)
-           ORDER BY "routeId", "timestamp" ASC, "createdAt" ASC`,
+           ORDER BY "routeId", "timestamp" ASC`,
           [routeIds]
         );
 

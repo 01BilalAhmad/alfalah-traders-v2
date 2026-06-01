@@ -19,164 +19,24 @@ export async function POST(request: NextRequest) {
 
     const pool = getPool();
 
-    // ─── Step 1: Ensure RouteTracking table exists ────────────────────────────
+    // ─── Step 1: Ensure ALL route tracking tables exist (with correct Prisma-compatible schema) ───
+    await ensureRouteTrackingTables(pool);
+
+    // ─── Step 2: Validate orderbookerId exists (avoid FK violation) ───
     try {
-      await pool.query(`SELECT 1 FROM "RouteTracking" LIMIT 1`);
-    } catch {
-      console.log('[RouteTracking/Start] RouteTracking table not found, creating...');
-      try {
-        // Create WITHOUT foreign key constraints first (add them later)
-        // This avoids failures if User/Shop tables don't exist yet
-        await pool.query(`
-          CREATE TABLE IF NOT EXISTS "RouteTracking" (
-            "id" TEXT NOT NULL PRIMARY KEY,
-            "orderbookerId" TEXT NOT NULL,
-            "companyId" TEXT,
-            "status" TEXT NOT NULL DEFAULT 'ongoing',
-            "startLat" DOUBLE PRECISION,
-            "startLng" DOUBLE PRECISION,
-            "endLat" DOUBLE PRECISION,
-            "endLng" DOUBLE PRECISION,
-            "startTime" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            "endTime" TIMESTAMP(3),
-            "totalDuration" INTEGER,
-            "totalDistance" DOUBLE PRECISION,
-            "routeDate" DATE,
-            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-          );
-        `);
-        // Add indexes
-        try {
-          await pool.query(`CREATE INDEX IF NOT EXISTS "RouteTracking_orderbookerId_idx" ON "RouteTracking"("orderbookerId")`);
-          await pool.query(`CREATE INDEX IF NOT EXISTS "RouteTracking_status_idx" ON "RouteTracking"("status")`);
-          await pool.query(`CREATE INDEX IF NOT EXISTS "RouteTracking_startTime_idx" ON "RouteTracking"("startTime")`);
-          await pool.query(`CREATE INDEX IF NOT EXISTS "RouteTracking_companyId_idx" ON "RouteTracking"("companyId")`);
-          await pool.query(`CREATE INDEX IF NOT EXISTS "RouteTracking_routeDate_idx" ON "RouteTracking"("routeDate")`);
-        } catch { /* indexes may already exist */ }
-
-        // Try adding foreign key constraint (will fail silently if User table doesn't exist)
-        try {
-          await pool.query(`
-            DO $$ BEGIN
-              IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'RouteTracking_orderbookerId_fkey') THEN
-                ALTER TABLE "RouteTracking" ADD CONSTRAINT "RouteTracking_orderbookerId_fkey" FOREIGN KEY ("orderbookerId") REFERENCES "User"("id") ON DELETE RESTRICT;
-              END IF;
-            END $$;
-          `);
-        } catch { /* User table may not exist, ignore FK */ }
-
-        console.log('[RouteTracking/Start] RouteTracking table created successfully');
-      } catch (createErr: unknown) {
-        const createMsg = createErr instanceof Error ? createErr.message : '';
-        console.error('[RouteTracking/Start] Failed to create RouteTracking table:', createMsg);
+      const userCheck = await pool.query(`SELECT id FROM "User" WHERE id = $1`, [orderbookerId]);
+      if (userCheck.rows.length === 0) {
         return NextResponse.json(
-          { error: 'Failed to initialize route tracking tables. Please try again.' },
-          { status: 500 }
+          { error: 'Invalid orderbookerId: user not found' },
+          { status: 400 }
         );
       }
+    } catch (userErr: unknown) {
+      // If User table doesn't exist, skip validation (no FK constraint either)
+      console.warn('[RouteTracking/Start] Could not validate orderbookerId:', userErr instanceof Error ? userErr.message : '');
     }
 
-    // ─── Step 2: Ensure RouteWaypoint table exists ────────────────────────────
-    try {
-      await pool.query(`SELECT 1 FROM "RouteWaypoint" LIMIT 1`);
-    } catch {
-      console.log('[RouteTracking/Start] RouteWaypoint table not found, creating...');
-      try {
-        // Create table matching Prisma schema (NO createdAt column)
-        await pool.query(`
-          CREATE TABLE IF NOT EXISTS "RouteWaypoint" (
-            "id" TEXT NOT NULL PRIMARY KEY,
-            "routeId" TEXT NOT NULL,
-            "lat" DOUBLE PRECISION NOT NULL,
-            "lng" DOUBLE PRECISION NOT NULL,
-            "accuracy" DOUBLE PRECISION,
-            "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-          );
-        `);
-        try {
-          await pool.query(`CREATE INDEX IF NOT EXISTS "RouteWaypoint_routeId_idx" ON "RouteWaypoint"("routeId")`);
-          await pool.query(`CREATE INDEX IF NOT EXISTS "RouteWaypoint_timestamp_idx" ON "RouteWaypoint"("timestamp")`);
-        } catch { /* indexes may already exist */ }
-
-        // Try adding foreign key
-        try {
-          await pool.query(`
-            DO $$ BEGIN
-              IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'RouteWaypoint_routeId_fkey') THEN
-                ALTER TABLE "RouteWaypoint" ADD CONSTRAINT "RouteWaypoint_routeId_fkey" FOREIGN KEY ("routeId") REFERENCES "RouteTracking"("id") ON DELETE CASCADE;
-              END IF;
-            END $$;
-          `);
-        } catch { /* FK may already exist or RouteTracking doesn't exist, ignore */ }
-
-        console.log('[RouteTracking/Start] RouteWaypoint table created successfully');
-      } catch (createErr: unknown) {
-        console.error('[RouteTracking/Start] Failed to create RouteWaypoint table:', createErr instanceof Error ? createErr.message : '');
-        // Don't fail — route can still start without waypoints table
-      }
-    }
-
-    // Ensure createdAt column exists on RouteWaypoint (some deployments may have it)
-    try {
-      await pool.query(`ALTER TABLE "RouteWaypoint" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
-    } catch { /* ignore */ }
-
-    // ─── Step 3: Ensure RouteStop table exists ────────────────────────────────
-    try {
-      await pool.query(`SELECT 1 FROM "RouteStop" LIMIT 1`);
-    } catch {
-      console.log('[RouteTracking/Start] RouteStop table not found, creating...');
-      try {
-        await pool.query(`
-          CREATE TABLE IF NOT EXISTS "RouteStop" (
-            "id" TEXT NOT NULL PRIMARY KEY,
-            "routeId" TEXT NOT NULL,
-            "shopId" TEXT NOT NULL,
-            "lat" DOUBLE PRECISION,
-            "lng" DOUBLE PRECISION,
-            "arrivalTime" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            "departureTime" TIMESTAMP(3),
-            "timeSpent" INTEGER,
-            "recoveryAmount" DOUBLE PRECISION,
-            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-          );
-        `);
-        try {
-          await pool.query(`CREATE INDEX IF NOT EXISTS "RouteStop_routeId_idx" ON "RouteStop"("routeId")`);
-          await pool.query(`CREATE INDEX IF NOT EXISTS "RouteStop_shopId_idx" ON "RouteStop"("shopId")`);
-          await pool.query(`CREATE INDEX IF NOT EXISTS "RouteStop_arrivalTime_idx" ON "RouteStop"("arrivalTime")`);
-        } catch { /* indexes may already exist */ }
-
-        // Try adding foreign keys
-        try {
-          await pool.query(`
-            DO $$ BEGIN
-              IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'RouteStop_routeId_fkey') THEN
-                ALTER TABLE "RouteStop" ADD CONSTRAINT "RouteStop_routeId_fkey" FOREIGN KEY ("routeId") REFERENCES "RouteTracking"("id") ON DELETE CASCADE;
-              END IF;
-              IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'RouteStop_shopId_fkey') THEN
-                ALTER TABLE "RouteStop" ADD CONSTRAINT "RouteStop_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT;
-              END IF;
-            END $$;
-          `);
-        } catch { /* FK constraints may fail, ignore */ }
-
-        console.log('[RouteTracking/Start] RouteStop table created successfully');
-      } catch (createErr: unknown) {
-        console.error('[RouteTracking/Start] Failed to create RouteStop table:', createErr instanceof Error ? createErr.message : '');
-        // Don't fail — route can still start without stops table
-      }
-    }
-
-    // ─── Step 4: Add missing columns (migration for existing tables) ──────────
-    try { await pool.query(`ALTER TABLE "RouteTracking" ADD COLUMN IF NOT EXISTS "routeDate" DATE`); } catch { /* ignore */ }
-    try { await pool.query(`ALTER TABLE "RouteTracking" ADD COLUMN IF NOT EXISTS "totalDistance" DOUBLE PRECISION`); } catch { /* ignore */ }
-    try { await pool.query(`ALTER TABLE "RouteTracking" ADD COLUMN IF NOT EXISTS "totalDuration" INTEGER`); } catch { /* ignore */ }
-    try { await pool.query(`ALTER TABLE "RouteTracking" ADD COLUMN IF NOT EXISTS "companyId" TEXT`); } catch { /* ignore */ }
-
-    // ─── Step 5: Check for existing ongoing route ─────────────────────────────
+    // ─── Step 3: Check for existing ongoing route ─────────────────────────────
     try {
       const existingRes = await pool.query(
         `SELECT id, "startTime" FROM "RouteTracking" WHERE "orderbookerId" = $1 AND status = 'ongoing'`,
@@ -213,22 +73,22 @@ export async function POST(request: NextRequest) {
       console.warn('[RouteTracking/Start] Could not check for existing routes:', checkErr instanceof Error ? checkErr.message : '');
     }
 
-    // ─── Step 6: Create new route ─────────────────────────────────────────────
+    // ─── Step 4: Create new route ─────────────────────────────────────────────
     const routeId = `rt_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
 
     let result;
     try {
-      // Try INSERT with routeDate column
+      // INSERT with routeDate as TIMESTAMP (matches Prisma schema: DateTime @default(now()))
       result = await pool.query(
         `INSERT INTO "RouteTracking" (id, "orderbookerId", "companyId", status, "startLat", "startLng", "startTime", "routeDate", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, NOW(), CURRENT_DATE, NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), NOW(), NOW())
          RETURNING *`,
         [routeId, orderbookerId, companyId || null, 'ongoing', lat, lng]
       );
     } catch (insertError: unknown) {
       const insertMsg = insertError instanceof Error ? insertError.message : '';
-      // If routeDate column doesn't exist, try without it
-      if (insertMsg.includes('routeDate') || insertMsg.includes('column') || insertMsg.includes('does not exist')) {
+      // If routeDate column doesn't exist (old table), try without it
+      if (insertMsg.includes('"routeDate"') && (insertMsg.includes('does not exist') || insertMsg.includes('column'))) {
         console.warn('[RouteTracking/Start] routeDate column not found, inserting without it.');
         result = await pool.query(
           `INSERT INTO "RouteTracking" (id, "orderbookerId", "companyId", status, "startLat", "startLng", "startTime", "createdAt", "updatedAt")
@@ -267,5 +127,185 @@ export async function POST(request: NextRequest) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('[RouteTracking/Start] Error:', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+// ─── Canonical table creation function (Prisma-compatible schema) ───────────────
+// This is the SINGLE SOURCE OF TRUTH for route tracking table schemas.
+// It matches the Prisma schema exactly.
+
+export async function ensureRouteTrackingTables(pool: ReturnType<typeof getPool>): Promise<void> {
+  // ─── RouteTracking table ──────────────────────────────────────────────────
+  try {
+    await pool.query(`SELECT 1 FROM "RouteTracking" LIMIT 1`);
+  } catch {
+    console.log('[RouteTracking] Creating RouteTracking table...');
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "RouteTracking" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "orderbookerId" TEXT NOT NULL,
+          "companyId" TEXT,
+          "routeDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "startLat" DOUBLE PRECISION NOT NULL,
+          "startLng" DOUBLE PRECISION NOT NULL,
+          "startTime" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "endLat" DOUBLE PRECISION,
+          "endLng" DOUBLE PRECISION,
+          "endTime" TIMESTAMP(3),
+          "totalDistance" DOUBLE PRECISION,
+          "totalDuration" INTEGER,
+          "status" TEXT NOT NULL DEFAULT 'ongoing',
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log('[RouteTracking] RouteTracking table created successfully');
+    } catch (createErr: unknown) {
+      const createMsg = createErr instanceof Error ? createErr.message : '';
+      console.error('[RouteTracking] Failed to create RouteTracking table:', createMsg);
+      // Don't return error - try to continue (table might exist with different schema)
+    }
+  }
+
+  // Migrate existing tables: fix column types if they were created with wrong schema
+  try {
+    // Fix routeDate from DATE to TIMESTAMP(3) if needed
+    await pool.query(`ALTER TABLE "RouteTracking" ALTER COLUMN "routeDate" SET DATA TYPE TIMESTAMP(3) USING "routeDate"::TIMESTAMP(3)`);
+    await pool.query(`ALTER TABLE "RouteTracking" ALTER COLUMN "routeDate" SET DEFAULT CURRENT_TIMESTAMP`);
+  } catch { /* column may already be correct type or contain NULLs, ignore */ }
+
+  try {
+    // Fix routeDate from nullable to NOT NULL (set default for any NULL rows first)
+    await pool.query(`UPDATE "RouteTracking" SET "routeDate" = "startTime" WHERE "routeDate" IS NULL`);
+    await pool.query(`ALTER TABLE "RouteTracking" ALTER COLUMN "routeDate" SET NOT NULL`);
+  } catch { /* ignore */ }
+
+  try {
+    // Fix startLat from nullable to NOT NULL
+    await pool.query(`ALTER TABLE "RouteTracking" ALTER COLUMN "startLat" SET NOT NULL`);
+  } catch { /* ignore - existing rows may have NULL */ }
+
+  try {
+    // Fix startLng from nullable to NOT NULL
+    await pool.query(`ALTER TABLE "RouteTracking" ALTER COLUMN "startLng" SET NOT NULL`);
+  } catch { /* ignore */ }
+
+  // Add missing columns (migration for old tables)
+  try { await pool.query(`ALTER TABLE "RouteTracking" ADD COLUMN IF NOT EXISTS "routeDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`); } catch { /* ignore */ }
+  try { await pool.query(`ALTER TABLE "RouteTracking" ADD COLUMN IF NOT EXISTS "totalDistance" DOUBLE PRECISION`); } catch { /* ignore */ }
+  try { await pool.query(`ALTER TABLE "RouteTracking" ADD COLUMN IF NOT EXISTS "totalDuration" INTEGER`); } catch { /* ignore */ }
+  try { await pool.query(`ALTER TABLE "RouteTracking" ADD COLUMN IF NOT EXISTS "companyId" TEXT`); } catch { /* ignore */ }
+
+  // RouteTracking indexes
+  try {
+    await pool.query(`CREATE INDEX IF NOT EXISTS "RouteTracking_orderbookerId_idx" ON "RouteTracking"("orderbookerId")`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS "RouteTracking_status_idx" ON "RouteTracking"("status")`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS "RouteTracking_startTime_idx" ON "RouteTracking"("startTime")`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS "RouteTracking_companyId_idx" ON "RouteTracking"("companyId")`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS "RouteTracking_routeDate_idx" ON "RouteTracking"("routeDate")`);
+  } catch { /* indexes may already exist */ }
+
+  // ─── RouteWaypoint table ──────────────────────────────────────────────────
+  try {
+    await pool.query(`SELECT 1 FROM "RouteWaypoint" LIMIT 1`);
+  } catch {
+    console.log('[RouteTracking] Creating RouteWaypoint table...');
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "RouteWaypoint" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "routeId" TEXT NOT NULL,
+          "lat" DOUBLE PRECISION NOT NULL,
+          "lng" DOUBLE PRECISION NOT NULL,
+          "accuracy" DOUBLE PRECISION,
+          "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log('[RouteTracking] RouteWaypoint table created successfully');
+    } catch (createErr: unknown) {
+      console.error('[RouteTracking] Failed to create RouteWaypoint table:', createErr instanceof Error ? createErr.message : '');
+    }
+  }
+
+  // Ensure createdAt column exists on RouteWaypoint
+  try {
+    await pool.query(`ALTER TABLE "RouteWaypoint" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+  } catch { /* column may already exist, ignore */ }
+
+  // RouteWaypoint indexes
+  try {
+    await pool.query(`CREATE INDEX IF NOT EXISTS "RouteWaypoint_routeId_idx" ON "RouteWaypoint"("routeId")`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS "RouteWaypoint_timestamp_idx" ON "RouteWaypoint"("timestamp")`);
+  } catch { /* indexes may already exist */ }
+
+  // ─── RouteStop table ──────────────────────────────────────────────────────
+  try {
+    await pool.query(`SELECT 1 FROM "RouteStop" LIMIT 1`);
+  } catch {
+    console.log('[RouteTracking] Creating RouteStop table...');
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "RouteStop" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "routeId" TEXT NOT NULL,
+          "shopId" TEXT NOT NULL,
+          "arrivalTime" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "departureTime" TIMESTAMP(3),
+          "timeSpent" INTEGER,
+          "lat" DOUBLE PRECISION NOT NULL,
+          "lng" DOUBLE PRECISION NOT NULL,
+          "recoveryAmount" DOUBLE PRECISION,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log('[RouteTracking] RouteStop table created successfully');
+    } catch (createErr: unknown) {
+      console.error('[RouteTracking] Failed to create RouteStop table:', createErr instanceof Error ? createErr.message : '');
+    }
+  }
+
+  // RouteStop indexes
+  try {
+    await pool.query(`CREATE INDEX IF NOT EXISTS "RouteStop_routeId_idx" ON "RouteStop"("routeId")`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS "RouteStop_shopId_idx" ON "RouteStop"("shopId")`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS "RouteStop_arrivalTime_idx" ON "RouteStop"("arrivalTime")`);
+  } catch { /* indexes may already exist */ }
+
+  // ─── Foreign Key Constraints (each in its own block to prevent one failure from killing all) ───
+  const fkConstraints = [
+    {
+      name: 'RouteTracking_orderbookerId_fkey',
+      sql: `ALTER TABLE "RouteTracking" ADD CONSTRAINT "RouteTracking_orderbookerId_fkey" FOREIGN KEY ("orderbookerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;`
+    },
+    {
+      name: 'RouteTracking_companyId_fkey',
+      sql: `ALTER TABLE "RouteTracking" ADD CONSTRAINT "RouteTracking_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE;`
+    },
+    {
+      name: 'RouteWaypoint_routeId_fkey',
+      sql: `ALTER TABLE "RouteWaypoint" ADD CONSTRAINT "RouteWaypoint_routeId_fkey" FOREIGN KEY ("routeId") REFERENCES "RouteTracking"("id") ON DELETE CASCADE ON UPDATE CASCADE;`
+    },
+    {
+      name: 'RouteStop_routeId_fkey',
+      sql: `ALTER TABLE "RouteStop" ADD CONSTRAINT "RouteStop_routeId_fkey" FOREIGN KEY ("routeId") REFERENCES "RouteTracking"("id") ON DELETE CASCADE ON UPDATE CASCADE;`
+    },
+    {
+      name: 'RouteStop_shopId_fkey',
+      sql: `ALTER TABLE "RouteStop" ADD CONSTRAINT "RouteStop_shopId_fkey" FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE RESTRICT ON UPDATE CASCADE;`
+    },
+  ];
+
+  for (const fk of fkConstraints) {
+    try {
+      await pool.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = '${fk.name}') THEN
+            ${fk.sql}
+          END IF;
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END $$;
+      `);
+    } catch { /* FK may already exist or referenced table doesn't exist, ignore */ }
   }
 }
