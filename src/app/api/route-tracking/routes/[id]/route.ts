@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth-guard';
+import { areRouteTrackingTablesReady } from '@/lib/route-tracking-helpers';
 
 // GET /api/route-tracking/routes/[id] - Single route detail
 export async function GET(
@@ -11,6 +12,15 @@ export async function GET(
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
+
+    // Check if tables exist
+    const tablesReady = await areRouteTrackingTablesReady();
+    if (!tablesReady) {
+      return NextResponse.json(
+        { error: 'Route tracking is not set up yet', setupNeeded: true },
+        { status: 503 }
+      );
     }
 
     const { id } = await params;

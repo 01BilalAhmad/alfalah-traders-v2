@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth-guard';
+import { areRouteTrackingTablesReady } from '@/lib/route-tracking-helpers';
 
 // GET /api/route-tracking/summary - Dashboard summary
 // Query params: orderbookerId?, from?, to?
@@ -9,6 +10,24 @@ export async function GET(request: NextRequest) {
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
+
+    // Check if tables exist - return empty summary if not
+    const tablesReady = await areRouteTrackingTablesReady();
+    if (!tablesReady) {
+      return NextResponse.json({
+        summary: {
+          totalRoutes: 0,
+          completedRoutes: 0,
+          ongoingRoutes: 0,
+          totalShopsVisited: 0,
+          totalDistance: 0,
+          avgTimePerShop: 0,
+          totalRecovery: 0,
+        },
+        byOrderbooker: [],
+        setupNeeded: true,
+      });
     }
 
     const { searchParams } = new URL(request.url);
@@ -130,9 +149,20 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching route summary:', error);
-    return NextResponse.json(
-      { error: `Failed to fetch summary: ${(error as Error)?.message || 'Unknown error'}` },
-      { status: 500 }
-    );
+    // Return empty summary instead of 500 error
+    return NextResponse.json({
+      summary: {
+        totalRoutes: 0,
+        completedRoutes: 0,
+        ongoingRoutes: 0,
+        totalShopsVisited: 0,
+        totalDistance: 0,
+        avgTimePerShop: 0,
+        totalRecovery: 0,
+      },
+      byOrderbooker: [],
+      setupNeeded: true,
+      error: `Failed to fetch summary: ${(error as Error)?.message || 'Unknown error'}`,
+    });
   }
 }

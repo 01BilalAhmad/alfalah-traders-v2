@@ -243,6 +243,11 @@ export default function AdminRouteTracking() {
   const [routeTrackingEnabled, setRouteTrackingEnabled] = useState<boolean>(true);
   const [settingsLoading, setSettingsLoading] = useState(false);
 
+  // Setup state
+  const [tablesReady, setTablesReady] = useState<boolean>(false);
+  const [setupLoading, setSetupLoading] = useState<boolean>(false);
+  const [setupError, setSetupError] = useState<string>('');
+
   // Leaflet CSS injection
   const [leafletCssLoaded, setLeafletCssLoaded] = useState(false);
 
@@ -334,11 +339,38 @@ export default function AdminRouteTracking() {
       if (res.ok) {
         const data = await res.json();
         setRouteTrackingEnabled(data.routeTrackingEnabled ?? true);
+        setTablesReady(data.tablesReady ?? false);
       }
     } catch {
-      // silent
+      // silent — keep defaults
     }
   }, []);
+
+  // Run setup — create database tables
+  const handleSetup = useCallback(async () => {
+    setSetupLoading(true);
+    setSetupError('');
+    try {
+      const res = await apiFetch('/api/route-tracking/setup', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setTablesReady(true);
+        toast({ title: 'Setup Complete', description: 'Route tracking tables created successfully!' });
+        // Refresh data now that tables exist
+        fetchRoutes();
+        fetchSummary();
+      } else {
+        const data = await res.json();
+        setSetupError(data.error || 'Setup failed');
+        toast({ title: 'Setup Failed', description: data.error || 'Could not create tables', variant: 'destructive' });
+      }
+    } catch {
+      setSetupError('Network error during setup');
+      toast({ title: 'Setup Failed', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setSetupLoading(false);
+    }
+  }, [fetchRoutes, fetchSummary]);
 
   // Toggle route tracking
   const handleToggleRouteTracking = async (enabled: boolean) => {
@@ -350,15 +382,26 @@ export default function AdminRouteTracking() {
         body: JSON.stringify({ routeTrackingEnabled: enabled }),
       });
       if (res.ok) {
+        const data = await res.json();
         setRouteTrackingEnabled(enabled);
+        // If enabling and tables weren't ready, now they should be
+        if (enabled && data.tablesReady !== undefined) {
+          setTablesReady(data.tablesReady);
+        }
         toast({
           title: enabled ? 'Route Tracking Enabled' : 'Route Tracking Disabled',
           description: enabled
             ? 'Orderbookers can now start tracking routes'
             : 'Route tracking has been paused',
         });
+        // Refresh data if just enabled
+        if (enabled) {
+          fetchRoutes();
+          fetchSummary();
+        }
       } else {
-        toast({ title: 'Error', description: 'Failed to update settings', variant: 'destructive' });
+        const errorData = await res.json().catch(() => ({}));
+        toast({ title: 'Error', description: errorData.error || 'Failed to update settings', variant: 'destructive' });
       }
     } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
@@ -424,6 +467,40 @@ export default function AdminRouteTracking() {
 
   return (
     <div className="space-y-5">
+      {/* Setup Required Banner — shown when DB tables don't exist yet */}
+      {!tablesReady && (
+        <Card className="border-2 border-dashed border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30">
+          <CardContent className="p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0">
+                <Settings className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-amber-800 dark:text-amber-300 text-base">Database Setup Required</h3>
+                <p className="text-sm text-amber-700 dark:text-amber-400 mt-1 leading-relaxed">
+                  Route tracking tables need to be created in your database before this feature can work. 
+                  Click the button below to set up the required tables — this is safe and will not affect any existing data.
+                </p>
+                {setupError && (
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-2 font-medium">{setupError}</p>
+                )}
+              </div>
+              <Button
+                onClick={handleSetup}
+                disabled={setupLoading}
+                className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 gap-2"
+              >
+                {setupLoading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Setting up...</>
+                ) : (
+                  <><Settings className="h-4 w-4" /> Setup Tables</>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Page Title & Feature Toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="animate-fade-in">

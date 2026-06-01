@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth-guard';
+import { areRouteTrackingTablesReady, createRouteTrackingTables, resetTableReadinessCache } from '@/lib/route-tracking-helpers';
 
 // POST /api/route-tracking/start - Start a new route
 export async function POST(request: NextRequest) {
@@ -8,6 +9,21 @@ export async function POST(request: NextRequest) {
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
+
+    // Check if tables exist - auto-create if possible
+    let tablesReady = await areRouteTrackingTablesReady();
+    if (!tablesReady) {
+      const result = await createRouteTrackingTables();
+      if (result.created) {
+        resetTableReadinessCache();
+        tablesReady = true;
+      } else {
+        return NextResponse.json(
+          { error: 'Route tracking is not set up yet. Please run setup from the admin panel.', setupNeeded: true },
+          { status: 503 }
+        );
+      }
     }
 
     const { orderbookerId, companyId, lat, lng } = await request.json();
@@ -78,7 +94,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(route, { status: 201 });
+    return NextResponse.json({ route }, { status: 201 });
   } catch (error) {
     console.error('Error starting route:', error);
     return NextResponse.json(

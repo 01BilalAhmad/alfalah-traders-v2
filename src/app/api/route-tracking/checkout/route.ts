@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth-guard';
+import { areRouteTrackingTablesReady } from '@/lib/route-tracking-helpers';
 
 // PUT /api/route-tracking/checkout - Check out of a shop
 export async function PUT(request: NextRequest) {
@@ -8,6 +9,15 @@ export async function PUT(request: NextRequest) {
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
+
+    // Check if tables exist
+    const tablesReady = await areRouteTrackingTablesReady();
+    if (!tablesReady) {
+      return NextResponse.json(
+        { error: 'Route tracking is not set up yet', setupNeeded: true },
+        { status: 503 }
+      );
     }
 
     const { stopId, recoveryAmount } = await request.json();
@@ -56,7 +66,7 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(updatedStop);
+    return NextResponse.json({ stop: updatedStop });
   } catch (error) {
     console.error('Error checking out of shop:', error);
     return NextResponse.json(
