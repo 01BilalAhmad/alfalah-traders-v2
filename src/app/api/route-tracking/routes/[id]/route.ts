@@ -28,70 +28,128 @@ export async function GET(
     const r = routeRes.rows[0];
 
     // Fetch ALL waypoints for polyline rendering on map
-    const waypointsRes = await pool.query(
-      `SELECT id, lat, lng, accuracy, "timestamp", "createdAt"
-       FROM "RouteWaypoint"
-       WHERE "routeId" = $1
-       ORDER BY "timestamp" ASC, "createdAt" ASC`,
-      [routeId]
-    );
+    // Gracefully handle if RouteWaypoint table doesn't exist yet
+    let waypoints: Array<{
+      id: string;
+      routeId: string;
+      lat: number;
+      lng: number;
+      accuracy: number | null;
+      timestamp: string;
+    }> = [];
+
+    try {
+      const waypointsRes = await pool.query(
+        `SELECT id, lat, lng, accuracy, "timestamp", "createdAt"
+         FROM "RouteWaypoint"
+         WHERE "routeId" = $1
+         ORDER BY "timestamp" ASC, "createdAt" ASC`,
+        [routeId]
+      );
+
+      waypoints = waypointsRes.rows.map((wp: Record<string, unknown>) => ({
+        id: wp.id as string,
+        routeId,
+        lat: Number(wp.lat),
+        lng: Number(wp.lng),
+        accuracy: wp.accuracy != null ? Number(wp.accuracy) : null,
+        timestamp: wp.timestamp instanceof Date ? wp.timestamp.toISOString() : (wp.timestamp as string),
+      }));
+    } catch (wpError: unknown) {
+      // RouteWaypoint table might not exist yet — log but don't crash
+      const wpMsg = wpError instanceof Error ? wpError.message : '';
+      console.warn('[RouteDetail] Could not fetch waypoints:', wpMsg);
+    }
 
     // Fetch stops with shop details
-    const stopsRes = await pool.query(
-      `SELECT rs.id, rs."routeId", rs."shopId", rs.lat, rs.lng,
-              rs."arrivalTime", rs."departureTime", rs."timeSpent", rs."recoveryAmount",
-              s.name AS "shopName", s.area AS "shopArea", s.address AS "shopAddress",
-              s.balance AS "shopBalance"
-       FROM "RouteStop" rs
-       LEFT JOIN "Shop" s ON rs."shopId" = s.id
-       WHERE rs."routeId" = $1
-       ORDER BY rs."arrivalTime" ASC`,
-      [routeId]
-    );
+    // Gracefully handle if RouteStop table doesn't exist yet
+    let stops: Array<{
+      id: string;
+      routeId: string;
+      shopId: string;
+      shopName: string;
+      shopArea: string | null;
+      shopAddress: string | null;
+      shopBalance: number | null;
+      lat: number | null;
+      lng: number | null;
+      arrivalTime: string;
+      departureTime: string | null;
+      timeSpent: number | null;
+      recoveryAmount: number | null;
+    }> = [];
 
-    const waypoints = waypointsRes.rows.map((wp: Record<string, unknown>) => ({
-      id: wp.id,
-      routeId,
-      lat: Number(wp.lat),
-      lng: Number(wp.lng),
-      accuracy: wp.accuracy != null ? Number(wp.accuracy) : null,
-      timestamp: wp.timestamp instanceof Date ? wp.timestamp.toISOString() : wp.timestamp,
-      createdAt: wp.createdAt instanceof Date ? (wp.createdAt as Date).toISOString() : wp.createdAt,
-    }));
+    try {
+      const stopsRes = await pool.query(
+        `SELECT rs.id, rs."routeId", rs."shopId", rs.lat, rs.lng,
+                rs."arrivalTime", rs."departureTime", rs."timeSpent", rs."recoveryAmount",
+                s.name AS "shopName", s.area AS "shopArea", s.address AS "shopAddress",
+                s.balance AS "shopBalance"
+         FROM "RouteStop" rs
+         LEFT JOIN "Shop" s ON rs."shopId" = s.id
+         WHERE rs."routeId" = $1
+         ORDER BY rs."arrivalTime" ASC`,
+        [routeId]
+      );
 
-    const stops = stopsRes.rows.map((s: Record<string, unknown>) => ({
-      id: s.id,
-      routeId,
-      shopId: s.shopId,
-      shopName: s.shopName || 'Unknown',
-      shopArea: s.shopArea,
-      shopAddress: s.shopAddress,
-      shopBalance: s.shopBalance != null ? Number(s.shopBalance) : null,
-      lat: s.lat != null ? Number(s.lat) : null,
-      lng: s.lng != null ? Number(s.lng) : null,
-      arrivalTime: s.arrivalTime instanceof Date ? s.arrivalTime.toISOString() : s.arrivalTime,
-      departureTime: s.departureTime instanceof Date ? (s.departureTime as Date).toISOString() : s.departureTime,
-      timeSpent: s.timeSpent,
-      recoveryAmount: s.recoveryAmount != null ? Number(s.recoveryAmount) : null,
-    }));
-
-    // Calculate total distance from waypoints (haversine)
-    let totalDistance = 0;
-    for (let i = 1; i < waypoints.length; i++) {
-      const prev = waypoints[i - 1];
-      const curr = waypoints[i];
-      totalDistance += haversine(prev.lat, prev.lng, curr.lat, curr.lng);
+      stops = stopsRes.rows.map((s: Record<string, unknown>) => ({
+        id: s.id as string,
+        routeId,
+        shopId: s.shopId as string,
+        shopName: (s.shopName as string) || 'Unknown',
+        shopArea: (s.shopArea as string) || null,
+        shopAddress: (s.shopAddress as string) || null,
+        shopBalance: s.shopBalance != null ? Number(s.shopBalance) : null,
+        lat: s.lat != null ? Number(s.lat) : null,
+        lng: s.lng != null ? Number(s.lng) : null,
+        arrivalTime: s.arrivalTime instanceof Date ? s.arrivalTime.toISOString() : (s.arrivalTime as string),
+        departureTime: s.departureTime instanceof Date ? (s.departureTime as Date).toISOString() : (s.departureTime as string | null),
+        timeSpent: s.timeSpent != null ? Number(s.timeSpent) : null,
+        recoveryAmount: s.recoveryAmount != null ? Number(s.recoveryAmount) : null,
+      }));
+    } catch (stopError: unknown) {
+      const stopMsg = stopError instanceof Error ? stopError.message : '';
+      console.warn('[RouteDetail] Could not fetch stops:', stopMsg);
     }
-    // If no waypoints, use start-to-end straight line distance
+
+    // Calculate total distance from: start + waypoints + end (consistent with polyline rendering)
+    const allPoints: { lat: number; lng: number }[] = [];
+
+    // Add start point
+    if (r.startLat != null && r.startLng != null) {
+      allPoints.push({ lat: Number(r.startLat), lng: Number(r.startLng) });
+    }
+
+    // Add all waypoints
+    for (const wp of waypoints) {
+      allPoints.push({ lat: wp.lat, lng: wp.lng });
+    }
+
+    // Add end point
+    if (r.endLat != null && r.endLng != null) {
+      allPoints.push({ lat: Number(r.endLat), lng: Number(r.endLng) });
+    }
+
+    // Calculate distance through all points
+    let totalDistanceMeters = 0;
+    for (let i = 1; i < allPoints.length; i++) {
+      totalDistanceMeters += haversine(
+        allPoints[i - 1].lat, allPoints[i - 1].lng,
+        allPoints[i].lat, allPoints[i].lng
+      );
+    }
+
+    // If no waypoints and have start/end, use straight-line distance
     if (waypoints.length === 0 && r.startLat != null && r.endLat != null) {
-      totalDistance = haversine(Number(r.startLat), Number(r.startLng), Number(r.endLat), Number(r.endLng));
+      totalDistanceMeters = haversine(Number(r.startLat), Number(r.startLng), Number(r.endLat), Number(r.endLng));
     }
+
     // Convert meters to km
-    const totalDistanceKm = Math.round(totalDistance / 1000 * 100) / 100;
+    const totalDistanceKm = Math.round(totalDistanceMeters / 1000 * 100) / 100;
 
     // Calculate total recovery from stops
-    const totalRecovery = stops.reduce((sum: number, s: Record<string, unknown>) => {
-      return sum + (s.recoveryAmount != null ? Number(s.recoveryAmount) : 0);
+    const totalRecovery = stops.reduce((sum, s) => {
+      return sum + (s.recoveryAmount || 0);
     }, 0);
 
     // Convert totalDuration from seconds to minutes for frontend display

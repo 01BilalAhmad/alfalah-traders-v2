@@ -281,7 +281,7 @@ export default function RouteMapInner({ routeDetail, loading }: RouteMapInnerPro
                   weight: 4,
                   opacity: 0.85,
                   smoothFactor: 1,
-                  dashArray: null,
+                  dashArray: undefined,
                   lineCap: 'round',
                   lineJoin: 'round',
                 }}

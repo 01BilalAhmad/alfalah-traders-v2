@@ -39,6 +39,11 @@ export async function POST() {
       await pool.query(`ALTER TABLE "RouteTracking" ADD COLUMN IF NOT EXISTS "totalDistance" DOUBLE PRECISION`);
     } catch { /* column may already exist, ignore */ }
 
+    // Add totalDuration column if it doesn't exist (migration for existing tables)
+    try {
+      await pool.query(`ALTER TABLE "RouteTracking" ADD COLUMN IF NOT EXISTS "totalDuration" INTEGER`);
+    } catch { /* column may already exist, ignore */ }
+
     // RouteTracking indexes
     try {
       await pool.query(`CREATE INDEX IF NOT EXISTS "RouteTracking_orderbookerId_idx" ON "RouteTracking"("orderbookerId")`);

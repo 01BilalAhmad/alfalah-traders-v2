@@ -1,7 +1,7 @@
 /**
  * Route Tracking Helpers
  * 
- * Graceful handling for when RouteTracking/RouteStop tables don't exist yet.
+ * Graceful handling for when RouteTracking/RouteStop/RouteWaypoint tables don't exist yet.
  * These tables are created after the first `prisma db push` or via the setup endpoint.
  */
 
@@ -67,7 +67,7 @@ export async function areRouteTrackingTablesReady(): Promise<boolean> {
 }
 
 /**
- * Create RouteTracking and RouteStop tables using raw SQL.
+ * Create RouteTracking, RouteWaypoint, and RouteStop tables using raw SQL.
  * This is called from the setup endpoint when tables don't exist.
  */
 export async function createRouteTrackingTables(): Promise<{ created: boolean; error?: string }> {
@@ -92,6 +92,7 @@ export async function createRouteTrackingTables(): Promise<{ created: boolean; e
         "endLng" DOUBLE PRECISION,
         "endTime" TIMESTAMP(3),
         "totalDistance" DOUBLE PRECISION,
+        "totalDuration" INTEGER,
         "status" TEXT NOT NULL DEFAULT 'ongoing',
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -111,6 +112,30 @@ export async function createRouteTrackingTables(): Promise<{ created: boolean; e
     await db.$executeRawUnsafe(`
       CREATE INDEX IF NOT EXISTS "RouteTracking_companyId_idx" ON "RouteTracking"("companyId");
     `);
+    await db.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "RouteTracking_startTime_idx" ON "RouteTracking"("startTime");
+    `);
+
+    // Create RouteWaypoint table
+    await db.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "RouteWaypoint" (
+        "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+        "routeId" TEXT NOT NULL,
+        "lat" DOUBLE PRECISION NOT NULL,
+        "lng" DOUBLE PRECISION NOT NULL,
+        "accuracy" DOUBLE PRECISION,
+        "timestamp" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create indexes for RouteWaypoint
+    await db.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "RouteWaypoint_routeId_idx" ON "RouteWaypoint"("routeId");
+    `);
+    await db.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "RouteWaypoint_timestamp_idx" ON "RouteWaypoint"("timestamp");
+    `);
 
     // Create RouteStop table
     await db.$executeRawUnsafe(`
@@ -124,7 +149,8 @@ export async function createRouteTrackingTables(): Promise<{ created: boolean; e
         "lat" DOUBLE PRECISION NOT NULL,
         "lng" DOUBLE PRECISION NOT NULL,
         "recoveryAmount" DOUBLE PRECISION,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
@@ -135,11 +161,23 @@ export async function createRouteTrackingTables(): Promise<{ created: boolean; e
     await db.$executeRawUnsafe(`
       CREATE INDEX IF NOT EXISTS "RouteStop_shopId_idx" ON "RouteStop"("shopId");
     `);
+    await db.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "RouteStop_arrivalTime_idx" ON "RouteStop"("arrivalTime");
+    `);
 
     // Add foreign key constraints
     await db.$executeRawUnsafe(`
       DO $$
       BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints 
+          WHERE constraint_name = 'RouteWaypoint_routeId_fkey'
+        ) THEN
+          ALTER TABLE "RouteWaypoint" 
+          ADD CONSTRAINT "RouteWaypoint_routeId_fkey" 
+          FOREIGN KEY ("routeId") REFERENCES "RouteTracking"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+        END IF;
+        
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.table_constraints 
           WHERE constraint_name = 'RouteStop_routeId_fkey'

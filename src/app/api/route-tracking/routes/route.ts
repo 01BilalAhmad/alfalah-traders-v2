@@ -56,72 +56,107 @@ export async function GET(request: NextRequest) {
     );
     const total = parseInt(countRes.rows[0].count, 10);
 
-    // Fetch routes with orderbooker name, stops count, waypoints count
+    // Fetch routes with orderbooker name
+    // Try with stop/waypoint counts first; if tables don't exist, fall back to simple query
     const offset = (page - 1) * limit;
-    const routesRes = await pool.query(
-      `SELECT rt.*,
-              u.name AS "orderbookerName",
-              COALESCE(stop_counts.stop_count, 0) AS "stopsCount",
-              COALESCE(waypoint_counts.waypoint_count, 0) AS "waypointsCount"
-       FROM "RouteTracking" rt
-       LEFT JOIN "User" u ON rt."orderbookerId" = u.id
-       LEFT JOIN (
-         SELECT "routeId", COUNT(*) AS stop_count
-         FROM "RouteStop"
-         GROUP BY "routeId"
-       ) stop_counts ON rt.id = stop_counts."routeId"
-       LEFT JOIN (
-         SELECT "routeId", COUNT(*) AS waypoint_count
-         FROM "RouteWaypoint"
-         GROUP BY "routeId"
-       ) waypoint_counts ON rt.id = waypoint_counts."routeId"
-       ${whereClause}
-       ORDER BY rt."startTime" DESC
-       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-      [...params, limit, offset]
-    );
+    let routesRes;
+
+    try {
+      routesRes = await pool.query(
+        `SELECT rt.*,
+                u.name AS "orderbookerName",
+                COALESCE(stop_counts.stop_count, 0) AS "stopsCount",
+                COALESCE(waypoint_counts.waypoint_count, 0) AS "waypointsCount"
+         FROM "RouteTracking" rt
+         LEFT JOIN "User" u ON rt."orderbookerId" = u.id
+         LEFT JOIN (
+           SELECT "routeId", COUNT(*) AS stop_count
+           FROM "RouteStop"
+           GROUP BY "routeId"
+         ) stop_counts ON rt.id = stop_counts."routeId"
+         LEFT JOIN (
+           SELECT "routeId", COUNT(*) AS waypoint_count
+           FROM "RouteWaypoint"
+           GROUP BY "routeId"
+         ) waypoint_counts ON rt.id = waypoint_counts."routeId"
+         ${whereClause}
+         ORDER BY rt."startTime" DESC
+         LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+        [...params, limit, offset]
+      );
+    } catch (joinError: unknown) {
+      // RouteStop or RouteWaypoint tables may not exist yet — fall back to simpler query
+      const joinMsg = joinError instanceof Error ? joinError.message : '';
+      console.warn('[Routes] Join query failed, using simple query:', joinMsg);
+
+      routesRes = await pool.query(
+        `SELECT rt.*, u.name AS "orderbookerName"
+         FROM "RouteTracking" rt
+         LEFT JOIN "User" u ON rt."orderbookerId" = u.id
+         ${whereClause}
+         ORDER BY rt."startTime" DESC
+         LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+        [...params, limit, offset]
+      );
+
+      // Add default counts
+      for (const row of routesRes.rows) {
+        row.stopsCount = '0';
+        row.waypointsCount = '0';
+      }
+    }
 
     // Fetch first few waypoints for each route (for map preview)
     const routeIds = routesRes.rows.map((r: Record<string, unknown>) => r.id);
     let previewWaypoints: Record<string, unknown[]> = {};
 
     if (routeIds.length > 0) {
-      const wpRes = await pool.query(
-        `SELECT "routeId", lat, lng, "timestamp"
-         FROM "RouteWaypoint"
-         WHERE "routeId" = ANY($1)
-         ORDER BY "routeId", "timestamp" ASC, "createdAt" ASC`,
-        [routeIds]
-      );
+      try {
+        const wpRes = await pool.query(
+          `SELECT "routeId", lat, lng, "timestamp"
+           FROM "RouteWaypoint"
+           WHERE "routeId" = ANY($1)
+           ORDER BY "routeId", "timestamp" ASC, "createdAt" ASC`,
+          [routeIds]
+        );
 
-      // Group waypoints by routeId and take first 20 per route for preview
-      const grouped: Record<string, unknown[]> = {};
-      for (const wp of wpRes.rows) {
-        const rid = wp.routeId as string;
-        if (!grouped[rid]) grouped[rid] = [];
-        if (grouped[rid].length < 20) {
-          grouped[rid].push({
-            lat: Number(wp.lat),
-            lng: Number(wp.lng),
-            timestamp: wp.timestamp instanceof Date ? wp.timestamp.toISOString() : wp.timestamp,
-          });
+        // Group waypoints by routeId and take first 20 per route for preview
+        const grouped: Record<string, unknown[]> = {};
+        for (const wp of wpRes.rows) {
+          const rid = wp.routeId as string;
+          if (!grouped[rid]) grouped[rid] = [];
+          if (grouped[rid].length < 20) {
+            grouped[rid].push({
+              lat: Number(wp.lat),
+              lng: Number(wp.lng),
+              timestamp: wp.timestamp instanceof Date ? wp.timestamp.toISOString() : wp.timestamp,
+            });
+          }
         }
+        previewWaypoints = grouped;
+      } catch (wpError: unknown) {
+        // RouteWaypoint table may not exist yet
+        const wpMsg = wpError instanceof Error ? wpError.message : '';
+        console.warn('[Routes] Could not fetch preview waypoints:', wpMsg);
       }
-      previewWaypoints = grouped;
     }
 
     const routes = routesRes.rows.map((r: Record<string, unknown>) => {
       // Compute totalDistance from preview waypoints for approximate distance
       const pwp = previewWaypoints[r.id as string] || [];
       let totalDistance = 0;
-      if (pwp.length >= 2) {
+
+      // Use totalDistance from DB if available (calculated at route end)
+      if (r.totalDistance != null && Number(r.totalDistance) > 0) {
+        totalDistance = Number(r.totalDistance);
+      } else if (pwp.length >= 2) {
         for (let i = 1; i < pwp.length; i++) {
           const prev = pwp[i - 1] as { lat: number; lng: number };
           const curr = pwp[i] as { lat: number; lng: number };
           totalDistance += haversine(prev.lat, prev.lng, curr.lat, curr.lng);
         }
         // Scale up: preview has only first 20 waypoints, approximate full distance
-        const wpCount = parseInt(r.waypointsCount as string, 10);
+        const wpCount = parseInt(r.waypointsCount as string, 10) || 0;
         if (wpCount > 20 && pwp.length >= 2) {
           totalDistance = totalDistance * (wpCount / pwp.length);
         }
@@ -129,6 +164,7 @@ export async function GET(request: NextRequest) {
         // Fallback: straight-line distance from start to end
         totalDistance = haversine(Number(r.startLat), Number(r.startLng), Number(r.endLat), Number(r.endLng));
       }
+
       const totalDistanceKm = Math.round(totalDistance / 1000 * 100) / 100;
 
       // Convert totalDuration from seconds to minutes for frontend display
@@ -158,8 +194,8 @@ export async function GET(request: NextRequest) {
         endTime: r.endTime instanceof Date ? (r.endTime as Date).toISOString() : r.endTime,
         totalDistance: totalDistanceKm,
         totalDuration: totalDurationMinutes,
-        stopsCount: parseInt(r.stopsCount as string, 10),
-        waypointsCount: parseInt(r.waypointsCount as string, 10),
+        stopsCount: parseInt(r.stopsCount as string, 10) || 0,
+        waypointsCount: parseInt(r.waypointsCount as string, 10) || 0,
         previewWaypoints: pwp,
       };
     });

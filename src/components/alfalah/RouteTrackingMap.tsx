@@ -291,7 +291,7 @@ export default function RouteTrackingMap({ selectedRoute, routes }: RouteTrackin
                   color: '#6366f1',
                   weight: 4,
                   opacity: 0.8,
-                  dashArray: null,
+                  dashArray: undefined,
                 }}
               />
             )}
