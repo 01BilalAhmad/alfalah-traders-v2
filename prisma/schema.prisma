@@ -32,6 +32,7 @@ model User {
   dailyTargetsFor    DailyTarget[] @relation("TargetsFor")
   dailyTargetsBy     DailyTarget[] @relation("TargetsBy")
   preferences        UserPreference?
+  routeTrackings     RouteTracking[]
 
   @@index([username])
   @@index([role])
@@ -59,6 +60,7 @@ model Shop {
   visits           ShopVisit[]
   companyBalances  ShopCompanyBalance[]
   assignedOrderbookers ShopOrderbooker[] // additional orderbooker assignments
+  routeStops           RouteStop[]
 
   @@index([orderbookerId])
   @@index([routeDays])
@@ -200,6 +202,7 @@ model Company {
   companyBalances    ShopCompanyBalance[]
   transactions       Transaction[]
   shopOrderbookers   ShopOrderbooker[] // additional OB assignments for this company
+  routeTrackings     RouteTracking[]
 
   @@index([name])
   @@index([status])
@@ -259,4 +262,51 @@ model ShopOrderbooker {
   @@index([shopId])
   @@index([orderbookerId])
   @@index([companyId])
+}
+
+// --- Route Tracking ---
+
+model RouteTracking {
+  id            String     @id @default(cuid())
+  orderbookerId String
+  companyId     String?    // optional - for multi-company
+  routeDate     DateTime   @default(now())
+  startLat      Float
+  startLng      Float
+  startTime     DateTime
+  endLat        Float?
+  endLng        Float?
+  endTime       DateTime?
+  totalDistance  Float?     // calculated total km
+  status        String     @default("ongoing") // "ongoing" or "completed"
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  orderbooker   User       @relation(fields: [orderbookerId], references: [id])
+  company       Company?   @relation(fields: [companyId], references: [id])
+  stops         RouteStop[]
+
+  @@index([orderbookerId])
+  @@index([routeDate])
+  @@index([status])
+  @@index([companyId])
+}
+
+model RouteStop {
+  id             String   @id @default(cuid())
+  routeId        String
+  shopId         String
+  arrivalTime    DateTime
+  departureTime  DateTime?
+  timeSpent      Int?     // minutes
+  lat            Float
+  lng            Float
+  recoveryAmount Float?
+  createdAt      DateTime @default(now())
+
+  route          RouteTracking @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  shop           Shop          @relation(fields: [shopId], references: [id])
+
+  @@index([routeId])
+  @@index([shopId])
 }

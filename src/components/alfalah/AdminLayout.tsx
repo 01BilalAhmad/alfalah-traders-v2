@@ -41,6 +41,7 @@ import {
   Route,
   UserCog,
   ClipboardList,
+  Map,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -84,6 +85,7 @@ const adminNavSections: NavSection[] = [
     label: 'Route & Tracking',
     icon: <Route className="h-4 w-4" />,
     items: [
+      { id: 'admin-route-tracking', label: 'Route Tracking', icon: <Map className="h-4 w-4" /> },
       { id: 'admin-calendar', label: 'Route Calendar', icon: <CalendarDays className="h-4 w-4" /> },
       { id: 'admin-visit-tracking', label: 'Visit Tracking', icon: <Navigation className="h-4 w-4" /> },
       { id: 'admin-map-view', label: 'Map View', icon: <MapPin className="h-4 w-4" /> },
