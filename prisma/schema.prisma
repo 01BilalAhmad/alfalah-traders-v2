@@ -310,3 +310,16 @@ model RouteStop {
   @@index([routeId])
   @@index([shopId])
 }
+
+// --- Site Configuration ---
+// Used for persistent app-wide settings (e.g., route_tracking_enabled)
+// Named with underscore prefix to match the raw SQL table used by route-tracking settings
+
+model FinexaConfig {
+  key       String   @id @map("config_key")
+  value     String   @map("config_value")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  @@map("_finexa_config")
+}
