@@ -833,13 +833,11 @@ textarea:focus-visible {
   display: flex;
   justify-content: center;
 }
-/* Dark mode: use screen blend mode to make black bg transparent & logo visible */
+/* Dark mode: white bg behind logo so dark text is clearly visible */
 .dark .login-logo-wrap {
+  background: #ffffff;
   border-radius: 20px;
   padding: 8px;
-}
-.dark .login-logo-wrap img {
-  mix-blend-mode: screen;
 }
 
 .login-card {
