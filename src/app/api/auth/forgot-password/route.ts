@@ -24,6 +24,28 @@ export async function POST(request: Request) {
 
     const pool = getPool();
 
+    // Ensure PasswordResetToken table exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "PasswordResetToken" (
+        "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+        "token" TEXT NOT NULL UNIQUE,
+        "userId" TEXT NOT NULL,
+        "email" TEXT NOT NULL,
+        "expiresAt" TIMESTAMP(3) NOT NULL,
+        "used" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    // Ensure User table has email column
+    await pool.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'User' AND column_name = 'email') THEN
+          ALTER TABLE "User" ADD COLUMN "email" TEXT;
+        END IF;
+      END $$;
+    `);
+
     // Find admin user with this username
     const userResult = await pool.query(
       'SELECT id, username, name, role, email FROM "User" WHERE LOWER(username) = $1',

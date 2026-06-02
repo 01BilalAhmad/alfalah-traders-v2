@@ -25,6 +25,15 @@ export async function PATCH(
 
     const pool = getPool();
 
+    // Ensure User table has email column
+    await pool.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'User' AND column_name = 'email') THEN
+          ALTER TABLE "User" ADD COLUMN "email" TEXT;
+        END IF;
+      END $$;
+    `);
+
     // Build update query dynamically for allowed fields
     const updates: string[] = [];
     const values: unknown[] = [];
