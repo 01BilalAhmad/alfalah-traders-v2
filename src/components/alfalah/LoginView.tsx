@@ -133,13 +133,14 @@ export default function LoginView() {
       const data = await res.json();
 
       if (!res.ok) {
+        // Show specific error messages from the API
         setResetError(data.error || 'Failed to send reset email');
         return;
       }
 
-      // Always show success — even if user doesn't exist (security)
+      // Show the actual message from the server (may contain masked email hint)
       setViewMode('forgot-sent');
-      toast({ title: 'Email Sent', description: 'If this is a valid admin account with a registered email, a reset link has been sent.' });
+      toast({ title: 'Reset Link Sent', description: data.message || 'If this is a valid admin account with a registered email, a reset link has been sent.' });
     } catch {
       setResetError('Network error. Please try again.');
     } finally {
