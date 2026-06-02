@@ -3,9 +3,10 @@ import { getPool } from '@/lib/pg';
 import { requireAdmin } from '@/lib/auth-guard';
 import { v4 as uuidv4 } from 'uuid';
 
-// Auto-create EmailConfig table if it doesn't exist
+// Auto-create EmailConfig table if it doesn't exist, and fix missing defaults
 async function ensureEmailConfigTable() {
   const pool = getPool();
+  // Create table if it doesn't exist (safe no-op if already exists)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS "EmailConfig" (
       "id" TEXT PRIMARY KEY,
@@ -20,6 +21,14 @@ async function ensureEmailConfigTable() {
       "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()
     );
   `);
+  // If table was created by Prisma (no DEFAULT on updatedAt), add the default
+  // This is safe — SET DEFAULT is a no-op if default already exists
+  try {
+    await pool.query(`ALTER TABLE "EmailConfig" ALTER COLUMN "updatedAt" SET DEFAULT NOW()`);
+    await pool.query(`ALTER TABLE "EmailConfig" ALTER COLUMN "createdAt" SET DEFAULT NOW()`);
+  } catch {
+    // Ignore errors — column might not exist or other DB issue
+  }
 }
 
 // Auto-create PasswordResetToken table if it doesn't exist
@@ -143,10 +152,11 @@ export async function POST(request: NextRequest) {
         [smtpHost, smtpPort, smtpUser, finalPassword, fromName || null, useTLS !== false, existing.rows[0].id]
       );
     } else {
-      // Insert new config with generated ID
+      // Insert new config with generated ID — include updatedAt explicitly
+      // (Prisma-created tables have NO DEFAULT on updatedAt, so we must provide it)
       const newId = uuidv4();
       await pool.query(
-        `INSERT INTO "EmailConfig" (id, "smtpHost", "smtpPort", "smtpUser", "smtpPass", "fromName", "useTLS", "isConfigured") VALUES ($1, $2, $3, $4, $5, $6, $7, true)`,
+        `INSERT INTO "EmailConfig" (id, "smtpHost", "smtpPort", "smtpUser", "smtpPass", "fromName", "useTLS", "isConfigured", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW())`,
         [newId, smtpHost, smtpPort, smtpUser, finalPassword, fromName || null, useTLS !== false]
       );
     }

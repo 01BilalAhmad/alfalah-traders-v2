@@ -90,10 +90,11 @@ export async function POST(request: Request) {
       [user.id]
     );
 
-    // Save new token
+    // Save new token — include id explicitly (Prisma-created tables have no DEFAULT for id)
+    const tokenId = uuidv4();
     await pool.query(
-      'INSERT INTO "PasswordResetToken" (token, "userId", email, "expiresAt", used) VALUES ($1, $2, $3, $4, false)',
-      [token, user.id, user.email, expiresAt]
+      'INSERT INTO "PasswordResetToken" (id, token, "userId", email, "expiresAt", used, "createdAt") VALUES ($1, $2, $3, $4, $5, false, NOW())',
+      [tokenId, token, user.id, user.email, expiresAt]
     );
 
     // Build reset URL — use request origin or default
