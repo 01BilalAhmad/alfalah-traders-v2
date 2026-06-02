@@ -139,7 +139,7 @@ function getRiskColor(risk: 'low' | 'medium' | 'high') {
 const PIE_COLORS = ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#EC4899', '#14B8A6', '#E11D48'];
 
 // ── View Tabs ──────────────────────────────────────────────────────────────
-type MapTab = 'areas' | 'map' | 'ob-routes';
+type MapTab = 'areas' | 'map' | 'ob-routes' | 'live';
 
 function MapTabButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: React.ElementType; label: string }) {
   return (
@@ -395,6 +395,10 @@ export default function AdminMapView() {
   // View
   const [activeTab, setActiveTab] = useState<MapTab>('areas');
 
+  // Live tracking data
+  const [liveOrderbookers, setLiveOrderbookers] = useState<any[]>([]);
+  const [selectedLiveOB, setSelectedLiveOB] = useState<string | null>(null);
+
   // Filters
   const [filterOB, setFilterOB] = useState<string>('');
   const [filterDay, setFilterDay] = useState<string>('');
@@ -443,19 +447,37 @@ export default function AdminMapView() {
     }
   }, []);
 
+  // Fetch live tracking data
+  const fetchLiveTracking = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/route-tracking/live');
+      if (res.ok) {
+        const data = await res.json();
+        setLiveOrderbookers(data.orderbookers || []);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     fetchData();
+    fetchLiveTracking();
 
-    // Auto-refresh every 30 seconds so admin sees new GPS data in real-time
-    const interval = setInterval(() => {
-      // Only refresh locations, not the full shop list (lighter API calls)
+    // Auto-refresh every 10 seconds for live tracking, 30 seconds for shop locations
+    const liveInterval = setInterval(() => {
+      fetchLiveTracking();
+    }, 10000);
+
+    const locationInterval = setInterval(() => {
       apiFetch('/api/shops/locations').then(res => {
         if (res.ok) res.json().then((data: any[]) => setShopLocations(data));
       }).catch(() => {});
     }, 30000);
 
-    return () => clearInterval(interval);
-  }, [fetchData]);
+    return () => {
+      clearInterval(liveInterval);
+      clearInterval(locationInterval);
+    };
+  }, [fetchData, fetchLiveTracking]);
 
   // ── Computed data ──────────────────────────────────────────────────────────
 
@@ -669,6 +691,7 @@ export default function AdminMapView() {
             <div className="flex gap-2">
               <MapTabButton active={activeTab === 'areas'} onClick={() => setActiveTab('areas')} icon={Layers} label="Areas" />
               <MapTabButton active={activeTab === 'map'} onClick={() => setActiveTab('map')} icon={MapIcon} label="Map" />
+              <MapTabButton active={activeTab === 'live'} onClick={() => setActiveTab('live')} icon={Navigation} label="Live Track" />
               <MapTabButton active={activeTab === 'ob-routes'} onClick={() => setActiveTab('ob-routes')} icon={Route} label="OB Routes" />
             </div>
 
@@ -857,7 +880,7 @@ export default function AdminMapView() {
             <CardContent className="px-4 pb-4">
               <div className="h-[500px] rounded-xl overflow-hidden border border-border">
                 {leafletCssLoaded ? (
-                  <ShopMap markers={mapMarkers} />
+                  <ShopMap markers={mapMarkers} liveOrderbookers={liveOrderbookers} showLiveTracking={activeTab === 'live'} selectedOB={selectedLiveOB} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-muted/30">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -948,6 +971,157 @@ export default function AdminMapView() {
       )}
 
       {/* OB Route Distribution View */}
+      {/* ─── Live Tracking View ───────────────────────────────────────────── */}
+      {activeTab === 'live' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Live Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="card-elevated border border-blue-200 dark:border-blue-800">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center shrink-0">
+                  <Navigation className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium">Active Routes</p>
+                  <p className="text-lg font-bold text-blue-600">{liveOrderbookers.length}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="card-elevated border border-emerald-200 dark:border-emerald-800">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center shrink-0">
+                  <Store className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium">Near Shops</p>
+                  <p className="text-lg font-bold text-emerald-600">{liveOrderbookers.filter((ob: any) => ob.nearShop).length}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="card-elevated border border-amber-200 dark:border-amber-800">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center shrink-0">
+                  <Route className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium">Total Waypoints</p>
+                  <p className="text-lg font-bold text-foreground">{liveOrderbookers.reduce((sum: number, ob: any) => sum + (ob.waypointsCount || 0), 0)}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="card-elevated border border-indigo-200 dark:border-indigo-800">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center shrink-0">
+                  <Info className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium">Auto-Refresh</p>
+                  <p className="text-lg font-bold text-foreground">10s</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Live Map */}
+          <Card className="card-elevated">
+            <CardHeader className="pb-2 pt-4 px-5">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                  Live Orderbooker Tracking
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  {selectedLiveOB && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedLiveOB(null)}>
+                      <X className="h-3 w-3 mr-1" /> Show All
+                    </Button>
+                  )}
+                  <Badge variant="secondary" className="text-[10px] font-bold">
+                    {liveOrderbookers.length} online
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="h-[500px] rounded-xl overflow-hidden border border-border">
+                {leafletCssLoaded ? (
+                  <ShopMap markers={mapMarkers} liveOrderbookers={liveOrderbookers} showLiveTracking={true} selectedOB={selectedLiveOB} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-muted/30">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Orderbooker List */}
+          <Card className="card-elevated">
+            <CardHeader className="pb-2 pt-4 px-5">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                Active Orderbookers
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              {liveOrderbookers.length === 0 ? (
+                <div className="py-8 text-center">
+                  <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                    <Navigation className="h-6 w-6 text-slate-400" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">No active routes right now</p>
+                  <p className="text-xs text-muted-foreground mt-1">When orderbookers start routes, their live positions will appear here automatically.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {liveOrderbookers.map((ob: any) => (
+                    <div
+                      key={ob.routeId}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                        selectedLiveOB === ob.orderbookerId
+                          ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+                          : 'bg-card border-border hover:bg-muted/50'
+                      }`}
+                      onClick={() => setSelectedLiveOB(selectedLiveOB === ob.orderbookerId ? null : ob.orderbookerId)}
+                    >
+                      <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
+                        <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold truncate">{ob.orderbookerName}</h4>
+                          <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-[9px] px-1.5 h-4">
+                            LIVE
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                          <span>Duration: {ob.duration}</span>
+                          <span>Points: {ob.waypointsCount}</span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {ob.nearShop ? (
+                          <div>
+                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[9px] px-1.5 h-4">
+                              {ob.nearShop.name}
+                            </Badge>
+                            <p className="text-[10px] text-emerald-600 mt-0.5">{ob.nearShop.distance}m away</p>
+                          </div>
+                        ) : (
+                          <Badge className="bg-slate-100 text-slate-500 border-slate-200 text-[9px] px-1.5 h-4">
+                            Moving
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {activeTab === 'ob-routes' && (
         <div className="space-y-4 animate-fade-in">
           {/* OB Area Distribution Chart */}
