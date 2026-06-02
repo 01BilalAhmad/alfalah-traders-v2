@@ -828,16 +828,18 @@ textarea:focus-visible {
 
 /* ====== Login Card — Uiverse-inspired ====== */
 
-/* Dark mode logo — add subtle frosted backdrop so dark logo is visible on dark bg */
+/* Logo wrapper */
 .login-logo-wrap {
   display: flex;
   justify-content: center;
 }
+/* Dark mode: use screen blend mode to make black bg transparent & logo visible */
 .dark .login-logo-wrap {
-  background: rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   padding: 8px;
-  backdrop-filter: blur(4px);
+}
+.dark .login-logo-wrap img {
+  mix-blend-mode: screen;
 }
 
 .login-card {

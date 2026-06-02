@@ -167,7 +167,7 @@ export default function LoginView() {
           <div className="login-card animate-fade-in">
             {/* Logo */}
             <div className="login-logo-wrap mb-5">
-              <Image src="/finexa-wordmark-v2.png" alt="Finexa" width={140} height={140} className="rounded-2xl" priority />
+              <Image src="/finexa-wordmark-v2.png" alt="Finexa" width={140} height={140} priority />
             </div>
 
             {/* Heading */}
