@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg';
 import { sendEmail, isEmailConfigured } from '@/lib/email';
 import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 
 // POST /api/auth/forgot-password — Request password reset (PUBLIC — no auth required)
 // Only works for admin users. Generates a token and sends reset link via email.
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
     // Ensure PasswordResetToken table exists
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "PasswordResetToken" (
-        "id" TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+        "id" TEXT PRIMARY KEY,
         "token" TEXT NOT NULL UNIQUE,
         "userId" TEXT NOT NULL,
         "email" TEXT NOT NULL,
