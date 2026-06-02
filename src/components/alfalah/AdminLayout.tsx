@@ -47,7 +47,6 @@ import { apiFetch } from '@/lib/api';
 import { ThemeToggle } from './ThemeToggle';
 import NotificationPanel from './NotificationPanel';
 import GlobalSearch from './GlobalSearch';
-import SettingsPanel from './SettingsPanel';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
 import ShareMenu from './ShareMenu';
@@ -122,6 +121,7 @@ const adminNavSections: NavSection[] = [
     icon: <Shield className="h-4 w-4" />,
     items: [
       { id: 'admin-audit', label: 'Audit Log', icon: <Shield className="h-4 w-4" /> },
+      { id: 'admin-settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
     ],
   },
 ];
@@ -267,7 +267,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const { user, currentView, setCurrentView, logout } = useAppStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // Settings is now a full page (admin-settings view), not a side sheet
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [miniStats, setMiniStats] = useState<{ totalShops: number; totalOBs: number }>({ totalShops: 0, totalOBs: 0 });
   const [todayRecovery, setTodayRecovery] = useState<number>(0);
@@ -381,7 +381,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </button>
           {/* User Avatar */}
           <button
-            onClick={() => setSettingsOpen(true)}
+            onClick={() => handleNavClick('admin-settings')}
             className="flex items-center gap-2 text-sm text-foreground hover:bg-muted rounded-md px-2 py-1 transition-colors"
             aria-label="Open settings"
           >
@@ -451,8 +451,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Change Password Dialog */}
       <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
 
-      {/* Settings Panel */}
-      <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} />
+      {/* Settings is now a full page view (admin-settings) — no side sheet needed */}
 
       {/* Session Timeout Dialog */}
       <SessionTimeoutDialog />

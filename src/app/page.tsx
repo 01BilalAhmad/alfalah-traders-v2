@@ -29,6 +29,7 @@ import AdminBalanceReport from '@/components/alfalah/AdminBalanceReport';
 import AdminOBRecoveryReport from '@/components/alfalah/AdminOBRecoveryReport';
 import AdminCompanyReport from '@/components/alfalah/AdminCompanyReport';
 import AdminRouteTracking from '@/components/alfalah/AdminRouteTracking';
+import AdminSettings from '@/components/alfalah/AdminSettings';
 
 function AdminRouter() {
   const { currentView } = useAppStore();
@@ -52,6 +53,8 @@ function AdminRouter() {
       return <AdminReconciliation />;
     case 'admin-audit':
       return <AdminAuditLog />;
+    case 'admin-settings':
+      return <AdminSettings />;
     case 'admin-ob-analytics':
       return <AdminOBAnalytics />;
     case 'admin-monthly-summary':
