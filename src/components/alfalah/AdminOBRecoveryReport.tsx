@@ -261,8 +261,10 @@ export default function AdminOBRecoveryReport() {
     : [];
 
   // Calculate route totals from ALL shops (not just recovery shops)
+  // Route Total = sum of previousBalance + todayCredit (total amount owed at start + new credit given)
+  // Remaining = Route Total - todayRecovery (what is still outstanding after recovery)
   const routeTotalBalance = reportData
-    ? reportData.shops.reduce((sum, s) => sum + s.previousBalance, 0)
+    ? reportData.shops.reduce((sum, s) => sum + s.previousBalance + s.todayCredit, 0)
     : 0;
   const todayRecovery = reportData?.totalRecovery || 0;
   const remainingBalance = routeTotalBalance - todayRecovery;
@@ -360,8 +362,8 @@ export default function AdminOBRecoveryReport() {
     const grandRecovery = companyGroups.reduce((s, g) => s + g.totalRecovery, 0);
     const grandClosing = companyGroups.reduce((s, g) => s + g.totalClosing, 0);
 
-    // Route totals from ALL shops
-    const allShopsRouteBalance = reportData.shops.reduce((s, sh) => s + sh.previousBalance, 0);
+    // Route totals from ALL shops (previousBalance + todayCredit = total owed before recovery)
+    const allShopsRouteBalance = reportData.shops.reduce((s, sh) => s + sh.previousBalance + sh.todayCredit, 0);
     const allShopsRemaining = allShopsRouteBalance - todayRecovery;
 
     printWindow.document.write(`<!DOCTYPE html>
@@ -720,7 +722,7 @@ export default function AdminOBRecoveryReport() {
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Route Total Balance</p>
                   <p className="text-xl font-bold text-foreground">{formatPKR(routeTotalBalance)}</p>
-                  <p className="text-[10px] text-muted-foreground">Start of day outstanding</p>
+                  <p className="text-[10px] text-muted-foreground">Opening + Today's Credit</p>
                 </div>
               </CardContent>
             </Card>
