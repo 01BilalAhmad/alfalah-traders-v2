@@ -6,7 +6,7 @@ import crypto from 'crypto';
 // Check in at a shop during route
 export async function POST(request: NextRequest) {
   try {
-    const { routeId, shopId, lat, lng } = await request.json();
+    const { routeId, shopId, lat, lng, entryType } = await request.json();
 
     if (!routeId || !shopId) {
       return NextResponse.json(
@@ -45,10 +45,10 @@ export async function POST(request: NextRequest) {
     const stopId = `rs_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
 
     const result = await query(
-      `INSERT INTO "RouteStop" (id, "routeId", "shopId", lat, lng, "arrivalTime", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), NOW())
+      `INSERT INTO "RouteStop" (id, "routeId", "shopId", lat, lng, "arrivalTime", "entryType", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW(), NOW())
        RETURNING *`,
-      [stopId, routeId, shopId, lat ?? null, lng ?? null]
+      [stopId, routeId, shopId, lat ?? null, lng ?? null, entryType || 'field_visit']
     );
 
     const stop = result.rows[0];
@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       departureTime: stop.departureTime instanceof Date ? stop.departureTime.toISOString() : stop.departureTime,
       timeSpent: stop.timeSpent,
       recoveryAmount: stop.recoveryAmount != null ? Number(stop.recoveryAmount) : null,
+      entryType: stop.entryType || 'field_visit',
     }, { status: 201 });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error';

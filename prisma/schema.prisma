@@ -320,6 +320,7 @@ model RouteStop {
   lat            Float
   lng            Float
   recoveryAmount Float?    // if recovery was done at this shop
+  entryType      String    @default("field_visit") // "field_visit" or "late_payment"
   createdAt      DateTime  @default(now())
 
   route RouteTracking @relation(fields: [routeId], references: [id], onDelete: Cascade)

@@ -77,12 +77,13 @@ export async function GET(
       departureTime: string | null;
       timeSpent: number | null;
       recoveryAmount: number | null;
+      entryType: string;
     }> = [];
 
     try {
       const stopsRes = await pool.query(
         `SELECT rs.id, rs."routeId", rs."shopId", rs.lat, rs.lng,
-                rs."arrivalTime", rs."departureTime", rs."timeSpent", rs."recoveryAmount",
+                rs."arrivalTime", rs."departureTime", rs."timeSpent", rs."recoveryAmount", rs."entryType",
                 s.name AS "shopName", s.area AS "shopArea", s.address AS "shopAddress",
                 s.balance AS "shopBalance"
          FROM "RouteStop" rs
@@ -106,6 +107,7 @@ export async function GET(
         departureTime: s.departureTime instanceof Date ? (s.departureTime as Date).toISOString() : (s.departureTime as string | null),
         timeSpent: s.timeSpent != null ? Number(s.timeSpent) : null,
         recoveryAmount: s.recoveryAmount != null ? Number(s.recoveryAmount) : null,
+        entryType: (s.entryType as string) || 'field_visit',
       }));
     } catch (stopError: unknown) {
       const stopMsg = stopError instanceof Error ? stopError.message : '';

@@ -28,6 +28,7 @@ interface RouteStopData {
   lat: number;
   lng: number;
   recoveryAmount: number | null;
+  entryType?: string; // "field_visit" or "late_payment"
 }
 
 interface RouteDetail {
@@ -84,6 +85,20 @@ function createOrangeNumberIcon(number: number): L.DivIcon {
     html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="28" height="42">
       <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#f97316" stroke="#c2410c" stroke-width="1"/>
       <text x="12" y="16" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="system-ui">${number}</text>
+    </svg>`,
+    iconSize: [28, 42],
+    iconAnchor: [14, 42],
+    popupAnchor: [0, -42],
+    className: 'custom-leaflet-marker',
+  });
+}
+
+function createAmberLateIcon(): L.DivIcon {
+  return L.divIcon({
+    html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="28" height="42">
+      <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#f59e0b" stroke="#92400e" stroke-width="1"/>
+      <text x="12" y="14" text-anchor="middle" fill="white" font-size="7" font-weight="bold" font-family="system-ui">LATE</text>
+      <text x="12" y="21" text-anchor="middle" fill="white" font-size="7" font-weight="bold" font-family="system-ui">PAY</text>
     </svg>`,
     iconSize: [28, 42],
     iconAnchor: [14, 42],
@@ -307,21 +322,25 @@ export default function RouteMapInner({ routeDetail, loading }: RouteMapInnerPro
               <></>
             )}
 
-            {/* Orange numbered markers for shop stops */}
-            {routeDetail.stops && routeDetail.stops.map((stop, idx) => (
-              stop.lat != null && stop.lng != null ? (
+            {/* Markers for shop stops — orange for field visit, amber for late payment */}
+            {routeDetail.stops && routeDetail.stops.map((stop, idx) => {
+              const isLatePayment = stop.entryType === 'late_payment';
+              return stop.lat != null && stop.lng != null ? (
                 <Marker
                   key={stop.id}
                   position={[stop.lat, stop.lng]}
-                  icon={createOrangeNumberIcon(idx + 1)}
+                  icon={isLatePayment ? createAmberLateIcon() : createOrangeNumberIcon(idx + 1)}
                 >
                   <Popup maxWidth={280}>
                     <div className="p-1">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <div className="h-6 w-6 rounded-full bg-orange-100 flex items-center justify-center text-xs font-bold text-orange-600">
-                          {idx + 1}
+                        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold ${isLatePayment ? 'bg-amber-100 text-amber-700' : 'bg-orange-100 text-orange-600'}`}>
+                          {isLatePayment ? 'LP' : idx + 1}
                         </div>
                         <h3 className="font-semibold text-sm text-foreground">{stop.shopName}</h3>
+                        {isLatePayment && (
+                          <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Late Payment</span>
+                        )}
                       </div>
                       {stop.shopArea && (
                         <p className="text-xs text-muted-foreground mb-1">
@@ -337,15 +356,16 @@ export default function RouteMapInner({ routeDetail, loading }: RouteMapInnerPro
                         </p>
                       )}
                       {stop.recoveryAmount != null && stop.recoveryAmount > 0 && (
-                        <p className="text-xs font-bold text-emerald-600">
+                        <p className={`text-xs font-bold ${isLatePayment ? 'text-amber-600' : 'text-emerald-600'}`}>
                           Recovery: {formatPKR(stop.recoveryAmount)}
+                          {isLatePayment && ' (Office Entry)'}
                         </p>
                       )}
                     </div>
                   </Popup>
                 </Marker>
-              ) : null
-            ))}
+              ) : null;
+            })}
           </>
         )}
       </MapContainer>

@@ -61,6 +61,7 @@ export async function PUT(request: NextRequest) {
       departureTime: stop.departureTime instanceof Date ? stop.departureTime.toISOString() : stop.departureTime,
       timeSpent: stop.timeSpent,
       recoveryAmount: stop.recoveryAmount != null ? Number(stop.recoveryAmount) : null,
+      entryType: stop.entryType || 'field_visit',
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error';

@@ -82,6 +82,7 @@ interface RouteStopData {
   lat: number;
   lng: number;
   recoveryAmount: number | null;
+  entryType?: string; // "field_visit" or "late_payment"
 }
 
 interface RouteDetail extends RouteData {
@@ -670,11 +671,16 @@ export default function AdminRouteTracking() {
                         key={stop.id}
                         className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                       >
-                        <div className="h-6 w-6 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center text-xs font-bold text-orange-600 dark:text-orange-400 shrink-0">
-                          {idx + 1}
+                        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${stop.entryType === 'late_payment' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400' : 'bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400'}`}>
+                          {stop.entryType === 'late_payment' ? 'LP' : idx + 1}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{stop.shopName}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium truncate">{stop.shopName}</p>
+                            {stop.entryType === 'late_payment' && (
+                              <span className="text-[9px] font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full whitespace-nowrap">Late Pay</span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-muted-foreground">
                             {stop.shopArea && `${stop.shopArea} • `}
                             Arrived {formatTime(stop.arrivalTime)}
@@ -682,7 +688,7 @@ export default function AdminRouteTracking() {
                           </p>
                         </div>
                         {stop.recoveryAmount != null && stop.recoveryAmount > 0 && (
-                          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+                          <span className={`text-xs font-semibold shrink-0 ${stop.entryType === 'late_payment' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                             {formatPKR(stop.recoveryAmount)}
                           </span>
                         )}

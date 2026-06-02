@@ -293,6 +293,7 @@ export async function ensureRouteTrackingTables(pool: ReturnType<typeof getPool>
           "lat" DOUBLE PRECISION NOT NULL,
           "lng" DOUBLE PRECISION NOT NULL,
           "recoveryAmount" DOUBLE PRECISION,
+          "entryType" TEXT NOT NULL DEFAULT 'field_visit',
           "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
       `);
@@ -301,6 +302,11 @@ export async function ensureRouteTrackingTables(pool: ReturnType<typeof getPool>
       console.error('[RouteTracking] Failed to create RouteStop table:', createErr instanceof Error ? createErr.message : '');
     }
   }
+
+  // RouteStop: Add entryType column if missing (migration for existing tables)
+  try {
+    await pool.query(`ALTER TABLE "RouteStop" ADD COLUMN IF NOT EXISTS "entryType" TEXT NOT NULL DEFAULT 'field_visit'`);
+  } catch { /* column may already exist, ignore */ }
 
   // RouteStop indexes
   try {
