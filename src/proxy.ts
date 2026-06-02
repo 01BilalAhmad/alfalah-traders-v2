@@ -46,9 +46,7 @@ function checkRateLimit(ip: string): boolean {
 // These endpoints require a valid Authorization header
 const PROTECTED_PATHS = [
   '/api/auth/reset-password',
-  '/api/admin/backup',
-  '/api/admin/restore',
-  '/api/admin/reset-shops',
+  '/api/admin',           // all admin endpoints require auth (except public subpaths below)
   '/api/route-tracking',
 ];
 
