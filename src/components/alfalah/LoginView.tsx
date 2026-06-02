@@ -28,21 +28,21 @@ export default function LoginView() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState('');
 
-  // Email configured state — controls whether Forgot Password button is shown
-  const [emailConfigured, setEmailConfigured] = useState(false);
+  // Email configured state — controls messaging in forgot-password view
+  const [emailConfigured, setEmailConfigured] = useState<boolean | null>(null); // null = not checked yet
 
   const { setUser } = useAppStore();
 
-  // Check if email is configured (for Forgot Password visibility)
+  // Check if email is configured
   useEffect(() => {
     apiFetch('/api/admin/email-config/status')
       .then(r => r.json())
       .then(data => {
-        if (data.configured) {
-          setEmailConfigured(true);
-        }
+        setEmailConfigured(!!data.configured);
       })
-      .catch(() => {});
+      .catch(() => {
+        setEmailConfigured(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -151,7 +151,7 @@ export default function LoginView() {
     setResetUsername(username);
     setResetError('');
     setViewMode('forgot-password');
-  }, [username]);
+  }, [username, emailConfigured]);
 
   const switchToLogin = useCallback(() => {
     setViewMode('login');
@@ -231,15 +231,13 @@ export default function LoginView() {
                   />
                   <Label htmlFor="remember-me" className="text-[11px] text-gray-500 cursor-pointer select-none">Remember me</Label>
                 </div>
-                {emailConfigured && (
-                  <button
-                    type="button"
-                    onClick={switchToForgot}
-                    className="text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
-                  >
-                    Forgot Password?
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={switchToForgot}
+                  className="text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
+                >
+                  Forgot Password?
+                </button>
               </div>
 
               {/* Submit */}
@@ -288,15 +286,30 @@ export default function LoginView() {
               </div>
             </div>
 
-            {/* Info box */}
-            <div className="mt-4 p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800">
-              <div className="flex items-start gap-2">
-                <Mail className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-blue-700 dark:text-blue-300">
-                  A password reset link will be sent to the email address registered with your admin account.
-                </p>
+            {/* Email not configured warning */}
+            {emailConfigured === false && (
+              <div className="mt-4 p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                  <div className="text-xs text-amber-700 dark:text-amber-300">
+                    <p className="font-medium">Email not configured</p>
+                    <p className="mt-1">Password reset via email is not available yet. The administrator needs to configure email settings from the Settings panel first. Please contact your system administrator or developer for password reset.</p>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Info box — only when email IS configured */}
+            {emailConfigured && (
+              <div className="mt-4 p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800">
+                <div className="flex items-start gap-2">
+                  <Mail className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    A password reset link will be sent to the email address registered with your admin account.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Error */}
             {resetError && (
@@ -307,33 +320,46 @@ export default function LoginView() {
               </div>
             )}
 
-            {/* Form */}
-            <form onSubmit={handleForgotPassword} className="mt-5 space-y-4">
-              <div>
-                <input
-                  type="text"
-                  placeholder="Admin Username"
-                  value={resetUsername}
-                  onChange={(e) => setResetUsername(e.target.value)}
-                  autoComplete="username"
-                  className="login-input"
-                  autoFocus
-                />
-              </div>
+            {/* Form — only show when email is configured */}
+            {emailConfigured ? (
+              <form onSubmit={handleForgotPassword} className="mt-5 space-y-4">
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Admin Username"
+                    value={resetUsername}
+                    onChange={(e) => setResetUsername(e.target.value)}
+                    autoComplete="username"
+                    className="login-input"
+                    autoFocus
+                  />
+                </div>
 
-              <button
-                type="submit"
-                disabled={resetLoading}
-                className="login-btn"
-              >
-                {resetLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Mail className="mr-2 h-4 w-4" />
-                )}
-                {resetLoading ? 'Sending...' : 'Send Reset Link'}
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  disabled={resetLoading}
+                  className="login-btn"
+                >
+                  {resetLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Mail className="mr-2 h-4 w-4" />
+                  )}
+                  {resetLoading ? 'Sending...' : 'Send Reset Link'}
+                </button>
+              </form>
+            ) : (
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={switchToLogin}
+                  className="login-btn"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Login
+                </button>
+              </div>
+            )}
           </div>
         )}
 
