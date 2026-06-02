@@ -88,8 +88,8 @@ function parseToken(token: string): { userId: string; timestamp: number } | null
   }
 }
 
-// ─── Middleware ────────────────────────────────────────────────────────────────
-export function middleware(request: NextRequest) {
+// ─── Proxy (Next.js 16 — replaces deprecated middleware) ──────────────────────
+export function proxy(request: NextRequest) {
   // Only apply to API routes
   if (!request.nextUrl.pathname.startsWith('/api')) {
     return NextResponse.next();
