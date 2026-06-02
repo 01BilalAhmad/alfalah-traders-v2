@@ -34,7 +34,7 @@ const liveOBIcon = L.divIcon({
   html: `<div style="position:relative;width:40px;height:40px;">
     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:rgba(59,130,246,0.2);animation:pulse-ring 2s ease-out infinite;"></div>
     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 2px 8px rgba(59,130,246,0.5);"></div>
-  </style>
+  </div>
   <style>@keyframes pulse-ring{0%{transform:translate(-50%,-50%) scale(0.5);opacity:1}100%{transform:translate(-50%,-50%) scale(1.5);opacity:0}}</style>
   </div>`,
   iconSize: [40, 40],
