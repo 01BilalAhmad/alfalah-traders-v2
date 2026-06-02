@@ -962,10 +962,10 @@ export default function AdminSettings() {
                       </button>
                     </div>
                     {newPassword.length > 0 && newPassword.length < 6 && (
-                      <p className="text-[11px] text-red-500">Password must be at least 6 characters</p>
+                      <p className="text-[11px] text-red-500 dark:text-red-400">Password must be at least 6 characters</p>
                     )}
                     {newPassword.length >= 6 && (
-                      <p className="text-[11px] text-emerald-600">Password strength: OK</p>
+                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400">Password strength: OK</p>
                     )}
                   </div>
 
@@ -990,10 +990,10 @@ export default function AdminSettings() {
                       </button>
                     </div>
                     {confirmPassword.length > 0 && newPassword !== confirmPassword && (
-                      <p className="text-[11px] text-red-500">Passwords do not match</p>
+                      <p className="text-[11px] text-red-500 dark:text-red-400">Passwords do not match</p>
                     )}
                     {confirmPassword.length > 0 && newPassword === confirmPassword && newPassword.length >= 6 && (
-                      <p className="text-[11px] text-emerald-600">Passwords match</p>
+                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400">Passwords match</p>
                     )}
                   </div>
 
@@ -1258,7 +1258,7 @@ export default function AdminSettings() {
                           </Button>
                         </div>
                         {!emailConfig?.isConfigured && (
-                          <p className="text-[11px] text-amber-600">Save SMTP settings first before testing.</p>
+                          <p className="text-[11px] text-amber-600 dark:text-amber-400">Save SMTP settings first before testing.</p>
                         )}
                       </CardContent>
                     </Card>
@@ -1376,7 +1376,7 @@ export default function AdminSettings() {
                     <CardContent className="space-y-4">
                       {/* Warning banner */}
                       <div className="flex items-start gap-2.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 px-3 py-2.5">
-                        <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                        <AlertTriangle className="h-4 w-4 text-red-500 dark:text-red-400 mt-0.5 shrink-0" />
                         <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
                           <span className="font-semibold">Warning:</span> Restoring will replace ALL current orderbooker data, shops, transactions, and audit logs. This action cannot be undone.
                         </p>
@@ -1404,7 +1404,7 @@ export default function AdminSettings() {
                           </div>
                         ) : restoreFile ? (
                           <div className="text-center">
-                            <FileJson className="h-5 w-5 text-emerald-600 mx-auto" />
+                            <FileJson className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mx-auto" />
                             <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1 font-medium">{restoreFile.name}</p>
                           </div>
                         ) : (
@@ -1436,7 +1436,7 @@ export default function AdminSettings() {
                 <Card>
                   <CardHeader className="pb-4">
                     <CardTitle className="text-base flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-amber-600" />
+                      <Phone className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       Distributor Phone Numbers
                     </CardTitle>
                     <CardDescription className="text-xs">
@@ -1475,7 +1475,7 @@ export default function AdminSettings() {
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="h-7 w-7 rounded-full text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                  className="h-7 w-7 rounded-full text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-950/50"
                                   onClick={() => handleSaveDistPhone(comp.companyId)}
                                   disabled={savingDistPhone}
                                 >
@@ -1494,12 +1494,12 @@ export default function AdminSettings() {
                             ) : (
                               <div className="flex items-center justify-between pl-5">
                                 <div className="flex items-center gap-2">
-                                  <Phone className="h-3.5 w-3.5 text-amber-600" />
+                                  <Phone className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                                   <span className="text-sm font-medium text-foreground">
                                     {comp.distributorPhone || 'Not set'}
                                   </span>
                                   {!comp.distributorPhone && (
-                                    <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded">Add karein</span>
+                                    <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded">Add karein</span>
                                   )}
                                 </div>
                                 <Button
@@ -1621,7 +1621,7 @@ export default function AdminSettings() {
                   <CardContent className="space-y-4">
                     {/* Danger warning */}
                     <div className="flex items-start gap-2.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 px-3 py-2.5">
-                      <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                      <AlertTriangle className="h-4 w-4 text-red-500 dark:text-red-400 mt-0.5 shrink-0" />
                       <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
                         <span className="font-semibold">Danger:</span> This will permanently delete ALL shops, transactions, notes, visits, and company balances. Users and companies will be preserved. Make sure you have a backup first!
                       </p>
@@ -1701,7 +1701,7 @@ export default function AdminSettings() {
                 </div>
               </div>
               <div className="flex items-start gap-2.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 px-3 py-2.5">
-                <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                <AlertTriangle className="h-4 w-4 text-red-500 dark:text-red-400 mt-0.5 shrink-0" />
                 <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
                   This will permanently replace all current data. Make sure you have a backup of your current data before proceeding.
                 </p>
@@ -1759,7 +1759,7 @@ export default function AdminSettings() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-red-500" />
+              <Trash2 className="h-5 w-5 text-red-500 dark:text-red-400" />
               Reset All Shop Data?
             </AlertDialogTitle>
             <AlertDialogDescription>
