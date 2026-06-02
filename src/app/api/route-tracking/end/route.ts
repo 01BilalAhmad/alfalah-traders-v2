@@ -15,8 +15,15 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number): numb
   return R * c;
 }
 
-// PUT /api/route-tracking/end - End a route
+// PUT/POST /api/route-tracking/end - End a route
+// Mobile app sends POST, admin panel may send PUT — support both
+export async function POST(request: NextRequest) {
+  return handleEndRoute(request);
+}
 export async function PUT(request: NextRequest) {
+  return handleEndRoute(request);
+}
+async function handleEndRoute(request: NextRequest) {
   try {
     const { routeId, lat, lng } = await request.json();
 
