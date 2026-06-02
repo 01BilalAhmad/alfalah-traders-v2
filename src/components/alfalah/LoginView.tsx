@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
-import { Eye, EyeOff, LogIn, Loader2, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Loader2, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck, Mail, AlertCircle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 
-type ViewMode = 'login' | 'forgot-password' | 'reset-success';
+type ViewMode = 'login' | 'forgot-password' | 'forgot-sent' | 'reset-success';
 
 export default function LoginView() {
   const [username, setUsername] = useState('');
@@ -25,17 +25,25 @@ export default function LoginView() {
 
   // Forgot password states
   const [resetUsername, setResetUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState('');
 
-  // Password strength
-  const [passwordStrength, setPasswordStrength] = useState<'weak' | 'medium' | 'strong' | ''>('');
+  // Email configured state — controls whether Forgot Password button is shown
+  const [emailConfigured, setEmailConfigured] = useState(false);
 
   const { setUser } = useAppStore();
+
+  // Check if email is configured (for Forgot Password visibility)
+  useEffect(() => {
+    apiFetch('/api/admin/email-config/status')
+      .then(r => r.json())
+      .then(data => {
+        if (data.configured) {
+          setEmailConfigured(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('finexa-remembered-username') || localStorage.getItem('alfalah-remembered-username');
@@ -52,20 +60,6 @@ export default function LoginView() {
       })
       .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (!newPassword) {
-      setPasswordStrength('');
-      return;
-    }
-    if (newPassword.length < 6) {
-      setPasswordStrength('weak');
-    } else if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-      setPasswordStrength('medium');
-    } else {
-      setPasswordStrength('strong');
-    }
-  }, [newPassword]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,46 +112,34 @@ export default function LoginView() {
     }
   };
 
-  const handleResetPassword = async (e: React.FormEvent) => {
+  // Handle forgot password — send reset email
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetError('');
 
-    if (!resetUsername.trim() || !newPassword || !confirmPassword) {
-      setResetError('Please fill in all fields');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setResetError('Passwords do not match');
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setResetError('Password must be at least 6 characters');
+    if (!resetUsername.trim()) {
+      setResetError('Please enter your username');
       return;
     }
 
     setResetLoading(true);
     try {
-      const res = await apiFetch('/api/auth/reset-password', {
+      const res = await apiFetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: resetUsername.trim(),
-          newPassword,
-          confirmPassword,
-        }),
+        body: JSON.stringify({ username: resetUsername.trim() }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setResetError(data.error || 'Failed to reset password');
+        setResetError(data.error || 'Failed to send reset email');
         return;
       }
 
-      setViewMode('reset-success');
-      toast({ title: 'Success!', description: 'Password has been reset successfully' });
+      // Always show success — even if user doesn't exist (security)
+      setViewMode('forgot-sent');
+      toast({ title: 'Email Sent', description: 'If this is a valid admin account with a registered email, a reset link has been sent.' });
     } catch {
       setResetError('Network error. Please try again.');
     } finally {
@@ -167,10 +149,7 @@ export default function LoginView() {
 
   const switchToForgot = useCallback(() => {
     setResetUsername(username);
-    setNewPassword('');
-    setConfirmPassword('');
     setResetError('');
-    setPasswordStrength('');
     setViewMode('forgot-password');
   }, [username]);
 
@@ -178,24 +157,6 @@ export default function LoginView() {
     setViewMode('login');
     setResetError('');
   }, []);
-
-  const getPasswordStrengthColor = () => {
-    switch (passwordStrength) {
-      case 'weak': return 'bg-red-500';
-      case 'medium': return 'bg-amber-500';
-      case 'strong': return 'bg-green-500';
-      default: return '';
-    }
-  };
-
-  const getPasswordStrengthLabel = () => {
-    switch (passwordStrength) {
-      case 'weak': return 'Weak';
-      case 'medium': return 'Medium';
-      case 'strong': return 'Strong';
-      default: return '';
-    }
-  };
 
   return (
     <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30 px-4">
@@ -270,13 +231,15 @@ export default function LoginView() {
                   />
                   <Label htmlFor="remember-me" className="text-[11px] text-gray-500 cursor-pointer select-none">Remember me</Label>
                 </div>
-                <button
-                  type="button"
-                  onClick={switchToForgot}
-                  className="text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
-                >
-                  Forgot Password?
-                </button>
+                {emailConfigured && (
+                  <button
+                    type="button"
+                    onClick={switchToForgot}
+                    className="text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
+                  >
+                    Forgot Password?
+                  </button>
+                )}
               </div>
 
               {/* Submit */}
@@ -296,12 +259,12 @@ export default function LoginView() {
 
             {/* Footer */}
             <p className="mt-5 text-center text-[10px] text-gray-400">
-              &copy; {new Date().getFullYear()} Finexa. All rights reserved.
+              &copy; 2026 Finexa. All rights reserved. Unauthorized copying, reverse engineering, modification, or distribution of this software is strictly prohibited and punishable under Copyright Ordinance 1962 &amp; PECA 2016.
             </p>
           </div>
         )}
 
-        {/* FORGOT PASSWORD VIEW */}
+        {/* FORGOT PASSWORD VIEW — Enter username to send reset email */}
         {viewMode === 'forgot-password' && (
           <div className="login-card animate-fade-in">
             {/* Back button */}
@@ -320,8 +283,18 @@ export default function LoginView() {
                 <KeyRound className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <h2 className="text-xl font-black text-primary tracking-tight">Reset Password</h2>
-                <p className="text-xs text-gray-500">Enter your username and new password</p>
+                <h2 className="text-xl font-black text-primary tracking-tight">Forgot Password</h2>
+                <p className="text-xs text-gray-500">Enter your admin username to receive a reset link</p>
+              </div>
+            </div>
+
+            {/* Info box */}
+            <div className="mt-4 p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800">
+              <div className="flex items-start gap-2">
+                <Mail className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  A password reset link will be sent to the email address registered with your admin account.
+                </p>
               </div>
             </div>
 
@@ -335,11 +308,11 @@ export default function LoginView() {
             )}
 
             {/* Form */}
-            <form onSubmit={handleResetPassword} className="mt-5 space-y-4">
+            <form onSubmit={handleForgotPassword} className="mt-5 space-y-4">
               <div>
                 <input
                   type="text"
-                  placeholder="Username"
+                  placeholder="Admin Username"
                   value={resetUsername}
                   onChange={(e) => setResetUsername(e.target.value)}
                   autoComplete="username"
@@ -347,85 +320,6 @@ export default function LoginView() {
                   autoFocus
                 />
               </div>
-
-              <div className="relative">
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  placeholder="New Password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  autoComplete="new-password"
-                  className="login-input pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-foreground transition-colors"
-                  tabIndex={-1}
-                >
-                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {newPassword && (
-                <div className="space-y-1 animate-fade-in px-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-gray-500">Password strength</span>
-                    <span className={`text-[11px] font-semibold ${
-                      passwordStrength === 'weak' ? 'text-red-500' :
-                      passwordStrength === 'medium' ? 'text-amber-500' :
-                      passwordStrength === 'strong' ? 'text-green-500' : ''
-                    }`}>
-                      {getPasswordStrengthLabel()}
-                    </span>
-                  </div>
-                  <div className="h-1 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
-                      style={{
-                        width: passwordStrength === 'weak' ? '33%' :
-                               passwordStrength === 'medium' ? '66%' :
-                               passwordStrength === 'strong' ? '100%' : '0%'
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="relative">
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="Confirm Password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  autoComplete="new-password"
-                  className={`login-input pr-11 ${
-                    confirmPassword && confirmPassword !== newPassword
-                      ? '!border-red-300 !shadow-[0_10px_10px_-5px_rgba(239,68,68,0.15)]'
-                      : confirmPassword && confirmPassword === newPassword
-                      ? '!border-green-300 !shadow-[0_10px_10px_-5px_rgba(16,185,129,0.15)]'
-                      : ''
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-foreground transition-colors"
-                  tabIndex={-1}
-                >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {confirmPassword && confirmPassword === newPassword && (
-                <p className="text-[11px] text-green-600 dark:text-green-400 flex items-center gap-1 animate-fade-in px-1">
-                  <CheckCircle2 className="h-3 w-3" />
-                  Passwords match
-                </p>
-              )}
-              {confirmPassword && confirmPassword !== newPassword && (
-                <p className="text-[11px] text-red-500 animate-fade-in px-1">
-                  Passwords do not match
-                </p>
-              )}
 
               <button
                 type="submit"
@@ -435,15 +329,42 @@ export default function LoginView() {
                 {resetLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <KeyRound className="mr-2 h-4 w-4" />
+                  <Mail className="mr-2 h-4 w-4" />
                 )}
-                {resetLoading ? 'Resetting...' : 'Reset Password'}
+                {resetLoading ? 'Sending...' : 'Send Reset Link'}
               </button>
             </form>
           </div>
         )}
 
-        {/* RESET SUCCESS VIEW */}
+        {/* FORGOT SENT VIEW — Confirmation that email was sent */}
+        {viewMode === 'forgot-sent' && (
+          <div className="login-card animate-fade-in">
+            <div className="text-center space-y-5 py-4">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 shadow-[0_10px_20px_-5px_rgba(59,130,246,0.2)]">
+                <Mail className="h-7 w-7 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-primary tracking-tight">Check Your Email</h2>
+                <p className="mt-2 text-sm text-gray-500">
+                  If <strong>{resetUsername}</strong> is a valid admin account with a registered email, a password reset link has been sent.
+                </p>
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  The reset link expires in 15 minutes. Check your spam folder if you don&apos;t see the email.
+                </p>
+              </div>
+              <button
+                onClick={switchToLogin}
+                className="login-btn"
+              >
+                <LogIn className="mr-2 h-4 w-4" />
+                Back to Sign In
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* RESET SUCCESS VIEW — After password is reset from email link */}
         {viewMode === 'reset-success' && (
           <div className="login-card animate-fade-in">
             <div className="text-center space-y-5 py-4">

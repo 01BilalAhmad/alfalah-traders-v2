@@ -67,6 +67,10 @@ const PUBLIC_SUBPATHS = [
   '/api/route-tracking/stop-checkin',
   '/api/route-tracking/stop-checkout',
   '/api/route-tracking/summary',
+  // Password recovery — public endpoints (no auth required)
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password-with-token',
+  '/api/admin/email-config/status',
 ];
 
 // ─── Token Parsing ────────────────────────────────────────────────────────────

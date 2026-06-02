@@ -19,6 +19,7 @@ model User {
   name      String
   role      String   @default("orderbooker") // "admin" or "orderbooker"
   phone             String?
+  email             String?  // admin email for password recovery
   status            String   @default("active") // "active" or "inactive"
   allRoutesEnabled  Boolean  @default(false) // admin can allow OB to see all days' shops
   companyId         String?  // nullable - PRIMARY company (backward compat, first company)
@@ -37,6 +38,7 @@ model User {
   dailyTargetsBy     DailyTarget[] @relation("TargetsBy")
   preferences        UserPreference?
   routes             RouteTracking[] @relation("RoutesBy")
+  passwordResetTokens PasswordResetToken[]
 
   @@index([username])
   @@index([role])
@@ -329,4 +331,37 @@ model RouteStop {
   @@index([routeId])
   @@index([shopId])
   @@index([arrivalTime])
+}
+
+// --- Email Configuration (Admin sets SMTP from Settings Panel) ---
+
+model EmailConfig {
+  id          String   @id @default(cuid())
+  smtpHost    String   // e.g. "smtp.gmail.com"
+  smtpPort    Int      @default(587) // e.g. 587 for TLS
+  smtpUser    String   // sender email address
+  smtpPass    String   // app password (encrypted in DB)
+  fromName    String?  // display name for "From" field
+  useTLS      Boolean  @default(true)
+  isConfigured Boolean @default(false) // quick check if email is set up
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// --- Password Reset Token (Forgot Password Flow) ---
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique // unique reset token
+  userId    String   // which user requested the reset
+  email     String   // email address the token was sent to
+  expiresAt DateTime // token expiry (15 minutes)
+  used      Boolean  @default(false) // whether token has been used
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
 }

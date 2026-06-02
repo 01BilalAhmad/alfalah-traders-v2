@@ -438,7 +438,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Footer — minimal */}
       <footer className="border-t border-border px-6 py-2.5 flex items-center justify-between text-[11px] text-muted-foreground print:hidden">
-        <span>&copy; {new Date().getFullYear()} Finexa</span>
+        <span>&copy; 2026 Finexa. All rights reserved. Unauthorized copying, reverse engineering, modification, or distribution of this software is strictly prohibited and punishable under Copyright Ordinance 1962 &amp; PECA 2016.</span>
         <span>v1.0</span>
       </footer>
 

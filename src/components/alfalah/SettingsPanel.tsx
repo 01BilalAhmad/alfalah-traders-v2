@@ -70,6 +70,9 @@ import {
   Pencil,
   Check,
   X,
+  Mail,
+  Server,
+  Send,
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -119,6 +122,19 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
   const [distPhoneInput, setDistPhoneInput] = useState('');
   const [savingDistPhone, setSavingDistPhone] = useState(false);
 
+  // Email config state (admin-only)
+  const [emailConfig, setEmailConfig] = useState<{
+    id?: string; smtpHost: string; smtpPort: number; smtpUser: string; smtpPass: string;
+    fromName: string; useTLS: boolean; isConfigured: boolean; hasPassword?: boolean; updatedAt?: string;
+  } | null>(null);
+  const [emailConfigLoaded, setEmailConfigLoaded] = useState(false);
+  const [savingEmailConfig, setSavingEmailConfig] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testEmailAddress, setTestEmailAddress] = useState('');
+  const [showSmtpPass, setShowSmtpPass] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [savingAdminEmail, setSavingAdminEmail] = useState(false);
+
   // Load last backup date from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('finexa-last-backup') || localStorage.getItem('alfalah-last-backup');
@@ -166,6 +182,8 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
     // Fetch distributor phones for admin
     if (user?.role === 'admin') {
       fetchDistributorPhones();
+      fetchEmailConfig();
+      fetchAdminEmail();
     }
   }, [open, user?.role]);
 
@@ -182,6 +200,153 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
         setDistributorPhones(companies);
       }
     } catch { /* silent */ }
+  };
+
+  const fetchEmailConfig = async () => {
+    try {
+      const res = await apiFetch('/api/admin/email-config');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.config) {
+          setEmailConfig({
+            id: data.config.id,
+            smtpHost: data.config.smtpHost || '',
+            smtpPort: data.config.smtpPort || 587,
+            smtpUser: data.config.smtpUser || '',
+            smtpPass: '', // never pre-fill password for security
+            fromName: data.config.fromName || '',
+            useTLS: data.config.useTLS !== false,
+            isConfigured: data.config.isConfigured || false,
+            hasPassword: data.config.hasPassword || false,
+            updatedAt: data.config.updatedAt,
+          });
+        } else {
+          setEmailConfig({
+            smtpHost: 'smtp.gmail.com',
+            smtpPort: 587,
+            smtpUser: '',
+            smtpPass: '',
+            fromName: 'Finexa',
+            useTLS: true,
+            isConfigured: false,
+          });
+        }
+        setEmailConfigLoaded(true);
+      }
+    } catch { /* silent */ }
+  };
+
+  const fetchAdminEmail = async () => {
+    try {
+      // Fetch current user's email from the users API
+      if (user?.id) {
+        const res = await apiFetch(`/api/users/${user.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAdminEmail(data.email || '');
+        }
+      }
+    } catch { /* silent */ }
+  };
+
+  const handleSaveEmailConfig = async () => {
+    if (!emailConfig) return;
+    if (!emailConfig.smtpHost || !emailConfig.smtpPort || !emailConfig.smtpUser) {
+      toast({ title: 'Missing Fields', description: 'SMTP Host, Port, and User are required.', variant: 'destructive' });
+      return;
+    }
+    // If no password saved yet, require it
+    if (!emailConfig.hasPassword && !emailConfig.smtpPass) {
+      toast({ title: 'Missing Password', description: 'SMTP App Password is required for new configuration.', variant: 'destructive' });
+      return;
+    }
+
+    setSavingEmailConfig(true);
+    try {
+      const body: Record<string, unknown> = {
+        smtpHost: emailConfig.smtpHost,
+        smtpPort: emailConfig.smtpPort,
+        smtpUser: emailConfig.smtpUser,
+        fromName: emailConfig.fromName || null,
+        useTLS: emailConfig.useTLS,
+      };
+      // Only send password if user entered a new one
+      if (emailConfig.smtpPass) {
+        body.smtpPass = emailConfig.smtpPass;
+      }
+
+      const res = await apiFetch('/api/admin/email-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: 'Email Configuration Saved', description: 'SMTP settings updated successfully.' });
+        fetchEmailConfig(); // refresh
+      } else {
+        toast({ title: 'Error', description: data.error || 'Failed to save', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setSavingEmailConfig(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    if (!testEmailAddress) {
+      toast({ title: 'Missing Email', description: 'Enter an email address to send test.', variant: 'destructive' });
+      return;
+    }
+
+    setTestingEmail(true);
+    try {
+      const res = await apiFetch('/api/admin/email-config/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ testEmail: testEmailAddress.trim() }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: 'Test Email Sent!', description: `Check ${testEmailAddress} for the test email.` });
+      } else {
+        toast({ title: 'Test Failed', description: data.error || 'Could not send test email.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setTestingEmail(false);
+    }
+  };
+
+  const handleSaveAdminEmail = async () => {
+    if (!adminEmail.trim()) {
+      toast({ title: 'Missing Email', description: 'Please enter your email address.', variant: 'destructive' });
+      return;
+    }
+
+    setSavingAdminEmail(true);
+    try {
+      const res = await apiFetch(`/api/users/${user?.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: adminEmail.trim() }),
+      });
+
+      if (res.ok) {
+        toast({ title: 'Email Saved', description: 'Your recovery email has been updated.' });
+      } else {
+        const data = await res.json();
+        toast({ title: 'Error', description: data.error || 'Failed to save email.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setSavingAdminEmail(false);
+    }
   };
 
   const handleSaveDistPhone = async (companyId: string) => {
@@ -975,6 +1140,188 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
             </section>
           )}
 
+          {/* Email Configuration Section - Admin Only */}
+          {user?.role === 'admin' && emailConfigLoaded && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Mail className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Email Configuration</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Configure SMTP to enable &quot;Forgot Password&quot; recovery for admin accounts. Gmail users: use an App Password (not your regular password).
+              </p>
+
+              <Card className="py-0 gap-0 mb-3">
+                {/* Status indicator */}
+                <div className="px-4 py-3.5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2.5 w-2.5 rounded-full ${emailConfig?.isConfigured ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    <span className="text-xs font-medium">
+                      {emailConfig?.isConfigured ? 'Email Configured — Forgot Password is Active' : 'Email Not Configured — Forgot Password is Disabled'}
+                    </span>
+                  </div>
+
+                  {/* Admin Recovery Email */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">Your Recovery Email</Label>
+                    <p className="text-[11px] text-muted-foreground">Password reset link will be sent to this email address.</p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="email"
+                        value={adminEmail}
+                        onChange={(e) => setAdminEmail(e.target.value)}
+                        placeholder="admin@example.com"
+                        className="h-8 text-sm flex-1"
+                        disabled={savingAdminEmail}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSaveAdminEmail}
+                        disabled={savingAdminEmail}
+                        className="h-8 text-xs shrink-0"
+                      >
+                        {savingAdminEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* SMTP Settings */}
+              <Card className="py-0 gap-0">
+                <div className="px-4 py-3.5 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Server className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-sm font-medium">SMTP Settings</span>
+                  </div>
+
+                  {/* SMTP Host */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">SMTP Host</Label>
+                    <Input
+                      value={emailConfig?.smtpHost || ''}
+                      onChange={(e) => setEmailConfig(prev => prev ? { ...prev, smtpHost: e.target.value } : null)}
+                      placeholder="smtp.gmail.com"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+
+                  {/* SMTP Port + Use TLS */}
+                  <div className="flex items-end gap-3">
+                    <div className="space-y-1.5 flex-1">
+                      <Label className="text-xs font-medium">Port</Label>
+                      <Input
+                        type="number"
+                        value={emailConfig?.smtpPort || 587}
+                        onChange={(e) => setEmailConfig(prev => prev ? { ...prev, smtpPort: parseInt(e.target.value) || 587 } : null)}
+                        placeholder="587"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 pb-1">
+                      <Switch
+                        checked={emailConfig?.useTLS !== false}
+                        onCheckedChange={(checked) => setEmailConfig(prev => prev ? { ...prev, useTLS: checked } : null)}
+                      />
+                      <Label className="text-xs font-medium">TLS</Label>
+                    </div>
+                  </div>
+
+                  {/* SMTP User */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Sender Email</Label>
+                    <Input
+                      type="email"
+                      value={emailConfig?.smtpUser || ''}
+                      onChange={(e) => setEmailConfig(prev => prev ? { ...prev, smtpUser: e.target.value } : null)}
+                      placeholder="yourapp@gmail.com"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+
+                  {/* SMTP Password */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">App Password</Label>
+                    <p className="text-[10px] text-muted-foreground">
+                      {emailConfig?.hasPassword
+                        ? 'Leave empty to keep existing password. Enter new to update.'
+                        : 'For Gmail: Go to My Account → Security → 2-Step Verification → App Passwords'}
+                    </p>
+                    <div className="relative">
+                      <Input
+                        type={showSmtpPass ? 'text' : 'password'}
+                        value={emailConfig?.smtpPass || ''}
+                        onChange={(e) => setEmailConfig(prev => prev ? { ...prev, smtpPass: e.target.value } : null)}
+                        placeholder={emailConfig?.hasPassword ? '•••••••• (existing)' : 'Enter App Password'}
+                        className="h-8 text-sm pr-9"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSmtpPass(!showSmtpPass)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-foreground"
+                      >
+                        {showSmtpPass ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* From Name */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">From Name (Optional)</Label>
+                    <Input
+                      value={emailConfig?.fromName || ''}
+                      onChange={(e) => setEmailConfig(prev => prev ? { ...prev, fromName: e.target.value } : null)}
+                      placeholder="Finexa"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+
+                  {/* Save Button */}
+                  <Button
+                    onClick={handleSaveEmailConfig}
+                    disabled={savingEmailConfig}
+                    className="w-full h-8 text-xs"
+                  >
+                    {savingEmailConfig ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Server className="h-3.5 w-3.5 mr-1.5" />}
+                    {savingEmailConfig ? 'Saving...' : 'Save SMTP Settings'}
+                  </Button>
+
+                  <Separator />
+
+                  {/* Test Email */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">Test Email</Label>
+                    <p className="text-[10px] text-muted-foreground">Send a test email to verify your SMTP settings are correct.</p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="email"
+                        value={testEmailAddress}
+                        onChange={(e) => setTestEmailAddress(e.target.value)}
+                        placeholder="test@example.com"
+                        className="h-8 text-sm flex-1"
+                        disabled={testingEmail || !emailConfig?.isConfigured}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleTestEmail}
+                        disabled={testingEmail || !emailConfig?.isConfigured}
+                        className="h-8 text-xs shrink-0"
+                      >
+                        {testingEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+                        Test
+                      </Button>
+                    </div>
+                    {!emailConfig?.isConfigured && (
+                      <p className="text-[10px] text-amber-600">Save SMTP settings first before testing.</p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            </section>
+          )}
+
           {/* Account Security Section */}
           <section>
             <div className="flex items-center gap-2 mb-3">
@@ -1107,7 +1454,7 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                   </p>
                   <Separator />
                   <p className="text-[11px] text-muted-foreground">
-                    &copy; {new Date().getFullYear()} Finexa. All rights reserved.
+                    &copy; 2026 Finexa. All rights reserved. Unauthorized copying, reverse engineering, modification, or distribution of this software is strictly prohibited and punishable under Copyright Ordinance 1962 &amp; PECA 2016.
                   </p>
                 </div>
               </CardContent>

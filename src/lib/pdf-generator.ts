@@ -240,7 +240,7 @@ export function generateLedgerPDF(ledger: LedgerData): jsPDF {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.text(`Generated on ${new Date().toLocaleString('en-PK')}`, pageWidth / 2, footerY + 6, { align: 'center' });
-    doc.text('Finexa - Confidential Document', pageWidth / 2, footerY + 11, { align: 'center' });
+    doc.text('© 2026 Finexa. All rights reserved. Unauthorized copying, reverse engineering, modification, or distribution is strictly prohibited under Copyright Ordinance 1962 & PECA 2016.', pageWidth / 2, footerY + 11, { align: 'center' });
 
     doc.setFontSize(7);
     doc.text('This is a computer-generated document and does not require a signature.', pageWidth / 2, footerY + 16, { align: 'center' });
