@@ -85,29 +85,43 @@ export async function POST(request: NextRequest) {
     const routeId = `rt_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
 
     let result;
+    let effectiveCompanyId = companyId || null;
     try {
       // INSERT with routeDate as TIMESTAMP (matches Prisma schema: DateTime @default(now()))
       result = await pool.query(
         `INSERT INTO "RouteTracking" (id, "orderbookerId", "companyId", status, "startLat", "startLng", "startTime", "routeDate", "createdAt", "updatedAt")
          VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), NOW(), NOW())
          RETURNING *`,
-        [routeId, orderbookerId, companyId || null, 'ongoing', lat, lng]
+        [routeId, orderbookerId, effectiveCompanyId, 'ongoing', lat, lng]
       );
     } catch (insertError: unknown) {
       const insertMsg = insertError instanceof Error ? insertError.message : '';
 
-      // If FK violation on orderbookerId, try dropping the FK and re-inserting
       if (insertMsg.includes('foreign key') || insertMsg.includes('violates')) {
-        console.warn('[RouteTracking/Start] FK violation, dropping constraint and retrying:', insertMsg);
+        console.warn('[RouteTracking/Start] FK violation on INSERT:', insertMsg);
+
+        // Check if it's a companyId FK violation - just null it out (companyId is optional)
+        const isCompanyIdFk = insertMsg.includes('"companyId"') || insertMsg.includes('RouteTracking_companyId_fkey');
+        if (isCompanyIdFk) {
+          console.warn('[RouteTracking/Start] companyId FK violation — setting companyId to null and retrying');
+          effectiveCompanyId = null;
+        }
+
+        // Drop orderbookerId FK constraint if that's the issue (user may not be in User table)
         try {
           await pool.query(`ALTER TABLE "RouteTracking" DROP CONSTRAINT IF EXISTS "RouteTracking_orderbookerId_fkey"`);
         } catch { /* ignore */ }
-        // Retry insert
+        // Also drop companyId FK constraint to prevent future issues
+        try {
+          await pool.query(`ALTER TABLE "RouteTracking" DROP CONSTRAINT IF EXISTS "RouteTracking_companyId_fkey"`);
+        } catch { /* ignore */ }
+
+        // Retry insert (with null companyId if that was the FK issue)
         result = await pool.query(
           `INSERT INTO "RouteTracking" (id, "orderbookerId", "companyId", status, "startLat", "startLng", "startTime", "routeDate", "createdAt", "updatedAt")
            VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), NOW(), NOW())
            RETURNING *`,
-          [routeId, orderbookerId, companyId || null, 'ongoing', lat, lng]
+          [routeId, orderbookerId, effectiveCompanyId, 'ongoing', lat, lng]
         );
       }
       // If routeDate column doesn't exist (old table), try without it
@@ -117,7 +131,7 @@ export async function POST(request: NextRequest) {
           `INSERT INTO "RouteTracking" (id, "orderbookerId", "companyId", status, "startLat", "startLng", "startTime", "createdAt", "updatedAt")
            VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), NOW())
            RETURNING *`,
-          [routeId, orderbookerId, companyId || null, 'ongoing', lat, lng]
+          [routeId, orderbookerId, effectiveCompanyId, 'ongoing', lat, lng]
         );
       } else {
         throw insertError;
@@ -296,15 +310,13 @@ export async function ensureRouteTrackingTables(pool: ReturnType<typeof getPool>
   } catch { /* indexes may already exist */ }
 
   // ─── Foreign Key Constraints (each in its own block to prevent one failure from killing all) ───
+  // NOTE: We intentionally do NOT add FK constraints for orderbookerId and companyId
+  // because mobile app users may not exist in the User table (Firebase auth),
+  // and companyId may reference a Company that doesn't exist yet or was deleted.
+  // These FK constraints caused route start failures in production.
   const fkConstraints = [
-    {
-      name: 'RouteTracking_orderbookerId_fkey',
-      sql: `ALTER TABLE "RouteTracking" ADD CONSTRAINT "RouteTracking_orderbookerId_fkey" FOREIGN KEY ("orderbookerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;`
-    },
-    {
-      name: 'RouteTracking_companyId_fkey',
-      sql: `ALTER TABLE "RouteTracking" ADD CONSTRAINT "RouteTracking_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE;`
-    },
+    // RouteTracking_orderbookerId_fkey — REMOVED (mobile app users may not be in User table)
+    // RouteTracking_companyId_fkey — REMOVED (companyId may reference non-existent Company)
     {
       name: 'RouteWaypoint_routeId_fkey',
       sql: `ALTER TABLE "RouteWaypoint" ADD CONSTRAINT "RouteWaypoint_routeId_fkey" FOREIGN KEY ("routeId") REFERENCES "RouteTracking"("id") ON DELETE CASCADE ON UPDATE CASCADE;`
