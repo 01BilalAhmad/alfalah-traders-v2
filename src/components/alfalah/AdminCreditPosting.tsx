@@ -2475,7 +2475,7 @@ export default function AdminCreditPosting() {
 
               {/* Print-only decorative bottom */}
               <div className="print-only">
-                <div className="text-center mt-4 pt-3 border-t border-dashed border-gray-300">
+                <div className="text-center mt-4 pt-3 border-t border-dashed border-gray-300 dark:border-gray-700">
                   <p className="text-[10px] text-muted-foreground/50">This is a computer-generated receipt and does not require a signature.</p>
                 </div>
               </div>

@@ -502,7 +502,7 @@ export default function BackupSettingsDialog({ open, onOpenChange }: BackupSetti
                       <h3 className="text-base font-bold text-white truncate">{user.name}</h3>
                       <p className="text-xs text-slate-300 mt-0.5 flex items-center gap-1.5">
                         <span>@{user.username}</span>
-                        <span className="text-slate-400">·</span>
+                        <span className="text-slate-400 dark:text-slate-500">·</span>
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/15 backdrop-blur-sm">
                           {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                         </span>

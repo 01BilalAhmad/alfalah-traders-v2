@@ -408,7 +408,7 @@ export default function AdminVisitTracking() {
                         </TableCell>
                         <TableCell className="text-center hidden sm:table-cell">
                           <div className="flex items-center justify-center gap-1.5">
-                            <Trophy className="h-3 w-3 text-slate-500" />
+                            <Trophy className="h-3 w-3 text-slate-500 dark:text-slate-400" />
                             <span className="text-sm font-semibold tabular-nums">{streak?.longestStreak || 0}d</span>
                           </div>
                         </TableCell>

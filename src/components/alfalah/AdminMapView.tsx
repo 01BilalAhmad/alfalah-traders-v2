@@ -780,7 +780,7 @@ export default function AdminMapView() {
               <CardContent className="py-14 text-center">
                 <div className="mx-auto mb-4 h-20 w-20">
                   <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                    <MapPin className="h-9 w-9 text-slate-400 animate-gentle-float" />
+                    <MapPin className="h-9 w-9 text-slate-400 dark:text-slate-500 animate-gentle-float" />
                   </div>
                 </div>
                 <p className="font-semibold text-muted-foreground text-sm">No areas match your filters</p>
@@ -1067,7 +1067,7 @@ export default function AdminMapView() {
               {liveOrderbookers.length === 0 ? (
                 <div className="py-8 text-center">
                   <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                    <Navigation className="h-6 w-6 text-slate-400" />
+                    <Navigation className="h-6 w-6 text-slate-400 dark:text-slate-500" />
                   </div>
                   <p className="text-sm font-medium text-muted-foreground">No active routes right now</p>
                   <p className="text-xs text-muted-foreground mt-1">When orderbookers start routes, their live positions will appear here automatically.</p>
@@ -1102,13 +1102,13 @@ export default function AdminMapView() {
                       <div className="text-right shrink-0">
                         {ob.nearShop ? (
                           <div>
-                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[9px] px-1.5 h-4">
+                            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[9px] px-1.5 h-4">
                               {ob.nearShop.name}
                             </Badge>
-                            <p className="text-[10px] text-emerald-600 mt-0.5">{ob.nearShop.distance}m away</p>
+                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">{ob.nearShop.distance}m away</p>
                           </div>
                         ) : (
-                          <Badge className="bg-slate-100 text-slate-500 border-slate-200 text-[9px] px-1.5 h-4">
+                          <Badge className="bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 text-[9px] px-1.5 h-4">
                             Moving
                           </Badge>
                         )}
@@ -1218,7 +1218,7 @@ export default function AdminMapView() {
                 <CardContent className="py-14 text-center">
                   <div className="mx-auto mb-4 h-20 w-20">
                     <div className="relative z-10 h-20 w-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                      <Users className="h-9 w-9 text-slate-400 animate-gentle-float" />
+                      <Users className="h-9 w-9 text-slate-400 dark:text-slate-500 animate-gentle-float" />
                     </div>
                   </div>
                   <p className="font-semibold text-muted-foreground text-sm">No orderbooker routes match your filters</p>

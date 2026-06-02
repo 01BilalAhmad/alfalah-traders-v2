@@ -166,7 +166,7 @@ export default function LoginView() {
         {viewMode === 'login' && (
           <div className="login-card animate-fade-in">
             {/* Logo */}
-            <div className="flex justify-center mb-5">
+            <div className="login-logo-wrap mb-5">
               <Image src="/finexa-wordmark-v2.png" alt="Finexa" width={140} height={140} className="rounded-2xl" priority />
             </div>
 
@@ -214,7 +214,7 @@ export default function LoginView() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-foreground transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-foreground transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -230,7 +230,7 @@ export default function LoginView() {
                     onCheckedChange={(checked) => setRememberMe(checked === true)}
                     className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                   />
-                  <Label htmlFor="remember-me" className="text-[11px] text-gray-500 cursor-pointer select-none">Remember me</Label>
+                  <Label htmlFor="remember-me" className="text-[11px] text-gray-500 dark:text-gray-400 cursor-pointer select-none">Remember me</Label>
                 </div>
                 <button
                   type="button"
@@ -257,7 +257,7 @@ export default function LoginView() {
             </form>
 
             {/* Footer */}
-            <p className="mt-5 text-center text-[10px] text-gray-400">
+            <p className="mt-5 text-center text-[10px] text-gray-400 dark:text-gray-500">
               &copy; 2026 Finexa. All rights reserved. Unauthorized copying, reverse engineering, modification, or distribution of this software is strictly prohibited and punishable under Copyright Ordinance 1962 &amp; PECA 2016.
             </p>
           </div>
@@ -270,7 +270,7 @@ export default function LoginView() {
             <button
               type="button"
               onClick={switchToLogin}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-foreground transition-colors mb-4 group"
+              className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-foreground transition-colors mb-4 group"
             >
               <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" />
               Back to login
@@ -283,7 +283,7 @@ export default function LoginView() {
               </div>
               <div>
                 <h2 className="text-xl font-black text-primary tracking-tight">Forgot Password</h2>
-                <p className="text-xs text-gray-500">Enter your admin username to receive a reset link</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Enter your admin username to receive a reset link</p>
               </div>
             </div>
 
@@ -373,7 +373,7 @@ export default function LoginView() {
               </div>
               <div>
                 <h2 className="text-xl font-black text-primary tracking-tight">Check Your Email</h2>
-                <p className="mt-2 text-sm text-gray-500">
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                   If <strong>{resetUsername}</strong> is a valid admin account with a registered email, a password reset link has been sent.
                 </p>
                 <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
@@ -400,7 +400,7 @@ export default function LoginView() {
               </div>
               <div>
                 <h2 className="text-xl font-black text-primary tracking-tight">Password Reset!</h2>
-                <p className="mt-2 text-sm text-gray-500">
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                   Your password has been changed successfully. You can now sign in with your new password.
                 </p>
               </div>

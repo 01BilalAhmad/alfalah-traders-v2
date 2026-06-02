@@ -1061,7 +1061,7 @@ export default function AdminTransactions() {
                   </div>
                 )}
                 <div className="flex items-start gap-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-2.5">
-                  <AlertTriangle className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" />
                   <p className="text-xs text-slate-700 dark:text-slate-300">
                     This will reverse the balance change on the shop. The shop&apos;s current balance will be adjusted accordingly.
                   </p>
@@ -1187,7 +1187,7 @@ export default function AdminTransactions() {
                   </div>
                   <div className="flex items-center gap-3 text-xs">
                     <span className="flex items-center gap-1">
-                      <Banknote className="h-3 w-3 text-slate-500" />
+                      <Banknote className="h-3 w-3 text-slate-500 dark:text-slate-400" />
                       Balance: <span className="font-bold text-foreground">{formatPKR(selectedShopDetails.balance)}</span>
                     </span>
                     {selectedShopDetails.orderbooker && (

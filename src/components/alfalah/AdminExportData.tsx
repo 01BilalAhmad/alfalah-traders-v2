@@ -580,7 +580,7 @@ export default function AdminExportData() {
                   <RadioGroupItem value="xlsx" id="format-xlsx" className="mt-0.5" />
                   <div className="flex-1">
                     <Label htmlFor="format-xlsx" className="text-sm font-medium cursor-pointer flex items-center gap-1.5">
-                      <FileSpreadsheet className="h-4 w-4 text-slate-600" />
+                      <FileSpreadsheet className="h-4 w-4 text-slate-600 dark:text-slate-300" />
                       Excel (.xlsx)
                     </Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -602,7 +602,7 @@ export default function AdminExportData() {
                   <RadioGroupItem value="csv" id="format-csv" className="mt-0.5" />
                   <div className="flex-1">
                     <Label htmlFor="format-csv" className="text-sm font-medium cursor-pointer flex items-center gap-1.5">
-                      <FileText className="h-4 w-4 text-slate-600" />
+                      <FileText className="h-4 w-4 text-slate-600 dark:text-slate-300" />
                       CSV (.csv)
                     </Label>
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -689,7 +689,7 @@ export default function AdminExportData() {
               <p className="text-[11px] text-muted-foreground mt-0.5">Today&apos;s recovery summary</p>
               {printingRecovery && (
                 <div className="absolute inset-0 flex items-center justify-center bg-card/80 rounded-xl">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-600 dark:text-slate-300" />
                 </div>
               )}
             </button>
@@ -707,7 +707,7 @@ export default function AdminExportData() {
               <p className="text-[11px] text-muted-foreground mt-0.5">Monthly breakdown &amp; OB stats</p>
               {printingMonthly && (
                 <div className="absolute inset-0 flex items-center justify-center bg-card/80 rounded-xl">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-600 dark:text-slate-300" />
                 </div>
               )}
             </button>
@@ -725,7 +725,7 @@ export default function AdminExportData() {
               <p className="text-[11px] text-muted-foreground mt-0.5">Complete shop directory</p>
               {printingShops && (
                 <div className="absolute inset-0 flex items-center justify-center bg-card/80 rounded-xl">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-600 dark:text-slate-300" />
                 </div>
               )}
             </button>
@@ -743,7 +743,7 @@ export default function AdminExportData() {
               <p className="text-[11px] text-muted-foreground mt-0.5">Rankings &amp; recovery rates</p>
               {printingOB && (
                 <div className="absolute inset-0 flex items-center justify-center bg-card/80 rounded-xl">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-600 dark:text-slate-300" />
                 </div>
               )}
             </button>

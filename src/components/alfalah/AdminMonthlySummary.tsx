@@ -672,7 +672,7 @@ export default function AdminMonthlySummary() {
                         >
                           <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold shrink-0 ${
                             idx === 0 ? 'bg-amber-500 text-white'
-                            : idx === 1 ? 'bg-gray-400 text-white'
+                            : idx === 1 ? 'bg-gray-400 dark:bg-gray-500 text-white'
                             : idx === 2 ? 'bg-amber-700 text-amber-100'
                             : 'bg-muted text-muted-foreground'
                           }`}>
@@ -738,7 +738,7 @@ export default function AdminMonthlySummary() {
                         >
                           <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold shrink-0 ${
                             idx === 0 ? 'bg-amber-500 text-white'
-                            : idx === 1 ? 'bg-gray-400 text-white'
+                            : idx === 1 ? 'bg-gray-400 dark:bg-gray-500 text-white'
                             : idx === 2 ? 'bg-amber-700 text-amber-100'
                             : 'bg-muted text-muted-foreground'
                           }`}>
