@@ -231,9 +231,31 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
             isConfigured: false,
           });
         }
-        setEmailConfigLoaded(true);
+      } else {
+        // API returned error (e.g. table doesn't exist yet) — show defaults
+        setEmailConfig({
+          smtpHost: 'smtp.gmail.com',
+          smtpPort: 587,
+          smtpUser: '',
+          smtpPass: '',
+          fromName: 'Finexa',
+          useTLS: true,
+          isConfigured: false,
+        });
       }
-    } catch { /* silent */ }
+    } catch {
+      // Network error — show defaults anyway so user can at least see the section
+      setEmailConfig({
+        smtpHost: 'smtp.gmail.com',
+        smtpPort: 587,
+        smtpUser: '',
+        smtpPass: '',
+        fromName: 'Finexa',
+        useTLS: true,
+        isConfigured: false,
+      });
+    }
+    setEmailConfigLoaded(true);
   };
 
   const fetchAdminEmail = async () => {
