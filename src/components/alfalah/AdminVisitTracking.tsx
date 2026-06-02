@@ -66,6 +66,7 @@ interface ShopVisit {
   sourceLabel?: string;
   amount?: number | null;
   transactionType?: string | null;
+  transactionStatus?: string | null;
 }
 
 function VisitSkeleton() {
@@ -196,7 +197,14 @@ export default function AdminVisitTracking() {
   useEffect(() => {
     fetchStreaks();
     fetchRecentVisits();
-  }, []);
+
+    // Auto-refresh every 30 seconds so admin sees new visits in real-time
+    const interval = setInterval(() => {
+      fetchRecentVisits();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [fetchRecentVisits]);
 
   // Filtered visits
   const filteredVisits = useMemo(() => {
@@ -505,19 +513,26 @@ export default function AdminVisitTracking() {
                           <span className="text-sm text-muted-foreground">{visit.orderbookerName}</span>
                         </TableCell>
                         <TableCell className="text-center">
-                          {visit.source === 'gps' ? (
-                            <Badge className="text-[10px] bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/50 dark:text-cyan-300 dark:border-cyan-800">
-                              <MapPin className="h-3 w-3 mr-1" /> Check-in
-                            </Badge>
-                          ) : visit.transactionType === 'recovery' ? (
-                            <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800">
-                              Recovery
-                            </Badge>
-                          ) : (
-                            <Badge className="text-[10px] bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-800">
-                              Credit
-                            </Badge>
-                          )}
+                          <div className="flex flex-col items-center gap-1">
+                            {visit.source === 'gps' ? (
+                              <Badge className="text-[10px] bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/50 dark:text-cyan-300 dark:border-cyan-800">
+                                <MapPin className="h-3 w-3 mr-1" /> Check-in
+                              </Badge>
+                            ) : visit.transactionType === 'recovery' ? (
+                              <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800">
+                                Recovery
+                              </Badge>
+                            ) : (
+                              <Badge className="text-[10px] bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-800">
+                                Credit
+                              </Badge>
+                            )}
+                            {visit.transactionStatus && visit.transactionStatus !== 'approved' && (
+                              <Badge className={`text-[9px] ${visit.transactionStatus === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-800' : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800'}`}>
+                                {visit.transactionStatus === 'pending' ? '⏳ Pending' : '✗ Rejected'}
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right hidden sm:table-cell">
                           {visit.amount != null ? (

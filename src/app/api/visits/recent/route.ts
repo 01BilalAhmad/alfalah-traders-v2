@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
 
     // 2. Fetch Transaction-based visits (recovery + credit posted = visit)
     if (source === 'all' || source === 'transaction') {
-      const txConditions: string[] = [`t."createdAt" >= $1`, `t."createdAt" <= $2`, `t.status = 'approved'`];
+      const txConditions: string[] = [`t."createdAt" >= $1`, `t."createdAt" <= $2`, `t.status IN ('approved', 'pending')`];
       const txParams: any[] = [startDate.toISOString(), endDate.toISOString()];
       let paramIdx = 3;
 
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
 
       const txRes = await pool.query(
         `SELECT t.id, t."shopId", t."createdBy" AS "orderbookerId",
-                t.type, t.amount, t."gpsLat", t."gpsLng", t."createdAt",
+                t.type, t.amount, t.status, t."gpsLat", t."gpsLng", t."createdAt",
                 s.name AS "shopName", u.name AS "orderbookerName"
          FROM "Transaction" t
          LEFT JOIN "Shop" s ON t."shopId" = s.id
@@ -120,6 +120,7 @@ export async function GET(request: NextRequest) {
           sourceLabel: row.type === 'recovery' ? 'Recovery' : 'Credit',
           amount: row.amount,
           transactionType: row.type,
+          transactionStatus: row.status, // Include status so admin can see pending/approved
         });
       });
     }

@@ -445,6 +445,16 @@ export default function AdminMapView() {
 
   useEffect(() => {
     fetchData();
+
+    // Auto-refresh every 30 seconds so admin sees new GPS data in real-time
+    const interval = setInterval(() => {
+      // Only refresh locations, not the full shop list (lighter API calls)
+      apiFetch('/api/shops/locations').then(res => {
+        if (res.ok) res.json().then((data: any[]) => setShopLocations(data));
+      }).catch(() => {});
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [fetchData]);
 
   // ── Computed data ──────────────────────────────────────────────────────────
