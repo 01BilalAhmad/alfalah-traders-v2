@@ -48,6 +48,8 @@ const PROTECTED_PATHS = [
   '/api/auth/reset-password',
   '/api/admin',           // all admin endpoints require auth (except public subpaths below)
   '/api/route-tracking',
+  '/api/users',           // user profile updates (email, preferences, etc.) require auth
+  '/api/auth/change-password',  // password change requires auth
 ];
 
 // Paths that are public even under a protected prefix
@@ -69,6 +71,8 @@ const PUBLIC_SUBPATHS = [
   '/api/auth/forgot-password',
   '/api/auth/reset-password-with-token',
   '/api/admin/email-config/status',
+  // Mobile app endpoints — use userId in body, not Bearer token
+  '/api/users/phone',
 ];
 
 // ─── Token Parsing ────────────────────────────────────────────────────────────
