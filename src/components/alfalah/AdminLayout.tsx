@@ -86,6 +86,7 @@ const adminNavSections: NavSection[] = [
     items: [
       { id: 'admin-calendar', label: 'Route Calendar', icon: <CalendarDays className="h-4 w-4" /> },
       { id: 'admin-visit-tracking', label: 'Visit Tracking', icon: <Navigation className="h-4 w-4" /> },
+      { id: 'admin-route-tracker', label: 'Live Route Tracker', icon: <Route className="h-4 w-4" /> },
       { id: 'admin-map-view', label: 'Map View', icon: <MapPin className="h-4 w-4" /> },
     ],
   },
