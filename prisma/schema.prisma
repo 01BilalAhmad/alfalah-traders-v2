@@ -32,6 +32,7 @@ model User {
   dailyTargetsFor    DailyTarget[] @relation("TargetsFor")
   dailyTargetsBy     DailyTarget[] @relation("TargetsBy")
   preferences        UserPreference?
+  routeSessions      RouteSession[]
 
   @@index([username])
   @@index([role])
@@ -59,6 +60,9 @@ model Shop {
   visits           ShopVisit[]
   companyBalances  ShopCompanyBalance[]
   assignedOrderbookers ShopOrderbooker[] // additional orderbooker assignments
+  lat                  Float?
+  lng                  Float?
+  routeShopVisits      RouteShopVisit[]
 
   @@index([orderbookerId])
   @@index([routeDays])
@@ -259,4 +263,76 @@ model ShopOrderbooker {
   @@index([shopId])
   @@index([orderbookerId])
   @@index([companyId])
+}
+
+// --- Route Tracking ---
+
+model RouteSession {
+  id             String   @id @default(cuid())
+  orderbookerId  String
+  startTime      DateTime @default(now())
+  endTime        DateTime?
+  startLat       Float?
+  startLng       Float?
+  startAddress   String?
+  endLat         Float?
+  endLng         Float?
+  endAddress     String?
+  totalDistance  Float    @default(0) // meters
+  totalDuration  Int      @default(0) // seconds
+  status         String   @default("active") // "active", "ended", "auto_ended"
+  autoEndReason  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orderbooker  User              @relation(fields: [orderbookerId], references: [id])
+  locations    RouteLocation[]
+  shopVisits   RouteShopVisit[]
+
+  @@index([orderbookerId])
+  @@index([status])
+  @@index([startTime])
+}
+
+model RouteLocation {
+  id           String   @id @default(cuid())
+  sessionId    String
+  lat          Float
+  lng          Float
+  accuracy     Float?
+  speed        Float?
+  altitude     Float?
+  batteryLevel Float?
+  isOffline    Boolean  @default(false)
+  recordedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  session      RouteSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([recordedAt])
+}
+
+model RouteShopVisit {
+  id             String   @id @default(cuid())
+  sessionId      String
+  shopId         String
+  enterLat       Float?
+  enterLng       Float?
+  exitLat        Float?
+  exitLng        Float?
+  enterTime      DateTime
+  exitTime       DateTime?
+  timeSpent      Int?     // seconds
+  distanceToShop Float?   // meters
+  isAutoDetected Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  session     RouteSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  shop        Shop         @relation(fields: [shopId], references: [id])
+
+  @@unique([sessionId, shopId])
+  @@index([sessionId])
+  @@index([shopId])
 }
