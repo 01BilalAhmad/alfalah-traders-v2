@@ -28,7 +28,7 @@ import AdminCompanies from '@/components/alfalah/AdminCompanies';
 import AdminBalanceReport from '@/components/alfalah/AdminBalanceReport';
 import AdminOBRecoveryReport from '@/components/alfalah/AdminOBRecoveryReport';
 import AdminCompanyReport from '@/components/alfalah/AdminCompanyReport';
-import AdminRouteTracking from '@/components/alfalah/AdminRouteTracking';
+import AdminRouteTracker from '@/components/alfalah/AdminRouteTracker';
 import AdminSettings from '@/components/alfalah/AdminSettings';
 
 function AdminRouter() {
@@ -83,8 +83,8 @@ function AdminRouter() {
       return <AdminBalanceReport />;
     case 'admin-company-report':
       return <AdminCompanyReport />;
-    case 'admin-route-tracking':
-      return <AdminRouteTracking />;
+    case 'admin-route-tracker':
+      return <AdminRouteTracker />;
     default:
       return <AdminDashboard />;
   }

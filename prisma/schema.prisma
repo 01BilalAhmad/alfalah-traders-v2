@@ -37,7 +37,8 @@ model User {
   dailyTargetsFor    DailyTarget[] @relation("TargetsFor")
   dailyTargetsBy     DailyTarget[] @relation("TargetsBy")
   preferences        UserPreference?
-  routes             RouteTracking[] @relation("RoutesBy")
+  routeSessions      RouteSession[]    @relation("RouteSessions")
+  routeShopVisits    RouteShopVisit[]  @relation("RouteShopVisits")
   passwordResetTokens PasswordResetToken[]
 
   @@index([username])
@@ -57,6 +58,8 @@ model Shop {
   balance        Float    @default(0) // running balance
   creditLimit    Float    @default(0) // 0 = no limit
   status         String   @default("active") // "active" or "inactive"
+  lat            Float?   // Shop GPS latitude (auto-populated from first GPS visit)
+  lng            Float?   // Shop GPS longitude (auto-populated from first GPS visit)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -66,7 +69,7 @@ model Shop {
   visits           ShopVisit[]
   companyBalances  ShopCompanyBalance[]
   assignedOrderbookers ShopOrderbooker[] // additional orderbooker assignments
-  routeStops           RouteStop[]
+  routeShopVisits  RouteShopVisit[]
 
   @@index([orderbookerId])
   @@index([routeDays])
@@ -269,68 +272,86 @@ model ShopOrderbooker {
   @@index([companyId])
 }
 
-// --- Route Tracking ---
+// ═══════════════════════════════════════════════════════════════════════
+// ROUTE TRACKING — Live GPS Tracking & Shop Proximity
+// ═══════════════════════════════════════════════════════════════════════
 
-model RouteTracking {
-  id             String   @id @default(cuid())
-  orderbookerId  String   // userId
-  companyId      String?  // optional - which company route
-  routeDate      DateTime @default(now())
-  startLat       Float
-  startLng       Float
-  startTime      DateTime
-  endLat         Float?   // nullable until route ends
+model RouteSession {
+  id             String    @id @default(cuid())
+  orderbookerId  String    // userId
+  startTime      DateTime  @default(now())
+  endTime        DateTime? // null = still active
+  startLat       Float?
+  startLng       Float?
+  endLat         Float?
   endLng         Float?
-  endTime        DateTime?
-  totalDistance  Float?   // meters - calculated at route end
-  totalDuration  Int?     // seconds - calculated at route end
-  status         String   @default("ongoing") // "ongoing" or "completed"
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  startAddress   String?
+  endAddress     String?
+  totalDistance   Float     @default(0)   // meters (computed on session end)
+  totalDuration   Int      @default(0)   // seconds (computed on session end)
+  status         String    @default("active") // "active", "ended", "auto_ended"
+  autoEndReason  String?   // "12am_auto"
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  orderbooker User            @relation("RoutesBy", fields: [orderbookerId], references: [id])
-  waypoints   RouteWaypoint[]
-  stops       RouteStop[]
+  orderbooker    User      @relation("RouteSessions", fields: [orderbookerId], references: [id])
+  locations      RouteLocation[]
+  shopVisits     RouteShopVisit[]
 
   @@index([orderbookerId])
   @@index([status])
-  @@index([routeDate])
-  @@index([companyId])
+  @@index([startTime])
+  @@index([orderbookerId, startTime])
+  @@index([startTime, status])
 }
 
-model RouteWaypoint {
-  id        String   @id @default(cuid())
-  routeId   String
-  lat       Float
-  lng       Float
-  accuracy  Float?   // GPS accuracy in meters
-  timestamp DateTime @default(now())
+model RouteLocation {
+  id              String   @id @default(cuid())
+  sessionId       String
+  lat             Float
+  lng             Float
+  accuracy        Float?   // GPS accuracy in meters
+  speed           Float?   // m/s from GPS
+  altitude        Float?   // meters
+  batteryLevel    Float?   // 0-1
+  isOffline       Boolean  @default(false) // was it queued offline?
+  recordedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
 
-  route RouteTracking @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  session         RouteSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
-  @@index([routeId])
-  @@index([timestamp])
+  @@index([sessionId])
+  @@index([recordedAt])
+  @@index([sessionId, recordedAt])
 }
 
-model RouteStop {
-  id             String    @id @default(cuid())
-  routeId        String
-  shopId         String
-  arrivalTime    DateTime
-  departureTime  DateTime? // nullable until checkout
-  timeSpent      Int?      // seconds - calculated on departure
-  lat            Float
-  lng            Float
-  recoveryAmount Float?    // if recovery was done at this shop
-  entryType      String    @default("field_visit") // "field_visit" or "late_payment"
-  createdAt      DateTime  @default(now())
+model RouteShopVisit {
+  id              String    @id @default(cuid())
+  sessionId       String
+  shopId          String
+  orderbookerId   String    // denormalized for fast queries
+  enterLat        Float?    // GPS when entering shop radius
+  enterLng        Float?
+  exitLat         Float?    // GPS when leaving shop radius
+  exitLng         Float?
+  enterTime       DateTime  // when OB entered 30m radius
+  exitTime        DateTime? // when OB left 30m radius (null = still at shop or session ended)
+  timeSpent       Int?      // seconds (computed on exit)
+  distanceToShop  Float?    // meters from shop center when detected
+  isAutoDetected  Boolean   @default(true) // true = GPS proximity, false = manual
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  route RouteTracking @relation(fields: [routeId], references: [id], onDelete: Cascade)
-  shop  Shop          @relation(fields: [shopId], references: [id])
+  session         RouteSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  shop            Shop         @relation(fields: [shopId], references: [id])
+  orderbooker     User         @relation("RouteShopVisits", fields: [orderbookerId], references: [id])
 
-  @@index([routeId])
+  @@unique([sessionId, shopId]) // one shop visit per session
+  @@index([sessionId])
   @@index([shopId])
-  @@index([arrivalTime])
+  @@index([orderbookerId])
+  @@index([enterTime])
+  @@index([orderbookerId, enterTime])
 }
 
 // --- Email Configuration (Admin sets SMTP from Settings Panel) ---
