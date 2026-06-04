@@ -6,7 +6,7 @@ import { getPool, getClient } from '@/lib/pg';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sessionId, endLat, endLng, endAddress } = body;
+    const { sessionId, endLat, endLng, endAddress, autoEndReason, status: requestStatus } = body;
 
     if (!sessionId) {
       return NextResponse.json({ error: 'sessionId is required' }, { status: 400 });
@@ -76,11 +76,13 @@ export async function POST(request: NextRequest) {
       await client.query('BEGIN');
 
       // Update the session
+      const finalStatus = requestStatus === 'auto_ended' ? 'auto_ended' : 'ended';
+      const finalAutoEndReason = autoEndReason || null;
       await client.query(
         `UPDATE "RouteSession"
          SET "endTime" = $1, "endLat" = $2, "endLng" = $3, "endAddress" = $4,
-             "totalDistance" = $5, "totalDuration" = $6, status = $7, "updatedAt" = $8
-         WHERE id = $9`,
+             "totalDistance" = $5, "totalDuration" = $6, status = $7, "autoEndReason" = $8, "updatedAt" = $9
+         WHERE id = $10`,
         [
           endTime,
           endLat ?? session.endLat ?? null,
@@ -88,7 +90,8 @@ export async function POST(request: NextRequest) {
           endAddress ?? session.endAddress ?? null,
           totalDistance,
           totalDuration,
-          'ended',
+          finalStatus,
+          finalAutoEndReason,
           endTime,
           sessionId,
         ]
@@ -145,8 +148,8 @@ export async function POST(request: NextRequest) {
           endAddress: endAddress ?? session.endAddress ?? null,
           totalDistance,
           totalDuration,
-          status: 'ended',
-          autoEndReason: null,
+          status: finalStatus,
+          autoEndReason: finalAutoEndReason,
         },
         summary: {
           totalDistance,
