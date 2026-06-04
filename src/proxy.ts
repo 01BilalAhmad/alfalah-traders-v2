@@ -47,7 +47,8 @@ function checkRateLimit(ip: string): boolean {
 const PROTECTED_PATHS = [
   '/api/auth/reset-password',
   '/api/admin',           // all admin endpoints require auth (except public subpaths below)
-  '/api/route-tracking',
+  '/api/route-tracking',  // old system — admin endpoints require auth
+  '/api/route-sessions',  // new system — admin endpoints (live, history) require auth
   '/api/users',           // user profile updates (email, preferences, etc.) require auth
   '/api/auth/change-password',  // password change requires auth
 ];
@@ -57,6 +58,13 @@ const PROTECTED_PATHS = [
 // The mobile app authenticates via orderbookerId in the request body instead.
 // Admin-only endpoints (setup, settings) still require auth.
 const PUBLIC_SUBPATHS = [
+  // Route Sessions — mobile app sends orderbookerId in body, not Bearer token
+  '/api/route-sessions/start',
+  '/api/route-sessions/end',
+  '/api/route-sessions/location',
+  '/api/route-sessions/locations-batch',
+  '/api/route-sessions/active',
+  // Old route-tracking — kept for backward compat during migration
   '/api/route-tracking/create-tables',
   '/api/route-tracking/start',
   '/api/route-tracking/stop',

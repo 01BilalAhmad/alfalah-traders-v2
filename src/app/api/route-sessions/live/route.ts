@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // For each session, get the latest location and shop visits
+    // For each session, get the latest location, locations (for polyline), and shop visits
     const sessionIds = sessionsRes.rows.map((s: { id: string }) => s.id);
 
     // Batch fetch latest location per session
@@ -62,6 +62,40 @@ export async function GET(request: NextRequest) {
         accuracy: row.accuracy != null ? Number(row.accuracy) : null,
         recordedAt: row.recordedAt instanceof Date ? row.recordedAt.toISOString() : row.recordedAt,
       };
+    }
+
+    // Batch fetch ALL locations for each session (for polyline drawing)
+    // Limit to last 500 points per session to keep payload manageable
+    const locationsRes = await pool.query(
+      `SELECT rl."sessionId", rl.lat, rl.lng, rl.accuracy, rl.speed, rl."recordedAt"
+       FROM "RouteLocation" rl
+       WHERE rl."sessionId" = ANY($1)
+       ORDER BY rl."sessionId", rl."recordedAt" ASC`,
+      [sessionIds]
+    );
+
+    // Build a map of sessionId → locations array (limit 500 per session)
+    const locationsMap: Record<string, Array<{
+      lat: number; lng: number; accuracy: number | null; speed: number | null; recordedAt: string;
+    }>> = {};
+    const locCounts: Record<string, number> = {};
+
+    for (const row of locationsRes.rows) {
+      const sid = row.sessionId;
+      if (!locationsMap[sid]) {
+        locationsMap[sid] = [];
+        locCounts[sid] = 0;
+      }
+      locCounts[sid]++;
+      if (locCounts[sid] <= 500) {
+        locationsMap[sid].push({
+          lat: Number(row.lat),
+          lng: Number(row.lng),
+          accuracy: row.accuracy != null ? Number(row.accuracy) : null,
+          speed: row.speed != null ? Number(row.speed) : null,
+          recordedAt: row.recordedAt instanceof Date ? row.recordedAt.toISOString() : row.recordedAt,
+        });
+      }
     }
 
     // Batch fetch shop visits for all sessions
@@ -97,32 +131,41 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Compute live duration for active sessions
+    const now = Date.now();
+
     // Compose final response
-    const sessions = sessionsRes.rows.map((s: Record<string, unknown>) => ({
-      session: {
-        id: s.id,
-        orderbookerId: s.orderbookerId,
-        startTime: s.startTime instanceof Date ? (s.startTime as Date).toISOString() : s.startTime,
-        endTime: s.endTime instanceof Date ? (s.endTime as Date).toISOString() : s.endTime,
-        startLat: s.startLat,
-        startLng: s.startLng,
-        startAddress: s.startAddress,
-        endLat: s.endLat,
-        endLng: s.endLng,
-        endAddress: s.endAddress,
-        totalDistance: Number(s.totalDistance),
-        totalDuration: s.totalDuration,
-        status: s.status,
-        autoEndReason: s.autoEndReason,
-      },
-      latestLocation: latestLocMap[s.id as string] || null,
-      shopVisits: shopVisitsMap[s.id as string] || [],
-      orderbooker: {
-        id: s.orderbookerId,
-        name: s.orderbookerName,
-        phone: s.orderbookerPhone,
-      },
-    }));
+    const sessions = sessionsRes.rows.map((s: Record<string, unknown>) => {
+      const startTime = s.startTime instanceof Date ? (s.startTime as Date).getTime() : new Date(s.startTime as string).getTime();
+      const liveDuration = Math.max(0, Math.round((now - startTime) / 1000));
+
+      return {
+        session: {
+          id: s.id,
+          orderbookerId: s.orderbookerId,
+          startTime: s.startTime instanceof Date ? (s.startTime as Date).toISOString() : s.startTime,
+          endTime: s.endTime instanceof Date ? (s.endTime as Date).toISOString() : s.endTime,
+          startLat: s.startLat,
+          startLng: s.startLng,
+          startAddress: s.startAddress,
+          endLat: s.endLat,
+          endLng: s.endLng,
+          endAddress: s.endAddress,
+          totalDistance: Number(s.totalDistance),
+          totalDuration: s.totalDuration || liveDuration,
+          status: s.status,
+          autoEndReason: s.autoEndReason,
+        },
+        latestLocation: latestLocMap[s.id as string] || null,
+        locations: locationsMap[s.id as string] || [],
+        shopVisits: shopVisitsMap[s.id as string] || [],
+        orderbooker: {
+          id: s.orderbookerId,
+          name: s.orderbookerName,
+          phone: s.orderbookerPhone,
+        },
+      };
+    });
 
     return NextResponse.json({
       sessions,
