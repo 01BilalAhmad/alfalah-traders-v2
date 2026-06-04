@@ -47,16 +47,14 @@ function checkRateLimit(ip: string): boolean {
 const PROTECTED_PATHS = [
   '/api/auth/reset-password',
   '/api/admin',           // all admin endpoints require auth (except public subpaths below)
-  '/api/route-tracking',  // old system — admin endpoints require auth
-  '/api/route-sessions',  // new system — admin endpoints (live, history) require auth
+  '/api/route-sessions',  // admin endpoints (live, history) require auth
   '/api/users',           // user profile updates (email, preferences, etc.) require auth
   '/api/auth/change-password',  // password change requires auth
 ];
 
 // Paths that are public even under a protected prefix
-// These route-tracking endpoints are called by the mobile app which may not send Bearer tokens.
+// These endpoints are called by the mobile app which may not send Bearer tokens.
 // The mobile app authenticates via orderbookerId in the request body instead.
-// Admin-only endpoints (setup, settings) still require auth.
 const PUBLIC_SUBPATHS = [
   // Route Sessions — mobile app sends orderbookerId in body, not Bearer token
   '/api/route-sessions/start',
@@ -64,17 +62,6 @@ const PUBLIC_SUBPATHS = [
   '/api/route-sessions/location',
   '/api/route-sessions/locations-batch',
   '/api/route-sessions/active',
-  // Old route-tracking — kept for backward compat during migration
-  '/api/route-tracking/create-tables',
-  '/api/route-tracking/start',
-  '/api/route-tracking/stop',
-  '/api/route-tracking/end',
-  '/api/route-tracking/waypoints',
-  '/api/route-tracking/checkin',
-  '/api/route-tracking/checkout',
-  '/api/route-tracking/stop-checkin',
-  '/api/route-tracking/stop-checkout',
-  '/api/route-tracking/summary',
   // Password recovery — public endpoints (no auth required)
   '/api/auth/forgot-password',
   '/api/auth/reset-password-with-token',

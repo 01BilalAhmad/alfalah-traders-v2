@@ -447,13 +447,56 @@ export default function AdminMapView() {
     }
   }, []);
 
-  // Fetch live tracking data
+  // Fetch live tracking data (using new route-sessions API)
   const fetchLiveTracking = useCallback(async () => {
     try {
-      const res = await apiFetch('/api/route-tracking/live');
+      const res = await apiFetch('/api/route-sessions/live');
       if (res.ok) {
         const data = await res.json();
-        setLiveOrderbookers(data.orderbookers || []);
+        // Transform route-sessions format to LiveOrderbooker format for ShopMap
+        const obs = (data.sessions || []).map((s: any) => {
+          const durationSec = s.session.totalDuration ||
+            Math.round((Date.now() - new Date(s.session.startTime).getTime()) / 1000);
+          const durationMin = Math.round(durationSec / 60);
+          const h = Math.floor(durationMin / 60);
+          const m = durationMin % 60;
+          const durationStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+          // Find nearest shop from shopVisits
+          let nearShop: { id: string; name: string; area: string | null; distance: number } | null = null;
+          if (s.shopVisits && s.shopVisits.length > 0) {
+            const lastVisit = s.shopVisits[s.shopVisits.length - 1];
+            if (lastVisit.distanceToShop != null) {
+              nearShop = {
+                id: lastVisit.shopId || '',
+                name: lastVisit.shopName || 'Unknown',
+                area: null,
+                distance: Math.round(lastVisit.distanceToShop),
+              };
+            }
+          }
+
+          return {
+            routeId: s.session.id,
+            orderbookerId: s.orderbooker.id,
+            orderbookerName: s.orderbooker.name,
+            orderbookerPhone: s.orderbooker.phone || null,
+            startTime: s.session.startTime,
+            duration: durationStr,
+            durationMinutes: durationMin,
+            currentLat: s.latestLocation?.lat ?? 0,
+            currentLng: s.latestLocation?.lng ?? 0,
+            lastUpdated: s.latestLocation?.recordedAt ?? s.session.startTime,
+            waypointsCount: s.locations?.length ?? 0,
+            nearShop,
+            pathPoints: (s.locations || []).map((l: any) => ({
+              lat: l.lat,
+              lng: l.lng,
+              timestamp: l.recordedAt,
+            })),
+          };
+        });
+        setLiveOrderbookers(obs);
       }
     } catch { /* ignore */ }
   }, []);
