@@ -115,7 +115,7 @@ function drawFooter(doc: jsPDF): void {
   doc.setTextColor(...SLATE_GREY);
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.text('Finexa — Confidential Document', pageWidth / 2, footerY, { align: 'center' });
+  doc.text('© 2026 Finexa. All rights reserved. Prohibited under Copyright Ordinance 1962 & PECA 2016.', pageWidth / 2, footerY, { align: 'center' });
   doc.text('This is a computer-generated document and does not require a signature.', pageWidth / 2, footerY + 4, { align: 'center' });
 
   // Page number

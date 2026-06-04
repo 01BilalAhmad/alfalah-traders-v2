@@ -46,9 +46,33 @@ function checkRateLimit(ip: string): boolean {
 // These endpoints require a valid Authorization header
 const PROTECTED_PATHS = [
   '/api/auth/reset-password',
-  '/api/admin/backup',
-  '/api/admin/restore',
-  '/api/admin/reset-shops',
+  '/api/admin',           // all admin endpoints require auth (except public subpaths below)
+  '/api/route-tracking',
+  '/api/users',           // user profile updates (email, preferences, etc.) require auth
+  '/api/auth/change-password',  // password change requires auth
+];
+
+// Paths that are public even under a protected prefix
+// These route-tracking endpoints are called by the mobile app which may not send Bearer tokens.
+// The mobile app authenticates via orderbookerId in the request body instead.
+// Admin-only endpoints (setup, settings) still require auth.
+const PUBLIC_SUBPATHS = [
+  '/api/route-tracking/create-tables',
+  '/api/route-tracking/start',
+  '/api/route-tracking/stop',
+  '/api/route-tracking/end',
+  '/api/route-tracking/waypoints',
+  '/api/route-tracking/checkin',
+  '/api/route-tracking/checkout',
+  '/api/route-tracking/stop-checkin',
+  '/api/route-tracking/stop-checkout',
+  '/api/route-tracking/summary',
+  // Password recovery — public endpoints (no auth required)
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password-with-token',
+  '/api/admin/email-config/status',
+  // Mobile app endpoints — use userId in body, not Bearer token
+  '/api/users/phone',
 ];
 
 // ─── Token Parsing ────────────────────────────────────────────────────────────
@@ -66,8 +90,8 @@ function parseToken(token: string): { userId: string; timestamp: number } | null
   }
 }
 
-// ─── Middleware ────────────────────────────────────────────────────────────────
-export function middleware(request: NextRequest) {
+// ─── Proxy (Next.js 16 — replaces deprecated middleware) ──────────────────────
+export function proxy(request: NextRequest) {
   // Only apply to API routes
   if (!request.nextUrl.pathname.startsWith('/api')) {
     return NextResponse.next();
@@ -104,7 +128,12 @@ export function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(path)
   );
 
-  if (isProtected) {
+  // Check if this specific path is in the public subpaths list (even under a protected prefix)
+  const isPublicSubpath = PUBLIC_SUBPATHS.some((path) =>
+    request.nextUrl.pathname === path
+  );
+
+  if (isProtected && !isPublicSubpath) {
     const authHeader = request.headers.get('Authorization');
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

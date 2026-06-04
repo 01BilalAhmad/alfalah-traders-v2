@@ -1,171 +1,262 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool, getClient } from '@/lib/pg';
+import crypto from 'crypto';
 
-const SHOP_PROXIMITY_RADIUS = 30; // meters
+// Haversine distance in meters between two lat/lng points
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
-const HAVERSINE_SQL = `
-  6371000 * 2 * ATAN2(
-    SQRT(
-      POWER(SIN(RADIANS($1 - lat) / 2), 2) +
-      COS(RADIANS(lat)) * COS(RADIANS($1)) *
-      POWER(SIN(RADIANS($2 - lng) / 2), 2)
-    ),
-    SQRT(1 - (
-      POWER(SIN(RADIANS($1 - lat) / 2), 2) +
-      COS(RADIANS(lat)) * COS(RADIANS($1)) *
-      POWER(SIN(RADIANS($2 - lng) / 2), 2)
-    ))
-  )
-`;
+const PROXIMITY_RADIUS_M = 30;
+
+interface ShopProximity {
+  shopId: string;
+  shopName: string;
+  distance: number;
+  action: 'entered' | 'exited' | 'nearby' | null;
+}
 
 // POST /api/route-sessions/locations-batch
-// Batch upload GPS points. Proximity check runs only on the LAST point.
-// Body: { sessionId, locations: [{ lat, lng, accuracy?, speed?, recordedAt, isOffline? }] }
+// Bulk insert GPS locations and run proximity detection on the last point
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { sessionId, locations } = body;
 
-    if (!sessionId || !Array.isArray(locations) || locations.length === 0) {
+    if (!sessionId || !locations || !Array.isArray(locations) || locations.length === 0) {
       return NextResponse.json(
         { error: 'sessionId and a non-empty locations array are required' },
         { status: 400 }
       );
     }
 
+    // Validate each location has required fields
+    for (let i = 0; i < locations.length; i++) {
+      if (locations[i].lat == null || locations[i].lng == null) {
+        return NextResponse.json(
+          { error: `Location at index ${i} is missing lat or lng` },
+          { status: 400 }
+        );
+      }
+    }
+
     const pool = getPool();
 
     // Verify session exists and is active
     const sessionRes = await pool.query(
-      `SELECT id, "orderbookerId", status FROM "RouteSession" WHERE id = $1`,
+      'SELECT id, "orderbookerId", status FROM "RouteSession" WHERE id = $1',
       [sessionId]
     );
 
     if (sessionRes.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    if (sessionRes.rows[0].status !== 'active') {
-      return NextResponse.json(
-        { error: 'Session is not active' },
-        { status: 400 }
-      );
+    const session = sessionRes.rows[0];
+    if (session.status !== 'active') {
+      return NextResponse.json({ error: 'Session is not active' }, { status: 409 });
     }
 
-    const orderbookerId = sessionRes.rows[0].orderbookerId;
+    const orderbookerId = session.orderbookerId;
+    const now = new Date().toISOString();
 
-    // Insert all locations using a transaction for batch efficiency
-    const client = await getClient();
-    try {
-      await client.query('BEGIN');
+    // ── Bulk insert RouteLocation rows using VALUES clause ────────────────
+    // Columns: id, "sessionId", lat, lng, accuracy, speed, altitude,
+    //          "batteryLevel", "isOffline", "recordedAt", "createdAt"  (11 params per row)
+    const valuesClauses: string[] = [];
+    const params: unknown[] = [];
+    let paramIdx = 1;
 
-      for (const loc of locations) {
-        const recordedAt = loc.recordedAt
-          ? new Date(loc.recordedAt).toISOString()
-          : new Date().toISOString();
+    for (const loc of locations) {
+      const locId = crypto.randomUUID();
+      const recordedAt = loc.recordedAt || now;
+      const isOffline = loc.isOffline ?? false;
 
-        await client.query(
-          `INSERT INTO "RouteLocation" ("sessionId", lat, lng, accuracy, speed, "batteryLevel", "isOffline", "recordedAt", "createdAt")
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
-          [
-            sessionId,
-            loc.lat,
-            loc.lng,
-            loc.accuracy ?? null,
-            loc.speed ?? null,
-            loc.batteryLevel ?? null,
-            loc.isOffline ?? false,
-            recordedAt,
-          ]
-        );
-      }
-
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
-
-    // Proximity check on the LAST point only
-    const lastPoint = locations[locations.length - 1];
-    let shopProximity = null;
-
-    if (lastPoint.lat != null && lastPoint.lng != null) {
-      const nearbyRes = await pool.query(
-        `SELECT id, name, lat AS "shopLat", lng AS "shopLng",
-                ${HAVERSINE_SQL} AS distance
-         FROM "Shop"
-         WHERE "orderbookerId" = $3
-           AND lat IS NOT NULL AND lng IS NOT NULL
-           AND ${HAVERSINE_SQL} <= $4
-         ORDER BY distance ASC
-         LIMIT 1`,
-        [lastPoint.lat, lastPoint.lng, orderbookerId, SHOP_PROXIMITY_RADIUS]
+      valuesClauses.push(
+        `($${paramIdx}, $${paramIdx + 1}, $${paramIdx + 2}, $${paramIdx + 3}, $${paramIdx + 4}, $${paramIdx + 5}, $${paramIdx + 6}, $${paramIdx + 7}, $${paramIdx + 8}, $${paramIdx + 9}, $${paramIdx + 10})`
       );
 
-      if (nearbyRes.rows.length > 0) {
-        const shop = nearbyRes.rows[0];
-        const distance = Number(shop.distance);
+      params.push(
+        locId,          // id
+        sessionId,      // sessionId
+        loc.lat,        // lat
+        loc.lng,        // lng
+        loc.accuracy ?? null,   // accuracy
+        loc.speed ?? null,      // speed
+        loc.altitude ?? null,   // altitude
+        loc.batteryLevel ?? null, // batteryLevel
+        isOffline,      // isOffline
+        recordedAt,     // recordedAt
+        now             // createdAt
+      );
 
-        // Check if this shop has already been visited in this session
-        const existingVisitRes = await pool.query(
-          `SELECT id FROM "RouteShopVisit"
-           WHERE "sessionId" = $1 AND "shopId" = $2`,
-          [sessionId, shop.id]
-        );
+      paramIdx += 11;
+    }
 
-        if (existingVisitRes.rows.length === 0) {
-          // Create a new shop visit
-          const visitClient = await getClient();
-          try {
-            await visitClient.query('BEGIN');
+    await pool.query(
+      `INSERT INTO "RouteLocation" (id, "sessionId", lat, lng, accuracy, speed, altitude, "batteryLevel", "isOffline", "recordedAt", "createdAt")
+       VALUES ${valuesClauses.join(', ')}`,
+      params
+    );
 
-            await visitClient.query(
-              `INSERT INTO "RouteShopVisit" ("sessionId", "shopId", "enterLat", "enterLng", "enterTime", "distanceToShop", "isAutoDetected", "createdAt", "updatedAt")
-               VALUES ($1, $2, $3, $4, NOW(), $5, true, NOW(), NOW())`,
-              [sessionId, shop.id, lastPoint.lat, lastPoint.lng, distance]
-            );
+    const saved = locations.length;
 
-            // Auto-populate Shop.lat/lng if not already set
-            if (shop.shopLat == null || shop.shopLng == null) {
-              await visitClient.query(
-                `UPDATE "Shop" SET lat = $1, lng = $2, "updatedAt" = NOW() WHERE id = $3 AND (lat IS NULL OR lng IS NULL)`,
-                [lastPoint.lat, lastPoint.lng, shop.id]
+    // ── Proximity Detection on LAST point only ──────────────────────────
+    const lastLoc = locations[locations.length - 1];
+    const lastLat = lastLoc.lat;
+    const lastLng = lastLoc.lng;
+
+    // Get all shops assigned to this orderbooker that have lat/lng
+    const shopsRes = await pool.query(
+      `SELECT DISTINCT s.id, s.name, s.lat, s.lng
+       FROM "Shop" s
+       WHERE s.status = 'active'
+         AND s.lat IS NOT NULL AND s.lng IS NOT NULL
+         AND (
+           s."orderbookerId" = $1
+           OR EXISTS (
+             SELECT 1 FROM "ShopOrderbooker" so
+             WHERE so."shopId" = s.id AND so."orderbookerId" = $1
+           )
+         )`,
+      [orderbookerId]
+    );
+
+    const shopProximities: ShopProximity[] = [];
+
+    if (shopsRes.rows.length > 0) {
+      // Get currently open shop visits for this session
+      const openVisitsRes = await pool.query(
+        `SELECT "shopId" FROM "RouteShopVisit"
+         WHERE "sessionId" = $1 AND "exitTime" IS NULL`,
+        [sessionId]
+      );
+      const openVisitShopIds = new Set(openVisitsRes.rows.map((r: { shopId: string }) => r.shopId));
+
+      // Get all shop visits for this session
+      const allVisitsRes = await pool.query(
+        `SELECT "shopId" FROM "RouteShopVisit" WHERE "sessionId" = $1`,
+        [sessionId]
+      );
+      const visitedShopIds = new Set(allVisitsRes.rows.map((r: { shopId: string }) => r.shopId));
+
+      const client = await getClient();
+      try {
+        await client.query('BEGIN');
+
+        for (const shop of shopsRes.rows) {
+          const shopLat = Number(shop.lat);
+          const shopLng = Number(shop.lng);
+          const distance = haversineMeters(lastLat, lastLng, shopLat, shopLng);
+          const isNearby = distance <= PROXIMITY_RADIUS_M;
+
+          if (isNearby) {
+            if (!visitedShopIds.has(shop.id)) {
+              // Create new RouteShopVisit — entering for the first time
+              const visitId = crypto.randomUUID();
+              const enterTime = lastLoc.recordedAt || now;
+
+              await client.query(
+                `INSERT INTO "RouteShopVisit"
+                 (id, "sessionId", "shopId", "orderbookerId", "enterLat", "enterLng", "enterTime", "distanceToShop", "isAutoDetected", "createdAt", "updatedAt")
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                [visitId, sessionId, shop.id, orderbookerId, lastLat, lastLng, enterTime, Math.round(distance), true, now, now]
               );
-            }
 
-            await visitClient.query('COMMIT');
-          } catch (err) {
-            await visitClient.query('ROLLBACK');
-            throw err;
-          } finally {
-            visitClient.release();
+              visitedShopIds.add(shop.id);
+              openVisitShopIds.add(shop.id);
+
+              shopProximities.push({
+                shopId: shop.id,
+                shopName: shop.name,
+                distance: Math.round(distance),
+                action: 'entered',
+              });
+
+              // If Shop.lat is null, update from this GPS
+              await client.query(
+                `UPDATE "Shop" SET lat = $1, lng = $2, "updatedAt" = $3
+                 WHERE id = $4 AND lat IS NULL`,
+                [lastLat, lastLng, now, shop.id]
+              );
+            } else if (openVisitShopIds.has(shop.id)) {
+              // Already visited and still inside — just report nearby
+              shopProximities.push({
+                shopId: shop.id,
+                shopName: shop.name,
+                distance: Math.round(distance),
+                action: 'nearby',
+              });
+            } else {
+              // Was visited before (exited), now back inside
+              shopProximities.push({
+                shopId: shop.id,
+                shopName: shop.name,
+                distance: Math.round(distance),
+                action: 'nearby',
+              });
+            }
+          } else {
+            // Outside shop radius
+            if (openVisitShopIds.has(shop.id)) {
+              // Was inside, now leaving
+              const visitRes = await client.query(
+                `SELECT id, "enterTime" FROM "RouteShopVisit"
+                 WHERE "sessionId" = $1 AND "shopId" = $2 AND "exitTime" IS NULL`,
+                [sessionId, shop.id]
+              );
+
+              if (visitRes.rows.length > 0) {
+                const visit = visitRes.rows[0];
+                const enterTime = new Date(visit.enterTime);
+                const exitTime = lastLoc.recordedAt || now;
+                const timeSpent = Math.round((new Date(exitTime).getTime() - enterTime.getTime()) / 1000);
+
+                await client.query(
+                  `UPDATE "RouteShopVisit"
+                   SET "exitTime" = $1, "exitLat" = $2, "exitLng" = $3, "timeSpent" = $4, "updatedAt" = $5
+                   WHERE id = $6`,
+                  [exitTime, lastLat, lastLng, timeSpent, now, visit.id]
+                );
+
+                openVisitShopIds.delete(shop.id);
+
+                shopProximities.push({
+                  shopId: shop.id,
+                  shopName: shop.name,
+                  distance: Math.round(distance),
+                  action: 'exited',
+                });
+              }
+            }
           }
         }
 
-        shopProximity = {
-          shopId: shop.id,
-          shopName: shop.name,
-          distance,
-        };
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
       }
     }
 
     return NextResponse.json({
-      success: true,
-      count: locations.length,
-      shopProximity,
+      saved,
+      shopProximity: shopProximities,
     });
   } catch (error) {
-    console.error('Error batch recording locations:', error);
-    return NextResponse.json(
-      { error: 'Failed to batch record locations' },
-      { status: 500 }
-    );
+    console.error('Error batch recording route locations:', error);
+    return NextResponse.json({ error: 'Failed to batch record route locations' }, { status: 500 });
   }
 }

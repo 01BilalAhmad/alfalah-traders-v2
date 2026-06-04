@@ -32,6 +32,7 @@ import {
 import { exportToCSV } from '@/lib/csv-export';
 import { toast } from '@/hooks/use-toast';
 import { formatPKR } from '@/lib/utils';
+import { handlePrint as sharedHandlePrint, PrintHeader } from '@/lib/print-utils';
 
 interface ShopDetail {
   shopId: string;
@@ -128,17 +129,7 @@ export default function AdminReconciliation() {
   };
 
   const handlePrint = () => {
-    const html = document.documentElement;
-    const hadDark = html.classList.contains('dark');
-    if (hadDark) { html.classList.remove('dark'); html.style.colorScheme = 'light'; }
-    setTimeout(() => {
-      window.print();
-      if (hadDark) {
-        const restore = () => { html.classList.add('dark'); html.style.colorScheme = 'dark'; window.removeEventListener('afterprint', restore); };
-        window.addEventListener('afterprint', restore);
-        setTimeout(() => { if (!html.classList.contains('dark')) { html.classList.add('dark'); html.style.colorScheme = 'dark'; } }, 1000);
-      }
-    }, 100);
+    sharedHandlePrint({ delay: 300 });
   };
 
   const recoveryRate = monthSummary && monthSummary.totalCredit > 0
@@ -444,6 +435,20 @@ export default function AdminReconciliation() {
             </div>
           ) : (
             <div className="divide-y divide-border">
+              {/* ─── PRINT-ONLY HEADER ─── */}
+              <div className="print-only" style={{ padding: '12px 0', borderBottom: '2px solid #4F46E5', marginBottom: '12px' }}>
+                <PrintHeader
+                  title="Daily Reconciliation Report"
+                  subtitle={`Date: ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })}`}
+                  date={`Credit: ${formatPKR(report.totalCredit)} | Recovery: ${formatPKR(report.totalRecovery)} | Net: ${report.netChange >= 0 ? '+' : ''}${formatPKR(report.netChange)}`}
+                  stats={[
+                    { label: 'Total Credit', value: formatPKR(report.totalCredit) },
+                    { label: 'Total Recovery', value: formatPKR(report.totalRecovery) },
+                    { label: 'Transactions', value: String(report.totalTransactions) },
+                  ]}
+                />
+              </div>
+
               {report.orderbookers.map((ob) => {
                 const isExpanded = expandedOB.has(ob.orderbookerId);
                 const obTotal = ob.credit + ob.recovery;

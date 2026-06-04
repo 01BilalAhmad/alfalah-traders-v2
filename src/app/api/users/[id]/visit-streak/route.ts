@@ -13,11 +13,12 @@ export async function GET(
 
     // Calculate visit streak from actual visit records
     // A "visit day" is any day where the orderbooker has at least one ShopVisit
+    // Use Pakistan timezone (UTC+5) for date calculation
     const visitsRes = await pool.query(
-      `SELECT DATE("createdAt") AS visit_date
+      `SELECT (DATE("createdAt" AT TIME ZONE 'Asia/Karachi')) AS visit_date
        FROM "ShopVisit"
        WHERE "orderbookerId" = $1
-       GROUP BY DATE("createdAt")
+       GROUP BY (DATE("createdAt" AT TIME ZONE 'Asia/Karachi'))
        ORDER BY visit_date DESC
        LIMIT 365`,
       [orderbookerId]
@@ -32,10 +33,10 @@ export async function GET(
 
     // Also check recovery transactions as visits (for backward compat before ShopVisit table existed)
     const txVisitsRes = await pool.query(
-      `SELECT DATE("createdAt") AS visit_date
+      `SELECT (DATE("createdAt" AT TIME ZONE 'Asia/Karachi')) AS visit_date
        FROM "Transaction"
        WHERE "createdBy" = $1 AND type = 'recovery' AND status = 'approved'
-       GROUP BY DATE("createdAt")
+       GROUP BY (DATE("createdAt" AT TIME ZONE 'Asia/Karachi'))
        ORDER BY visit_date DESC
        LIMIT 365`,
       [orderbookerId]
@@ -51,10 +52,11 @@ export async function GET(
     // Merge and deduplicate
     const allDates = [...new Set([...visitDates, ...txVisitDates])].sort().reverse();
 
-    // Calculate current streak (consecutive days ending today or yesterday)
+    // Calculate current streak (consecutive days ending today or yesterday in Pakistan timezone)
     const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const yesterday = new Date(today);
+    const pkToday = new Date(today.toLocaleString('en-US', { timeZone: 'Asia/Karachi' }));
+    const todayStr = `${pkToday.getFullYear()}-${String(pkToday.getMonth() + 1).padStart(2, '0')}-${String(pkToday.getDate()).padStart(2, '0')}`;
+    const yesterday = new Date(pkToday);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
 

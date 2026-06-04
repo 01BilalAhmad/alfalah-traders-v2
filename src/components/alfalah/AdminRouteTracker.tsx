@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { apiFetch } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getLocalDateString } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -14,24 +17,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import {
-  Route,
+  Radio,
   MapPin,
   Clock,
+  Route,
   Store,
   Navigation,
-  RefreshCw,
   Loader2,
-  CheckCircle2,
-  AlertTriangle,
-  Activity,
+  CalendarDays,
+  ChevronDown,
+  Timer,
+  Footprints,
   Users,
+  Play,
+  Store as StoreIcon,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
-// Dynamically import ShopMap to avoid SSR issues with Leaflet
-const ShopMap = dynamic(() => import('./ShopMap'), {
+// Dynamically import RouteTrackerMap to avoid SSR issues with Leaflet
+const RouteTrackerMap = dynamic(() => import('./RouteTrackerMap'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full flex items-center justify-center bg-muted/30 rounded-xl">
@@ -44,42 +51,16 @@ const ShopMap = dynamic(() => import('./ShopMap'), {
 });
 
 // ── Types ──────────────────────────────────────────────────────────────────
-
-interface Orderbooker {
-  id: string;
-  name: string;
-  phone: string | null;
-  status: string;
-}
-
-interface ShopLocation {
-  shopId: string;
-  name: string;
-  ownerName: string | null;
-  area: string | null;
-  balance: number;
-  status: string;
-  orderbookerName: string;
-  routeDays: string[];
-  lat: number;
-  lng: number;
-}
-
-interface RouteLocation {
-  id: string;
-  lat: number;
-  lng: number;
-  accuracy: number | null;
-  speed: number | null;
-  recordedAt: string;
-}
-
 interface ShopVisit {
   id: string;
-  shopId: string;
+  sessionId: string;
+  shopId: string | null;
   shopName: string | null;
+  orderbookerId: string;
   enterLat: number | null;
   enterLng: number | null;
+  exitLat: number | null;
+  exitLng: number | null;
   enterTime: string;
   exitTime: string | null;
   timeSpent: number | null;
@@ -87,66 +68,56 @@ interface ShopVisit {
   isAutoDetected: boolean;
 }
 
-interface LiveSession {
-  id: string;
-  orderbookerId: string;
-  orderbookerName: string;
-  startTime: string;
-  startLat: number | null;
-  startLng: number | null;
-  startAddress: string | null;
-  totalDistance: number;
-  totalDuration: number;
-  status: string;
-  currentLocation: RouteLocation | null;
-  locations: RouteLocation[];
+interface SessionData {
+  session: {
+    id: string;
+    orderbookerId: string;
+    startTime: string;
+    endTime: string | null;
+    startLat: number | null;
+    startLng: number | null;
+    startAddress: string | null;
+    endLat: number | null;
+    endLng: number | null;
+    endAddress: string | null;
+    totalDistance: number;
+    totalDuration: number | null;
+    status: string;
+    autoEndReason: string | null;
+  };
+  latestLocation?: { lat: number; lng: number; accuracy: number | null; recordedAt: string } | null;
   shopVisits: ShopVisit[];
+  orderbooker: { id: string; name: string; phone?: string };
+  locations?: Array<{
+    id: string;
+    sessionId: string;
+    lat: number;
+    lng: number;
+    accuracy: number | null;
+    speed: number | null;
+    recordedAt: string;
+  }>;
 }
 
-interface HistorySession {
+interface Orderbooker {
   id: string;
-  orderbookerId: string;
-  orderbookerName: string;
-  startTime: string;
-  endTime: string | null;
-  startLat: number | null;
-  startLng: number | null;
-  startAddress: string | null;
-  endLat: number | null;
-  endLng: number | null;
-  endAddress: string | null;
-  totalDistance: number;
-  totalDuration: number;
+  name: string;
   status: string;
-  autoEndReason: string | null;
-  locations: RouteLocation[];
-  shopVisits: ShopVisit[];
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── OB Colors ──────────────────────────────────────────────────────────────
+const OB_COLORS = ['#4F46E5', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
 
-function formatDuration(seconds: number): string {
-  if (!seconds || seconds <= 0) return '0m';
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) {
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-  }
-  return `${minutes}m`;
+function getOBColor(index: number): string {
+  return OB_COLORS[index % OB_COLORS.length];
 }
 
-function formatDistance(meters: number): string {
-  if (!meters || meters <= 0) return '0m';
-  if (meters >= 1000) {
-    return `${(meters / 1000).toFixed(1)} km`;
-  }
-  return `${Math.round(meters)}m`;
-}
-
+// ── Time/Duration Formatting ───────────────────────────────────────────────
 function formatTime(isoString: string): string {
   try {
-    return new Date(isoString).toLocaleTimeString('en-US', {
-      hour: 'numeric',
+    return new Date(isoString).toLocaleTimeString('en-PK', {
+      timeZone: 'Asia/Karachi',
+      hour: '2-digit',
       minute: '2-digit',
       hour12: true,
     });
@@ -155,73 +126,85 @@ function formatTime(isoString: string): string {
   }
 }
 
-function formatTimeSpent(seconds: number | null): string {
-  if (!seconds || seconds <= 0) return '--';
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+function formatDuration(seconds: number | null): string {
+  if (!seconds) return '--';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
 }
 
-function getTodayString(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+function formatMinutes(seconds: number | null): string {
+  if (!seconds) return '--';
+  const m = Math.round(seconds / 60);
+  if (m < 1) return '<1m';
+  return `${m}m`;
+}
+
+function calcDuration(startTime: string, endTime?: string | null): number {
+  const start = new Date(startTime).getTime();
+  const end = endTime ? new Date(endTime).getTime() : Date.now();
+  return Math.max(0, Math.round((end - start) / 1000));
 }
 
 // ── Loading Skeleton ───────────────────────────────────────────────────────
-
 function RouteTrackerSkeleton() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Skeleton className="h-7 w-48" />
       </div>
-      <div className="flex flex-col lg:flex-row gap-4 h-[calc(100dvh-12rem)]">
-        <Skeleton className="flex-[7] h-full rounded-xl" />
-        <div className="flex-[3] space-y-4">
-          <Skeleton className="h-10 w-full rounded-lg" />
-          <Skeleton className="h-10 w-full rounded-lg" />
-          <Skeleton className="h-24 w-full rounded-lg" />
-          <Skeleton className="h-64 w-full rounded-lg" />
-        </div>
+      <div className="flex gap-3">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-9 w-48" />
+      </div>
+      <div className="flex gap-4">
+        <Skeleton className="flex-1 h-[500px] rounded-xl" />
+        <Skeleton className="w-80 h-[500px] rounded-xl hidden lg:block" />
       </div>
     </div>
   );
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────
-
 export default function AdminRouteTracker() {
-  // State
-  const [selectedOB, setSelectedOB] = useState<string>('all');
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
-  const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
-  const [historySessions, setHistorySessions] = useState<HistorySession[]>([]);
+  const today = useMemo(() => getLocalDateString(), []);
+
+  // Data state
+  const [sessions, setSessions] = useState<SessionData[]>([]);
   const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
-  const [shopLocations, setShopLocations] = useState<ShopLocation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [polling, setPolling] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filter state
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedOB, setSelectedOB] = useState<string>('__all__');
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  // Leaflet CSS injection
   const [leafletCssLoaded, setLeafletCssLoaded] = useState(false);
 
-  // Derived
-  const isLiveMode = selectedDate === getTodayString();
+  // Computed: is the selected date today?
+  const isToday = useMemo(() => {
+    const dateStr = selectedDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+    return dateStr === today;
+  }, [selectedDate, today]);
 
-  // Refs
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const selectedDateStr = useMemo(() => {
+    return selectedDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+  }, [selectedDate]);
 
-  // ── Leaflet CSS injection ─────────────────────────────────────────────
+  // Inject Leaflet CSS
   useEffect(() => {
-    if (document.querySelector('link[href*="leaflet"]')) {
-      setLeafletCssLoaded(true);
-      return;
-    }
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
     link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
     link.crossOrigin = '';
-    document.head.appendChild(link);
-    link.onload = () => setLeafletCssLoaded(true);
+    if (!document.querySelector('link[href*="leaflet"]')) {
+      document.head.appendChild(link);
+    }
+    setLeafletCssLoaded(true);
 
     return () => {
       const existing = document.querySelector('link[href*="leaflet"]');
@@ -229,517 +212,386 @@ export default function AdminRouteTracker() {
     };
   }, []);
 
-  // ── Fetch orderbookers ────────────────────────────────────────────────
+  // Fetch orderbookers
   useEffect(() => {
-    const fetchOrderbookers = async () => {
+    async function fetchOBs() {
       try {
         const res = await apiFetch('/api/orderbookers');
         if (res.ok) {
           const data = await res.json();
-          setOrderbookers(Array.isArray(data) ? data : []);
-        }
-      } catch {
-        toast({ title: 'Error', description: 'Failed to load orderbookers', variant: 'destructive' });
-      }
-    };
-    fetchOrderbookers();
-  }, []);
-
-  // ── Fetch shop locations ──────────────────────────────────────────────
-  useEffect(() => {
-    const fetchShopLocations = async () => {
-      try {
-        const res = await apiFetch('/api/shops/locations');
-        if (res.ok) {
-          const data = await res.json();
-          const locations = (Array.isArray(data) ? data : []).map((loc: any) => ({
-            shopId: loc.shopId,
-            name: loc.shopName || 'Unknown',
-            ownerName: loc.ownerName ?? null,
-            area: loc.area ?? null,
-            balance: Number(loc.balance || 0),
-            status: loc.status || 'active',
-            orderbookerName: loc.orderbookerName || 'Unknown',
-            routeDays: loc.routeDays || [],
-            lat: Number(loc.lat),
-            lng: Number(loc.lng),
-          }));
-          setShopLocations(locations);
+          setOrderbookers(
+            Array.isArray(data)
+              ? data.filter((o: Orderbooker) => o.status === 'active')
+              : []
+          );
         }
       } catch {
         // silent
       }
-    };
-    fetchShopLocations();
+    }
+    fetchOBs();
   }, []);
 
-  // ── Fetch live sessions with polling ──────────────────────────────────
-  const fetchLiveSessions = useCallback(async (showLoading = false) => {
-    if (showLoading) setPolling(true);
+  // Fetch route data
+  const fetchRouteData = useCallback(async () => {
+    setError(null);
     try {
-      const res = await apiFetch('/api/route-sessions/live');
-      if (res.ok) {
+      const obParam = selectedOB !== '__all__' ? `&orderbookerId=${selectedOB}` : '';
+
+      if (isToday) {
+        // Live mode
+        const res = await apiFetch(`/api/route-sessions/live?${obParam.slice(1)}`);
+        if (!res.ok) throw new Error('Failed to fetch live data');
         const data = await res.json();
-        setLiveSessions(data.sessions || []);
+        setSessions(data.sessions || []);
+      } else {
+        // Historical mode
+        const res = await apiFetch(`/api/route-sessions/history?date=${selectedDateStr}${obParam}`);
+        if (!res.ok) throw new Error('Failed to fetch historical data');
+        const data = await res.json();
+        setSessions(data.sessions || []);
       }
-    } catch {
-      // silent for polling
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to fetch route data';
+      setError(msg);
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
     } finally {
-      if (showLoading) setPolling(false);
       setLoading(false);
     }
-  }, []);
+  }, [isToday, selectedDateStr, selectedOB]);
 
-  // ── Fetch history sessions ────────────────────────────────────────────
-  const fetchHistorySessions = useCallback(async (obId: string, date: string) => {
+  // Initial fetch
+  useEffect(() => {
     setLoading(true);
-    try {
-      let url = `/api/route-sessions/history?date=${date}`;
-      if (obId && obId !== 'all') {
-        url += `&orderbookerId=${obId}`;
-      }
-      const res = await apiFetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setHistorySessions(data.sessions || []);
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to load route history', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    fetchRouteData();
+  }, [fetchRouteData]);
 
-  // ── Auto-polling for live mode ────────────────────────────────────────
+  // Live polling every 5 seconds when viewing today
   useEffect(() => {
-    // Clear previous interval
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
+    if (!isToday) return;
+
+    const interval = setInterval(() => {
+      fetchRouteData();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [isToday, fetchRouteData]);
+
+  // ── Computed Data ──────────────────────────────────────────────────────────
+
+  const filteredSessions = useMemo(() => {
+    if (selectedOB === '__all__') return sessions;
+    return sessions.filter((s) => s.orderbooker.id === selectedOB);
+  }, [sessions, selectedOB]);
+
+  // Active OB IDs from sessions
+  const activeOBIds = useMemo(() => new Set(sessions.map((s) => s.orderbooker.id)), [sessions]);
+
+  // Aggregate stats
+  const stats = useMemo(() => {
+    const totalOBsActive = filteredSessions.length;
+    const totalDistance = filteredSessions.reduce((sum, s) => sum + (s.session.totalDistance || 0), 0);
+    const totalShopsVisited = filteredSessions.reduce((sum, s) => sum + s.shopVisits.length, 0);
+
+    return { totalOBsActive, totalDistance, totalShopsVisited };
+  }, [filteredSessions]);
+
+  // Selected session for timeline detail
+  const selectedSession = useMemo(() => {
+    if (selectedOB !== '__all__' && filteredSessions.length > 0) {
+      return filteredSessions[0];
     }
+    return filteredSessions.length > 0 ? filteredSessions[0] : null;
+  }, [filteredSessions, selectedOB]);
 
-    if (isLiveMode) {
-      fetchLiveSessions(true);
-      pollIntervalRef.current = setInterval(() => {
-        fetchLiveSessions(false);
-      }, 5000);
-    } else {
-      fetchHistorySessions(selectedOB, selectedDate);
-    }
+  // Timeline events for selected session
+  const timelineEvents = useMemo(() => {
+    if (!selectedSession) return [];
 
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-    };
-  }, [isLiveMode, selectedOB, selectedDate, fetchLiveSessions, fetchHistorySessions]);
+    const events: Array<{
+      type: 'start' | 'shop' | 'end';
+      time: string;
+      label: string;
+      detail?: string;
+      duration?: number;
+      isAutoDetected?: boolean;
+    }> = [];
 
-  // ── Refetch when OB changes in history mode ───────────────────────────
-  useEffect(() => {
-    if (!isLiveMode) {
-      fetchHistorySessions(selectedOB, selectedDate);
-    }
-  }, [selectedOB, selectedDate, isLiveMode, fetchHistorySessions]);
-
-  // ── Computed: active orderbooker IDs ──────────────────────────────────
-  const activeOBIds = useMemo(() => {
-    return new Set(liveSessions.map((s) => s.orderbookerId));
-  }, [liveSessions]);
-
-  // ── Computed: current session data ────────────────────────────────────
-  const currentSessions = useMemo(() => {
-    if (isLiveMode) {
-      if (selectedOB === 'all') return liveSessions;
-      return liveSessions.filter((s) => s.orderbookerId === selectedOB);
-    } else {
-      if (selectedOB === 'all') return historySessions;
-      return historySessions.filter((s) => s.orderbookerId === selectedOB);
-    }
-  }, [isLiveMode, selectedOB, liveSessions, historySessions]);
-
-  // ── Computed: primary session for stats ───────────────────────────────
-  const primarySession = useMemo(() => {
-    if (currentSessions.length === 0) return null;
-    if (selectedOB !== 'all') return currentSessions[0] || null;
-    // When "all" is selected, combine stats
-    return currentSessions[0] || null;
-  }, [currentSessions, selectedOB]);
-
-  // ── Computed: aggregate stats ─────────────────────────────────────────
-  const aggregateStats = useMemo(() => {
-    if (selectedOB !== 'all' && primarySession) {
-      const visitedCount = primarySession.shopVisits.length;
-      return {
-        totalDistance: primarySession.totalDistance || 0,
-        totalDuration: primarySession.totalDuration || 0,
-        visitedShops: visitedCount,
-        totalShops: shopLocations.filter(
-          (s) => s.orderbookerName === (primarySession as any).orderbookerName
-        ).length || visitedCount,
-      };
-    }
-
-    // Aggregate all sessions
-    let totalDistance = 0;
-    let totalDuration = 0;
-    let visitedShops = 0;
-    const allOBNames = new Set<string>();
-
-    currentSessions.forEach((s) => {
-      totalDistance += s.totalDistance || 0;
-      totalDuration += s.totalDuration || 0;
-      visitedShops += s.shopVisits.length;
-      allOBNames.add((s as any).orderbookerName);
+    // Start event
+    events.push({
+      type: 'start',
+      time: selectedSession.session.startTime,
+      label: 'Route Started',
+      detail: selectedSession.session.startAddress || undefined,
     });
 
-    return {
-      totalDistance,
-      totalDuration,
-      visitedShops,
-      totalShops: shopLocations.filter(
-        (s) => allOBNames.has(s.orderbookerName)
-      ).length || visitedShops,
-    };
-  }, [currentSessions, primarySession, selectedOB, shopLocations]);
-
-  // ── Computed: shop markers for the map ────────────────────────────────
-  const mapMarkers = useMemo(() => {
-    if (selectedOB === 'all') {
-      return shopLocations.map((s) => ({
-        id: s.shopId,
-        name: s.name,
-        ownerName: s.ownerName,
-        area: s.area,
-        balance: s.balance,
-        status: s.status,
-        orderbookerName: s.orderbookerName,
-        routeDays: s.routeDays,
-        lat: s.lat,
-        lng: s.lng,
-      }));
+    // Shop visits
+    for (const visit of selectedSession.shopVisits) {
+      events.push({
+        type: 'shop',
+        time: visit.enterTime,
+        label: visit.shopName || 'Unknown Shop',
+        duration: visit.timeSpent ?? undefined,
+        isAutoDetected: visit.isAutoDetected,
+      });
     }
-    // Filter to selected OB's shops
-    const ob = orderbookers.find((o) => o.id === selectedOB);
-    if (!ob) return [];
-    return shopLocations
-      .filter((s) => s.orderbookerName === ob.name)
-      .map((s) => ({
-        id: s.shopId,
-        name: s.name,
-        ownerName: s.ownerName,
-        area: s.area,
-        balance: s.balance,
-        status: s.status,
-        orderbookerName: s.orderbookerName,
-        routeDays: s.routeDays,
-        lat: s.lat,
-        lng: s.lng,
-      }));
-  }, [shopLocations, selectedOB, orderbookers]);
 
-  // ── Computed: live orderbookers for ShopMap ───────────────────────────
-  const liveOrderbookers = useMemo(() => {
-    return currentSessions.map((session) => ({
-      orderbookerId: session.orderbookerId,
-      orderbookerName: (session as any).orderbookerName,
-      currentLocation: session.currentLocation
-        ? { lat: session.currentLocation.lat, lng: session.currentLocation.lng }
-        : null,
-      locations: (session.locations || []).map((loc) => ({
-        lat: loc.lat,
-        lng: loc.lng,
-        recordedAt: loc.recordedAt,
-      })),
-      startTime: session.startTime,
-      shopVisits: (session.shopVisits || []).map((visit) => ({
-        shopId: visit.shopId,
-        shopName: visit.shopName,
-        enterTime: visit.enterTime,
-        exitTime: visit.exitTime,
-        timeSpent: visit.timeSpent,
-        enterLat: visit.enterLat,
-        enterLng: visit.enterLng,
-      })),
-      totalDistance: session.totalDistance,
-      totalDuration: session.totalDuration,
-      startLat: (session as any).startLat,
-      startLng: (session as any).startLng,
-      status: (session as any).status,
-    }));
-  }, [currentSessions]);
-
-  // ── Computed: visited shops list for sidebar ──────────────────────────
-  const visitedShopsList = useMemo(() => {
-    if (selectedOB !== 'all' && primarySession) {
-      return primarySession.shopVisits || [];
+    // End event
+    if (selectedSession.session.endTime) {
+      events.push({
+        type: 'end',
+        time: selectedSession.session.endTime,
+        label: 'Route Ended',
+        detail: selectedSession.session.endAddress || undefined,
+      });
     }
-    // Show all from current sessions
-    return currentSessions.flatMap((s) => s.shopVisits || []);
-  }, [currentSessions, primarySession, selectedOB]);
 
-  // ── Handle date change ────────────────────────────────────────────────
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedDate(e.target.value || getTodayString());
-  };
+    return events;
+  }, [selectedSession]);
 
-  // ── Handle manual refresh ─────────────────────────────────────────────
-  const handleRefresh = () => {
-    if (isLiveMode) {
-      fetchLiveSessions(true);
-    } else {
-      fetchHistorySessions(selectedOB, selectedDate);
-    }
-  };
+  // ── Render ────────────────────────────────────────────────────────────────
 
-  // ── Render: Loading state ─────────────────────────────────────────────
-  if (loading && !primarySession && currentSessions.length === 0) {
-    return <RouteTrackerSkeleton />;
-  }
+  if (loading && sessions.length === 0) return <RouteTrackerSkeleton />;
 
   return (
     <div className="space-y-4">
-      {/* Page Title */}
-      <div className="flex items-center justify-between">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Route className="h-5 w-5 text-primary" />
-            Route &amp; Tracking
+            <Radio className="h-5 w-5 text-primary" />
+            Live Route Tracker
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Live tracking of orderbooker routes and visits
+            Track orderbooker routes in real-time and review historical data
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={polling}
-          className="h-8 text-xs gap-1.5"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${polling ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+
+        {/* Controls */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Live indicator */}
+          {isToday && (
+            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[10px] font-bold flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-live-pulse" />
+              LIVE
+            </Badge>
+          )}
+          {!isToday && (
+            <Badge variant="secondary" className="text-[10px] font-bold">
+              HISTORICAL
+            </Badge>
+          )}
+
+          {/* Date Picker */}
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-2 text-xs font-medium">
+                <CalendarDays className="h-3.5 w-3.5" />
+                {selectedDate.toLocaleDateString('en-PK', {
+                  timeZone: 'Asia/Karachi',
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+                <ChevronDown className="h-3 w-3 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => {
+                  if (date) {
+                    setSelectedDate(date);
+                    setCalendarOpen(false);
+                  }
+                }}
+                disabled={(date) => date > new Date()}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+
+          {/* OB Selector */}
+          <Select value={selectedOB} onValueChange={setSelectedOB}>
+            <SelectTrigger className="w-48 h-9 text-xs">
+              <SelectValue placeholder="All Orderbookers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All Orderbookers</SelectItem>
+              {orderbookers.map((ob) => (
+                <SelectItem key={ob.id} value={ob.id}>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`h-2 w-2 rounded-full ${
+                        activeOBIds.has(ob.id) ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
+                    />
+                    {ob.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Main Layout: Map + Sidebar */}
-      <div className="flex flex-col lg:flex-row gap-4" style={{ height: 'calc(100dvh - 12rem)' }}>
-        {/* ─── Map Area (70%) ──────────────────────────────────────────── */}
-        <div className="flex-[7] min-h-0 rounded-xl overflow-hidden border border-border">
-          {leafletCssLoaded ? (
-            <ShopMap
-              markers={mapMarkers}
-              liveOrderbookers={liveOrderbookers}
-              showLiveTracking={currentSessions.length > 0}
-              selectedOB={selectedOB}
-              isHistoryMode={!isLiveMode}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-muted/30">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          )}
-        </div>
-
-        {/* ─── Sidebar (30%) ───────────────────────────────────────────── */}
-        <div className="flex-[3] min-w-0 flex flex-col gap-3 overflow-hidden">
-          {/* Orderbooker Selector */}
-          <Card className="card-elevated shrink-0">
-            <CardContent className="p-4 space-y-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                  Orderbooker
-                </label>
-                <Select value={selectedOB} onValueChange={setSelectedOB}>
-                  <SelectTrigger className="w-full h-9 text-sm">
-                    <SelectValue placeholder="Select orderbooker" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      <span className="flex items-center gap-2">
-                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                        All Orderbookers
-                      </span>
-                    </SelectItem>
-                    {orderbookers
-                      .filter((ob) => ob.status === 'active')
-                      .map((ob) => (
-                        <SelectItem key={ob.id} value={ob.id}>
-                          <span className="flex items-center gap-2">
-                            <span className={`h-2 w-2 rounded-full shrink-0 ${activeOBIds.has(ob.id) ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/30'}`} />
-                            {ob.name}
-                          </span>
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Date Picker */}
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                  Date
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={handleDateChange}
-                    max={getTodayString()}
-                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  />
+      {/* Main Content: Map + Sidebar */}
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* Map Area */}
+        <Card className="flex-1 card-elevated overflow-hidden">
+          <CardContent className="p-0">
+            <div className="h-[500px] lg:h-[600px] relative">
+              {leafletCssLoaded ? (
+                <RouteTrackerMap
+                  sessions={filteredSessions}
+                  selectedOB={selectedOB === '__all__' ? null : selectedOB}
+                  isLive={isToday}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-muted/30">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-              {/* Live Badge */}
-              {isLiveMode && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40">
-                  <div className="relative flex items-center justify-center">
-                    <span className="absolute h-3 w-3 rounded-full bg-emerald-500 animate-ping opacity-75" />
-                    <span className="relative h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  </div>
-                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
-                    Live Tracking
+        {/* Timeline Sidebar */}
+        <div className="w-full lg:w-80 shrink-0 space-y-4">
+          {/* Route Info Card */}
+          {selectedSession && (
+            <Card className="card-elevated">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div
+                    className="h-3 w-3 rounded-full"
+                    style={{
+                      backgroundColor: getOBColor(
+                        filteredSessions.findIndex((s) => s.session.id === selectedSession.session.id)
+                      ),
+                    }}
+                  />
+                  <span className="font-semibold text-sm text-foreground">
+                    {selectedSession.orderbooker.name}
                   </span>
-                  {liveSessions.length > 0 && (
-                    <Badge className="text-[9px] h-4 px-1.5 font-bold bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-300 dark:border-emerald-800 ml-auto">
-                      {liveSessions.length} active
+                  {isToday && selectedSession.session.status === 'active' && (
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[9px] font-bold px-1.5 h-4">
+                      Active
                     </Badge>
                   )}
                 </div>
-              )}
 
-              {!isLiveMode && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                  <Clock className="h-3.5 w-3.5 text-slate-500" />
-                  <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                    Historical View
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Stats Cards */}
-          <Card className="card-elevated shrink-0">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-3 gap-3">
-                {/* Distance */}
-                <div className="text-center">
-                  <div className="h-8 w-8 rounded-lg bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center mx-auto mb-1.5">
-                    <MapPin className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                  </div>
-                  <p className="text-sm font-bold text-foreground">{formatDistance(aggregateStats.totalDistance)}</p>
-                  <p className="text-[10px] text-muted-foreground font-medium">Distance</p>
-                </div>
-
-                {/* Duration */}
-                <div className="text-center">
-                  <div className="h-8 w-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center mx-auto mb-1.5">
-                    <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                  </div>
-                  <p className="text-sm font-bold text-foreground">{formatDuration(aggregateStats.totalDuration)}</p>
-                  <p className="text-[10px] text-muted-foreground font-medium">Duration</p>
-                </div>
-
-                {/* Shops Visited */}
-                <div className="text-center">
-                  <div className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center mx-auto mb-1.5">
-                    <Store className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <p className="text-sm font-bold text-foreground">
-                    {aggregateStats.visitedShops}
-                    <span className="text-muted-foreground font-normal">/{aggregateStats.totalShops}</span>
-                  </p>
-                  <p className="text-[10px] text-muted-foreground font-medium">Shops</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Auto-ended Warning */}
-          {primarySession && (primarySession as any).status === 'auto_ended' && (
-            <Card className="border-amber-200 dark:border-amber-800/60 bg-amber-50/50 dark:bg-amber-950/20 shrink-0">
-              <CardContent className="p-3 flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Auto-ended at midnight</p>
-                  {(primarySession as any).autoEndReason && (
-                    <p className="text-[10px] text-amber-600/80 dark:text-amber-400/80 mt-0.5">
-                      {(primarySession as any).autoEndReason}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Started</p>
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3 text-muted-foreground" />
+                      {formatTime(selectedSession.session.startTime)}
                     </p>
-                  )}
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Duration</p>
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-1">
+                      <Timer className="h-3 w-3 text-muted-foreground" />
+                      {formatDuration(
+                        selectedSession.session.totalDuration ||
+                          calcDuration(selectedSession.session.startTime, selectedSession.session.endTime)
+                      )}
+                    </p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Distance</p>
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-1">
+                      <Footprints className="h-3 w-3 text-muted-foreground" />
+                      {(selectedSession.session.totalDistance / 1000).toFixed(1)} km
+                    </p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Shops</p>
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-1">
+                      <Store className="h-3 w-3 text-muted-foreground" />
+                      {selectedSession.shopVisits.length} visited
+                    </p>
+                  </div>
                 </div>
+
+                {selectedSession.session.startAddress && (
+                  <div className="mt-2 pt-2 border-t border-border">
+                    <p className="text-[10px] text-muted-foreground">
+                      Start: {selectedSession.session.startAddress}
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
 
-          {/* Visited Shops List */}
-          <Card className="card-elevated flex-1 min-h-0 flex flex-col">
-            <CardHeader className="pb-2 pt-3 px-4 shrink-0">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                  Visited Shops
-                </CardTitle>
-                {visitedShopsList.length > 0 && (
-                  <Badge variant="secondary" className="text-[9px] font-bold h-4 px-1.5">
-                    {visitedShopsList.length}
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="px-4 pb-3 flex-1 min-h-0">
-              {visitedShopsList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center py-8">
-                  <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
-                    <Store className="h-5 w-5 text-muted-foreground/50" />
-                  </div>
-                  <p className="text-xs font-medium text-muted-foreground">
-                    {isLiveMode ? 'No visits yet' : 'No visits recorded'}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/70 mt-1 max-w-[200px]">
-                    {isLiveMode
-                      ? 'Shop visits will appear here as the orderbooker makes them'
-                      : 'No route data available for this date'}
-                  </p>
+          {/* Timeline Card */}
+          <Card className="card-elevated">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Route className="h-4 w-4 text-primary" />
+                Timeline
+              </h3>
+
+              {timelineEvents.length === 0 ? (
+                <div className="text-center py-6">
+                  <Route className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">No route events to display</p>
                 </div>
               ) : (
-                <ScrollArea className="h-full max-h-[calc(100dvh-32rem)]">
-                  <div className="space-y-1.5">
-                    {visitedShopsList.map((visit, idx) => (
-                      <div
-                        key={visit.id || idx}
-                        className="flex items-start gap-2.5 p-2.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="h-6 w-6 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0 mt-0.5">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-xs font-medium truncate">
-                              {visit.shopName || 'Unknown Shop'}
-                            </p>
-                            {visit.isAutoDetected && (
-                              <Badge className="text-[7px] px-1 py-0 h-3 font-bold bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800 shrink-0">
-                                AUTO
-                              </Badge>
+                <ScrollArea className="max-h-72">
+                  <div className="space-y-0">
+                    {timelineEvents.map((event, idx) => (
+                      <div key={idx} className="flex gap-3 pb-3 last:pb-0">
+                        {/* Timeline line + dot */}
+                        <div className="flex flex-col items-center shrink-0">
+                          <div
+                            className={`h-5 w-5 rounded-full flex items-center justify-center ${
+                              event.type === 'start'
+                                ? 'bg-emerald-100 dark:bg-emerald-900/40'
+                                : event.type === 'shop'
+                                ? 'bg-blue-100 dark:bg-blue-900/40'
+                                : 'bg-red-100 dark:bg-red-900/40'
+                            }`}
+                          >
+                            {event.type === 'start' ? (
+                              <Play className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400" />
+                            ) : event.type === 'shop' ? (
+                              <StoreIcon className="h-2.5 w-2.5 text-blue-600 dark:text-blue-400" />
+                            ) : (
+                              <div className="h-2 w-2 rounded-full bg-red-500" />
                             )}
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground">
-                            <span>
-                              {formatTime(visit.enterTime)}
-                              {visit.exitTime ? ` - ${formatTime(visit.exitTime)}` : ' - Now'}
+                          {idx < timelineEvents.length - 1 && (
+                            <div className="w-px flex-1 bg-border min-h-[8px]" />
+                          )}
+                        </div>
+
+                        {/* Event content */}
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-semibold text-foreground truncate">
+                              {event.label}
                             </span>
-                            {visit.timeSpent != null && visit.timeSpent > 0 && (
-                              <span className="font-medium text-foreground/70">
-                                {formatTimeSpent(visit.timeSpent)}
+                            {event.isAutoDetected && (
+                              <span className="text-[8px] px-1 py-0 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 font-bold shrink-0">
+                                AUTO
                               </span>
                             )}
                           </div>
-                          {visit.distanceToShop != null && visit.distanceToShop > 0 && (
-                            <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                              {formatDistance(visit.distanceToShop)} from route
+                          <p className="text-[10px] text-muted-foreground">
+                            {formatTime(event.time)}
+                            {event.duration != null && (
+                              <span className="ml-1.5 text-foreground/70">
+                                ({formatMinutes(event.duration)})
+                              </span>
+                            )}
+                          </p>
+                          {event.detail && (
+                            <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                              {event.detail}
                             </p>
                           )}
                         </div>
@@ -751,22 +603,107 @@ export default function AdminRouteTracker() {
             </CardContent>
           </Card>
 
-          {/* No Active Routes Empty State */}
-          {isLiveMode && liveSessions.length === 0 && !loading && (
-            <Card className="border-border bg-slate-50/50 dark:bg-slate-800/30 shrink-0">
-              <CardContent className="p-4 text-center">
-                <Activity className="h-6 w-6 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-xs font-medium text-muted-foreground">
-                  No Active Routes
-                </p>
-                <p className="text-[10px] text-muted-foreground/60 mt-1 leading-relaxed">
-                  No orderbookers are currently on an active route. Routes will appear here when orderbookers start their daily route tracking.
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          {/* Orderbookers List Card */}
+          <Card className="card-elevated">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                Orderbookers
+              </h3>
+              <ScrollArea className="max-h-48">
+                <div className="space-y-1.5">
+                  {orderbookers.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-3">
+                      No orderbookers found
+                    </p>
+                  ) : (
+                    orderbookers.map((ob, idx) => {
+                      const isActive = activeOBIds.has(ob.id);
+                      const obSession = sessions.find((s) => s.orderbooker.id === ob.id);
+                      const isSelected = selectedOB === ob.id;
+
+                      return (
+                        <button
+                          key={ob.id}
+                          onClick={() => setSelectedOB(isSelected ? '__all__' : ob.id)}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${
+                            isSelected
+                              ? 'bg-primary/10 border border-primary/20'
+                              : 'hover:bg-muted/50 border border-transparent'
+                          }`}
+                        >
+                          <div
+                            className="h-2.5 w-2.5 rounded-full shrink-0"
+                            style={{
+                              backgroundColor: isActive
+                                ? getOBColor(sessions.findIndex((s) => s.orderbooker.id === ob.id))
+                                : '#9CA3AF',
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-foreground truncate">{ob.name}</p>
+                            {obSession && (
+                              <p className="text-[10px] text-muted-foreground">
+                                {obSession.shopVisits.length} shops &bull;{' '}
+                                {(obSession.session.totalDistance / 1000).toFixed(1)} km
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {isActive ? (
+                              <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-live-pulse" />
+                                Active
+                              </span>
+                            ) : (
+                              <span className="text-[9px] text-muted-foreground">No route</span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      {/* Stats Bar */}
+      <Card className="card-elevated">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center shrink-0">
+                <Navigation className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">OBs Active</p>
+                <p className="text-lg font-bold text-foreground">{stats.totalOBsActive}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center shrink-0">
+                <Footprints className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Total Distance</p>
+                <p className="text-lg font-bold text-foreground">{(stats.totalDistance / 1000).toFixed(1)} km</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center shrink-0">
+                <Store className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Shops Visited</p>
+                <p className="text-lg font-bold text-foreground">{stats.totalShopsVisited}</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

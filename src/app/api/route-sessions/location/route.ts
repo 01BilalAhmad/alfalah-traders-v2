@@ -1,31 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool, getClient } from '@/lib/pg';
+import crypto from 'crypto';
 
-const SHOP_PROXIMITY_RADIUS = 30; // meters
+// Haversine distance in meters between two lat/lng points (TypeScript implementation)
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
-// Haversine distance formula in SQL (meters)
-const HAVERSINE_SQL = `
-  6371000 * 2 * ATAN2(
-    SQRT(
-      POWER(SIN(RADIANS($1 - lat) / 2), 2) +
-      COS(RADIANS(lat)) * COS(RADIANS($1)) *
-      POWER(SIN(RADIANS($2 - lng) / 2), 2)
-    ),
-    SQRT(1 - (
-      POWER(SIN(RADIANS($1 - lat) / 2), 2) +
-      COS(RADIANS(lat)) * COS(RADIANS($1)) *
-      POWER(SIN(RADIANS($2 - lng) / 2), 2)
-    ))
-  )
-`;
+const PROXIMITY_RADIUS_M = 30;
+
+interface ShopProximity {
+  shopId: string;
+  shopName: string;
+  distance: number;
+  action: 'entered' | 'exited' | 'nearby' | null;
+}
 
 // POST /api/route-sessions/location
-// Record a single GPS point + proximity detection.
-// Body: { sessionId, lat, lng, accuracy?, speed?, batteryLevel?, isOffline? }
+// Record a GPS location and run proximity detection against assigned shops
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sessionId, lat, lng, accuracy, speed, batteryLevel, isOffline } = body;
+    const { sessionId, lat, lng, accuracy, speed, altitude, batteryLevel, isOffline } = body;
 
     if (!sessionId || lat == null || lng == null) {
       return NextResponse.json(
@@ -38,116 +44,193 @@ export async function POST(request: NextRequest) {
 
     // Verify session exists and is active
     const sessionRes = await pool.query(
-      `SELECT id, "orderbookerId", status FROM "RouteSession" WHERE id = $1`,
+      'SELECT id, "orderbookerId", status FROM "RouteSession" WHERE id = $1',
       [sessionId]
     );
 
     if (sessionRes.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    if (sessionRes.rows[0].status !== 'active') {
-      return NextResponse.json(
-        { error: 'Session is not active' },
-        { status: 400 }
-      );
+    const session = sessionRes.rows[0];
+    if (session.status !== 'active') {
+      return NextResponse.json({ error: 'Session is not active' }, { status: 409 });
     }
 
-    const orderbookerId = sessionRes.rows[0].orderbookerId;
+    const orderbookerId = session.orderbookerId;
+    const now = new Date().toISOString();
 
-    // Insert the location record
+    // Insert RouteLocation
+    const locId = crypto.randomUUID();
     await pool.query(
-      `INSERT INTO "RouteLocation" ("sessionId", lat, lng, accuracy, speed, "batteryLevel", "isOffline", "recordedAt", "createdAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+      `INSERT INTO "RouteLocation" (id, "sessionId", lat, lng, accuracy, speed, altitude, "batteryLevel", "isOffline", "recordedAt", "createdAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
+        locId,
         sessionId,
         lat,
         lng,
         accuracy ?? null,
         speed ?? null,
+        altitude ?? null,
         batteryLevel ?? null,
         isOffline ?? false,
+        now,
+        now,
       ]
     );
 
-    // Shop proximity detection: find shops within 30m that the orderbooker is assigned to
-    const nearbyRes = await pool.query(
-      `SELECT id, name, lat AS "shopLat", lng AS "shopLng",
-              ${HAVERSINE_SQL} AS distance
-       FROM "Shop"
-       WHERE "orderbookerId" = $3
-         AND lat IS NOT NULL AND lng IS NOT NULL
-         AND ${HAVERSINE_SQL} <= $4
-       ORDER BY distance ASC
-       LIMIT 1`,
-      [lat, lng, orderbookerId, SHOP_PROXIMITY_RADIUS]
+    // ── Proximity Detection ─────────────────────────────────────────────
+    // Get all shops assigned to this orderbooker that have lat/lng
+    const shopsRes = await pool.query(
+      `SELECT DISTINCT s.id, s.name, s.lat, s.lng
+       FROM "Shop" s
+       WHERE s.status = 'active'
+         AND s.lat IS NOT NULL AND s.lng IS NOT NULL
+         AND (
+           s."orderbookerId" = $1
+           OR EXISTS (
+             SELECT 1 FROM "ShopOrderbooker" so
+             WHERE so."shopId" = s.id AND so."orderbookerId" = $1
+           )
+         )`,
+      [orderbookerId]
     );
 
-    let shopProximity = null;
+    const shopProximities: ShopProximity[] = [];
 
-    if (nearbyRes.rows.length > 0) {
-      const shop = nearbyRes.rows[0];
-      const distance = Number(shop.distance);
-
-      // Check if this shop has already been visited in this session
-      const existingVisitRes = await pool.query(
-        `SELECT id FROM "RouteShopVisit"
-         WHERE "sessionId" = $1 AND "shopId" = $2`,
-        [sessionId, shop.id]
+    if (shopsRes.rows.length > 0) {
+      // Get currently open shop visits for this session
+      const openVisitsRes = await pool.query(
+        `SELECT "shopId" FROM "RouteShopVisit"
+         WHERE "sessionId" = $1 AND "exitTime" IS NULL`,
+        [sessionId]
       );
+      const openVisitShopIds = new Set(openVisitsRes.rows.map((r: { shopId: string }) => r.shopId));
 
-      if (existingVisitRes.rows.length === 0) {
-        // Create a new shop visit
-        const client = await getClient();
-        try {
-          await client.query('BEGIN');
+      // Get all shop visits for this session (to prevent duplicate entries)
+      const allVisitsRes = await pool.query(
+        `SELECT "shopId" FROM "RouteShopVisit" WHERE "sessionId" = $1`,
+        [sessionId]
+      );
+      const visitedShopIds = new Set(allVisitsRes.rows.map((r: { shopId: string }) => r.shopId));
 
-          await client.query(
-            `INSERT INTO "RouteShopVisit" ("sessionId", "shopId", "enterLat", "enterLng", "enterTime", "distanceToShop", "isAutoDetected", "createdAt", "updatedAt")
-             VALUES ($1, $2, $3, $4, NOW(), $5, true, NOW(), NOW())`,
-            [sessionId, shop.id, lat, lng, distance]
-          );
+      const client = await getClient();
+      try {
+        await client.query('BEGIN');
 
-          // Auto-populate Shop.lat/lng if not already set
-          if (shop.shopLat == null || shop.shopLng == null) {
+        for (const shop of shopsRes.rows) {
+          const shopLat = Number(shop.lat);
+          const shopLng = Number(shop.lng);
+          const distance = haversineMeters(lat, lng, shopLat, shopLng);
+          const isNearby = distance <= PROXIMITY_RADIUS_M;
+
+          if (isNearby) {
+            // Entering or still within shop radius
+            if (!visitedShopIds.has(shop.id)) {
+              // Create new RouteShopVisit — entering for the first time
+              const visitId = crypto.randomUUID();
+              await client.query(
+                `INSERT INTO "RouteShopVisit"
+                 (id, "sessionId", "shopId", "orderbookerId", "enterLat", "enterLng", "enterTime", "distanceToShop", "isAutoDetected", "createdAt", "updatedAt")
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                [visitId, sessionId, shop.id, orderbookerId, lat, lng, now, Math.round(distance), true, now, now]
+              );
+
+              visitedShopIds.add(shop.id);
+              openVisitShopIds.add(shop.id);
+
+              shopProximities.push({
+                shopId: shop.id,
+                shopName: shop.name,
+                distance: Math.round(distance),
+                action: 'entered',
+              });
+            } else if (openVisitShopIds.has(shop.id)) {
+              // Already visited and still inside — just report nearby
+              shopProximities.push({
+                shopId: shop.id,
+                shopName: shop.name,
+                distance: Math.round(distance),
+                action: 'nearby',
+              });
+            } else {
+              // Was visited before (exited), now back inside — this is a new visit
+              // Since RouteShopVisit has @@unique([sessionId, shopId]), we can't create another
+              // So just report nearby
+              shopProximities.push({
+                shopId: shop.id,
+                shopName: shop.name,
+                distance: Math.round(distance),
+                action: 'nearby',
+              });
+            }
+          } else {
+            // Outside shop radius
+            if (openVisitShopIds.has(shop.id)) {
+              // Was inside, now leaving — update the open visit
+              const visitRes = await client.query(
+                `SELECT id, "enterTime" FROM "RouteShopVisit"
+                 WHERE "sessionId" = $1 AND "shopId" = $2 AND "exitTime" IS NULL`,
+                [sessionId, shop.id]
+              );
+
+              if (visitRes.rows.length > 0) {
+                const visit = visitRes.rows[0];
+                const enterTime = new Date(visit.enterTime);
+                const timeSpent = Math.round((new Date(now).getTime() - enterTime.getTime()) / 1000);
+
+                await client.query(
+                  `UPDATE "RouteShopVisit"
+                   SET "exitTime" = $1, "exitLat" = $2, "exitLng" = $3, "timeSpent" = $4, "updatedAt" = $5
+                   WHERE id = $6`,
+                  [now, lat, lng, timeSpent, now, visit.id]
+                );
+
+                openVisitShopIds.delete(shop.id);
+
+                shopProximities.push({
+                  shopId: shop.id,
+                  shopName: shop.name,
+                  distance: Math.round(distance),
+                  action: 'exited',
+                });
+              }
+            }
+          }
+        }
+
+        // If Shop.lat is null for any nearby shop, update it from this GPS
+        for (const prox of shopProximities) {
+          if (prox.action === 'entered') {
             await client.query(
-              `UPDATE "Shop" SET lat = $1, lng = $2, "updatedAt" = NOW() WHERE id = $3 AND (lat IS NULL OR lng IS NULL)`,
-              [lat, lng, shop.id]
+              `UPDATE "Shop" SET lat = $1, lng = $2, "updatedAt" = $3
+               WHERE id = $4 AND lat IS NULL`,
+              [lat, lng, now, prox.shopId]
             );
           }
-
-          await client.query('COMMIT');
-        } catch (err) {
-          await client.query('ROLLBACK');
-          throw err;
-        } finally {
-          client.release();
         }
-      }
 
-      shopProximity = {
-        shopId: shop.id,
-        shopName: shop.name,
-        distance,
-      };
-    } else {
-      // Also check shops without lat/lng but that the orderbooker visits
-      // This helps auto-populate shop coordinates on first visit detection
-      // We skip this if no shops are nearby (no false positives)
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
     }
+
+    // Also check shops without lat/lng — if we're near them, we can't detect proximity
+    // But if the orderbooker is at a shop without coordinates, update the shop's coordinates
+    // This is handled above when action === 'entered'
 
     return NextResponse.json({
       success: true,
-      shopProximity,
+      shopProximity: shopProximities.length > 0 ? shopProximities[0] : null,
+      allProximities: shopProximities,
     });
   } catch (error) {
-    console.error('Error recording location:', error);
-    return NextResponse.json(
-      { error: 'Failed to record location' },
-      { status: 500 }
-    );
+    console.error('Error recording route location:', error);
+    return NextResponse.json({ error: 'Failed to record route location' }, { status: 500 });
   }
 }

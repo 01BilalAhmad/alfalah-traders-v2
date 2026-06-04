@@ -126,7 +126,7 @@ export default function PWAInstallPrompt({ floating = true, className = '' }: PW
           size="sm"
           onClick={handleSync}
           disabled={isSyncing}
-          className="bg-white text-primary hover:bg-white/90 shrink-0"
+          className="bg-white dark:bg-slate-800 text-primary hover:bg-white/90 dark:hover:bg-slate-700 shrink-0"
         >
           {isSyncing ? (
             <Loader2 className="h-4 w-4 animate-spin" />

@@ -70,6 +70,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { WORKING_DAYS, getTodayRouteDay, validateTransaction, TRANSACTION_RULES, getCreditLimitStatus, formatPKR } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
+import { handlePrint as sharedHandlePrint } from '@/lib/print-utils';
 
 const ROUTE_DAYS = [...WORKING_DAYS];
 
@@ -871,17 +872,22 @@ export default function AdminCreditPosting() {
   };
 
   const handlePrintReceipt = () => {
-    const html = document.documentElement;
-    const hadDark = html.classList.contains('dark');
-    if (hadDark) { html.classList.remove('dark'); html.style.colorScheme = 'light'; }
+    // Add body class so globals.css receipt isolation rules take effect
+    document.body.classList.add('printing-receipt');
+    sharedHandlePrint({
+      receiptMode: true,
+      delay: 300,
+    });
+    // Clean up body class after print dialog
+    const cleanup = () => {
+      document.body.classList.remove('printing-receipt');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    // Fallback cleanup
     setTimeout(() => {
-      window.print();
-      if (hadDark) {
-        const restore = () => { html.classList.add('dark'); html.style.colorScheme = 'dark'; window.removeEventListener('afterprint', restore); };
-        window.addEventListener('afterprint', restore);
-        setTimeout(() => { if (!html.classList.contains('dark')) { html.classList.add('dark'); html.style.colorScheme = 'dark'; } }, 1000);
-      }
-    }, 100);
+      document.body.classList.remove('printing-receipt');
+    }, 2000);
   };
 
   // Edit transaction handlers
@@ -2386,6 +2392,8 @@ export default function AdminCreditPosting() {
           </DialogHeader>
 
           {/* Receipt Content - visible on screen AND during print */}
+          {/* receipt-root-wrapper class is used for print isolation via globals.css */}
+          <div className="receipt-root-wrapper">
           {postedReceipt && (
             <div className="receipt-content">
               {/* === Screen-only success badge === */}
@@ -2467,7 +2475,7 @@ export default function AdminCreditPosting() {
 
               {/* Print-only decorative bottom */}
               <div className="print-only">
-                <div className="text-center mt-4 pt-3 border-t border-dashed border-gray-300">
+                <div className="text-center mt-4 pt-3 border-t border-dashed border-gray-300 dark:border-gray-700">
                   <p className="text-[10px] text-muted-foreground/50">This is a computer-generated receipt and does not require a signature.</p>
                 </div>
               </div>
@@ -2484,6 +2492,7 @@ export default function AdminCreditPosting() {
               Print Receipt
             </Button>
           </DialogFooter>
+          </div>{/* end receipt-root-wrapper */}
         </DialogContent>
       </Dialog>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { getLocalDateString, formatPKR } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -196,7 +196,6 @@ export default function AdminOBRecoveryReport() {
   const [reportData, setReportData] = useState<OrderbookerRecovery | null>(null);
   const [loading, setLoading] = useState(false);
   const [obLoading, setObLoading] = useState(true);
-  const reportRef = useRef<HTMLDivElement>(null);
 
   // Fetch orderbookers list
   useEffect(() => {
@@ -262,8 +261,10 @@ export default function AdminOBRecoveryReport() {
     : [];
 
   // Calculate route totals from ALL shops (not just recovery shops)
+  // Route Total = sum of previousBalance + todayCredit (total amount owed at start + new credit given)
+  // Remaining = Route Total - todayRecovery (what is still outstanding after recovery)
   const routeTotalBalance = reportData
-    ? reportData.shops.reduce((sum, s) => sum + s.previousBalance, 0)
+    ? reportData.shops.reduce((sum, s) => sum + s.previousBalance + s.todayCredit, 0)
     : 0;
   const todayRecovery = reportData?.totalRecovery || 0;
   const remainingBalance = routeTotalBalance - todayRecovery;
@@ -290,9 +291,14 @@ export default function AdminOBRecoveryReport() {
       year: 'numeric',
     });
 
-    const printWindow = window.open('', '_blank');
+    let printWindow: Window | null;
+    try {
+      printWindow = window.open('', '_blank');
+    } catch {
+      printWindow = null;
+    }
     if (!printWindow) {
-      toast({ title: 'Error', description: 'Please allow popups to generate PDF', variant: 'destructive' });
+      toast({ title: 'Popup Blocked', description: 'Please allow popups for this site to generate PDF. Check your browser address bar for a popup blocker icon.', variant: 'destructive' });
       return;
     }
 
@@ -356,8 +362,8 @@ export default function AdminOBRecoveryReport() {
     const grandRecovery = companyGroups.reduce((s, g) => s + g.totalRecovery, 0);
     const grandClosing = companyGroups.reduce((s, g) => s + g.totalClosing, 0);
 
-    // Route totals from ALL shops
-    const allShopsRouteBalance = reportData.shops.reduce((s, sh) => s + sh.previousBalance, 0);
+    // Route totals from ALL shops (previousBalance + todayCredit = total owed before recovery)
+    const allShopsRouteBalance = reportData.shops.reduce((s, sh) => s + sh.previousBalance + sh.todayCredit, 0);
     const allShopsRemaining = allShopsRouteBalance - todayRecovery;
 
     printWindow.document.write(`<!DOCTYPE html>
@@ -716,7 +722,7 @@ export default function AdminOBRecoveryReport() {
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Route Total Balance</p>
                   <p className="text-xl font-bold text-foreground">{formatPKR(routeTotalBalance)}</p>
-                  <p className="text-[10px] text-muted-foreground">Start of day outstanding</p>
+                  <p className="text-[10px] text-muted-foreground">Opening + Today's Credit</p>
                 </div>
               </CardContent>
             </Card>
@@ -809,7 +815,7 @@ export default function AdminOBRecoveryReport() {
 
           {/* Company-Grouped Shop Tables */}
           {recoveryShops.length === 0 ? (
-            <Card ref={reportRef} className="animate-fade-in">
+            <Card className="animate-fade-in">
               <CardContent className="py-12 text-center">
                 <div className="h-16 w-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
                   <Banknote className="h-8 w-8 text-muted-foreground/40" />

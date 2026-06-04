@@ -105,7 +105,7 @@ function PendingRecoveryBanner({ setCurrentView }: { setCurrentView: (v: string)
           </p>
         </div>
       </div>
-      <ChevronRight className="h-5 w-5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+      <ChevronRight className="h-5 w-5 text-slate-400 dark:text-slate-500 group-hover:translate-x-1 transition-transform" />
     </button>
   );
 }
@@ -1591,7 +1591,7 @@ export default function AdminDashboard() {
       {bizSummary && (
         <Card className="animate-fade-in overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-900/40 border-b border-border/40">
-            <Activity className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+            <Activity className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
             <span className="text-xs font-semibold text-foreground">All-Time Business Summary</span>
           </div>
           <CardContent className="p-4">

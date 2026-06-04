@@ -519,7 +519,7 @@ export default function AdminCalendarView() {
               );
             })}
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-100 dark:bg-gray-800/40 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 cursor-default">
-              <span className="h-2 w-2 rounded-full bg-gray-400" />
+              <span className="h-2 w-2 rounded-full bg-gray-400 dark:bg-gray-500" />
               Fri (Off)
             </div>
           </div>

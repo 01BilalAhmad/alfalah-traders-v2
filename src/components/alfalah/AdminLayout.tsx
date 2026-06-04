@@ -41,13 +41,13 @@ import {
   Route,
   UserCog,
   ClipboardList,
+  Radio,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
 import { ThemeToggle } from './ThemeToggle';
 import NotificationPanel from './NotificationPanel';
 import GlobalSearch from './GlobalSearch';
-import SettingsPanel from './SettingsPanel';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import SessionTimeoutDialog from './SessionTimeoutDialog';
 import ShareMenu from './ShareMenu';
@@ -88,6 +88,7 @@ const adminNavSections: NavSection[] = [
       { id: 'admin-visit-tracking', label: 'Visit Tracking', icon: <Navigation className="h-4 w-4" /> },
       { id: 'admin-route-tracker', label: 'Live Route Tracker', icon: <Route className="h-4 w-4" /> },
       { id: 'admin-map-view', label: 'Map View', icon: <MapPin className="h-4 w-4" /> },
+      { id: 'admin-route-tracker', label: 'Live Route Tracker', icon: <Radio className="h-4 w-4" /> },
     ],
   },
   {
@@ -122,6 +123,7 @@ const adminNavSections: NavSection[] = [
     icon: <Shield className="h-4 w-4" />,
     items: [
       { id: 'admin-audit', label: 'Audit Log', icon: <Shield className="h-4 w-4" /> },
+      { id: 'admin-settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
     ],
   },
 ];
@@ -267,7 +269,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const { user, currentView, setCurrentView, logout } = useAppStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // Settings is now a full page (admin-settings view), not a side sheet
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [miniStats, setMiniStats] = useState<{ totalShops: number; totalOBs: number }>({ totalShops: 0, totalOBs: 0 });
   const [todayRecovery, setTodayRecovery] = useState<number>(0);
@@ -381,7 +383,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </button>
           {/* User Avatar */}
           <button
-            onClick={() => setSettingsOpen(true)}
+            onClick={() => handleNavClick('admin-settings')}
             className="flex items-center gap-2 text-sm text-foreground hover:bg-muted rounded-md px-2 py-1 transition-colors"
             aria-label="Open settings"
           >
@@ -438,7 +440,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Footer — minimal */}
       <footer className="border-t border-border px-6 py-2.5 flex items-center justify-between text-[11px] text-muted-foreground print:hidden">
-        <span>&copy; {new Date().getFullYear()} Finexa</span>
+        <span>&copy; 2026 Finexa. All rights reserved. Unauthorized copying, reverse engineering, modification, or distribution of this software is strictly prohibited and punishable under Copyright Ordinance 1962 &amp; PECA 2016.</span>
         <span>v1.0</span>
       </footer>
 
@@ -451,8 +453,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Change Password Dialog */}
       <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
 
-      {/* Settings Panel */}
-      <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} />
+      {/* Settings is now a full page view (admin-settings) — no side sheet needed */}
 
       {/* Session Timeout Dialog */}
       <SessionTimeoutDialog />

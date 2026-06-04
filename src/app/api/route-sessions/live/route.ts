@@ -1,49 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg';
 
-// GET /api/route-sessions/live
-// Admin live polling endpoint — returns ALL active sessions with latest location + shop visits.
-// Designed for 5-second polling from admin dashboard.
-// Returns { sessions: [{ id, orderbookerId, orderbookerName, startTime, currentLocation, locations, shopVisits }] }
-export async function GET() {
+// GET /api/route-sessions/live?orderbookerId=xxx (optional)
+// Get live tracking data for all (or filtered) active route sessions
+// This endpoint is polled by admin web every 5 seconds
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const orderbookerId = searchParams.get('orderbookerId');
+
     const pool = getPool();
 
-    // Fetch all active sessions with orderbooker info
-    const sessionsRes = await pool.query(
-      `SELECT rs.id, rs."orderbookerId", rs."startTime", rs."startLat", rs."startLng",
-              rs."startAddress", rs."totalDistance", rs."totalDuration",
-              rs.status, rs."createdAt", rs."updatedAt",
-              u.name AS "orderbookerName"
-       FROM "RouteSession" rs
-       INNER JOIN "User" u ON rs."orderbookerId" = u.id
-       WHERE rs.status = 'active'
-       ORDER BY rs."startTime" DESC`
-    );
+    // Find all active RouteSession records (optionally filtered by orderbookerId)
+    let sessionsQuery = `
+      SELECT rs.*, u.name AS "orderbookerName", u.phone AS "orderbookerPhone"
+      FROM "RouteSession" rs
+      INNER JOIN "User" u ON rs."orderbookerId" = u.id
+      WHERE rs.status = 'active'
+    `;
+    const queryParams: unknown[] = [];
 
-    if (sessionsRes.rows.length === 0) {
-      return NextResponse.json({ sessions: [] });
+    if (orderbookerId) {
+      sessionsQuery += ` AND rs."orderbookerId" = $1`;
+      queryParams.push(orderbookerId);
     }
 
-    const sessionIds = sessionsRes.rows.map((r: any) => r.id);
+    sessionsQuery += ` ORDER BY rs."startTime" DESC`;
 
-    // Fetch last 100 locations per session
-    const locationsRes = await pool.query(
-      `SELECT rl.*
+    const sessionsRes = await pool.query(sessionsQuery, queryParams);
+
+    if (sessionsRes.rows.length === 0) {
+      return NextResponse.json({
+        sessions: [],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // For each session, get the latest location and shop visits
+    const sessionIds = sessionsRes.rows.map((s: { id: string }) => s.id);
+
+    // Batch fetch latest location per session
+    const latestLocsRes = await pool.query(
+      `SELECT DISTINCT ON (rl."sessionId")
+         rl."sessionId",
+         rl.lat,
+         rl.lng,
+         rl.accuracy,
+         rl."recordedAt"
        FROM "RouteLocation" rl
        WHERE rl."sessionId" = ANY($1)
-         AND rl.id IN (
-           SELECT rl2.id FROM "RouteLocation" rl2
-           WHERE rl2."sessionId" = rl."sessionId"
-           ORDER BY rl2."recordedAt" DESC
-           LIMIT 100
-         )
-       ORDER BY rl."recordedAt" ASC`,
+       ORDER BY rl."sessionId", rl."recordedAt" DESC`,
       [sessionIds]
     );
 
-    // Fetch shop visits with shop names for all active sessions
-    const visitsRes = await pool.query(
+    // Build a map of sessionId → latest location
+    const latestLocMap: Record<string, { lat: number; lng: number; accuracy: number | null; recordedAt: string }> = {};
+    for (const row of latestLocsRes.rows) {
+      latestLocMap[row.sessionId] = {
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+        accuracy: row.accuracy != null ? Number(row.accuracy) : null,
+        recordedAt: row.recordedAt instanceof Date ? row.recordedAt.toISOString() : row.recordedAt,
+      };
+    }
+
+    // Batch fetch shop visits for all sessions
+    const shopVisitsRes = await pool.query(
       `SELECT rsv.*, s.name AS "shopName"
        FROM "RouteShopVisit" rsv
        LEFT JOIN "Shop" s ON rsv."shopId" = s.id
@@ -52,85 +74,62 @@ export async function GET() {
       [sessionIds]
     );
 
-    // Group locations and visits by sessionId
-    const locationsBySession: Record<string, any[]> = {};
-    for (const loc of locationsRes.rows) {
-      const sid = loc.sessionId;
-      if (!locationsBySession[sid]) locationsBySession[sid] = [];
-      locationsBySession[sid].push(serializeLocation(loc));
-    }
+    // Build a map of sessionId → shop visits array
+    const shopVisitsMap: Record<string, unknown[]> = {};
+    for (const row of shopVisitsRes.rows) {
+      if (!shopVisitsMap[row.sessionId]) shopVisitsMap[row.sessionId] = [];
 
-    const visitsBySession: Record<string, any[]> = {};
-    for (const visit of visitsRes.rows) {
-      const sid = visit.sessionId;
-      if (!visitsBySession[sid]) visitsBySession[sid] = [];
-      visitsBySession[sid].push(serializeShopVisit(visit));
-    }
-
-    // Build the response
-    const sessions = sessionsRes.rows.map((row: any) => {
-      const locations = locationsBySession[row.id] || [];
-      const currentLocation = locations.length > 0 ? locations[locations.length - 1] : null;
-
-      return {
+      shopVisitsMap[row.sessionId].push({
         id: row.id,
+        sessionId: row.sessionId,
+        shopId: row.shopId,
+        shopName: row.shopName,
         orderbookerId: row.orderbookerId,
-        orderbookerName: row.orderbookerName,
-        startTime: row.startTime instanceof Date ? row.startTime.toISOString() : row.startTime,
-        startLat: row.startLat != null ? Number(row.startLat) : null,
-        startLng: row.startLng != null ? Number(row.startLng) : null,
-        startAddress: row.startAddress ?? null,
-        totalDistance: Number(row.totalDistance),
-        totalDuration: Number(row.totalDuration),
-        status: row.status,
-        currentLocation,
-        locations,
-        shopVisits: visitsBySession[row.id] || [],
-      };
+        enterLat: row.enterLat,
+        enterLng: row.enterLng,
+        exitLat: row.exitLat,
+        exitLng: row.exitLng,
+        enterTime: row.enterTime instanceof Date ? row.enterTime.toISOString() : row.enterTime,
+        exitTime: row.exitTime instanceof Date ? row.exitTime.toISOString() : row.exitTime,
+        timeSpent: row.timeSpent,
+        distanceToShop: row.distanceToShop != null ? Number(row.distanceToShop) : null,
+        isAutoDetected: row.isAutoDetected,
+      });
+    }
+
+    // Compose final response
+    const sessions = sessionsRes.rows.map((s: Record<string, unknown>) => ({
+      session: {
+        id: s.id,
+        orderbookerId: s.orderbookerId,
+        startTime: s.startTime instanceof Date ? (s.startTime as Date).toISOString() : s.startTime,
+        endTime: s.endTime instanceof Date ? (s.endTime as Date).toISOString() : s.endTime,
+        startLat: s.startLat,
+        startLng: s.startLng,
+        startAddress: s.startAddress,
+        endLat: s.endLat,
+        endLng: s.endLng,
+        endAddress: s.endAddress,
+        totalDistance: Number(s.totalDistance),
+        totalDuration: s.totalDuration,
+        status: s.status,
+        autoEndReason: s.autoEndReason,
+      },
+      latestLocation: latestLocMap[s.id as string] || null,
+      shopVisits: shopVisitsMap[s.id as string] || [],
+      orderbooker: {
+        id: s.orderbookerId,
+        name: s.orderbookerName,
+        phone: s.orderbookerPhone,
+      },
+    }));
+
+    return NextResponse.json({
+      sessions,
+      timestamp: new Date().toISOString(),
     });
-
-    return NextResponse.json({ sessions });
   } catch (error) {
-    console.error('Error fetching live sessions:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch live sessions' },
-      { status: 500 }
-    );
+    console.error('Error fetching live route sessions:', error);
+    return NextResponse.json({ error: 'Failed to fetch live route sessions' }, { status: 500 });
   }
-}
-
-function serializeLocation(row: any) {
-  return {
-    id: row.id,
-    sessionId: row.sessionId,
-    lat: Number(row.lat),
-    lng: Number(row.lng),
-    accuracy: row.accuracy != null ? Number(row.accuracy) : null,
-    speed: row.speed != null ? Number(row.speed) : null,
-    altitude: row.altitude != null ? Number(row.altitude) : null,
-    batteryLevel: row.batteryLevel != null ? Number(row.batteryLevel) : null,
-    isOffline: row.isOffline,
-    recordedAt: row.recordedAt instanceof Date ? row.recordedAt.toISOString() : row.recordedAt,
-    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
-  };
-}
-
-function serializeShopVisit(row: any) {
-  return {
-    id: row.id,
-    sessionId: row.sessionId,
-    shopId: row.shopId,
-    shopName: row.shopName ?? null,
-    enterLat: row.enterLat != null ? Number(row.enterLat) : null,
-    enterLng: row.enterLng != null ? Number(row.enterLng) : null,
-    exitLat: row.exitLat != null ? Number(row.exitLat) : null,
-    exitLng: row.exitLng != null ? Number(row.exitLng) : null,
-    enterTime: row.enterTime instanceof Date ? row.enterTime.toISOString() : row.enterTime,
-    exitTime: row.exitTime instanceof Date ? row.exitTime.toISOString() : row.exitTime,
-    timeSpent: row.timeSpent != null ? Number(row.timeSpent) : null,
-    distanceToShop: row.distanceToShop != null ? Number(row.distanceToShop) : null,
-    isAutoDetected: row.isAutoDetected,
-    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
-    updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
-  };
 }

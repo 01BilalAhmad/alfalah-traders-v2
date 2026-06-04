@@ -545,7 +545,7 @@ export default function AdminApproveRecovery() {
                                     <Timer className="h-2.5 w-2.5" />{getTimeAgo(txn.createdAt)}
                                   </span>
                                   {hasGPS ? (
-                                    <span className="text-[10px] text-slate-500 font-medium flex items-center gap-0.5">
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-0.5">
                                       <CheckCircle2 className="h-2.5 w-2.5" />GPS
                                     </span>
                                   ) : (
