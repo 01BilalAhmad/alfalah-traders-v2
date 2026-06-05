@@ -65,41 +65,37 @@ export async function GET(request: NextRequest) {
 
     const sessionIds = sessionsRes.rows.map((s: { id: string }) => s.id);
 
-    // Batch fetch locations (max 500 per session, ordered by recordedAt)
-    // Use a subquery with ROW_NUMBER to limit per session
+    // Batch fetch locations (max 500 per session, using SQL-level ROW_NUMBER)
     const locationsRes = await pool.query(
-      `SELECT rl.*
-       FROM "RouteLocation" rl
-       WHERE rl."sessionId" = ANY($1)
-       ORDER BY rl."sessionId", rl."recordedAt" ASC`,
+      `SELECT sub.* FROM (
+         SELECT rl.*,
+                ROW_NUMBER() OVER (PARTITION BY rl."sessionId" ORDER BY rl."recordedAt" ASC) AS rn,
+                COUNT(*) OVER (PARTITION BY rl."sessionId") AS total_count
+         FROM "RouteLocation" rl
+         WHERE rl."sessionId" = ANY($1)
+       ) sub
+       WHERE sub.rn > sub.total_count - 500
+       ORDER BY sub."sessionId", sub."recordedAt" ASC`,
       [sessionIds]
     );
 
-    // Build map of sessionId → locations (limit 500 per session)
+    // Build map of sessionId → locations
     const locMap: Record<string, unknown[]> = {};
-    const locCounts: Record<string, number> = {};
 
     for (const row of locationsRes.rows) {
-      if (!locMap[row.sessionId]) {
-        locMap[row.sessionId] = [];
-        locCounts[row.sessionId] = 0;
-      }
-
-      locCounts[row.sessionId]++;
-      if (locCounts[row.sessionId] <= 500) {
-        locMap[row.sessionId].push({
-          id: row.id,
-          sessionId: row.sessionId,
-          lat: Number(row.lat),
-          lng: Number(row.lng),
-          accuracy: row.accuracy != null ? Number(row.accuracy) : null,
-          speed: row.speed != null ? Number(row.speed) : null,
-          altitude: row.altitude != null ? Number(row.altitude) : null,
-          batteryLevel: row.batteryLevel != null ? Number(row.batteryLevel) : null,
-          isOffline: row.isOffline,
-          recordedAt: row.recordedAt instanceof Date ? row.recordedAt.toISOString() : row.recordedAt,
-        });
-      }
+      if (!locMap[row.sessionId]) locMap[row.sessionId] = [];
+      locMap[row.sessionId].push({
+        id: row.id,
+        sessionId: row.sessionId,
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+        accuracy: row.accuracy != null ? Number(row.accuracy) : null,
+        speed: row.speed != null ? Number(row.speed) : null,
+        altitude: row.altitude != null ? Number(row.altitude) : null,
+        batteryLevel: row.batteryLevel != null ? Number(row.batteryLevel) : null,
+        isOffline: row.isOffline,
+        recordedAt: row.recordedAt instanceof Date ? row.recordedAt.toISOString() : row.recordedAt,
+      });
     }
 
     // Batch fetch shop visits with shop name

@@ -108,13 +108,6 @@ export async function POST(request: NextRequest) {
       );
       const openVisitShopIds = new Set(openVisitsRes.rows.map((r: { shopId: string }) => r.shopId));
 
-      // Get all shop visits for this session (to prevent duplicate entries)
-      const allVisitsRes = await pool.query(
-        `SELECT "shopId" FROM "RouteShopVisit" WHERE "sessionId" = $1`,
-        [sessionId]
-      );
-      const visitedShopIds = new Set(allVisitsRes.rows.map((r: { shopId: string }) => r.shopId));
-
       const client = await getClient();
       try {
         await client.query('BEGIN');
@@ -127,8 +120,8 @@ export async function POST(request: NextRequest) {
 
           if (isNearby) {
             // Entering or still within shop radius
-            if (!visitedShopIds.has(shop.id)) {
-              // Create new RouteShopVisit — entering for the first time
+            if (!openVisitShopIds.has(shop.id)) {
+              // No open visit for this shop — create new RouteShopVisit (first visit or re-visit)
               const visitId = crypto.randomUUID();
               await client.query(
                 `INSERT INTO "RouteShopVisit"
@@ -137,7 +130,6 @@ export async function POST(request: NextRequest) {
                 [visitId, sessionId, shop.id, orderbookerId, lat, lng, now, Math.round(distance), true, now, now]
               );
 
-              visitedShopIds.add(shop.id);
               openVisitShopIds.add(shop.id);
 
               shopProximities.push({
@@ -146,18 +138,8 @@ export async function POST(request: NextRequest) {
                 distance: Math.round(distance),
                 action: 'entered',
               });
-            } else if (openVisitShopIds.has(shop.id)) {
-              // Already visited and still inside — just report nearby
-              shopProximities.push({
-                shopId: shop.id,
-                shopName: shop.name,
-                distance: Math.round(distance),
-                action: 'nearby',
-              });
             } else {
-              // Was visited before (exited), now back inside — this is a new visit
-              // Since RouteShopVisit has @@unique([sessionId, shopId]), we can't create another
-              // So just report nearby
+              // Already inside (open visit exists) — just report nearby
               shopProximities.push({
                 shopId: shop.id,
                 shopName: shop.name,

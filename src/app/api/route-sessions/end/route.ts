@@ -40,31 +40,33 @@ export async function POST(request: NextRequest) {
     // Compute total duration in seconds
     const totalDuration = Math.round((now.getTime() - startTime.getTime()) / 1000);
 
-    // Compute total distance from RouteLocation points using haversine
+    // Compute total distance from RouteLocation points using haversine with LEAD() window function
+    // This is O(n) instead of the previous O(n²) self-join approach
     const distRes = await pool.query(
-      `SELECT COALESCE(SUM(
-        6371000 * 2 * ATAN2(
-          SQRT(
-            POWER(SIN(RADIANS(rl2.lat - rl1.lat) / 2), 2) +
-            COS(RADIANS(rl1.lat)) * COS(RADIANS(rl2.lat)) *
-            POWER(SIN(RADIANS(rl2.lng - rl1.lng) / 2), 2)
-          ),
-          SQRT(1 - (
-            POWER(SIN(RADIANS(rl2.lat - rl1.lat) / 2), 2) +
-            COS(RADIANS(rl1.lat)) * COS(RADIANS(rl2.lat)) *
-            POWER(SIN(RADIANS(rl2.lng - rl1.lng) / 2), 2)
-          ))
-        )
-      ), 0) AS "totalDistance"
-      FROM "RouteLocation" rl1
-      INNER JOIN "RouteLocation" rl2 ON rl1."sessionId" = rl2."sessionId"
-        AND rl2."recordedAt" = (
-          SELECT MIN(rl3."recordedAt")
-          FROM "RouteLocation" rl3
-          WHERE rl3."sessionId" = rl1."sessionId"
-            AND rl3."recordedAt" > rl1."recordedAt"
-        )
-      WHERE rl1."sessionId" = $1`,
+      `SELECT COALESCE(SUM(seg_dist), 0) AS "totalDistance"
+       FROM (
+         SELECT
+           6371000 * 2 * ATAN2(
+             SQRT(
+               POWER(SIN(RADIANS(next_lat - lat) / 2), 2) +
+               COS(RADIANS(lat)) * COS(RADIANS(next_lat)) *
+               POWER(SIN(RADIANS(next_lng - lng) / 2), 2)
+             ),
+             SQRT(1 - (
+               POWER(SIN(RADIANS(next_lat - lat) / 2), 2) +
+               COS(RADIANS(lat)) * COS(RADIANS(next_lat)) *
+               POWER(SIN(RADIANS(next_lng - lng) / 2), 2)
+             ))
+           ) AS seg_dist
+         FROM (
+           SELECT lat, lng,
+                  LEAD(lat) OVER (PARTITION BY "sessionId" ORDER BY "recordedAt") AS next_lat,
+                  LEAD(lng) OVER (PARTITION BY "sessionId" ORDER BY "recordedAt") AS next_lng
+           FROM "RouteLocation"
+           WHERE "sessionId" = $1
+         ) sub
+         WHERE next_lat IS NOT NULL
+       ) dist_sub`,
       [sessionId]
     );
 

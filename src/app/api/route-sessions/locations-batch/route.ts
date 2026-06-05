@@ -40,6 +40,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Limit batch size to prevent oversized queries
+    if (locations.length > 500) {
+      return NextResponse.json(
+        { error: 'Batch size exceeds maximum of 500 locations' },
+        { status: 400 }
+      );
+    }
+
     // Validate each location has required fields
     for (let i = 0; i < locations.length; i++) {
       if (locations[i].lat == null || locations[i].lng == null) {
@@ -103,13 +111,24 @@ export async function POST(request: NextRequest) {
       paramIdx += 11;
     }
 
-    await pool.query(
-      `INSERT INTO "RouteLocation" (id, "sessionId", lat, lng, accuracy, speed, altitude, "batteryLevel", "isOffline", "recordedAt", "createdAt")
-       VALUES ${valuesClauses.join(', ')}`,
-      params
-    );
+    // Use transaction for bulk insert + proximity detection
+    const client = await getClient();
+    let saved = 0;
 
-    const saved = locations.length;
+    try {
+      await client.query('BEGIN');
+
+      await client.query(
+        `INSERT INTO "RouteLocation" (id, "sessionId", lat, lng, accuracy, speed, altitude, "batteryLevel", "isOffline", "recordedAt", "createdAt")
+         VALUES ${valuesClauses.join(', ')}`,
+        params
+      );
+      saved = locations.length;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      client.release();
+      throw error;
+    }
 
     // ── Proximity Detection on LAST point only ──────────────────────────
     const lastLoc = locations[locations.length - 1];
@@ -143,17 +162,8 @@ export async function POST(request: NextRequest) {
       );
       const openVisitShopIds = new Set(openVisitsRes.rows.map((r: { shopId: string }) => r.shopId));
 
-      // Get all shop visits for this session
-      const allVisitsRes = await pool.query(
-        `SELECT "shopId" FROM "RouteShopVisit" WHERE "sessionId" = $1`,
-        [sessionId]
-      );
-      const visitedShopIds = new Set(allVisitsRes.rows.map((r: { shopId: string }) => r.shopId));
-
-      const client = await getClient();
       try {
-        await client.query('BEGIN');
-
+        // Transaction already started above for the bulk insert
         for (const shop of shopsRes.rows) {
           const shopLat = Number(shop.lat);
           const shopLng = Number(shop.lng);
@@ -161,8 +171,8 @@ export async function POST(request: NextRequest) {
           const isNearby = distance <= PROXIMITY_RADIUS_M;
 
           if (isNearby) {
-            if (!visitedShopIds.has(shop.id)) {
-              // Create new RouteShopVisit — entering for the first time
+            if (!openVisitShopIds.has(shop.id)) {
+              // No open visit — create new RouteShopVisit (first visit or re-visit)
               const visitId = crypto.randomUUID();
               const enterTime = lastLoc.recordedAt || now;
 
@@ -173,7 +183,6 @@ export async function POST(request: NextRequest) {
                 [visitId, sessionId, shop.id, orderbookerId, lastLat, lastLng, enterTime, Math.round(distance), true, now, now]
               );
 
-              visitedShopIds.add(shop.id);
               openVisitShopIds.add(shop.id);
 
               shopProximities.push({
@@ -189,16 +198,8 @@ export async function POST(request: NextRequest) {
                  WHERE id = $4 AND lat IS NULL`,
                 [lastLat, lastLng, now, shop.id]
               );
-            } else if (openVisitShopIds.has(shop.id)) {
-              // Already visited and still inside — just report nearby
-              shopProximities.push({
-                shopId: shop.id,
-                shopName: shop.name,
-                distance: Math.round(distance),
-                action: 'nearby',
-              });
             } else {
-              // Was visited before (exited), now back inside
+              // Already inside (open visit exists) — just report nearby
               shopProximities.push({
                 shopId: shop.id,
                 shopName: shop.name,
@@ -246,6 +247,15 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;
+      } finally {
+        client.release();
+      }
+    } else {
+      // No shops to check — commit the bulk insert transaction
+      try {
+        await client.query('COMMIT');
+      } catch {
+        await client.query('ROLLBACK');
       } finally {
         client.release();
       }

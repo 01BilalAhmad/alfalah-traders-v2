@@ -64,38 +64,36 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Batch fetch ALL locations for each session (for polyline drawing)
-    // Limit to last 500 points per session to keep payload manageable
+    // Batch fetch locations for each session (for polyline drawing)
+    // Use SQL-level LIMIT per session with ROW_NUMBER() to avoid transferring excess data
     const locationsRes = await pool.query(
-      `SELECT rl."sessionId", rl.lat, rl.lng, rl.accuracy, rl.speed, rl."recordedAt"
-       FROM "RouteLocation" rl
-       WHERE rl."sessionId" = ANY($1)
-       ORDER BY rl."sessionId", rl."recordedAt" ASC`,
+      `SELECT sub.* FROM (
+         SELECT rl."sessionId", rl.lat, rl.lng, rl.accuracy, rl.speed, rl."recordedAt",
+                ROW_NUMBER() OVER (PARTITION BY rl."sessionId" ORDER BY rl."recordedAt" ASC) AS rn,
+                COUNT(*) OVER (PARTITION BY rl."sessionId") AS total_count
+         FROM "RouteLocation" rl
+         WHERE rl."sessionId" = ANY($1)
+       ) sub
+       WHERE sub.rn > sub.total_count - 500
+       ORDER BY sub."sessionId", sub."recordedAt" ASC`,
       [sessionIds]
     );
 
-    // Build a map of sessionId → locations array (limit 500 per session)
+    // Build a map of sessionId → locations array
     const locationsMap: Record<string, Array<{
       lat: number; lng: number; accuracy: number | null; speed: number | null; recordedAt: string;
     }>> = {};
-    const locCounts: Record<string, number> = {};
 
     for (const row of locationsRes.rows) {
       const sid = row.sessionId;
-      if (!locationsMap[sid]) {
-        locationsMap[sid] = [];
-        locCounts[sid] = 0;
-      }
-      locCounts[sid]++;
-      if (locCounts[sid] <= 500) {
-        locationsMap[sid].push({
-          lat: Number(row.lat),
-          lng: Number(row.lng),
-          accuracy: row.accuracy != null ? Number(row.accuracy) : null,
-          speed: row.speed != null ? Number(row.speed) : null,
-          recordedAt: row.recordedAt instanceof Date ? row.recordedAt.toISOString() : row.recordedAt,
-        });
-      }
+      if (!locationsMap[sid]) locationsMap[sid] = [];
+      locationsMap[sid].push({
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+        accuracy: row.accuracy != null ? Number(row.accuracy) : null,
+        speed: row.speed != null ? Number(row.speed) : null,
+        recordedAt: row.recordedAt instanceof Date ? row.recordedAt.toISOString() : row.recordedAt,
+      });
     }
 
     // Batch fetch shop visits for all sessions

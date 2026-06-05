@@ -346,7 +346,6 @@ model RouteShopVisit {
   shop            Shop         @relation(fields: [shopId], references: [id])
   orderbooker     User         @relation("RouteShopVisits", fields: [orderbookerId], references: [id])
 
-  @@unique([sessionId, shopId]) // one shop visit per session
   @@index([sessionId])
   @@index([shopId])
   @@index([orderbookerId])

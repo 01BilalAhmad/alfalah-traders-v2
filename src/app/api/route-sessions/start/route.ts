@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
     if (user.status === 'inactive') {
       return NextResponse.json({ error: 'Account is deactivated' }, { status: 403 });
     }
+    if (user.role !== 'orderbooker') {
+      return NextResponse.json({ error: 'Only orderbookers can start route sessions' }, { status: 403 });
+    }
 
     // Check if user already has an active session
     const activeRes = await pool.query(
