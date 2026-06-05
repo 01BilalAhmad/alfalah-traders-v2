@@ -1,10 +1,34 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg';
+import { requireAdmin } from '@/lib/auth-guard';
 
 // POST /api/setup — Create tables using raw pg (no Prisma)
-export async function POST() {
+// After initial setup (users exist), this endpoint requires admin authentication
+// to prevent unauthorized re-seeding or abuse.
+export async function POST(request: NextRequest) {
   try {
     const pool = getPool();
+
+    // ── Security Check: If users already exist, require admin auth ──
+    // This prevents anyone from re-running setup after the first initialization.
+    // The first setup (when no users exist) remains public so the admin can
+    // create the initial account without authentication.
+    try {
+      const existingUsers = await pool.query('SELECT COUNT(*) as count FROM "User"');
+      const userCount = parseInt(existingUsers.rows[0].count);
+      if (userCount > 0) {
+        // Setup already completed — require admin authentication
+        const auth = await requireAdmin(request);
+        if (!auth.authorized) {
+          return NextResponse.json(
+            { error: 'Setup has already been completed. Admin authentication required to re-run migrations.' },
+            { status: 401 }
+          );
+        }
+      }
+    } catch {
+      // If User table doesn't exist yet, this is the very first setup — allow it
+    }
 
     // Create User table
     await pool.query(`

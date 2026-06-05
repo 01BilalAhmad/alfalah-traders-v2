@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth-guard';
 
 // ────────────────────────────────────────────────────────────
-// GET /api/backup — Export all data as a JSON backup
+// GET /api/backup — Export all data as a JSON backup (Admin only)
 // ────────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Verify admin access
+  const auth = await requireAdmin(request);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: 401 });
+  }
   try {
     const [users, shops, transactions, auditLogs] = await Promise.all([
       db.user.findMany({
@@ -108,9 +114,15 @@ export async function GET() {
 }
 
 // ────────────────────────────────────────────────────────────
-// POST /api/backup — Import / Restore data from a JSON backup
+// POST /api/backup — Import / Restore data from a JSON backup (Admin only)
 // ────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
+  // Verify admin access
+  const auth = await requireAdmin(request);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
 
@@ -347,9 +359,15 @@ export async function POST(request: NextRequest) {
 }
 
 // ────────────────────────────────────────────────────────────
-// DELETE /api/backup — Backup info summary (record counts)
+// DELETE /api/backup — Backup info summary (record counts) (Admin only)
 // ────────────────────────────────────────────────────────────
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  // Verify admin access
+  const auth = await requireAdmin(request);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: 401 });
+  }
+
   try {
     const [userCount, shopCount, transactionCount, auditLogCount] = await Promise.all([
       db.user.count(),

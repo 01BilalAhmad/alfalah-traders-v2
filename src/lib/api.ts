@@ -104,6 +104,7 @@ export function buildApiUrl(path: string): string {
  * Drop-in replacement for fetch() that automatically:
  * 1. Uses the configured server URL
  * 2. Sends the auth token in Authorization header (if available)
+ * 3. Handles 401 responses by clearing the session and redirecting to login
  * 
  * @param path - API path like '/api/auth/login'
  * @param options - Standard fetch options
@@ -117,18 +118,41 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<Res
     ...(options?.headers as Record<string, string> || {}),
   };
 
-  // Attach auth token if available (skip for login/validate/setup endpoints)
-  const publicPaths = ['/api/auth/login', '/api/auth/validate', '/api/setup', '/api/ping'];
+  // Attach auth token if available (skip for public endpoints)
+  const publicPaths = ['/api/auth/login', '/api/auth/validate', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/setup', '/api/ping'];
   const isPublicPath = publicPaths.some((p) => path.startsWith(p));
 
   if (token && !isPublicPath) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  return fetch(fullUrl, {
+  const response = await fetch(fullUrl, {
     ...options,
     headers,
   });
+
+  // ── Handle 401 Unauthorized (session expired or invalid) ──
+  // Clear the stored session and redirect to login page so the user
+  // can re-authenticate instead of seeing cryptic error messages.
+  if (response.status === 401 && !isPublicPath) {
+    // Clear stored session data
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem('finexa-session');
+      localStorage.removeItem('alfalah-token');
+      localStorage.removeItem('alfalah-session');
+    } catch { /* ignore */ }
+
+    // Dispatch a custom event so the app can react (e.g., show login screen)
+    // This is cleaner than directly importing the Zustand store here
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('finexa:session-expired', {
+        detail: { reason: 'Session expired or invalid. Please log in again.' }
+      }));
+    }
+  }
+
+  return response;
 }
 
 /**
