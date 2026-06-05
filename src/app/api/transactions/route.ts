@@ -503,10 +503,25 @@ export async function POST(request: NextRequest) {
 // PATCH /api/transactions - Edit a transaction (amount, description, and/or company change)
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, amount, description, updatedBy, newCompanyId } = await request.json();
+    const { id, amount, description, updatedBy, newCompanyId, gpsLat, gpsLng, gpsAddress } = await request.json();
 
     if (!id || !updatedBy) {
       return NextResponse.json({ error: 'Transaction ID and updater are required' }, { status: 400 });
+    }
+
+    // GPS-only update (for backfilling GPS on existing transactions)
+    if (gpsLat !== undefined && gpsLng !== undefined && !amount && !newCompanyId && newCompanyId !== null && newCompanyId !== undefined) {
+      try {
+        const pool = getPool();
+        await pool.query(
+          `UPDATE "Transaction" SET "gpsLat" = $1, "gpsLng" = $2, "gpsAddress" = $3 WHERE id = $4`,
+          [gpsLat, gpsLng, gpsAddress || null, id]
+        );
+        return NextResponse.json({ success: true, message: 'GPS coordinates updated' });
+      } catch (error) {
+        console.error('Error updating GPS:', error);
+        return NextResponse.json({ error: 'Failed to update GPS' }, { status: 500 });
+      }
     }
 
     // At least one of amount or newCompanyId must be provided
