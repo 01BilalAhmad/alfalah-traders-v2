@@ -193,17 +193,26 @@ export default function AdminCreditRecoveryAnalysis() {
       doc.setTextColor(30, 64, 175); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
       doc.text('TOTAL CREDIT', 14 + cardW / 2, cardY + 7, { align: 'center' });
       doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-      doc.text(`Rs. ${formatNumberShort(data.summary.totalCredit)}`, 14 + cardW / 2, cardY + 15, { align: 'center' });
+      doc.text(`Rs. ${data.summary.totalCredit.toLocaleString('en-PK')}`, 14 + cardW / 2, cardY + 15, { align: 'center' });
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${data.summary.totalCredit.toLocaleString('en-PK')}`, 14 + cardW / 2, cardY + 20, { align: 'center' });
       doc.setFillColor(209, 250, 229); doc.roundedRect(14 + cardW + 4, cardY, cardW, cardH, 2, 2, 'F');
       doc.setTextColor(5, 150, 105); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
       doc.text('TOTAL RECOVERY', 14 + cardW + 4 + cardW / 2, cardY + 7, { align: 'center' });
       doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-      doc.text(`Rs. ${formatNumberShort(data.summary.totalRecovery)}`, 14 + cardW + 4 + cardW / 2, cardY + 15, { align: 'center' });
+      doc.text(`Rs. ${data.summary.totalRecovery.toLocaleString('en-PK')}`, 14 + cardW + 4 + cardW / 2, cardY + 15, { align: 'center' });
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${data.summary.totalRecovery.toLocaleString('en-PK')}`, 14 + cardW + 4 + cardW / 2, cardY + 20, { align: 'center' });
       doc.setFillColor(254, 243, 199); doc.roundedRect(14 + (cardW + 4) * 2, cardY, cardW, cardH, 2, 2, 'F');
       doc.setTextColor(180, 83, 9); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
       doc.text('RECOVERY RATE', 14 + (cardW + 4) * 2 + cardW / 2, cardY + 7, { align: 'center' });
       doc.setFontSize(14); doc.setFont('helvetica', 'bold');
       doc.text(`${data.summary.recoveryRate}%`, 14 + (cardW + 4) * 2 + cardW / 2, cardY + 15, { align: 'center' });
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Net: Rs. ${data.summary.netPosition.toLocaleString('en-PK')}`, 14 + (cardW + 4) * 2 + cardW / 2, cardY + 20, { align: 'center' });
 
       const statsY = cardY + cardH + 6;
       doc.setTextColor(100, 116, 139); doc.setFontSize(8); doc.setFont('helvetica', 'normal');
