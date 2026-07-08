@@ -345,7 +345,7 @@ export default function ChangePasswordDialog({ open, onOpenChange }: ChangePassw
             type="button"
             onClick={handleChangePassword}
             disabled={changing || !isValid}
-            className="flex-1 h-11 rounded-lg bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white font-medium text-sm transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 disabled:opacity-60"
+            className="flex-1 h-11 rounded-lg bg-[#2563EB] hover:bg-[#2563EB]/90 text-white font-medium text-sm transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 disabled:opacity-60"
           >
             {changing ? (
               <>

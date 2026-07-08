@@ -12,7 +12,7 @@ import type jsPDF from 'jspdf';
 import { getBusinessName, getBusinessPhone } from './business-config';
 
 // ─── Brand Constants ────────────────────────────────────────────────────
-const NAVY_BLUE: [number, number, number] = [30, 58, 138];    // #4F46E5
+const NAVY_BLUE: [number, number, number] = [30, 58, 138];    // #2563EB
 const SLATE_GREY: [number, number, number] = [71, 85, 105];
 const LIGHT_BLUE: [number, number, number] = [239, 246, 255];
 const GREEN_TEXT: [number, number, number] = [6, 95, 70];

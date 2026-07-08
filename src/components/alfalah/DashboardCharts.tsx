@@ -71,8 +71,8 @@ export default function DashboardCharts({ trends, orderbookers, routeData, allSh
                 <AreaChart data={trends} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="creditGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.02} />
                     </linearGradient>
                     <linearGradient id="recoveryGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#10B981" stopOpacity={0.4} />
@@ -110,11 +110,11 @@ export default function DashboardCharts({ trends, orderbookers, routeData, allSh
                   <Area
                     type="monotone"
                     dataKey="credit"
-                    stroke="#6366F1"
+                    stroke="#3B82F6"
                     strokeWidth={3}
                     fill="url(#creditGradient)"
-                    dot={{ r: 3, fill: '#6366F1', strokeWidth: 0 }}
-                    activeDot={{ r: 6, fill: '#6366F1', strokeWidth: 2, stroke: '#fff' }}
+                    dot={{ r: 3, fill: '#3B82F6', strokeWidth: 0 }}
+                    activeDot={{ r: 6, fill: '#3B82F6', strokeWidth: 2, stroke: '#fff' }}
                     isAnimationActive={true}
                     animationBegin={0}
                     animationDuration={1500}
@@ -169,8 +169,8 @@ export default function DashboardCharts({ trends, orderbookers, routeData, allSh
                 <BarChart data={orderbookers} margin={{ top: 30, right: 10, left: 0, bottom: 5 }}>
                   <defs>
                     <linearGradient id="creditPostedGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#4F46E5" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#6366F1" stopOpacity={0.85} />
+                      <stop offset="0%" stopColor="#2563EB" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.85} />
                     </linearGradient>
                     <linearGradient id="recoveryGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#059669" stopOpacity={1} />

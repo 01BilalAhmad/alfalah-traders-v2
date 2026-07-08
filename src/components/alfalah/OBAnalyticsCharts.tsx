@@ -164,8 +164,8 @@ export default function OBAnalyticsCharts({
                   <BarChart data={dailyBreakdownData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="dailyCreditGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366F1" stopOpacity={0.9} />
-                        <stop offset="95%" stopColor="#6366F1" stopOpacity={0.4} />
+                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.9} />
+                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.4} />
                       </linearGradient>
                       <linearGradient id="dailyRecoveryGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#10B981" stopOpacity={0.9} />

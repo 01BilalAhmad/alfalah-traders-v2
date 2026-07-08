@@ -438,7 +438,7 @@ export default function AdminReconciliation() {
           ) : (
             <div className="divide-y divide-border">
               {/* ─── PRINT-ONLY HEADER ─── */}
-              <div className="print-only" style={{ padding: '12px 0', borderBottom: '2px solid #4F46E5', marginBottom: '12px' }}>
+              <div className="print-only" style={{ padding: '12px 0', borderBottom: '2px solid #2563EB', marginBottom: '12px' }}>
                 <PrintHeader
                   title="Daily Reconciliation Report"
                   subtitle={`Date: ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })}`}

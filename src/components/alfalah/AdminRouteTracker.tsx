@@ -106,7 +106,7 @@ interface Orderbooker {
 }
 
 // ── OB Colors ──────────────────────────────────────────────────────────────
-const OB_COLORS = ['#4F46E5', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
+const OB_COLORS = ['#2563EB', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
 
 function getOBColor(index: number): string {
   return OB_COLORS[index % OB_COLORS.length];

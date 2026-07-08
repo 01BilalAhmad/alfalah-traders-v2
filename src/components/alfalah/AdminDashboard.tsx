@@ -5,10 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useAnimatedNumber } from '@/lib/use-animated-number';
 import { getLocalDateString, WORKING_DAYS, formatPKR } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
@@ -23,32 +20,20 @@ import dynamic from 'next/dynamic';
 const DashboardCharts = dynamic(() => import('./DashboardCharts'), { ssr: false, loading: () => <div className="h-64 animate-pulse bg-muted/20 rounded-lg" /> });
 import { apiFetch } from '@/lib/api';
 import {
-  Home,
-  Store,
-  Users,
   TrendingUp,
-  Wallet,
   CreditCard,
   ArrowUpRight,
-  ArrowDownRight,
-  Pencil,
   ArrowUp,
   ArrowDown,
   Activity,
   Plus,
-  BarChart3,
-  PieChart as PieChartIcon,
   TrendingDown,
-  Hash,
-  CalendarDays,
+  Users,
   Clock,
   ExternalLink,
   Calendar,
-  Banknote,
   Sparkles,
-  ShieldCheck,
   ChevronRight,
-  AlertTriangle,
   Loader2,
   MessageSquare,
   CheckCircle2,
@@ -83,22 +68,20 @@ function PendingRecoveryBanner({ onNavigate }: { onNavigate: (path: string) => v
   return (
     <button
       onClick={() => onNavigate('/approve-recovery')}
-      className="w-full rounded-xl border-2 border-border bg-slate-50 dark:bg-slate-900/40 p-4 flex items-center justify-between hover:shadow-md transition-all group cursor-pointer animate-fade-in"
+      className="w-full rounded-lg border border-amber-200 bg-amber-50/50 p-4 flex items-center justify-between hover:bg-amber-50 hover:border-amber-300 transition-all group cursor-pointer animate-fade-in"
     >
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-          <ShieldCheck className="h-5 w-5 text-slate-600 dark:text-slate-300" />
-        </div>
+        <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
         <div className="text-left">
-          <p className="text-sm font-bold text-foreground">
+          <p className="text-sm font-semibold text-slate-900">
             {pendingCount} Pending Recover{pendingCount === 1 ? 'y' : 'ies'}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-slate-500">
             Total: {formatPKR(pendingAmount)} — Click to review &amp; approve
           </p>
         </div>
       </div>
-      <ChevronRight className="h-5 w-5 text-slate-400 dark:text-slate-500 group-hover:translate-x-1 transition-transform" />
+      <ChevronRight className="h-4 w-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
     </button>
   );
 }
@@ -135,14 +118,12 @@ function OverdueShopsAlert({ onNavigate }: { onNavigate: (path: string) => void 
 
   if (loading) {
     return (
-      <Card className="animate-fade-in">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <Loader2 className="h-5 w-5 animate-spin text-red-500" />
-            <span className="text-sm text-muted-foreground">Checking overdue shops...</span>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-white border border-slate-200 rounded-lg p-4 animate-fade-in">
+        <div className="flex items-center gap-3">
+          <Loader2 className="h-4 w-4 animate-spin text-red-500" />
+          <span className="text-sm text-slate-500">Checking overdue shops...</span>
+        </div>
+      </div>
     );
   }
 
@@ -152,63 +133,50 @@ function OverdueShopsAlert({ onNavigate }: { onNavigate: (path: string) => void 
   const criticalCount = overdueShops.filter(s => s.daysSinceCredit >= 30).length;
 
   return (
-    <Card className="animate-fade-in border-red-200 dark:border-red-800">
-      <CardContent className="p-0">
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/40 dark:to-orange-950/40 border-b border-red-200/60 dark:border-red-800/60">
-          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
-          <span className="text-xs font-semibold text-red-800 dark:text-red-200">
-            {overdueShops.length} shop{overdueShops.length === 1 ? '' : 's'} with credit 14+ days old and no recovery
+    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200">
+        <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
+        <span className="text-sm font-semibold text-slate-900">
+          {overdueShops.length} shop{overdueShops.length === 1 ? '' : 's'} with credit 14+ days old and no recovery
+        </span>
+        {criticalCount > 0 && (
+          <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full border bg-red-50 text-red-700 border-red-200">
+            {criticalCount} Critical · 30+ days
           </span>
-          {criticalCount > 0 && (
-            <Badge className="ml-auto bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200 dark:border-red-800 text-[10px] font-bold animate-pulse">
-              <AlertTriangle className="h-3 w-3 mr-0.5" />
-              {criticalCount} Critical ({criticalCount} 30+ days credit)
-            </Badge>
-          )}
-        </div>
-        <div className="px-4 py-3 space-y-2">
-          {top5.map((shop) => (
-            <div key={shop.id} className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${
-                  shop.daysSinceCredit >= 30
-                    ? 'bg-red-100 dark:bg-red-900/40'
-                    : 'bg-muted'
-                }`}>
-                  {shop.daysSinceCredit >= 30 ? (
-                    <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
-                  ) : (
-                    <Store className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{shop.name}</p>
-                  <p className="text-[10px] text-muted-foreground">{shop.area || 'No area'} · {formatPKR(shop.balance)} balance</p>
-                </div>
-              </div>
-              <Badge className={`text-[9px] font-bold shrink-0 ${
-                shop.daysSinceCredit >= 30
-                  ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200 dark:border-red-800'
-                  : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-              }`}>
-                {shop.daysSinceCredit}d
-              </Badge>
-            </div>
-          ))}
-        </div>
-        {overdueShops.length > 5 && (
-          <div className="border-t border-border/60 px-4 py-2.5">
-            <button
-              className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-              onClick={() => onNavigate('/shops')}
-            >
-              View All {overdueShops.length} Overdue Shops
-              <ExternalLink className="h-3 w-3" />
-            </button>
-          </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+      <div className="px-4 py-3 divide-y divide-slate-100">
+        {top5.map((shop) => (
+          <div key={shop.id} className="flex items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className={`h-2 w-2 rounded-full shrink-0 ${shop.daysSinceCredit >= 30 ? 'bg-red-500' : 'bg-amber-500'}`} />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-900 truncate">{shop.name}</p>
+                <p className="text-[10px] text-slate-500">{shop.area || 'No area'} · {formatPKR(shop.balance)} balance</p>
+              </div>
+            </div>
+            <span className={`text-[10px] font-bold shrink-0 px-1.5 py-0.5 rounded-full border ${
+              shop.daysSinceCredit >= 30
+                ? 'bg-red-50 text-red-700 border-red-200'
+                : 'bg-slate-50 text-slate-600 border-slate-200'
+            }`}>
+              {shop.daysSinceCredit}d
+            </span>
+          </div>
+        ))}
+      </div>
+      {overdueShops.length > 5 && (
+        <div className="border-t border-slate-200 px-4 py-2.5">
+          <button
+            className="flex items-center gap-1.5 text-xs font-medium text-[#2563EB] hover:text-[#1E40AF] transition-colors"
+            onClick={() => onNavigate('/shops')}
+          >
+            View All {overdueShops.length} Overdue Shops
+            <ExternalLink className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -299,7 +267,7 @@ interface SparklineData {
 }
 
 const ROUTE_DAYS = [...WORKING_DAYS];
-const ROUTE_COLORS = ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4'];
+const ROUTE_COLORS = ['#3B82F6', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 function RecoverySparkline({ data, width = 100, height = 28 }: { data: number[]; width?: number; height?: number }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
@@ -397,58 +365,55 @@ function DashboardSkeleton() {
   return (
     <div className="space-y-6">
       <div>
-        <Skeleton className="skeleton-shimmer h-7 w-40 mb-1" />
-        <Skeleton className="skeleton-shimmer h-4 w-64" />
+        <Skeleton className="skeleton-shimmer h-7 w-48 mb-1" />
+        <Skeleton className="skeleton-shimmer h-4 w-72" />
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
-            <CardContent className="p-4">
-              <Skeleton className="skeleton-shimmer h-8 w-8 rounded-lg mb-3" />
-              <Skeleton className="skeleton-shimmer h-3 w-24 mb-2" />
-              <Skeleton className="skeleton-shimmer h-6 w-28" />
-            </CardContent>
-          </Card>
+          <div key={i} className="bg-white border border-slate-200 rounded-lg p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Skeleton className="skeleton-shimmer h-2 w-2 rounded-full" />
+              <Skeleton className="skeleton-shimmer h-3 w-24" />
+            </div>
+            <Skeleton className="skeleton-shimmer h-7 w-28 mb-2" />
+            <Skeleton className="skeleton-shimmer h-3 w-32" />
+          </div>
         ))}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <Card>
-          <CardHeader className="pb-3 pt-4 px-5">
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200">
             <Skeleton className="skeleton-shimmer h-5 w-36" />
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="px-5 py-3 space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="skeleton-shimmer h-8 w-8 rounded-full" />
-                    <Skeleton className="skeleton-shimmer h-4 w-28" />
-                  </div>
-                  <Skeleton className="skeleton-shimmer h-4 w-20" />
+          </div>
+          <div className="px-5 py-3 space-y-3 divide-y divide-slate-100">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between pt-3 first:pt-0">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="skeleton-shimmer h-6 w-6 rounded-full" />
+                  <Skeleton className="skeleton-shimmer h-4 w-28" />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3 pt-4 px-5">
+                <Skeleton className="skeleton-shimmer h-4 w-20" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200">
             <Skeleton className="skeleton-shimmer h-5 w-36" />
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="px-5 py-3 space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <Skeleton className="skeleton-shimmer h-8 w-8 rounded-full shrink-0" />
-                  <div className="flex-1">
-                    <Skeleton className="skeleton-shimmer h-4 w-32 mb-1" />
-                    <Skeleton className="skeleton-shimmer h-3 w-48" />
-                  </div>
-                  <Skeleton className="skeleton-shimmer h-4 w-16 shrink-0" />
+          </div>
+          <div className="px-5 py-3 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <Skeleton className="skeleton-shimmer h-6 w-6 rounded-full shrink-0" />
+                <div className="flex-1">
+                  <Skeleton className="skeleton-shimmer h-4 w-32 mb-1" />
+                  <Skeleton className="skeleton-shimmer h-3 w-48" />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <Skeleton className="skeleton-shimmer h-4 w-16 shrink-0" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -677,152 +642,168 @@ export default function AdminDashboard() {
     .slice(0, 5);
   const maxDebt = topDebtors.length > 0 ? topDebtors[0].balance : 1;
 
+  // Compute subtitle metrics for KPI cards (change vs yesterday)
+  const yesterdayTrendEntry = trends.length >= 2 ? trends[trends.length - 2] : null;
+  const creditChangePct = (() => {
+    if (!yesterdayTrendEntry || yesterdayTrendEntry.credit === 0) return null;
+    return Math.round(((data.todayCredit - yesterdayTrendEntry.credit) / yesterdayTrendEntry.credit) * 100);
+  })();
+  const recoveryChangePct = (() => {
+    if (!yesterdayTrendEntry || yesterdayTrendEntry.recovery === 0) return null;
+    return Math.round(((data.todayRecovery - yesterdayTrendEntry.recovery) / yesterdayTrendEntry.recovery) * 100);
+  })();
+
   return (
     <div className="space-y-6 page-transition">
-      {/* Welcome Banner */}
-      <div className="bg-primary rounded-xl p-5 text-white relative overflow-hidden">
-        {/* Mesh gradient overlay */}
-        <div className="absolute inset-0 opacity-40" />
-        <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/4" />
-        <div className="absolute bottom-0 left-1/2 w-24 h-24 rounded-full bg-white/5 translate-y-1/2" />
-        <div className="absolute top-1/2 left-1/3 w-16 h-16 rounded-full bg-white/5 blur-sm" />
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-1">
-            <Home className="h-5 w-5 text-white/80" />
-            <h2 className="text-lg font-bold">Welcome back, {user?.name?.split(' ')[0] || 'Admin'}</h2>
-          </div>
-          <p className="text-sm text-white/90">
+      {/* Welcome Header — minimal */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900 tracking-tight">
+            Welcome back, {user?.name?.split(' ')[0] || 'Admin'}
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
             {new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             {' · '}
             {data.totalShops} shops across {data.orderbookers.length} orderbookers
           </p>
         </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="dot-pattern rounded-xl p-5">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
-          <Card className="kpi-card card-hover border border-border card-border-glow hover-scale-102 ">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shadow-sm">
-                  <ArrowUpRight className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <span className="text-[11px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-bold px-2.5 py-0.5 rounded-full">Today</span>
-              </div>
-              <p className="text-sm text-foreground font-semibold mb-0.5">Today&apos;s Credit</p>
-              <p className="text-2xl font-bold text-foreground tabular-nums number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
-            </CardContent>
-          </Card>
-          <Card className="kpi-card card-hover border border-border stat-pulse animate-fade-in card-border-glow hover-scale-102 ">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shadow-sm">
-                  <ArrowDownRight className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-[11px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold px-2.5 py-0.5 rounded-full">Today</span>
-              </div>
-              <p className="text-sm text-foreground font-semibold mb-0.5">Today&apos;s Recovery</p>
-              <p className="text-2xl font-bold text-foreground tabular-nums number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
-            </CardContent>
-          </Card>
-          <Card className="kpi-card card-hover border border-border card-border-glow hover-scale-102 ">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shadow-sm">
-                  <Wallet className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <span className="text-[11px] bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-bold px-2.5 py-0.5 rounded-full">Alert</span>
-              </div>
-              <p className="text-sm text-foreground font-semibold mb-0.5">Total Outstanding</p>
-              <p className="text-2xl font-bold text-foreground tabular-nums number-animate number-display">{formatPKR(animatedOutstanding)}</p>
-            </CardContent>
-          </Card>
-          <Card className="kpi-card card-hover border border-border card-border-glow hover-scale-102 ">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="h-10 w-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center shadow-sm">
-                  <Store className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-                </div>
-                <span className="text-[11px] bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 font-bold px-2.5 py-0.5 rounded-full">All</span>
-              </div>
-              <p className="text-sm text-foreground font-semibold mb-0.5">Total Active Shops</p>
-              <p className="text-2xl font-bold tabular-nums number-animate number-display">{animatedTotalShops}</p>
-            </CardContent>
-          </Card>
+        <div className="hidden sm:flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <span className="text-xs text-slate-500 font-medium">Live · updated every 60s</span>
         </div>
       </div>
 
-      {/* Monthly Overview Badge */}
-      <Card className="animate-fade-in overflow-hidden">
-        <CardContent className="p-0">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 border-b border-border/60">
-            <Calendar className="h-4 w-4 text-primary shrink-0" />
-            <span className="text-sm font-bold text-primary">
-              Monthly Overview — {monthSummary?.monthLabel || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-            </span>
+      {/* KPI Cards — Clean Minimal */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Today's Credit */}
+        <div className="bg-white border border-slate-200 rounded-lg p-5 hover:border-slate-300 transition-colors">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
+            <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wider">Today&apos;s Credit</span>
           </div>
-          <div className="overflow-x-auto">
-            <div className="flex gap-2 px-4 py-3 min-w-max">
-              {/* Credit */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-foreground font-medium">Credit:</span>
-                <span className="text-xs font-bold text-foreground tabular-nums">{formatPKR(monthSummary?.totalCredit ?? 0)}</span>
-                {monthSummary && monthSummary.prevTotalCredit > 0 && (
-                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                    monthSummary.creditChangePct !== 0
-                      ? monthSummary.creditChangePct > 0
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                        : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-800'
-                      : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {monthSummary.creditChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
-                    {Math.abs(monthSummary.creditChangePct)}%
-                  </span>
-                )}
-              </div>
-              <span className="text-border">|</span>
-              {/* Recovery */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-foreground font-medium">Recovery:</span>
-                <span className="text-xs font-bold text-foreground tabular-nums">{formatPKR(monthSummary?.totalRecovery ?? 0)}</span>
-                {monthSummary && monthSummary.prevTotalRecovery > 0 && (
-                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                    monthSummary.recoveryChangePct !== 0
-                      ? monthSummary.recoveryChangePct > 0
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                        : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-800'
-                      : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {monthSummary.recoveryChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
-                    {Math.abs(monthSummary.recoveryChangePct)}%
-                  </span>
-                )}
-              </div>
-              <span className="text-border">|</span>
-              {/* Net */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-foreground font-medium">Net:</span>
-                <span className={`text-xs font-bold tabular-nums text-foreground`}>
-                  {formatPKR(monthSummary?.netPosition ?? 0)}
+          <p className="text-[28px] font-bold text-slate-900 tabular-nums leading-none number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
+          <p className="text-[11px] text-slate-500 mt-2">
+            {creditChangePct !== null ? (
+              <span className={creditChangePct >= 0 ? 'text-emerald-600 font-medium' : 'text-red-600 font-medium'}>
+                {creditChangePct >= 0 ? '+' : ''}{creditChangePct}% from yesterday
+              </span>
+            ) : (
+              <span>Total credits posted today</span>
+            )}
+          </p>
+        </div>
+        {/* Today's Recovery */}
+        <div className="bg-white border border-slate-200 rounded-lg p-5 hover:border-slate-300 transition-colors">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wider">Today&apos;s Recovery</span>
+          </div>
+          <p className="text-[28px] font-bold text-slate-900 tabular-nums leading-none number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
+          <p className="text-[11px] text-slate-500 mt-2">
+            {recoveryChangePct !== null ? (
+              <span className={recoveryChangePct >= 0 ? 'text-emerald-600 font-medium' : 'text-red-600 font-medium'}>
+                {recoveryChangePct >= 0 ? '+' : ''}{recoveryChangePct}% from yesterday
+              </span>
+            ) : (
+              <span>Total recoveries collected today</span>
+            )}
+          </p>
+        </div>
+        {/* Total Outstanding */}
+        <div className="bg-white border border-slate-200 rounded-lg p-5 hover:border-slate-300 transition-colors">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="h-2 w-2 rounded-full bg-amber-500" />
+            <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wider">Total Outstanding</span>
+          </div>
+          <p className="text-[28px] font-bold text-slate-900 tabular-nums leading-none number-animate number-display">{formatPKR(animatedOutstanding)}</p>
+          <p className="text-[11px] text-slate-500 mt-2">
+            <span>Outstanding across all shops</span>
+          </p>
+        </div>
+        {/* Total Active Shops */}
+        <div className="bg-white border border-slate-200 rounded-lg p-5 hover:border-slate-300 transition-colors">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="h-2 w-2 rounded-full bg-cyan-500" />
+            <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wider">Active Shops</span>
+          </div>
+          <p className="text-[28px] font-bold text-slate-900 tabular-nums leading-none number-animate number-display">{animatedTotalShops}</p>
+          <p className="text-[11px] text-slate-500 mt-2">
+            <span>Across {data.orderbookers.length} orderbookers</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Monthly Overview — minimal */}
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200">
+          <Calendar className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+          <span className="text-sm font-semibold text-slate-900">
+            Monthly Overview — {monthSummary?.monthLabel || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <div className="flex gap-3 px-4 py-3 min-w-max items-center">
+            {/* Credit */}
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
+              <span className="text-xs text-slate-500 font-medium">Credit:</span>
+              <span className="text-xs font-bold text-slate-900 tabular-nums">{formatPKR(monthSummary?.totalCredit ?? 0)}</span>
+              {monthSummary && monthSummary.prevTotalCredit > 0 && (
+                <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
+                  monthSummary.creditChangePct !== 0
+                    ? monthSummary.creditChangePct > 0
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                    : 'bg-slate-50 text-slate-500 border-slate-200'
+                }`}>
+                  {monthSummary.creditChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
+                  {Math.abs(monthSummary.creditChangePct)}%
                 </span>
-                {monthSummary && monthSummary.prevNetPosition !== 0 && (
-                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                    monthSummary.netChangePct !== 0
-                      ? monthSummary.netChangePct > 0
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                        : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-800'
-                      : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {monthSummary.netChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
-                    {Math.abs(monthSummary.netChangePct)}%
-                  </span>
-                )}
-              </div>
+              )}
+            </div>
+            <span className="text-slate-200">|</span>
+            {/* Recovery */}
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="text-xs text-slate-500 font-medium">Recovery:</span>
+              <span className="text-xs font-bold text-slate-900 tabular-nums">{formatPKR(monthSummary?.totalRecovery ?? 0)}</span>
+              {monthSummary && monthSummary.prevTotalRecovery > 0 && (
+                <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
+                  monthSummary.recoveryChangePct !== 0
+                    ? monthSummary.recoveryChangePct > 0
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                    : 'bg-slate-50 text-slate-500 border-slate-200'
+                }`}>
+                  {monthSummary.recoveryChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
+                  {Math.abs(monthSummary.recoveryChangePct)}%
+                </span>
+              )}
+            </div>
+            <span className="text-slate-200">|</span>
+            {/* Net */}
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+              <span className="text-xs text-slate-500 font-medium">Net:</span>
+              <span className={`text-xs font-bold tabular-nums text-slate-900`}>
+                {formatPKR(monthSummary?.netPosition ?? 0)}
+              </span>
+              {monthSummary && monthSummary.prevNetPosition !== 0 && (
+                <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
+                  monthSummary.netChangePct !== 0
+                    ? monthSummary.netChangePct > 0
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                    : 'bg-slate-50 text-slate-500 border-slate-200'
+                }`}>
+                  {monthSummary.netChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
+                  {Math.abs(monthSummary.netChangePct)}%
+                </span>
+              )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Pending Recovery Alert Banner */}
       <PendingRecoveryBanner onNavigate={(path) => router.push(path)} />
@@ -830,181 +811,169 @@ export default function AdminDashboard() {
       {/* Overdue Shops Alert */}
       <OverdueShopsAlert onNavigate={(path) => router.push(path)} />
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-3">
-        <Button
-            type="button"
-          variant="outline"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group "
+      {/* Quick Actions — 4 ghost buttons */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <button
+          type="button"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-all group"
           onClick={() => router.push('/credit-posting')}
         >
-          <div className="h-9 w-9 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/60 transition-colors">
-            <CreditCard className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-          </div>
-          <span className="text-xs font-medium">Post Credit</span>
-        </Button>
-        <Button
-            type="button"
-          variant="outline"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group "
+          <CreditCard className="h-5 w-5 text-[#2563EB]" />
+          <span className="text-xs font-medium text-slate-700">Post Credit</span>
+        </button>
+        <button
+          type="button"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-all group"
           onClick={() => router.push('/recovery')}
         >
-          <div className="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/60 transition-colors">
-            <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <span className="text-xs font-medium">Recovery Report</span>
-        </Button>
-        <Button
-            type="button"
-          variant="outline"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 hover:bg-primary/5 hover:border-primary/30 hover:shadow-sm transition-all group "
+          <TrendingUp className="h-5 w-5 text-emerald-600" />
+          <span className="text-xs font-medium text-slate-700">Recovery Report</span>
+        </button>
+        <button
+          type="button"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-all group"
           onClick={() => router.push('/shops')}
         >
-          <div className="h-9 w-9 rounded-lg bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center group-hover:bg-cyan-200 dark:group-hover:bg-cyan-800/60 transition-colors">
-            <Plus className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-          </div>
-          <span className="text-xs font-medium">Add Shop</span>
-        </Button>
+          <Plus className="h-5 w-5 text-cyan-600" />
+          <span className="text-xs font-medium text-slate-700">Add Shop</span>
+        </button>
+        <button
+          type="button"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-all group"
+          onClick={() => router.push('/audit')}
+        >
+          <Activity className="h-5 w-5 text-slate-600" />
+          <span className="text-xs font-medium text-slate-700">View Activity</span>
+        </button>
       </div>
 
-      {/* Today's Key Metrics Summary Strip */}
-      <Card className="animate-fade-in">
-        <CardContent className="p-4">
-          <div className="overflow-x-auto">
-            <div className="flex gap-3 min-w-max snap-x snap-mandatory pb-1">
-              {/* Total Credit Today */}
-              <div className="flex items-center gap-2.5 rounded-full bg-indigo-50 border border-indigo-200/60 dark:bg-indigo-900/20 dark:border-indigo-700/40 px-4 py-2.5 snap-center">
-                <div className="h-7 w-7 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
-                  <TrendingUp className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-medium text-muted-foreground leading-none">Total Credit Today</span>
-                  <span className="text-sm font-bold text-foreground tabular-nums leading-tight mt-0.5">{formatPKR(data.todayCredit)}</span>
-                </div>
+      {/* Today's Key Metrics Summary Strip — minimal */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4">
+        <div className="overflow-x-auto">
+          <div className="flex gap-4 min-w-max snap-x snap-mandatory pb-1 items-center">
+            {/* Total Credit Today */}
+            <div className="flex items-center gap-2 snap-center">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider leading-none">Credit Today</span>
+                <span className="text-sm font-bold text-slate-900 tabular-nums leading-tight mt-0.5">{formatPKR(data.todayCredit)}</span>
               </div>
-              {/* Total Recovery Today */}
-              <div className="flex items-center gap-2.5 rounded-full bg-emerald-50 border border-emerald-200/60 dark:bg-emerald-900/20 dark:border-emerald-700/40 px-4 py-2.5 snap-center">
-                <div className="h-7 w-7 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
-                  <ArrowDownRight className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-medium text-muted-foreground leading-none">Total Recovery Today</span>
-                  <span className="text-sm font-bold text-foreground tabular-nums leading-tight mt-0.5">{formatPKR(data.todayRecovery)}</span>
-                </div>
+            </div>
+            <span className="text-slate-200">|</span>
+            {/* Total Recovery Today */}
+            <div className="flex items-center gap-2 snap-center">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider leading-none">Recovery Today</span>
+                <span className="text-sm font-bold text-slate-900 tabular-nums leading-tight mt-0.5">{formatPKR(data.todayRecovery)}</span>
               </div>
-              {/* Transactions */}
-              <div className="flex items-center gap-2.5 rounded-full bg-amber-50 border border-amber-200/60 dark:bg-amber-900/20 dark:border-amber-700/40 px-4 py-2.5 snap-center">
-                <div className="h-7 w-7 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
-                  <Hash className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-medium text-muted-foreground leading-none">Transactions</span>
-                  <span className="text-sm font-bold text-foreground tabular-nums leading-tight mt-0.5">{data.todayTxns.length} entries</span>
-                </div>
+            </div>
+            <span className="text-slate-200">|</span>
+            {/* Transactions */}
+            <div className="flex items-center gap-2 snap-center">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider leading-none">Transactions</span>
+                <span className="text-sm font-bold text-slate-900 tabular-nums leading-tight mt-0.5">{data.todayTxns.length} entries</span>
               </div>
-              {/* Shops Active */}
-              <div className="flex items-center gap-2.5 rounded-full bg-primary/5 border border-primary/15 px-4 py-2.5 snap-center">
-                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <CalendarDays className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-medium text-primary/60 leading-none">Shops Active</span>
-                  <span className="text-sm font-bold text-primary tabular-nums leading-tight mt-0.5">{data.totalShops}</span>
-                </div>
+            </div>
+            <span className="text-slate-200">|</span>
+            {/* Shops Active */}
+            <div className="flex items-center gap-2 snap-center">
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider leading-none">Shops Active</span>
+                <span className="text-sm font-bold text-slate-900 tabular-nums leading-tight mt-0.5">{data.totalShops}</span>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* SMS Report Card */}
+      {/* SMS Report Card — minimal */}
       {smsReport && smsReport.total > 0 && (
-        <Card className="animate-fade-in overflow-hidden">
-          <CardContent className="p-0">
-            <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-primary/10 border-b border-border/60">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-sm font-bold text-primary">SMS Report — Today</span>
-              </div>
-              <button
-                onClick={() => router.push('/sms-tracking')}
-                className="text-xs text-primary hover:underline font-medium flex items-center gap-1"
-              >
-                View Details <ChevronRight className="h-3 w-3" />
-              </button>
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
+          <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+              <span className="text-sm font-semibold text-slate-900">SMS Report — Today</span>
             </div>
-            <div className="p-4">
-              <div className="grid grid-cols-4 gap-3 mb-4">
-                <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase">Total</p>
-                  <p className="text-lg font-bold text-foreground tabular-nums">{smsReport.total}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase">Sent</p>
-                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{smsReport.sent}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase">Failed</p>
-                  <p className="text-lg font-bold text-red-600 dark:text-red-400 tabular-nums">{smsReport.failed}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase">Skipped</p>
-                  <p className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums">{smsReport.skipped}</p>
-                </div>
-              </div>
-
-              {smsReport.perOB.length > 0 && (
-                <div className="space-y-2">
-                  {smsReport.perOB.map((ob) => (
-                    <div key={ob.orderbookerId} className="flex items-center justify-between gap-2 text-xs py-1.5 px-2 rounded-lg hover:bg-muted/50 transition-colors">
-                      <span className="font-medium text-foreground truncate">{ob.orderbookerName}</span>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400" title="Sent">
-                          <CheckCircle2 className="h-3 w-3" />
-                          <span className="font-semibold tabular-nums">{ob.sent}</span>
-                        </span>
-                        {ob.failed > 0 && (
-                          <span className="flex items-center gap-1 text-red-600 dark:text-red-400" title="Failed">
-                            <XCircle className="h-3 w-3" />
-                            <span className="font-semibold tabular-nums">{ob.failed}</span>
-                          </span>
-                        )}
-                        {ob.skipped > 0 && (
-                          <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400" title="Skipped">
-                            <SkipForward className="h-3 w-3" />
-                            <span className="font-semibold tabular-nums">{ob.skipped}</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Recent Activity Feed */}
-      <Card className="animate-fade-in">
-        <CardHeader className="pb-2 pt-4 px-5">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
-              Recent Activity
-            </CardTitle>
             <button
-              className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
-              onClick={() => router.push('/audit')}
+              onClick={() => router.push('/sms-tracking')}
+              className="text-xs text-[#2563EB] hover:text-[#1E40AF] font-medium flex items-center gap-1 transition-colors"
             >
-              View All
-              <ExternalLink className="h-3 w-3" />
+              View Details <ChevronRight className="h-3 w-3" />
             </button>
           </div>
-        </CardHeader>
-        <CardContent className="px-5 pb-4">
+          <div className="p-4">
+            <div className="grid grid-cols-4 gap-3 mb-4">
+              <div className="text-center">
+                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Total</p>
+                <p className="text-lg font-bold text-slate-900 tabular-nums mt-0.5">{smsReport.total}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Sent</p>
+                <p className="text-lg font-bold text-emerald-600 tabular-nums mt-0.5">{smsReport.sent}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Failed</p>
+                <p className="text-lg font-bold text-red-600 tabular-nums mt-0.5">{smsReport.failed}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Skipped</p>
+                <p className="text-lg font-bold text-amber-600 tabular-nums mt-0.5">{smsReport.skipped}</p>
+              </div>
+            </div>
+
+            {smsReport.perOB.length > 0 && (
+              <div className="space-y-1 border-t border-slate-100 pt-2">
+                {smsReport.perOB.map((ob) => (
+                  <div key={ob.orderbookerId} className="flex items-center justify-between gap-2 text-xs py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">
+                    <span className="font-medium text-slate-700 truncate">{ob.orderbookerName}</span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="flex items-center gap-1 text-emerald-600" title="Sent">
+                        <CheckCircle2 className="h-3 w-3" />
+                        <span className="font-semibold tabular-nums">{ob.sent}</span>
+                      </span>
+                      {ob.failed > 0 && (
+                        <span className="flex items-center gap-1 text-red-600" title="Failed">
+                          <XCircle className="h-3 w-3" />
+                          <span className="font-semibold tabular-nums">{ob.failed}</span>
+                        </span>
+                      )}
+                      {ob.skipped > 0 && (
+                        <span className="flex items-center gap-1 text-amber-600" title="Skipped">
+                          <SkipForward className="h-3 w-3" />
+                          <span className="font-semibold tabular-nums">{ob.skipped}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Activity Feed — minimal */}
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
+          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+            <Clock className="h-4 w-4 text-slate-500" />
+            Recent Activity
+          </h3>
+          <button
+            className="text-xs text-[#2563EB] hover:text-[#1E40AF] font-medium flex items-center gap-1 transition-colors"
+            onClick={() => router.push('/audit')}
+          >
+            View All
+            <ExternalLink className="h-3 w-3" />
+          </button>
+        </div>
+        <div className="px-5 pb-4">
           {recentTxnsLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-3 pt-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <Skeleton className="skeleton-shimmer h-6 w-6 rounded-full shrink-0" />
@@ -1017,64 +986,56 @@ export default function AdminDashboard() {
               ))}
             </div>
           ) : recentTxns.length === 0 ? (
-            <div className="text-center py-4">
-              <p className="text-sm text-muted-foreground">No recent transactions</p>
+            <div className="text-center py-6">
+              <p className="text-sm text-slate-500">No recent transactions</p>
             </div>
           ) : (
-            <div className="space-y-1">
+            <div className="divide-y divide-slate-100">
               {recentTxns.map((txn) => (
                 <div
                   key={txn.id}
-                  className="flex items-center justify-between gap-3 py-2 px-2 rounded-lg hover:bg-muted/50 transition-colors cursor-default"
+                  className="flex items-center justify-between gap-3 py-2.5 px-2 -mx-2 rounded-md hover:bg-slate-50 transition-colors cursor-default"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 bg-muted`}>
-                      {txn.type === 'credit' ? (
-                        <ArrowUpRight className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
-                      ) : (
-                        <ArrowDownRight className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
-                      )}
-                    </div>
+                    <span className={`h-2 w-2 rounded-full shrink-0 ${txn.type === 'credit' ? 'bg-[#2563EB]' : txn.type === 'claim' ? 'bg-red-500' : 'bg-emerald-500'}`} />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{txn.shop.name}</p>
+                      <p className="text-sm font-medium text-slate-900 truncate">{txn.shop.name}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <Badge className={`text-[9px] px-1.5 py-0 font-medium ${txn.type === 'claim' ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border-red-200 dark:border-red-800' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>
+                        <span className={`text-[10px] font-medium px-1.5 py-0 rounded-full border ${txn.type === 'claim' ? 'bg-red-50 text-red-700 border-red-200' : txn.type === 'credit' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                           {txn.type === 'credit' ? 'Credit' : txn.type === 'claim' ? 'Claim' : 'Recovery'}
-                        </Badge>
-                        <span className="text-[10px] text-muted-foreground tabular-nums">{getTimeAgo(txn.createdAt)}</span>
+                        </span>
+                        <span className="text-[10px] text-slate-500 tabular-nums">{getTimeAgo(txn.createdAt)}</span>
                       </div>
                     </div>
                   </div>
-                  <span className={`text-sm font-bold tabular-nums shrink-0 ${txn.type === 'claim' ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>
+                  <span className={`text-sm font-bold tabular-nums shrink-0 ${txn.type === 'claim' ? 'text-red-600' : 'text-slate-900'}`}>
                     {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
                   </span>
                 </div>
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Live Recovery Feed */}
-      <Card className="animate-fade-in">
-        <CardHeader className="pb-2 pt-4 px-5">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-slate-700 dark:bg-slate-300 animate-pulse" />
-              Live Recovery Feed
-            </CardTitle>
-            <button
-              className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
-              onClick={() => router.push('/recovery')}
-            >
-              Full Report
-              <ExternalLink className="h-3 w-3" />
-            </button>
-          </div>
-        </CardHeader>
-        <CardContent className="px-5 pb-4">
+      {/* Live Recovery Feed — minimal */}
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
+          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            Live Recovery Feed
+          </h3>
+          <button
+            className="text-xs text-[#2563EB] hover:text-[#1E40AF] font-medium flex items-center gap-1 transition-colors"
+            onClick={() => router.push('/recovery')}
+          >
+            Full Report
+            <ExternalLink className="h-3 w-3" />
+          </button>
+        </div>
+        <div className="px-5 pb-4">
           {recentTxnsLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-3 pt-3">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <Skeleton className="skeleton-shimmer h-6 w-6 rounded-full shrink-0" />
@@ -1090,42 +1051,39 @@ export default function AdminDashboard() {
             const recoveryTxns = recentTxns.filter(t => t.type === 'recovery' && t.status === 'approved').slice(0, 8);
             if (recoveryTxns.length === 0) {
               return (
-                <div className="text-center py-6">
-                  <p className="text-sm text-muted-foreground">No recovery entries today</p>
-                  <p className="text-xs text-muted-foreground mt-1">Recovery from orderbookers will appear here in real-time</p>
+                <div className="text-center py-8">
+                  <p className="text-sm text-slate-500">No recovery entries today</p>
+                  <p className="text-xs text-slate-500 mt-1">Recovery from orderbookers will appear here in real-time</p>
                 </div>
               );
             }
             const totalLiveRecovery = recoveryTxns.reduce((s, t) => s + t.amount, 0);
             return (
               <>
-                <div className="flex items-center gap-2 mb-3 px-2">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                    <Banknote className="h-3 w-3 text-slate-600 dark:text-slate-300" />
-                    <span className="text-xs font-bold text-foreground">{formatPKR(totalLiveRecovery)}</span>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground">across {recoveryTxns.length} entries</span>
+                <div className="flex items-center gap-2 mb-2 mt-2 px-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Live</span>
+                  <span className="text-sm font-bold text-slate-900 tabular-nums">{formatPKR(totalLiveRecovery)}</span>
+                  <span className="text-[10px] text-slate-500">· across {recoveryTxns.length} entries</span>
                 </div>
-                <div className="space-y-1">
+                <div className="divide-y divide-slate-100">
                   {recoveryTxns.map((txn) => (
                     <div
                       key={txn.id}
-                      className="flex items-center justify-between gap-3 py-2.5 px-2 rounded-lg hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors cursor-default"
+                      className="flex items-center justify-between gap-3 py-2.5 px-2 -mx-2 rounded-md hover:bg-slate-50 transition-colors cursor-default"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center shrink-0">
-                          <ArrowDownRight className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
-                        </div>
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{txn.shop.name}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                          <p className="text-sm font-medium text-slate-900 truncate">{txn.shop.name}</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
                             <span>{txn.creator?.name || 'System'}</span>
                             <span>·</span>
                             <span>{getTimeAgo(txn.createdAt)}</span>
                           </p>
                         </div>
                       </div>
-                      <span className="text-sm font-bold text-foreground tabular-nums shrink-0">
+                      <span className="text-sm font-bold text-slate-900 tabular-nums shrink-0">
                         -{formatPKR(txn.amount)}
                       </span>
                     </div>
@@ -1134,63 +1092,78 @@ export default function AdminDashboard() {
               </>
             );
           })()}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Divider */}
-      <hr className="divider-gradient" />
+      {/* Divider — minimal */}
+      <div className="border-t border-slate-200" />
 
-      <DashboardCharts trends={trends} orderbookers={data.orderbookers} routeData={routeData} allShopsCount={allShops.length} />
-
-      {/* OB Performance Summary Cards */}
-      <Card className="animate-fade-in overflow-hidden">
-        <CardHeader className="pb-3 pt-4 px-5">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Users className="h-4 w-4 text-primary" />
-              OB Performance Summary
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
-                <Sparkles className="h-3 w-3 text-primary/50" />
-                7d Recovery Trend
-              </span>
-              <span className="text-[10px] text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">
-                {data.orderbookers.length} orderbookers
-              </span>
+      {/* Charts section — wrapped with Clean Minimal title */}
+      <div className="bg-white border border-slate-200 rounded-lg p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-semibold text-slate-900">Recovery Trend — Last 7 Days</h3>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
+              <span className="text-[11px] text-slate-500 font-medium">Credit</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="text-[11px] text-slate-500 font-medium">Recovery</span>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="px-5 pb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger-children">
+        </div>
+        <DashboardCharts trends={trends} orderbookers={data.orderbookers} routeData={routeData} allShopsCount={allShops.length} />
+      </div>
+
+      {/* OB Performance Summary — minimal */}
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
+          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+            <Users className="h-4 w-4 text-slate-500" />
+            OB Performance Summary
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-slate-400" />
+              7d Recovery Trend
+            </span>
+            <span className="text-[10px] text-slate-600 font-medium bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full">
+              {data.orderbookers.length} orderbookers
+            </span>
+          </div>
+        </div>
+        <div className="p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {data.orderbookers.map((ob) => {
               const maxOutstanding = Math.max(...data.orderbookers.map(o => o.totalOutstanding), 1);
               const pct = (ob.totalOutstanding / maxOutstanding) * 100;
-              const colorClass = 'text-foreground';
-              const progressClass = 'progress-gradient-green';
-              const avatarColors = ['bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300', 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300', 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300', 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'];
+              const avatarColors = ['bg-blue-50 text-[#1E40AF] border-blue-100', 'bg-amber-50 text-amber-700 border-amber-100', 'bg-emerald-50 text-emerald-700 border-emerald-100', 'bg-cyan-50 text-cyan-700 border-cyan-100', 'bg-violet-50 text-violet-700 border-violet-100', 'bg-rose-50 text-rose-700 border-rose-100'];
               const avatarIdx = ob.name.charCodeAt(0) % avatarColors.length;
               const spark = sparklineData.find(s => s.orderbookerId === ob.id);
               return (
-                <div key={ob.id} className="card-hover rounded-xl p-3.5 cursor-default" onClick={() => router.push('/analytics')}>
+                <div key={ob.id} className="border border-slate-200 rounded-lg p-3.5 hover:border-slate-300 transition-colors cursor-default" onClick={() => router.push('/analytics')}>
                   <div className="flex items-center gap-3 mb-3">
-                    <div className={`h-9 w-9 rounded-full avatar-initials text-sm ${avatarColors[avatarIdx]}`}>
+                    <div className={`h-9 w-9 rounded-full border flex items-center justify-center text-sm font-bold shrink-0 ${avatarColors[avatarIdx]}`}>
                       {ob.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{ob.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{ob.totalShops} shops assigned</p>
+                      <p className="text-sm font-semibold text-slate-900 truncate">{ob.name}</p>
+                      <p className="text-[10px] text-slate-500">{ob.totalShops} shops assigned</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-muted-foreground">Outstanding</span>
-                    <span className={`text-sm font-bold tabular-nums ${colorClass}`}>{formatPKR(ob.totalOutstanding)}</span>
+                    <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">Outstanding</span>
+                    <span className="text-sm font-bold text-slate-900 tabular-nums">{formatPKR(ob.totalOutstanding)}</span>
                   </div>
-                  <div className={`progress-gradient ${progressClass} mb-2.5`}>
-                    <div style={{ width: `${Math.min(pct, 100)}%` }} />
+                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mb-2.5">
+                    <div
+                      className="h-full rounded-full bg-[#2563EB] transition-all duration-500"
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    />
                   </div>
                   {/* Recovery Trend Sparkline */}
-                  <div className="bg-muted/40 rounded-lg p-2 border border-border/30">
+                  <div className="bg-slate-50 border border-slate-100 rounded-md p-2">
                     {sparklineLoading ? (
                       <div className="flex items-center justify-between">
                         <Skeleton className="skeleton-shimmer h-4 w-20" />
@@ -1200,12 +1173,12 @@ export default function AdminDashboard() {
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <RecoverySparkline data={spark.data} width={80} height={24} />
-                          <span className="text-[9px] text-muted-foreground leading-tight">
-                            7d avg: <span className="font-semibold text-foreground tabular-nums">{formatPKR(spark.avg)}</span>
+                          <span className="text-[9px] text-slate-500 leading-tight">
+                            7d avg: <span className="font-semibold text-slate-900 tabular-nums">{formatPKR(spark.avg)}</span>
                           </span>
                         </div>
                         <span className={`text-[10px] font-bold tabular-nums shrink-0 flex items-center gap-0.5 ${
-                          spark.trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : spark.trend === 'down' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                          spark.trend === 'up' ? 'text-emerald-600' : spark.trend === 'down' ? 'text-red-500' : 'text-slate-500'
                         }`}>
                           {spark.trend === 'up' ? <ArrowUp className="h-3 w-3" /> : spark.trend === 'down' ? <ArrowDown className="h-3 w-3" /> : <span className="text-[8px]">—</span>}
                           {spark.trend !== 'stable' ? (
@@ -1215,8 +1188,8 @@ export default function AdminDashboard() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <div className="h-6 w-16 flex items-center justify-center text-[10px] text-muted-foreground">No data</div>
-                        <span className="text-[9px] text-muted-foreground">No recovery in 7 days</span>
+                        <div className="h-6 w-16 flex items-center justify-center text-[10px] text-slate-400">No data</div>
+                        <span className="text-[9px] text-slate-500">No recovery in 7 days</span>
                       </div>
                     )}
                   </div>
@@ -1224,268 +1197,253 @@ export default function AdminDashboard() {
               );
             })}
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Orderbooker Overview */}
-        <Card>
-          <CardHeader className="pb-3 pt-4 px-5">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Users className="h-4 w-4 text-primary" />
-              Orderbooker Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="max-h-80">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-800 dark:bg-slate-900 hover:bg-slate-800 dark:hover:bg-slate-900">
-                    <TableHead className="text-white font-semibold text-xs">Name</TableHead>
-                    <TableHead className="text-white font-semibold text-xs text-center">Shops</TableHead>
-                    <TableHead className="text-white font-semibold text-xs text-right">Outstanding</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.orderbookers.map((ob, idx) => (
-                    <TableRow key={ob.id} className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'}`}>
-                      <TableCell className="text-sm font-medium">{ob.name}</TableCell>
-                      <TableCell className="text-center">
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                          {ob.totalShops}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-sm font-semibold text-foreground number-animate">{formatPKR(ob.totalOutstanding)}</span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {data.orderbookers.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center py-6 text-sm text-muted-foreground">No orderbookers</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Top Debtors */}
-        <Card className="hover-scale-102">
-          <CardHeader className="pb-3 pt-4 px-5">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-              Top 5 Debtors
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="max-h-80">
-              <div className="px-5 py-2 space-y-3">
-                {topDebtors.length > 0 && topDebtors.some(s => s.balance > 0) ? (
-                  topDebtors.map((shop, idx) => {
-                    const pct = maxDebt > 0 ? (shop.balance / maxDebt) * 100 : 0;
-                    const debtorColors = ['bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400', 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400', 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400', 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400', 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400'];
-                    const barColors = ['bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-yellow-500', 'bg-rose-500'];
-                    return (
-                      <div key={shop.id} className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${debtorColors[idx] || debtorColors[0]}`}>
-                              {idx + 1}
-                            </span>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">{shop.name}</p>
-                              <p className="text-[11px] text-muted-foreground truncate">{shop.area || '—'}</p>
-                            </div>
-                          </div>
-                          <span className="text-sm font-bold text-foreground tabular-nums shrink-0 ml-2 number-animate">{formatPKR(shop.balance)}</span>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${barColors[idx] || barColors[0]} transition-all duration-500`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-6 text-sm text-muted-foreground">
-                    <TrendingDown className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                    <p className="font-medium">No outstanding balances</p>
-                    <p className="text-xs mt-1">All shops are settled</p>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+        </div>
       </div>
 
-      {/* Activity Timeline */}
-      <Card className="animate-fade-in">
-        <CardHeader className="pb-3 pt-4 px-5">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Activity className="h-4 w-4 text-primary" />
-            Activity Timeline
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ScrollArea className="max-h-[480px] custom-scrollbar">
-            <div className="px-5 py-3">
-              {timelineLoading ? (
-                <div className="space-y-6">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="flex gap-3">
-                      <Skeleton className="skeleton-shimmer h-6 w-6 rounded-full shrink-0" />
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="skeleton-shimmer h-4 w-48" />
-                        <Skeleton className="skeleton-shimmer h-3 w-32" />
-                      </div>
-                      <Skeleton className="skeleton-shimmer h-5 w-16" />
-                    </div>
-                  ))}
-                </div>
-              ) : timelineGroups.length === 0 ? (
-                <div className="text-center py-10">
-                  <div className="empty-state-illustration mx-auto mb-4 h-20 w-20">
-                    <div className="relative z-10 h-20 w-20 rounded-full bg-muted flex items-center justify-center">
-                      <Clock className="h-9 w-9 text-primary/60 animate-gentle-float" />
-                    </div>
-                  </div>
-                  <p className="font-semibold text-muted-foreground text-sm">No recent activity</p>
-                  <p className="text-xs text-muted-foreground/70 mt-1.5 max-w-xs mx-auto leading-relaxed">
-                    Post credit or collect recovery to see activity here.
-                  </p>
-                  <button
-                    className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors "
-                    onClick={() => router.push('/credit-posting')}
-                  >
-                    <CreditCard className="h-3.5 w-3.5" />
-                    Post Credit
-                  </button>
-                </div>
-              ) : (
-                <div className="relative pl-8">
-                  {/* Vertical timeline line */}
-                  <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
-                  {timelineGroups.map((group) => (
-                    <div key={group.key} className="mb-6 last:mb-0">
-                      {/* Date Header */}
-                      <div className="flex items-center gap-3 mb-3 -ml-8">
-                        <div className="h-[22px] w-[22px] rounded-full bg-primary/10 flex items-center justify-center ring-4 ring-background z-10 shrink-0">
-                          <div className="h-2 w-2 rounded-full bg-primary" />
-                        </div>
-                        <h3 className="text-sm font-semibold text-foreground">{group.label}</h3>
-                      </div>
-                      {/* Entries for this date */}
-                      <div className="stagger-children">
-                        {group.entries.map((entry) => (
-                          <div key={entry.id} className="relative pb-4 last:pb-0 group">
-                            {/* Timeline dot with icon */}
-                            <div className={`absolute -left-8 top-0.5 h-[22px] w-[22px] rounded-full flex items-center justify-center ring-4 ring-background z-10 bg-muted`}>
-                              {entry.type === 'credit' ? (
-                                <ArrowUpRight className="h-3 w-3 text-slate-600 dark:text-slate-300" />
-                              ) : entry.type === 'recovery' ? (
-                                <ArrowDownRight className="h-3 w-3 text-slate-600 dark:text-slate-300" />
-                              ) : (
-                                <Pencil className="h-3 w-3 text-slate-600 dark:text-slate-300" />
-                              )}
-                            </div>
-                            {/* Timeline card */}
-                            <div className="rounded-lg border border-border/50 bg-card p-3 -mx-2 card-hover transition-all">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  {/* Time and badge */}
-                                  <div className="flex items-center gap-2 mb-1.5">
-                                    <span className="text-[11px] text-muted-foreground tabular-nums">{formatTimeFull(entry.createdAt)}</span>
-                                    <Badge className={`text-[9px] px-1.5 py-0 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700`}>
-                                      {entry.type === 'credit' ? 'Credit' : entry.type === 'recovery' ? 'Recovery' : 'Edit'}
-                                    </Badge>
-                                  </div>
-                                  {/* Shop name and area */}
-                                  <p className="text-sm font-medium leading-snug">
-                                    {entry.type === 'credit' ? 'Posted to' : entry.type === 'recovery' ? 'Collected from' : 'Updated'}{' '}
-                                    <span className="font-semibold">{entry.shopName}</span>
-                                    <span className="hidden sm:inline text-muted-foreground">{entry.shopArea ? ` · ${entry.shopArea}` : ''}</span>
-                                  </p>
-                                  {/* Posted by - hidden on mobile */}
-                                  <p className="text-[11px] text-muted-foreground mt-0.5 hidden sm:block">
-                                    by {entry.createdBy}
-                                  </p>
-                                </div>
-                                {/* Amount */}
-                                <div className="text-right shrink-0">
-                                  {entry.amount > 0 && (
-                                    <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300`}>
-                                      {entry.type === 'credit' ? '+' : '-'}{formatPKR(entry.amount)}
-                                    </span>
-                                  )}
-                                  <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
-                                    {entry.balanceAfter > 0 ? `Bal: ${formatPKR(entry.balanceAfter)}` : ''}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Orderbooker Overview — minimal table */}
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200">
+            <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <Users className="h-4 w-4 text-slate-500" />
+              Orderbooker Overview
+            </h3>
+          </div>
+          <ScrollArea className="max-h-80">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
+                  <TableHead className="text-slate-600 font-semibold text-xs uppercase tracking-wider">Name</TableHead>
+                  <TableHead className="text-slate-600 font-semibold text-xs uppercase tracking-wider text-center">Shops</TableHead>
+                  <TableHead className="text-slate-600 font-semibold text-xs uppercase tracking-wider text-right">Outstanding</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.orderbookers.map((ob) => (
+                  <TableRow key={ob.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <TableCell className="text-sm font-medium text-slate-900">{ob.name}</TableCell>
+                    <TableCell className="text-center">
+                      <span className="text-sm font-semibold text-slate-700 tabular-nums">{ob.totalShops}</span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className="text-sm font-semibold text-slate-900 tabular-nums number-animate">{formatPKR(ob.totalOutstanding)}</span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {data.orderbookers.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-6 text-sm text-slate-500">No orderbookers</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </div>
+
+        {/* Top Debtors — minimal */}
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200">
+            <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <TrendingDown className="h-4 w-4 text-slate-500" />
+              Top 5 Debtors
+            </h3>
+          </div>
+          <ScrollArea className="max-h-80">
+            <div className="px-5 py-4 space-y-3">
+              {topDebtors.length > 0 && topDebtors.some(s => s.balance > 0) ? (
+                topDebtors.map((shop, idx) => {
+                  const pct = maxDebt > 0 ? (shop.balance / maxDebt) * 100 : 0;
+                  return (
+                    <div key={shop.id} className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="text-[11px] font-bold text-slate-400 tabular-nums shrink-0 w-4">
+                            {idx + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">{shop.name}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{shop.area || '—'}</p>
                           </div>
-                        ))}
+                        </div>
+                        <span className="text-sm font-bold text-slate-900 tabular-nums shrink-0 ml-2 number-animate">{formatPKR(shop.balance)}</span>
+                      </div>
+                      <div className="h-1 rounded-full bg-slate-100 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-red-500 transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                     </div>
-                  ))}
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-sm text-slate-500">
+                  <TrendingDown className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="font-medium">No outstanding balances</p>
+                  <p className="text-xs mt-1">All shops are settled</p>
                 </div>
               )}
             </div>
           </ScrollArea>
-          {/* View All Activity Link */}
-          {timeline.length > 0 && (
-            <div className="border-t border-border/60 px-5 py-3">
-              <button
-                className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors group"
-                onClick={() => router.push('/audit')}
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                View All Activity
-                <ArrowUpRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
-              </button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Business Summary Widget */}
-      {bizSummary && (
-        <Card className="animate-fade-in overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-900/40 border-b border-border/40">
-            <Activity className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-xs font-semibold text-foreground">All-Time Business Summary</span>
+      {/* Activity Timeline — minimal */}
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
+        <div className="px-5 py-3.5 border-b border-slate-200">
+          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+            <Activity className="h-4 w-4 text-slate-500" />
+            Activity Timeline
+          </h3>
+        </div>
+        <ScrollArea className="max-h-[480px] custom-scrollbar">
+          <div className="px-5 py-3">
+            {timelineLoading ? (
+              <div className="space-y-6">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex gap-3">
+                    <Skeleton className="skeleton-shimmer h-6 w-6 rounded-full shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="skeleton-shimmer h-4 w-48" />
+                      <Skeleton className="skeleton-shimmer h-3 w-32" />
+                    </div>
+                    <Skeleton className="skeleton-shimmer h-5 w-16" />
+                  </div>
+                ))}
+              </div>
+            ) : timelineGroups.length === 0 ? (
+              <div className="text-center py-12">
+                <Clock className="h-8 w-8 mx-auto mb-3 text-slate-300" />
+                <p className="font-semibold text-slate-700 text-sm">No recent activity</p>
+                <p className="text-xs text-slate-500 mt-1.5 max-w-xs mx-auto leading-relaxed">
+                  Post credit or collect recovery to see activity here.
+                </p>
+                <button
+                  className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#EFF6FF] text-[#2563EB] text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-100"
+                  onClick={() => router.push('/credit-posting')}
+                >
+                  <CreditCard className="h-3.5 w-3.5" />
+                  Post Credit
+                </button>
+              </div>
+            ) : (
+              <div className="relative pl-8">
+                {/* Vertical timeline line */}
+                <div className="absolute left-[7px] top-2 bottom-2 w-px bg-slate-200" />
+                {timelineGroups.map((group) => (
+                  <div key={group.key} className="mb-6 last:mb-0">
+                    {/* Date Header */}
+                    <div className="flex items-center gap-3 mb-3 -ml-8">
+                      <div className="h-3.5 w-3.5 rounded-full bg-[#2563EB] ring-4 ring-white z-10 shrink-0" />
+                      <h3 className="text-sm font-semibold text-slate-900">{group.label}</h3>
+                    </div>
+                    {/* Entries for this date */}
+                    <div>
+                      {group.entries.map((entry) => (
+                        <div key={entry.id} className="relative pb-4 last:pb-0">
+                          {/* Timeline dot */}
+                          <div className={`absolute -left-8 top-1.5 h-3.5 w-3.5 rounded-full ring-4 ring-white z-10 ${
+                            entry.type === 'credit' ? 'bg-[#2563EB]' : entry.type === 'recovery' ? 'bg-emerald-500' : 'bg-slate-400'
+                          }`} />
+                          {/* Timeline entry */}
+                          <div className="rounded-md border border-slate-200 bg-white p-3 hover:border-slate-300 transition-colors">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                {/* Time and badge */}
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-[11px] text-slate-500 tabular-nums">{formatTimeFull(entry.createdAt)}</span>
+                                  <span className={`text-[9px] font-medium px-1.5 py-0 rounded-full border ${
+                                    entry.type === 'credit' ? 'bg-blue-50 text-blue-700 border-blue-200' : entry.type === 'recovery' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200'
+                                  }`}>
+                                    {entry.type === 'credit' ? 'Credit' : entry.type === 'recovery' ? 'Recovery' : 'Edit'}
+                                  </span>
+                                </div>
+                                {/* Shop name and area */}
+                                <p className="text-sm font-medium leading-snug text-slate-900">
+                                  {entry.type === 'credit' ? 'Posted to' : entry.type === 'recovery' ? 'Collected from' : 'Updated'}{' '}
+                                  <span className="font-semibold">{entry.shopName}</span>
+                                  <span className="hidden sm:inline text-slate-500">{entry.shopArea ? ` · ${entry.shopArea}` : ''}</span>
+                                </p>
+                                {/* Posted by - hidden on mobile */}
+                                <p className="text-[11px] text-slate-500 mt-0.5 hidden sm:block">
+                                  by {entry.createdBy}
+                                </p>
+                              </div>
+                              {/* Amount */}
+                              <div className="text-right shrink-0">
+                                {entry.amount > 0 && (
+                                  <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full border ${
+                                    entry.type === 'credit' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  }`}>
+                                    {entry.type === 'credit' ? '+' : '-'}{formatPKR(entry.amount)}
+                                  </span>
+                                )}
+                                <p className="text-[10px] text-slate-500 mt-1 tabular-nums">
+                                  {entry.balanceAfter > 0 ? `Bal: ${formatPKR(entry.balanceAfter)}` : ''}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <CardContent className="p-4">
+        </ScrollArea>
+        {/* View All Activity Link */}
+        {timeline.length > 0 && (
+          <div className="border-t border-slate-200 px-5 py-3">
+            <button
+              className="flex items-center gap-1.5 text-xs font-medium text-[#2563EB] hover:text-[#1E40AF] transition-colors group"
+              onClick={() => router.push('/audit')}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              View All Activity
+              <ArrowUpRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Business Summary Widget — minimal */}
+      {bizSummary && (
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
+          <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-200">
+            <Activity className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+            <span className="text-sm font-semibold text-slate-900">All-Time Business Summary</span>
+          </div>
+          <div className="p-5">
             <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="h-9 w-9 rounded-xl bg-muted flex items-center justify-center mx-auto mb-2">
-                  <ArrowUpRight className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+              <div className="text-left">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
+                  <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Total Volume</p>
                 </div>
-                <p className="text-[10px] text-muted-foreground font-medium">Total Business Volume</p>
-                <p className="text-base font-bold text-foreground tabular-nums mt-0.5">{formatPKR(bizSummary.totalCredit)}</p>
+                <p className="text-lg font-bold text-slate-900 tabular-nums">{formatPKR(bizSummary.totalCredit)}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">All credit posted</p>
               </div>
-              <div className="text-center">
-                <div className="h-9 w-9 rounded-xl bg-muted flex items-center justify-center mx-auto mb-2">
-                  <ArrowDownRight className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+              <div className="text-left">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Total Recovery</p>
                 </div>
-                <p className="text-[10px] text-muted-foreground font-medium">Total Recovery Collected</p>
-                <p className="text-base font-bold text-foreground tabular-nums mt-0.5">{formatPKR(bizSummary.totalRecovery)}</p>
+                <p className="text-lg font-bold text-slate-900 tabular-nums">{formatPKR(bizSummary.totalRecovery)}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">All recoveries collected</p>
               </div>
-              <div className="text-center">
-                <div className={`h-9 w-9 rounded-xl flex items-center justify-center mx-auto mb-2 bg-muted`}>
-                  <Wallet className={`h-4 w-4 text-slate-600 dark:text-slate-300`} />
+              <div className="text-left">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Net Outstanding</p>
                 </div>
-                <p className="text-[10px] text-muted-foreground font-medium">Net Outstanding</p>
-                <p className={`text-base font-bold text-foreground tabular-nums mt-0.5`}>{formatPKR(bizSummary.netBalance)}</p>
+                <p className="text-lg font-bold text-slate-900 tabular-nums">{formatPKR(bizSummary.netBalance)}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Currently outstanding</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );

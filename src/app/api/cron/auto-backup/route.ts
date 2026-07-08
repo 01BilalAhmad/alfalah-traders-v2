@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-        <div style="background: linear-gradient(135deg, #4F46E5, #6366F1); border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 20px;">
+        <div style="background: linear-gradient(135deg, #2563EB, #3B82F6); border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 20px;">
           <h1 style="color: white; margin: 0; font-size: 22px;">🛡️ Finexa Auto-Backup</h1>
           <p style="color: #C7D2FE; margin: 4px 0 0; font-size: 13px;">${today}</p>
         </div>

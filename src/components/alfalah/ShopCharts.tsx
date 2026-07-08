@@ -63,11 +63,11 @@ export default function ShopCharts({ transactions }: ShopChartsProps) {
               <Line
                 type="monotone"
                 dataKey="balance"
-                stroke="#6366F1"
+                stroke="#3B82F6"
                 strokeWidth={2}
                 dot={(props: Record<string, unknown>) => {
                   const { cx, cy, payload } = props as { cx: number; cy: number; payload: { type: string } };
-                  const fill = payload.type === 'credit' ? '#6366F1' : '#10B981';
+                  const fill = payload.type === 'credit' ? '#3B82F6' : '#10B981';
                   return (
                     <circle
                       key={`dot-${cx}-${cy}`}
@@ -80,7 +80,7 @@ export default function ShopCharts({ transactions }: ShopChartsProps) {
                     />
                   );
                 }}
-                activeDot={{ r: 6, stroke: '#6366F1', strokeWidth: 2, fill: 'white' }}
+                activeDot={{ r: 6, stroke: '#3B82F6', strokeWidth: 2, fill: 'white' }}
               />
             </LineChart>
           </ResponsiveContainer>

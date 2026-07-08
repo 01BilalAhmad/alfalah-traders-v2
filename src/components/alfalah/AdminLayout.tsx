@@ -6,8 +6,6 @@ import { useAppStore } from '@/lib/store';
 import { isNavActive, getViewRoute } from '@/lib/route-map';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import Image from 'next/image';
 import {
   Building2,
   Home,
@@ -21,7 +19,6 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronRight,
   ChevronDown,
   Loader2,
   Search,
@@ -30,7 +27,6 @@ import {
   CalendarDays,
   Activity,
   Banknote,
-  ArrowDownRight,
   Receipt,
   ShieldCheck,
   Target,
@@ -43,12 +39,13 @@ import {
   Route,
   UserCog,
   ClipboardList,
-  Radio,
   ShieldAlert,
   MessageSquare,
   Clock,
   PieChart,
   TrendingDown,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { toast } from '@/hooks/use-toast';
@@ -155,6 +152,13 @@ interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
+/** Derive a human-readable page title from the current pathname. */
+function getPageTitle(pathname: string): string {
+  const allItems = [dashboardItem, ...adminNavSections.flatMap((s) => s.items)];
+  const match = allItems.find((item) => isNavActive(item.id, pathname));
+  return match?.label || 'Dashboard';
+}
+
 /** Shared sidebar content — rendered inside both mobile and desktop sidebars */
 function SidebarContent({
   pathname,
@@ -164,6 +168,11 @@ function SidebarContent({
   todayRecovery,
   miniStats,
   statsLoading,
+  collapsed = false,
+  businessName,
+  businessPhone,
+  onLogout,
+  user,
 }: {
   pathname: string;
   collapsedSections: Record<string, boolean>;
@@ -172,60 +181,99 @@ function SidebarContent({
   todayRecovery: number;
   miniStats: { totalShops: number; totalOBs: number };
   statsLoading: boolean;
+  collapsed?: boolean;
+  businessName: string;
+  businessPhone: string;
+  onLogout: () => void;
+  user: { name?: string; role?: string } | null;
 }) {
+  const triggerSearch = () =>
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }));
+
   return (
-    <>
-      {/* Logo section in sidebar */}
-      <div className="px-4 pt-5 pb-3">
-        <div className="flex items-center gap-2.5 px-1">
-          <Image src="/finexa-icon.png" alt="Finexa" width={32} height={32} className="rounded-lg" />
-          <div>
-            <p className="text-sm font-bold text-foreground leading-tight">Finexa</p>
-            <p className="text-[10px] text-muted-foreground leading-tight dark:text-muted-foreground/90">Management Portal</p>
+    <div className="flex flex-col h-full bg-white">
+      {/* Business Name Header */}
+      <div className={`px-3 pt-4 pb-3 ${collapsed ? 'px-2' : ''}`}>
+        <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-2.5 px-2'}`}>
+          <div className="h-7 w-7 rounded-md bg-[#2563EB] flex items-center justify-center shrink-0">
+            <Building2 className="h-4 w-4 text-white" />
           </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="text-[13px] font-bold text-slate-900 leading-tight tracking-tight">
+                AL-FALAH TRADERS
+              </p>
+              <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
+                Management Portal
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      <Separator className="mx-4" />
+      {!collapsed && <div className="mx-4 border-t border-slate-200" />}
+
+      {/* Optional search row inside sidebar (only when expanded) */}
+      {!collapsed && (
+        <div className="px-3 pt-3">
+          <button
+            onClick={triggerSearch}
+            className="w-full flex items-center gap-2 h-8 px-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-500 text-xs transition-colors"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span>Search...</span>
+            <kbd className="ml-auto h-4 rounded border border-slate-200 bg-white px-1 font-mono text-[10px] leading-none text-slate-400">
+              ⌘K
+            </kbd>
+          </button>
+        </div>
+      )}
 
       {/* Navigation */}
-      <nav className="p-3 space-y-0.5">
+      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto sidebar-scroll">
         {/* Dashboard */}
         <button
           onClick={() => handleNavClick(dashboardItem.id)}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          title={collapsed ? dashboardItem.label : undefined}
+          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
+            collapsed ? 'justify-center' : ''
+          } ${
             isNavActive(dashboardItem.id, pathname)
-              ? 'bg-sidebar-accent text-sidebar-accent-foreground border-l-2 border-primary font-medium'
-              : 'text-sidebar-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent'
+              ? 'bg-[#EFF6FF] text-[#2563EB] font-medium'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal'
           }`}
         >
-          <span className="shrink-0">{dashboardItem.icon}</span>
-          <span className="flex-1 text-left">{dashboardItem.label}</span>
+          <span className={`shrink-0 ${isNavActive(dashboardItem.id, pathname) ? 'text-[#2563EB]' : 'text-slate-400'}`}>
+            {dashboardItem.icon}
+          </span>
+          {!collapsed && <span className="flex-1 text-left">{dashboardItem.label}</span>}
         </button>
-
-        <Separator className="my-2" />
 
         {/* Collapsible Sections */}
         {adminNavSections.map((section) => {
-          const isCollapsed = collapsedSections[section.id] !== false;
+          const isSectionCollapsed = collapsedSections[section.id] !== false;
           const hasActiveItem = section.items.some((item) => isNavActive(item.id, pathname));
-          const effectivelyCollapsed = hasActiveItem ? false : isCollapsed;
+          const effectivelyCollapsed = hasActiveItem ? false : isSectionCollapsed;
 
           return (
             <div key={section.id}>
-              <button
-                onClick={() => setCollapsedSections((prev) => ({ ...prev, [section.id]: prev[section.id] === false }))}
-                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <span className="shrink-0">{section.icon}</span>
-                <span className="flex-1 text-left">{section.label}</span>
-                <ChevronDown
-                  className={`h-3 w-3 transition-transform duration-150 ${effectivelyCollapsed ? '-rotate-90' : ''}`}
-                />
-              </button>
+              {!collapsed ? (
+                <button
+                  onClick={() => setCollapsedSections((prev) => ({ ...prev, [section.id]: prev[section.id] === false }))}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 mt-3 rounded-md text-[10px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <span className="shrink-0 text-slate-400">{section.icon}</span>
+                  <span className="flex-1 text-left">{section.label}</span>
+                  <ChevronDown
+                    className={`h-3 w-3 transition-transform duration-150 ${effectivelyCollapsed ? '-rotate-90' : ''}`}
+                  />
+                </button>
+              ) : (
+                <div className="my-2 mx-2 border-t border-slate-100" />
+              )}
               <div
                 className={`space-y-0.5 overflow-hidden transition-all duration-150 ${
-                  effectivelyCollapsed ? 'max-h-0 opacity-0' : 'max-h-[500px] opacity-100'
+                  effectivelyCollapsed || collapsed ? 'max-h-0 opacity-0' : 'max-h-[1200px] opacity-100'
                 }`}
               >
                 {section.items.map((item) => {
@@ -234,14 +282,19 @@ function SidebarContent({
                     <button
                       key={item.id}
                       onClick={() => handleNavClick(item.id)}
+                      title={collapsed ? item.label : undefined}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
+                        collapsed ? 'justify-center' : ''
+                      } ${
                         isActive
-                          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium border-l-2 border-primary'
-                          : 'text-sidebar-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent'
+                          ? 'bg-[#EFF6FF] text-[#2563EB] font-medium'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal'
                       }`}
                     >
-                      <span className="shrink-0">{item.icon}</span>
-                      <span className="flex-1 text-left">{item.label}</span>
+                      <span className={`shrink-0 ${isActive ? 'text-[#2563EB]' : 'text-slate-400'}`}>
+                        {item.icon}
+                      </span>
+                      {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
                     </button>
                   );
                 })}
@@ -251,36 +304,85 @@ function SidebarContent({
         })}
       </nav>
 
-      {/* Mini Stats at Bottom */}
-      <div className="px-3 pb-4 mt-2">
-        <Separator className="mb-3" />
-        <div className="mb-3 rounded-md border border-border px-3 py-2">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-live-pulse" />
-            <span className="text-[10px] text-muted-foreground font-medium">Today&apos;s Recovery</span>
+      {/* Mini Stats at Bottom (expanded only) */}
+      {!collapsed && (
+        <div className="px-3 pb-2">
+          <div className="border-t border-slate-200 pt-3 px-2 mb-2">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
+                Today&apos;s Recovery
+              </span>
+            </div>
+            <p className="text-base font-bold text-slate-900 tabular-nums">
+              Rs. {todayRecovery.toLocaleString('en-PK', { maximumFractionDigits: 0 })}
+            </p>
           </div>
-          <p className="text-sm font-bold text-foreground tabular-nums">
-            Rs. {todayRecovery.toLocaleString('en-PK', { maximumFractionDigits: 0 })}
-          </p>
+          {statsLoading ? (
+            <div className="flex items-center justify-center py-2">
+              <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-1 px-2 mb-2">
+              <div className="px-2 py-1">
+                <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Shops</span>
+                <p className="text-sm font-bold text-slate-900 tabular-nums">{miniStats.totalShops}</p>
+              </div>
+              <div className="px-2 py-1">
+                <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">OBs</span>
+                <p className="text-sm font-bold text-slate-900 tabular-nums">{miniStats.totalOBs}</p>
+              </div>
+            </div>
+          )}
         </div>
-        {statsLoading ? (
-          <div className="flex items-center justify-center py-2">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-md border border-border px-3 py-2">
-              <span className="text-[10px] text-muted-foreground font-medium">Shops</span>
-              <p className="text-sm font-bold text-foreground">{miniStats.totalShops}</p>
+      )}
+
+      {/* User profile at bottom — minimal, no card wrapper */}
+      <div className={`border-t border-slate-200 ${collapsed ? 'p-2' : 'p-3'}`}>
+        <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-2.5 px-2 py-1.5'}`}>
+          <button
+            onClick={() => handleNavClick('admin-settings')}
+            title={collapsed ? businessName : undefined}
+            className="flex items-center gap-2.5 min-w-0"
+            aria-label="Open settings"
+          >
+            <div className="h-7 w-7 rounded-full bg-[#EFF6FF] border border-blue-100 flex items-center justify-center text-xs font-bold text-[#1E40AF] shrink-0">
+              {businessName.charAt(0).toUpperCase()}
             </div>
-            <div className="rounded-md border border-border px-3 py-2">
-              <span className="text-[10px] text-muted-foreground font-medium">OBs</span>
-              <p className="text-sm font-bold text-foreground">{miniStats.totalOBs}</p>
-            </div>
-          </div>
-        )}
+            {!collapsed && (
+              <div className="text-left min-w-0 flex-1">
+                <p className="text-xs font-medium text-slate-900 leading-tight truncate">
+                  {businessName || user?.name || 'Admin'}
+                </p>
+                <p className="text-[10px] text-slate-500 leading-tight truncate">
+                  {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : (businessPhone || 'Admin')}
+                </p>
+              </div>
+            )}
+          </button>
+          {!collapsed && (
+            <button
+              onClick={onLogout}
+              className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors shrink-0"
+              title="Logout"
+              aria-label="Logout"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {collapsed && (
+            <button
+              onClick={onLogout}
+              title="Logout"
+              className="mt-2 h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors mx-auto"
+              aria-label="Logout"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -291,6 +393,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // Settings is now a full page (admin-settings view), not a side sheet
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [miniStats, setMiniStats] = useState<{ totalShops: number; totalOBs: number }>({ totalShops: 0, totalOBs: 0 });
@@ -355,89 +458,101 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     todayRecovery,
     miniStats,
     statsLoading,
+    businessName,
+    businessPhone,
+    onLogout: handleLogout,
+    user,
   };
 
+  const pageTitle = getPageTitle(pathname);
+
   return (
-    <div className="min-h-dvh flex flex-col bg-background">
-      {/* Top Header — Clean, flat, Mercury-style */}
-      <header className="sticky top-0 z-50 h-14 flex items-center justify-between px-4 lg:px-6 bg-sidebar border-b border-border print:hidden">
-        <div className="flex items-center gap-3">
+    <div className="min-h-dvh flex flex-col bg-white">
+      {/* Top Header — Clean Minimal */}
+      <header className="sticky top-0 z-50 h-14 flex items-center justify-between px-4 lg:px-6 bg-white border-b border-slate-200 print:hidden">
+        {/* Left: mobile menu toggle + page title */}
+        <div className="flex items-center gap-3 min-w-0">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="lg:hidden h-9 w-9 text-foreground hover:bg-muted"
+            className="lg:hidden h-9 w-9 text-slate-600 hover:bg-slate-50"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
           >
             {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
-          <Separator orientation="vertical" className="h-6 lg:hidden" />
-          {/* Logo in header */}
-          <div className="flex items-center gap-2">
-            <Image src="/finexa-flat-icon.png" alt="Finexa" width={28} height={28} className="rounded" />
-            <span className="text-sm font-bold text-foreground hidden sm:inline">Finexa</span>
-          </div>
+          <h1 className="text-lg font-semibold text-slate-900 truncate">{pageTitle}</h1>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Search Button */}
+
+        {/* Center: search bar (desktop only) */}
+        <div className="hidden md:flex flex-1 max-w-md mx-6">
           <button
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
-            className="hidden md:flex items-center gap-2 h-8 px-3 rounded-md border border-border bg-background hover:bg-muted text-foreground hover:text-foreground text-xs transition-colors"
+            className="w-full flex items-center gap-2 h-8 px-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-500 text-xs transition-colors"
           >
             <Search className="h-3.5 w-3.5" />
-            <span>Search</span>
-            <kbd className="ml-1.5 h-4 rounded border border-border bg-muted px-1 font-mono text-[10px] leading-none text-muted-foreground">
+            <span>Search shops, OBs, transactions...</span>
+            <kbd className="ml-auto h-4 rounded border border-slate-200 bg-white px-1 font-mono text-[10px] leading-none text-slate-400">
               ⌘K
             </kbd>
           </button>
+        </div>
+
+        {/* Right: actions */}
+        <div className="flex items-center gap-1">
+          {/* Mobile search */}
           <button
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
-            className="md:hidden h-9 w-9 rounded-md border border-border hover:bg-muted text-foreground hover:text-foreground flex items-center justify-center transition-colors"
+            className="md:hidden h-9 w-9 rounded-md hover:bg-slate-50 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-colors"
+            aria-label="Search"
           >
             <Search className="h-4 w-4" />
           </button>
-          <Separator orientation="vertical" className="h-6 hidden sm:block" />
+
           <ThemeToggle />
+
           <NotificationPanel />
+
           <ShareMenu
             title="Share"
             text="Finexa - Smart Credit Management"
-            className="h-8 w-8 text-foreground hover:text-foreground border-0 p-0"
+            className="h-8 w-8 text-slate-600 hover:text-slate-900 border-0 p-0"
           />
-          <Separator orientation="vertical" className="h-6 hidden sm:block" />
-          {/* Change Password */}
+
+          {/* Change Password (icon-only) */}
           <button
             onClick={() => setChangePasswordOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border hover:bg-muted text-foreground hover:text-foreground text-xs font-medium transition-colors"
+            className="hidden sm:flex h-8 w-8 rounded-md hover:bg-slate-50 text-slate-600 hover:text-slate-900 items-center justify-center transition-colors"
             title="Change Password"
+            aria-label="Change Password"
           >
-            <KeyRound className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">Password</span>
+            <KeyRound className="h-4 w-4" />
           </button>
-          {/* User Avatar */}
+
+          <div className="h-5 w-px bg-slate-200 mx-1.5 hidden sm:block" />
+
+          {/* User Avatar (32px) — navigates to settings */}
           <button
             onClick={() => router.push('/settings')}
-            className="flex items-center gap-2 text-sm text-foreground hover:bg-muted rounded-md px-2 py-1 transition-colors"
+            className="h-8 w-8 rounded-full bg-[#EFF6FF] border border-blue-100 flex items-center justify-center text-xs font-bold text-[#1E40AF] hover:ring-2 hover:ring-blue-100 transition-all"
             aria-label="Open settings"
+            title={businessName}
           >
-            <div className="h-7 w-7 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-bold text-sidebar-accent-foreground">
-              {businessName.charAt(0).toUpperCase()}
-            </div>
-            <div className="text-left hidden sm:block">
-              <p className="text-xs font-medium text-foreground leading-tight">{businessName}</p>
-              <p className="text-[10px] text-muted-foreground leading-tight">{businessPhone || 'Admin'}</p>
-            </div>
+            {businessName.charAt(0).toUpperCase()}
           </button>
+
+          {/* Logout (icon-only) */}
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="text-foreground hover:text-foreground h-8 px-2"
+            className="text-slate-600 hover:text-slate-900 hover:bg-slate-50 h-8 w-8 p-0"
             onClick={handleLogout}
+            title="Logout"
+            aria-label="Logout"
           >
-            <LogOut className="h-4 w-4 sm:mr-1.5" />
-            <span className="hidden sm:inline text-xs">Logout</span>
+            <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </header>
@@ -451,7 +566,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           />
         )}
         {sidebarOpen && (
-          <aside className="fixed inset-y-0 left-0 z-40 w-60 bg-sidebar border-r border-border pt-14 print:hidden overflow-hidden lg:hidden">
+          <aside className="fixed inset-y-0 left-0 z-40 w-60 bg-white border-r border-slate-200 pt-14 print:hidden overflow-hidden lg:hidden">
             <ScrollArea className="h-[calc(100dvh-3.5rem)] sidebar-scroll">
               <SidebarContent {...sidebarProps} />
             </ScrollArea>
@@ -459,10 +574,28 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         )}
 
         {/* ═══════ Desktop Sidebar — always in DOM, static flex child ═══════ */}
-        <aside className="hidden lg:flex w-60 bg-sidebar border-r border-border print:hidden shrink-0 flex-col">
-          <ScrollArea className="h-[calc(100dvh-3.5rem)] sidebar-scroll">
-            <SidebarContent {...sidebarProps} />
+        <aside
+          className={`hidden lg:flex ${
+            sidebarCollapsed ? 'w-16' : 'w-60'
+          } bg-white border-r border-slate-200 print:hidden shrink-0 flex-col relative transition-all duration-200`}
+        >
+          <ScrollArea className="flex-1 sidebar-scroll">
+            <SidebarContent {...sidebarProps} collapsed={sidebarCollapsed} />
           </ScrollArea>
+
+          {/* Collapse / expand toggle — minimal icon button at bottom */}
+          <button
+            onClick={() => setSidebarCollapsed((c) => !c)}
+            className="absolute -right-3 top-20 h-6 w-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-colors z-10"
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="h-3.5 w-3.5" />
+            ) : (
+              <PanelLeftClose className="h-3.5 w-3.5" />
+            )}
+          </button>
         </aside>
 
         {/* ═══════ Main Content ═══════ */}
@@ -474,7 +607,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       {/* Footer — minimal */}
-      <footer className="border-t border-border px-6 py-2.5 flex items-center justify-between text-[11px] text-muted-foreground print:hidden">
+      <footer className="border-t border-slate-200 px-6 py-2.5 flex items-center justify-between text-[11px] text-slate-500 print:hidden">
         <span>&copy; 2026 Finexa. All rights reserved. Unauthorized copying, reverse engineering, modification, or distribution of this software is strictly prohibited and punishable under Copyright Ordinance 1962 &amp; PECA 2016.</span>
         <span>v1.0</span>
       </footer>

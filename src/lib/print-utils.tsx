@@ -113,13 +113,13 @@ export function handlePrint(options: PrintOptions = {}): void {
         color: #ffffff !important;
       }
       .receipt-content .bg-primary {
-        background-color: #4F46E5 !important;
+        background-color: #2563EB !important;
       }
       .receipt-content .text-muted-foreground {
         color: #6B7280 !important;
       }
       .receipt-content .bg-indigo-50 {
-        background-color: #EEF2FF !important;
+        background-color: #EFF6FF !important;
       }
       .receipt-content .border-border\\/40,
       .receipt-content .border-border\\/60 {

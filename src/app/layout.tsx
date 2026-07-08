@@ -13,7 +13,7 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#4F46E5" },
+    { media: "(prefers-color-scheme: light)", color: "#2563EB" },
     { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
   ],
 };
@@ -88,8 +88,8 @@ export const metadata: Metadata = {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "default",
-    "theme-color": "#4F46E5",
-    "msapplication-TileColor": "#4F46E5",
+    "theme-color": "#2563EB",
+    "msapplication-TileColor": "#2563EB",
   },
 };
 

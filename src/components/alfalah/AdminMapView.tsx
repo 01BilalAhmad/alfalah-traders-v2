@@ -137,7 +137,7 @@ function getRiskColor(risk: 'low' | 'medium' | 'high') {
 }
 
 // Pie chart colors
-const PIE_COLORS = ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#EC4899', '#14B8A6', '#E11D48'];
+const PIE_COLORS = ['#3B82F6', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#EC4899', '#14B8A6', '#E11D48'];
 
 // ── View Tabs ──────────────────────────────────────────────────────────────
 type MapTab = 'areas' | 'map' | 'ob-routes' | 'live';
