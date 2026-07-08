@@ -1,0 +1,813 @@
+     1→// Powered by Finexa
+     2→import AsyncStorage from '@react-native-async-storage/async-storage';
+     3→import { User, Shop } from './api';
+     4→import { getTodayDateStr } from '@/utils/format';
+     5→
+     6→const KEYS = {
+     7→  USER: 'af_user',
+     8→  TOKEN: 'af_token',
+     9→  SHOPS: 'af_shops',
+    10→  OFFLINE_QUEUE: 'af_offline_queue',
+    11→  LAST_SYNC: 'af_last_sync',
+    12→  PENDING_NOTIFICATIONS: 'af_pending_notifications',
+    13→  LAST_RECOVERY_DATES: 'af_last_recovery_dates',
+    14→  TOUR_COMPLETED: 'af_tour_completed',
+    15→  SHOP_NOTES: 'af_shop_notes',
+    16→  DAILY_TARGETS: 'af_daily_targets',
+    17→  VISIT_STREAKS: 'af_visit_streaks',
+    18→  TODAY_RECOVERY: 'af_today_recovery',
+    19→  NOTIF_COUNTS: 'af_notif_counts',
+    20→  NOTIF_SHOPS: 'af_notif_shops', // track unique shop IDs for SMS/WhatsApp
+    21→  VISITED_SHOPS: 'af_visited_shops',
+    22→  RECOVERY_SUBMITTED_SHOPS: 'af_recovery_submitted_shops',
+    23→  OFFLINE_PHONE_UPDATES: 'af_offline_phone_updates',
+    24→  DISTRIBUTOR_PHONE: 'af_distributor_phone', // saved locally for offline receipt use
+    25→  SELECTED_COMPANY_ID: 'af_selected_company_id', // persisted selected company
+    26→  ROUTE_SESSION_ID: 'af_route_session_id', // active route session ID
+    27→  ROUTE_SESSION_START: 'af_route_session_start', // ISO timestamp when route started
+    28→  OFFLINE_ROUTE_LOCATIONS: 'af_offline_route_locations', // GPS locations queued while offline
+    29→  PENDING_ROUTE_END: 'af_pending_route_end', // Route end info pending sync
+    30→  PENDING_ROUTE_START: 'af_pending_route_start', // Route start info pending sync (offline start)
+    31→  CUSTOM_API_URL: 'af_custom_api_url', // Manual URL configuration
+    32→  DATA_DOWNLOADED_DATE: 'af_data_downloaded_date', // Date when data was last downloaded (YYYY-MM-DD)
+    33→  LAST_SYNC_UPLOAD_DATE: 'af_last_sync_upload_date', // Date when data was last uploaded (YYYY-MM-DD)
+    34→  DATA_DOWNLOADED_FOR_DATE: 'af_data_downloaded_for_date', // Date for which data was downloaded
+    35→};
+    36→
+    37→export interface PendingNotification {
+    38→  id: string; // unique: shopId + timestamp
+    39→  shopId: string;
+    40→  shopName: string;
+    41→  shopPhone: string;
+    42→  area: string;
+    43→  openingBalance: number;
+    44→  recoveryAmount: number;
+    45→  remainingBalance: number;
+    46→  companyName?: string;
+    47→  orderbookerName?: string;
+    48→  distributorPhone?: string;
+    49→  createdAt: string;
+    50→  date: string; // YYYY-MM-DD for daily grouping
+    51→}
+    52→
+    53→export interface OfflineRecovery {
+    54→  localId: string;
+    55→  shopId: string;
+    56→  shopName: string;
+    57→  amount: number;
+    58→  description?: string;
+    59→  gpsLat?: number;
+    60→  gpsLng?: number;
+    61→  gpsAddress?: string;
+    62→  createdBy: string;
+    63→  createdAt: string;
+    64→  companyId?: string; // Capture company at creation time, not at sync time
+    65→}
+    66→
+    67→export interface ShopLastRecovery {
+    68→  shopId: string;
+    69→  lastRecoveryDate: string;
+    70→}
+    71→
+    72→export interface OfflinePhoneUpdate {
+    73→  shopId: string;
+    74→  phone: string;
+    75→  ownerName?: string;
+    76→  createdAt: string;
+    77→}
+    78→
+    79→export interface ShopNote {
+    80→  shopId: string;
+    81→  note: string;
+    82→  updatedAt: string;
+    83→}
+    84→
+    85→export interface DailyTarget {
+    86→  orderbookerId: string;
+    87→  target: number;
+    88→  month: string;
+    89→}
+    90→
+    91→export interface VisitStreak {
+    92→  orderbookerId: string;
+    93→  currentStreak: number;
+    94→  lastVisitDate: string;
+    95→  longestStreak: number;
+    96→}
+    97→
+    98→export const StorageService = {
+    99→  saveUser: async (user: User, token: string) => {
+   100→    await AsyncStorage.multiSet([
+   101→      [KEYS.USER, JSON.stringify(user)],
+   102→      [KEYS.TOKEN, token],
+   103→    ]);
+   104→  },
+   105→
+   106→  getUser: async (): Promise<User | null> => {
+   107→    const raw = await AsyncStorage.getItem(KEYS.USER);
+   108→    return raw ? JSON.parse(raw) : null;
+   109→  },
+   110→
+   111→  getToken: async (): Promise<string | null> => {
+   112→    return AsyncStorage.getItem(KEYS.TOKEN);
+   113→  },
+   114→
+   115→  clearSession: async () => {
+   116→    await AsyncStorage.multiRemove([KEYS.USER, KEYS.TOKEN, KEYS.ROUTE_SESSION_ID, KEYS.ROUTE_SESSION_START]);
+   117→  },
+   118→
+   119→  saveShops: async (shops: Shop[]) => {
+   120→    await AsyncStorage.setItem(KEYS.SHOPS, JSON.stringify(shops));
+   121→    await AsyncStorage.setItem(KEYS.LAST_SYNC, new Date().toISOString());
+   122→  },
+   123→
+   124→  getShops: async (): Promise<Shop[]> => {
+   125→    const raw = await AsyncStorage.getItem(KEYS.SHOPS);
+   126→    return raw ? JSON.parse(raw) : [];
+   127→  },
+   128→
+   129→  getLastSync: async (): Promise<string | null> => {
+   130→    return AsyncStorage.getItem(KEYS.LAST_SYNC);
+   131→  },
+   132→
+   133→  addOfflineRecovery: async (recovery: OfflineRecovery) => {
+   134→    const raw = await AsyncStorage.getItem(KEYS.OFFLINE_QUEUE);
+   135→    const queue: OfflineRecovery[] = raw ? JSON.parse(raw) : [];
+   136→    queue.push(recovery);
+   137→    await AsyncStorage.setItem(KEYS.OFFLINE_QUEUE, JSON.stringify(queue));
+   138→  },
+   139→
+   140→  getOfflineQueue: async (): Promise<OfflineRecovery[]> => {
+   141→    const raw = await AsyncStorage.getItem(KEYS.OFFLINE_QUEUE);
+   142→    return raw ? JSON.parse(raw) : [];
+   143→  },
+   144→
+   145→  removeFromOfflineQueue: async (localIds: string[]) => {
+   146→    const raw = await AsyncStorage.getItem(KEYS.OFFLINE_QUEUE);
+   147→    const queue: OfflineRecovery[] = raw ? JSON.parse(raw) : [];
+   148→    const filtered = queue.filter((r) => !localIds.includes(r.localId));
+   149→    await AsyncStorage.setItem(KEYS.OFFLINE_QUEUE, JSON.stringify(filtered));
+   150→  },
+   151→
+   152→  clearOfflineQueue: async () => {
+   153→    await AsyncStorage.setItem(KEYS.OFFLINE_QUEUE, JSON.stringify([]));
+   154→  },
+   155→
+   156→  // --- Pending Notifications Tracking ---
+   157→  addPendingNotification: async (notification: PendingNotification) => {
+   158→    const raw = await AsyncStorage.getItem(KEYS.PENDING_NOTIFICATIONS);
+   159→    const list: PendingNotification[] = raw ? JSON.parse(raw) : [];
+   160→    // Avoid duplicates by same shopId on same date
+   161→    const exists = list.some(
+   162→      (n) => n.shopId === notification.shopId && n.date === notification.date
+   163→    );
+   164→    if (!exists) {
+   165→      list.push(notification);
+   166→      await AsyncStorage.setItem(KEYS.PENDING_NOTIFICATIONS, JSON.stringify(list));
+   167→    }
+   168→  },
+   169→
+   170→  getPendingNotifications: async (date?: string): Promise<PendingNotification[]> => {
+   171→    const raw = await AsyncStorage.getItem(KEYS.PENDING_NOTIFICATIONS);
+   172→    const list: PendingNotification[] = raw ? JSON.parse(raw) : [];
+   173→    if (date) {
+   174→      // Return only today's pending notifications
+   175→      return list.filter((n) => n.date === date);
+   176→    }
+   177→    return list;
+   178→  },
+   179→
+   180→  removePendingNotification: async (id: string) => {
+   181→    const raw = await AsyncStorage.getItem(KEYS.PENDING_NOTIFICATIONS);
+   182→    const list: PendingNotification[] = raw ? JSON.parse(raw) : [];
+   183→    const filtered = list.filter((n) => n.id !== id);
+   184→    await AsyncStorage.setItem(KEYS.PENDING_NOTIFICATIONS, JSON.stringify(filtered));
+   185→  },
+   186→
+   187→  clearPendingNotifications: async (date?: string) => {
+   188→    if (date) {
+   189→      const raw = await AsyncStorage.getItem(KEYS.PENDING_NOTIFICATIONS);
+   190→      const list: PendingNotification[] = raw ? JSON.parse(raw) : [];
+   191→      const filtered = list.filter((n) => n.date !== date);
+   192→      await AsyncStorage.setItem(KEYS.PENDING_NOTIFICATIONS, JSON.stringify(filtered));
+   193→    } else {
+   194→      await AsyncStorage.setItem(KEYS.PENDING_NOTIFICATIONS, JSON.stringify([]));
+   195→    }
+   196→  },
+   197→
+   198→  // --- Offline Data Expiry (7 Day Auto-Clear) ---
+   199→  cleanExpiredOfflineQueue: async (): Promise<number> => {
+   200→    const raw = await AsyncStorage.getItem(KEYS.OFFLINE_QUEUE);
+   201→    const queue: OfflineRecovery[] = raw ? JSON.parse(raw) : [];
+   202→    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+   203→    const cutoff = Date.now() - SEVEN_DAYS_MS;
+   204→    const before = queue.length;
+   205→    const filtered = queue.filter((r) => {
+   206→      const created = new Date(r.createdAt).getTime();
+   207→      return created >= cutoff;
+   208→    });
+   209→    const removed = before - filtered.length;
+   210→    if (removed > 0) {
+   211→      await AsyncStorage.setItem(KEYS.OFFLINE_QUEUE, JSON.stringify(filtered));
+   212→    }
+   213→    return removed;
+   214→  },
+   215→
+   216→  // --- Recurring Recovery Reminder (Last Recovery Dates) ---
+   217→  updateLastRecoveryDate: async (shopId: string, date: string) => {
+   218→    const raw = await AsyncStorage.getItem(KEYS.LAST_RECOVERY_DATES);
+   219→    const list: ShopLastRecovery[] = raw ? JSON.parse(raw) : [];
+   220→    const idx = list.findIndex((e) => e.shopId === shopId);
+   221→    if (idx >= 0) {
+   222→      list[idx].lastRecoveryDate = date;
+   223→    } else {
+   224→      list.push({ shopId, lastRecoveryDate: date });
+   225→    }
+   226→    await AsyncStorage.setItem(KEYS.LAST_RECOVERY_DATES, JSON.stringify(list));
+   227→  },
+   228→
+   229→  getLastRecoveryDates: async (): Promise<ShopLastRecovery[]> => {
+   230→    const raw = await AsyncStorage.getItem(KEYS.LAST_RECOVERY_DATES);
+   231→    return raw ? JSON.parse(raw) : [];
+   232→  },
+   233→
+   234→  getShopsNeedingRecovery: async (minDays: number): Promise<ShopLastRecovery[]> => {
+   235→    const raw = await AsyncStorage.getItem(KEYS.LAST_RECOVERY_DATES);
+   236→    const list: ShopLastRecovery[] = raw ? JSON.parse(raw) : [];
+   237→    const cutoff = new Date();
+   238→    cutoff.setDate(cutoff.getDate() - minDays);
+   239→    const cutoffStr = cutoff.toISOString();
+   240→    return list.filter((e) => e.lastRecoveryDate <= cutoffStr);
+   241→  },
+   242→
+   243→  removeLastRecoveryDate: async (shopId: string) => {
+   244→    const raw = await AsyncStorage.getItem(KEYS.LAST_RECOVERY_DATES);
+   245→    const list: ShopLastRecovery[] = raw ? JSON.parse(raw) : [];
+   246→    const filtered = list.filter((e) => e.shopId !== shopId);
+   247→    await AsyncStorage.setItem(KEYS.LAST_RECOVERY_DATES, JSON.stringify(filtered));
+   248→  },
+   249→
+   250→  // --- App Tour / First-Time Walkthrough ---
+   251→  isTourCompleted: async (): Promise<boolean> => {
+   252→    const raw = await AsyncStorage.getItem(KEYS.TOUR_COMPLETED);
+   253→    return raw === 'true';
+   254→  },
+   255→
+   256→  markTourCompleted: async () => {
+   257→    await AsyncStorage.setItem(KEYS.TOUR_COMPLETED, 'true');
+   258→  },
+   259→
+   260→  // --- Shop Notes / Remarks ---
+   261→  saveShopNote: async (shopId: string, note: string) => {
+   262→    const raw = await AsyncStorage.getItem(KEYS.SHOP_NOTES);
+   263→    const notes: ShopNote[] = raw ? JSON.parse(raw) : [];
+   264→    const existingIndex = notes.findIndex((n) => n.shopId === shopId);
+   265→    const entry: ShopNote = { shopId, note, updatedAt: new Date().toISOString() };
+   266→    if (existingIndex >= 0) {
+   267→      notes[existingIndex] = entry;
+   268→    } else {
+   269→      notes.push(entry);
+   270→    }
+   271→    await AsyncStorage.setItem(KEYS.SHOP_NOTES, JSON.stringify(notes));
+   272→  },
+   273→
+   274→  getShopNote: async (shopId: string): Promise<ShopNote | null> => {
+   275→    const raw = await AsyncStorage.getItem(KEYS.SHOP_NOTES);
+   276→    const notes: ShopNote[] = raw ? JSON.parse(raw) : [];
+   277→    return notes.find((n) => n.shopId === shopId) || null;
+   278→  },
+   279→
+   280→  getAllShopNotes: async (): Promise<ShopNote[]> => {
+   281→    const raw = await AsyncStorage.getItem(KEYS.SHOP_NOTES);
+   282→    return raw ? JSON.parse(raw) : [];
+   283→  },
+   284→
+   285→  deleteShopNote: async (shopId: string) => {
+   286→    const raw = await AsyncStorage.getItem(KEYS.SHOP_NOTES);
+   287→    const notes: ShopNote[] = raw ? JSON.parse(raw) : [];
+   288→    const filtered = notes.filter((n) => n.shopId !== shopId);
+   289→    await AsyncStorage.setItem(KEYS.SHOP_NOTES, JSON.stringify(filtered));
+   290→  },
+   291→
+   292→  // --- Daily Targets ---
+   293→  saveDailyTarget: async (target: DailyTarget) => {
+   294→    const raw = await AsyncStorage.getItem(KEYS.DAILY_TARGETS);
+   295→    const targets: DailyTarget[] = raw ? JSON.parse(raw) : [];
+   296→    const existingIndex = targets.findIndex(
+   297→      (t) => t.orderbookerId === target.orderbookerId && t.month === target.month
+   298→    );
+   299→    if (existingIndex >= 0) {
+   300→      targets[existingIndex] = target;
+   301→    } else {
+   302→      targets.push(target);
+   303→    }
+   304→    await AsyncStorage.setItem(KEYS.DAILY_TARGETS, JSON.stringify(targets));
+   305→  },
+   306→
+   307→  getDailyTarget: async (orderbookerId: string, month: string): Promise<DailyTarget | null> => {
+   308→    const raw = await AsyncStorage.getItem(KEYS.DAILY_TARGETS);
+   309→    const targets: DailyTarget[] = raw ? JSON.parse(raw) : [];
+   310→    return targets.find((t) => t.orderbookerId === orderbookerId && t.month === month) || null;
+   311→  },
+   312→
+   313→  getDailyTargets: async (): Promise<DailyTarget[]> => {
+   314→    const raw = await AsyncStorage.getItem(KEYS.DAILY_TARGETS);
+   315→    return raw ? JSON.parse(raw) : [];
+   316→  },
+   317→
+   318→  // --- Visit Streak Tracking ---
+   319→  saveVisitStreak: async (streak: VisitStreak) => {
+   320→    const raw = await AsyncStorage.getItem(KEYS.VISIT_STREAKS);
+   321→    const streaks: VisitStreak[] = raw ? JSON.parse(raw) : [];
+   322→    const idx = streaks.findIndex((s) => s.orderbookerId === streak.orderbookerId);
+   323→    if (idx >= 0) {
+   324→      streaks[idx] = streak;
+   325→    } else {
+   326→      streaks.push(streak);
+   327→    }
+   328→    await AsyncStorage.setItem(KEYS.VISIT_STREAKS, JSON.stringify(streaks));
+   329→  },
+   330→
+   331→  getVisitStreak: async (orderbookerId: string): Promise<VisitStreak | null> => {
+   332→    const raw = await AsyncStorage.getItem(KEYS.VISIT_STREAKS);
+   333→    const streaks: VisitStreak[] = raw ? JSON.parse(raw) : [];
+   334→    return streaks.find((s) => s.orderbookerId === orderbookerId) ?? null;
+   335→  },
+   336→
+   337→  updateVisitStreak: async (orderbookerId: string, visitedToday: boolean): Promise<VisitStreak> => {
+   338→    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+   339→    const existing = await StorageService.getVisitStreak(orderbookerId);
+   340→
+   341→    if (!existing) {
+   342→      const newStreak: VisitStreak = {
+   343→        orderbookerId,
+   344→        currentStreak: visitedToday ? 1 : 0,
+   345→        lastVisitDate: visitedToday ? today : '',
+   346→        longestStreak: visitedToday ? 1 : 0,
+   347→      };
+   348→      await StorageService.saveVisitStreak(newStreak);
+   349→      return newStreak;
+   350→    }
+   351→
+   352→    // Already updated today
+   353→    if (existing.lastVisitDate === today) {
+   354→      return existing;
+   355→    }
+   356→
+   357→    if (visitedToday) {
+   358→      // Check if last visit was yesterday (consecutive)
+   359→      const lastVisit = new Date(existing.lastVisitDate);
+   360→      const todayDate = new Date(today);
+   361→      const diffDays = Math.round((todayDate.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24));
+   362→
+   363→      const newCurrentStreak = diffDays <= 1 ? existing.currentStreak + 1 : 1;
+   364→      const newLongestStreak = Math.max(existing.longestStreak, newCurrentStreak);
+   365→
+   366→      const updated: VisitStreak = {
+   367→        ...existing,
+   368→        currentStreak: newCurrentStreak,
+   369→        lastVisitDate: today,
+   370→        longestStreak: newLongestStreak,
+   371→      };
+   372→      await StorageService.saveVisitStreak(updated);
+   373→      return updated;
+   374→    } else {
+   375→      // Not visited today — check if streak should be broken
+   376→      const lastVisit = new Date(existing.lastVisitDate);
+   377→      const todayDate = new Date(today);
+   378→      const diffDays = Math.round((todayDate.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24));
+   379→
+   380→      if (diffDays > 1) {
+   381→        // Streak broken — reset
+   382→        const updated: VisitStreak = {
+   383→          ...existing,
+   384→          currentStreak: 0,
+   385→        };
+   386→        await StorageService.saveVisitStreak(updated);
+   387→        return updated;
+   388→      }
+   389→      return existing;
+   390→    }
+   391→  },
+   392→
+   393→  // --- Today's Recovery Cache (persists across page refreshes) ---
+   394→  saveTodayRecovery: async (amount: number) => {
+   395→    const entry = { date: getTodayDateStr(), amount };
+   396→    await AsyncStorage.setItem(KEYS.TODAY_RECOVERY, JSON.stringify(entry));
+   397→  },
+   398→
+   399→  getTodayRecovery: async (): Promise<number> => {
+   400→    try {
+   401→      const raw = await AsyncStorage.getItem(KEYS.TODAY_RECOVERY);
+   402→      if (!raw) return 0;
+   403→      const entry = JSON.parse(raw);
+   404→      // Only return cached value if it's from today
+   405→      return entry.date === getTodayDateStr() ? entry.amount : 0;
+   406→    } catch {
+   407→      return 0;
+   408→    }
+   409→  },
+   410→
+   411→  // --- Notification Counts (SMS/WhatsApp sent today) ---
+   412→  getNotifCounts: async (): Promise<{ sms: number; whatsapp: number }> => {
+   413→    try {
+   414→      const raw = await AsyncStorage.getItem(KEYS.NOTIF_COUNTS);
+   415→      if (!raw) return { sms: 0, whatsapp: 0 };
+   416→      const entry = JSON.parse(raw);
+   417→      // Only return if from today, otherwise reset
+   418→      return entry.date === getTodayDateStr()
+   419→        ? { sms: entry.sms || 0, whatsapp: entry.whatsapp || 0 }
+   420→        : { sms: 0, whatsapp: 0 };
+   421→    } catch {
+   422→      return { sms: 0, whatsapp: 0 };
+   423→    }
+   424→  },
+   425→
+   426→  incrementNotifCount: async (method: 'sms' | 'whatsapp', shopId?: string): Promise<{ sms: number; whatsapp: number }> => {
+   427→    try {
+   428→      const raw = await AsyncStorage.getItem(KEYS.NOTIF_COUNTS);
+   429→      const shopsRaw = await AsyncStorage.getItem(KEYS.NOTIF_SHOPS);
+   430→      let entry: { date: string; sms: number; whatsapp: number };
+   431→      let shopsEntry: { date: string; smsShops: string[]; whatsappShops: string[] };
+   432→
+   433→      if (!raw) {
+   434→        entry = { date: getTodayDateStr(), sms: 0, whatsapp: 0 };
+   435→      } else {
+   436→        entry = JSON.parse(raw);
+   437→        if (entry.date !== getTodayDateStr()) {
+   438→          entry = { date: getTodayDateStr(), sms: 0, whatsapp: 0 };
+   439→        }
+   440→      }
+   441→
+   442→      if (!shopsRaw) {
+   443→        shopsEntry = { date: getTodayDateStr(), smsShops: [], whatsappShops: [] };
+   444→      } else {
+   445→        shopsEntry = JSON.parse(shopsRaw);
+   446→        if (shopsEntry.date !== getTodayDateStr()) {
+   447→          shopsEntry = { date: getTodayDateStr(), smsShops: [], whatsappShops: [] };
+   448→        }
+   449→      }
+   450→
+   451→      // Only increment count if this shop hasn't been counted before for this method
+   452→      if (shopId) {
+   453→        const shopKey = method === 'sms' ? 'smsShops' : 'whatsappShops';
+   454→        if (!shopsEntry[shopKey].includes(shopId)) {
+   455→          shopsEntry[shopKey].push(shopId);
+   456→          entry[method] = (entry[method] || 0) + 1;
+   457→        }
+   458→      } else {
+   459→        // Fallback: no shopId, just increment
+   460→        entry[method] = (entry[method] || 0) + 1;
+   461→      }
+   462→
+   463→      await AsyncStorage.setItem(KEYS.NOTIF_COUNTS, JSON.stringify(entry));
+   464→      await AsyncStorage.setItem(KEYS.NOTIF_SHOPS, JSON.stringify(shopsEntry));
+   465→      return { sms: entry.sms, whatsapp: entry.whatsapp };
+   466→    } catch {
+   467→      return { sms: 0, whatsapp: 0 };
+   468→    }
+   469→  },
+   470→
+   471→  // --- Visited Shops (persists across page refreshes, resets daily) ---
+   472→  saveVisitedShops: async (shopIds: string[]) => {
+   473→    const entry = { date: getTodayDateStr(), shopIds };
+   474→    await AsyncStorage.setItem(KEYS.VISITED_SHOPS, JSON.stringify(entry));
+   475→  },
+   476→
+   477→  getVisitedShops: async (): Promise<string[]> => {
+   478→    try {
+   479→      const raw = await AsyncStorage.getItem(KEYS.VISITED_SHOPS);
+   480→      if (!raw) return [];
+   481→      const entry = JSON.parse(raw);
+   482→      // Only return if from today, otherwise reset
+   483→      return entry.date === getTodayDateStr() ? entry.shopIds || [] : [];
+   484→    } catch {
+   485→      return [];
+   486→    }
+   487→  },
+   488→
+   489→  addVisitedShop: async (shopId: string) => {
+   490→    try {
+   491→      const raw = await AsyncStorage.getItem(KEYS.VISITED_SHOPS);
+   492→      let entry: { date: string; shopIds: string[] };
+   493→      if (!raw) {
+   494→        entry = { date: getTodayDateStr(), shopIds: [] };
+   495→      } else {
+   496→        entry = JSON.parse(raw);
+   497→        if (entry.date !== getTodayDateStr()) {
+   498→          entry = { date: getTodayDateStr(), shopIds: [] };
+   499→        }
+   500→      }
+   501→      if (!entry.shopIds.includes(shopId)) {
+   502→        entry.shopIds.push(shopId);
+   503→        await AsyncStorage.setItem(KEYS.VISITED_SHOPS, JSON.stringify(entry));
+   504→      }
+   505→    } catch { /* non-critical */ }
+   506→  },
+   507→
+   508→  // --- Recovery Submitted Shops (duplicate prevention - persists daily) ---
+   509→  saveRecoverySubmittedShops: async (shopIds: string[]) => {
+   510→    const entry = { date: getTodayDateStr(), shopIds };
+   511→    await AsyncStorage.setItem(KEYS.RECOVERY_SUBMITTED_SHOPS, JSON.stringify(entry));
+   512→  },
+   513→
+   514→  getRecoverySubmittedShops: async (): Promise<string[]> => {
+   515→    try {
+   516→      const raw = await AsyncStorage.getItem(KEYS.RECOVERY_SUBMITTED_SHOPS);
+   517→      if (!raw) return [];
+   518→      const entry = JSON.parse(raw);
+   519→      // Only return if from today, otherwise reset
+   520→      return entry.date === getTodayDateStr() ? entry.shopIds || [] : [];
+   521→    } catch {
+   522→      return [];
+   523→    }
+   524→  },
+   525→
+   526→  addRecoverySubmittedShop: async (shopId: string) => {
+   527→    try {
+   528→      const raw = await AsyncStorage.getItem(KEYS.RECOVERY_SUBMITTED_SHOPS);
+   529→      let entry: { date: string; shopIds: string[] };
+   530→      if (!raw) {
+   531→        entry = { date: getTodayDateStr(), shopIds: [] };
+   532→      } else {
+   533→        entry = JSON.parse(raw);
+   534→        if (entry.date !== getTodayDateStr()) {
+   535→          entry = { date: getTodayDateStr(), shopIds: [] };
+   536→        }
+   537→      }
+   538→      if (!entry.shopIds.includes(shopId)) {
+   539→        entry.shopIds.push(shopId);
+   540→        await AsyncStorage.setItem(KEYS.RECOVERY_SUBMITTED_SHOPS, JSON.stringify(entry));
+   541→      }
+   542→    } catch { /* non-critical */ }
+   543→  },
+   544→
+   545→  removeRecoverySubmittedShop: async (shopId: string) => {
+   546→    try {
+   547→      const raw = await AsyncStorage.getItem(KEYS.RECOVERY_SUBMITTED_SHOPS);
+   548→      if (!raw) return;
+   549→      const entry = JSON.parse(raw);
+   550→      if (entry.date !== getTodayDateStr()) return;
+   551→      entry.shopIds = entry.shopIds.filter((id: string) => id !== shopId);
+   552→      await AsyncStorage.setItem(KEYS.RECOVERY_SUBMITTED_SHOPS, JSON.stringify(entry));
+   553→    } catch { /* non-critical */ }
+   554→  },
+   555→
+   556→  // --- Offline Phone Updates (synced to server when online) ---
+   557→  addOfflinePhoneUpdate: async (update: OfflinePhoneUpdate) => {
+   558→    const raw = await AsyncStorage.getItem(KEYS.OFFLINE_PHONE_UPDATES);
+   559→    const queue: OfflinePhoneUpdate[] = raw ? JSON.parse(raw) : [];
+   560→    // Replace existing entry for same shopId
+   561→    const idx = queue.findIndex((u) => u.shopId === update.shopId);
+   562→    if (idx >= 0) {
+   563→      queue[idx] = update;
+   564→    } else {
+   565→      queue.push(update);
+   566→    }
+   567→    await AsyncStorage.setItem(KEYS.OFFLINE_PHONE_UPDATES, JSON.stringify(queue));
+   568→  },
+   569→
+   570→  getOfflinePhoneUpdates: async (): Promise<OfflinePhoneUpdate[]> => {
+   571→    const raw = await AsyncStorage.getItem(KEYS.OFFLINE_PHONE_UPDATES);
+   572→    return raw ? JSON.parse(raw) : [];
+   573→  },
+   574→
+   575→  removeOfflinePhoneUpdate: async (shopId: string) => {
+   576→    const raw = await AsyncStorage.getItem(KEYS.OFFLINE_PHONE_UPDATES);
+   577→    const queue: OfflinePhoneUpdate[] = raw ? JSON.parse(raw) : [];
+   578→    const filtered = queue.filter((u) => u.shopId !== shopId);
+   579→    await AsyncStorage.setItem(KEYS.OFFLINE_PHONE_UPDATES, JSON.stringify(filtered));
+   580→  },
+   581→
+   582→  clearOfflinePhoneUpdates: async () => {
+   583→    await AsyncStorage.setItem(KEYS.OFFLINE_PHONE_UPDATES, JSON.stringify([]));
+   584→  },
+   585→
+   586→  // --- Distributor Phone (persisted locally for offline receipt) ---
+   587→  saveDistributorPhone: async (phone: string) => {
+   588→    await AsyncStorage.setItem(KEYS.DISTRIBUTOR_PHONE, phone);
+   589→  },
+   590→
+   591→  getDistributorPhone: async (): Promise<string | null> => {
+   592→    return AsyncStorage.getItem(KEYS.DISTRIBUTOR_PHONE);
+   593→  },
+   594→
+   595→  // --- Selected Company ID (persists across app restarts) ---
+   596→  saveSelectedCompanyId: async (companyId: string | null) => {
+   597→    if (companyId) {
+   598→      await AsyncStorage.setItem(KEYS.SELECTED_COMPANY_ID, companyId);
+   599→    } else {
+   600→      await AsyncStorage.removeItem(KEYS.SELECTED_COMPANY_ID);
+   601→    }
+   602→  },
+   603→
+   604→  getSelectedCompanyId: async (): Promise<string | null> => {
+   605→    return AsyncStorage.getItem(KEYS.SELECTED_COMPANY_ID);
+   606→  },
+   607→
+   608→  // --- Route Session (active route tracking) ---
+   609→  saveRouteSessionId: async (sessionId: string | null) => {
+   610→    if (sessionId) {
+   611→      await AsyncStorage.multiSet([
+   612→        [KEYS.ROUTE_SESSION_ID, sessionId],
+   613→        [KEYS.ROUTE_SESSION_START, new Date().toISOString()],
+   614→      ]);
+   615→    } else {
+   616→      await AsyncStorage.multiRemove([KEYS.ROUTE_SESSION_ID, KEYS.ROUTE_SESSION_START]);
+   617→    }
+   618→  },
+   619→
+   620→  getRouteSessionId: async (): Promise<string | null> => {
+   621→    return AsyncStorage.getItem(KEYS.ROUTE_SESSION_ID);
+   622→  },
+   623→
+   624→  getRouteSessionStart: async (): Promise<string | null> => {
+   625→    return AsyncStorage.getItem(KEYS.ROUTE_SESSION_START);
+   626→  },
+   627→
+   628→  // --- Offline Route Locations (GPS waypoints saved when no internet) ---
+   629→  // These persist across app kills/crashes — locations are NOT lost!
+   630→  addOfflineRouteLocations: async (locations: Array<{
+   631→    lat: number;
+   632→    lng: number;
+   633→    accuracy: number | null;
+   634→    speed: number | null;
+   635→    altitude: number | null;
+   636→    batteryLevel: number | null;
+   637→    isOffline: boolean;
+   638→    recordedAt: string;
+   639→  }>) => {
+   640→    try {
+   641→      const raw = await AsyncStorage.getItem(KEYS.OFFLINE_ROUTE_LOCATIONS);
+   642→      const existing: Array<typeof locations[0]> = raw ? JSON.parse(raw) : [];
+   643→      existing.push(...locations);
+   644→      // Keep max 2000 locations (~16 hours at 30s intervals = full working day offline)
+   645→      const trimmed = existing.length > 2000 ? existing.slice(-2000) : existing;
+   646→      await AsyncStorage.setItem(KEYS.OFFLINE_ROUTE_LOCATIONS, JSON.stringify(trimmed));
+   647→    } catch (e) {
+   648→      console.error('[Storage] Failed to save offline route locations:', e);
+   649→    }
+   650→  },
+   651→
+   652→  getOfflineRouteLocations: async (): Promise<Array<{
+   653→    lat: number;
+   654→    lng: number;
+   655→    accuracy: number | null;
+   656→    speed: number | null;
+   657→    altitude: number | null;
+   658→    batteryLevel: number | null;
+   659→    isOffline: boolean;
+   660→    recordedAt: string;
+   661→  }>> => {
+   662→    try {
+   663→      const raw = await AsyncStorage.getItem(KEYS.OFFLINE_ROUTE_LOCATIONS);
+   664→      return raw ? JSON.parse(raw) : [];
+   665→    } catch {
+   666→      return [];
+   667→    }
+   668→  },
+   669→
+   670→  clearOfflineRouteLocations: async () => {
+   671→    try {
+   672→      await AsyncStorage.removeItem(KEYS.OFFLINE_ROUTE_LOCATIONS);
+   673→    } catch {}
+   674→  },
+   675→
+   676→  // --- Update phone in local shops cache (AsyncStorage) ---
+   677→  updateShopPhoneInCache: async (shopId: string, phone: string, ownerName?: string) => {
+   678→    const raw = await AsyncStorage.getItem(KEYS.SHOPS);
+   679→    if (!raw) return;
+   680→    const shops: Shop[] = JSON.parse(raw);
+   681→    const idx = shops.findIndex((s) => s.id === shopId);
+   682→    if (idx >= 0) {
+   683→      shops[idx].phone = phone;
+   684→      if (ownerName) {
+   685→        shops[idx].ownerName = ownerName;
+   686→      }
+   687→      await AsyncStorage.setItem(KEYS.SHOPS, JSON.stringify(shops));
+   688→    }
+   689→  },
+   690→
+   691→  // --- Pending Route End (for offline sync upload) ---
+   692→  saveRouteEndInfo: async (info: {
+   693→    sessionId: string;
+   694→    endTime: string;
+   695→    endLat: number | null;
+   696→    endLng: number | null;
+   697→    endAddress: string | null;
+   698→  }) => {
+   699→    await AsyncStorage.setItem(KEYS.PENDING_ROUTE_END, JSON.stringify(info));
+   700→  },
+   701→
+   702→  getRouteEndInfo: async (): Promise<{
+   703→    sessionId: string;
+   704→    endTime: string;
+   705→    endLat: number | null;
+   706→    endLng: number | null;
+   707→    endAddress: string | null;
+   708→  } | null> => {
+   709→    const raw = await AsyncStorage.getItem(KEYS.PENDING_ROUTE_END);
+   710→    return raw ? JSON.parse(raw) : null;
+   711→  },
+   712→
+   713→  clearRouteEndInfo: async () => {
+   714→    await AsyncStorage.removeItem(KEYS.PENDING_ROUTE_END);
+   715→  },
+   716→
+   717→  // --- Pending Route Start (for offline sync upload) ---
+   718→  saveRouteStartInfo: async (info: {
+   719→    sessionId: string;
+   720→    orderbookerId: string;
+   721→    startTime: string;
+   722→    startLat: number | null;
+   723→    startLng: number | null;
+   724→    startAddress: string | null;
+   725→  }) => {
+   726→    await AsyncStorage.setItem(KEYS.PENDING_ROUTE_START, JSON.stringify(info));
+   727→  },
+   728→
+   729→  getRouteStartInfo: async (): Promise<{
+   730→    sessionId: string;
+   731→    orderbookerId: string;
+   732→    startTime: string;
+   733→    startLat: number | null;
+   734→    startLng: number | null;
+   735→    startAddress: string | null;
+   736→  } | null> => {
+   737→    const raw = await AsyncStorage.getItem(KEYS.PENDING_ROUTE_START);
+   738→    return raw ? JSON.parse(raw) : null;
+   739→  },
+   740→
+   741→  clearRouteStartInfo: async () => {
+   742→    await AsyncStorage.removeItem(KEYS.PENDING_ROUTE_START);
+   743→  },
+   744→
+   745→  // --- Custom API URL (Manual URL Configuration) ---
+   746→  saveCustomApiUrl: async (url: string) => {
+   747→    await AsyncStorage.setItem(KEYS.CUSTOM_API_URL, url);
+   748→  },
+   749→
+   750→  getCustomApiUrl: async (): Promise<string | null> => {
+   751→    return AsyncStorage.getItem(KEYS.CUSTOM_API_URL);
+   752→  },
+   753→
+   754→  clearCustomApiUrl: async () => {
+   755→    await AsyncStorage.removeItem(KEYS.CUSTOM_API_URL);
+   756→  },
+   757→
+   758→  // --- Data Download State ---
+   759→  saveDataDownloadedDate: async (date: string) => {
+   760→    await AsyncStorage.setItem(KEYS.DATA_DOWNLOADED_DATE, date);
+   761→  },
+   762→
+   763→  getDataDownloadedDate: async (): Promise<string | null> => {
+   764→    return AsyncStorage.getItem(KEYS.DATA_DOWNLOADED_DATE);
+   765→  },
+   766→
+   767→  saveDataDownloadedForDate: async (date: string) => {
+   768→    await AsyncStorage.setItem(KEYS.DATA_DOWNLOADED_FOR_DATE, date);
+   769→  },
+   770→
+   771→  getDataDownloadedForDate: async (): Promise<string | null> => {
+   772→    return AsyncStorage.getItem(KEYS.DATA_DOWNLOADED_FOR_DATE);
+   773→  },
+   774→
+   775→  // --- Sync Upload State ---
+   776→  saveLastSyncUploadDate: async (date: string) => {
+   777→    await AsyncStorage.setItem(KEYS.LAST_SYNC_UPLOAD_DATE, date);
+   778→  },
+   779→
+   780→  getLastSyncUploadDate: async (): Promise<string | null> => {
+   781→    return AsyncStorage.getItem(KEYS.LAST_SYNC_UPLOAD_DATE);
+   782→  },
+   783→
+   784→  // --- Check if yesterday's data was synced ---
+   785→  // Returns true if yesterday's sync upload is done OR if there's no pending data
+   786→  isYesterdaySyncDone: async (): Promise<boolean> => {
+   787→    const yesterday = new Date();
+   788→    yesterday.setDate(yesterday.getDate() - 1);
+   789→    const yesterdayStr = yesterday.toISOString().split('T')[0]; // YYYY-MM-DD
+   790→
+   791→    const lastUpload = await AsyncStorage.getItem(KEYS.LAST_SYNC_UPLOAD_DATE);
+   792→    const downloadedFor = await AsyncStorage.getItem(KEYS.DATA_DOWNLOADED_FOR_DATE);
+   793→
+   794→    // If we never downloaded data for yesterday, no sync needed
+   795→    if (downloadedFor !== yesterdayStr) return true;
+   796→
+   797→    // If we downloaded for yesterday, check if upload was done
+   798→    if (lastUpload && lastUpload >= yesterdayStr) return true;
+   799→
+   800→    return false;
+   801→  },
+   802→
+   803→  // --- Full app data clear (removes URL + all data) ---
+   804→  clearAllAppData: async () => {
+   805→    const allKeys = await AsyncStorage.getAllKeys();
+   806→    // Remove all keys that start with 'af_'
+   807→    const appKeys = allKeys.filter(k => k.startsWith('af_'));
+   808→    if (appKeys.length > 0) {
+   809→      await AsyncStorage.multiRemove(appKeys);
+   810→    }
+   811→  },
+   812→};
+   813→

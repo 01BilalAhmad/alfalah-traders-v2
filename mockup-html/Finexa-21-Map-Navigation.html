@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finexa Map Navigation</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0f172a; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+.phone-frame {
+  width: 390px; height: 844px;
+  background: #1e293b;
+  border-radius: 50px;
+  border: 4px solid #334155;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+}
+
+.dynamic-island {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 126px; height: 36px; background: #000; border-radius: 20px; z-index: 100;
+}
+
+.status-bar {
+  position: absolute; top: 14px; left: 0; right: 0; z-index: 99;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 30px; color: white; font-size: 14px; font-weight: 600;
+}
+.status-bar .time { font-size: 15px; font-weight: 700; }
+
+/* Full map background */
+.map-container {
+  position: absolute; top: 54px; left: 0; right: 0; bottom: 84px;
+  background: #1a2332; overflow: hidden;
+}
+
+.map-grid {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: 
+    linear-gradient(90deg, rgba(71,85,105,0.3) 1px, transparent 1px),
+    linear-gradient(rgba(71,85,105,0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(71,85,105,0.15) 1px, transparent 1px),
+    linear-gradient(rgba(71,85,105,0.15) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 40px 40px, 40px 40px;
+}
+
+/* Roads */
+.road-main-h { position: absolute; top: 300px; left: 0; right: 0; height: 12px; background: rgba(148,163,184,0.5); }
+.road-main-v { position: absolute; left: 180px; top: 0; bottom: 0; width: 12px; background: rgba(148,163,184,0.5); }
+.road-h2 { position: absolute; top: 180px; left: 0; right: 0; height: 6px; background: rgba(148,163,184,0.25); }
+.road-h3 { position: absolute; top: 420px; left: 0; right: 0; height: 6px; background: rgba(148,163,184,0.25); }
+.road-v2 { position: absolute; left: 80px; top: 0; bottom: 0; width: 6px; background: rgba(148,163,184,0.25); }
+.road-v3 { position: absolute; left: 290px; top: 0; bottom: 0; width: 6px; background: rgba(148,163,184,0.25); }
+
+/* Building blocks */
+.block { position: absolute; background: rgba(51,65,85,0.5); border-radius: 4px; }
+.block-1 { top: 100px; left: 30px; width: 35px; height: 60px; }
+.block-2 { top: 100px; left: 100px; width: 65px; height: 60px; }
+.block-3 { top: 100px; left: 205px; width: 70px; height: 60px; }
+.block-4 { top: 200px; left: 30px; width: 35px; height: 80px; }
+.block-5 { top: 320px; left: 30px; width: 35px; height: 80px; }
+.block-6 { top: 200px; left: 205px; width: 70px; height: 80px; }
+.block-7 { top: 320px; left: 100px; width: 65px; height: 80px; }
+.block-8 { top: 320px; left: 205px; width: 70px; height: 80px; }
+.block-9 { top: 440px; left: 30px; width: 35px; height: 60px; }
+.block-10 { top: 440px; left: 205px; width: 70px; height: 60px; }
+
+/* Navigation route highlight */
+.nav-route {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 12;
+  pointer-events: none;
+}
+.nav-route svg { width: 100%; height: 100%; }
+
+/* Current location (on the road) */
+.current-location {
+  position: absolute; top: 300px; left: 130px; z-index: 20;
+  transform: translate(-50%, -50%);
+}
+.nav-direction-arrow {
+  width: 40px; height: 40px; background: #3b82f6;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 6px rgba(59,130,246,0.3), 0 0 0 12px rgba(59,130,246,0.1);
+  border: 3px solid white;
+}
+.nav-direction-arrow svg { width: 20px; height: 20px; fill: white; transform: rotate(-45deg); }
+
+/* Destination marker */
+.dest-marker {
+  position: absolute; top: 150px; left: 240px; z-index: 20;
+  transform: translate(-50%, -100%);
+}
+.dest-pin svg { width: 48px; height: 56px; filter: drop-shadow(0 4px 12px rgba(245,158,11,0.5)); }
+
+/* Navigation Top Bar */
+.nav-top-bar {
+  position: absolute; top: 54px; left: 0; right: 0; z-index: 40;
+  background: linear-gradient(to bottom, rgba(30,41,59,0.98) 70%, transparent);
+  padding: 12px 16px 30px;
+}
+
+.nav-direction-card {
+  background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.4);
+  border-radius: 16px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 14px;
+}
+.nav-turn-icon {
+  width: 48px; height: 48px; background: #3b82f6;
+  border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.nav-turn-icon svg { width: 28px; height: 28px; fill: white; }
+.nav-direction-text { flex: 1; }
+.nav-direction-main { color: white; font-size: 16px; font-weight: 800; }
+.nav-direction-sub { color: #93c5fd; font-size: 12px; margin-top: 2px; }
+.nav-distance {
+  text-align: right;
+}
+.nav-distance-value { color: white; font-size: 22px; font-weight: 800; }
+.nav-distance-unit { color: #93c5fd; font-size: 11px; }
+.nav-eta { color: #93c5fd; font-size: 11px; margin-top: 2px; }
+
+.nav-back-btn {
+  position: absolute; top: 12px; left: 16px;
+  width: 36px; height: 36px; background: rgba(30,41,59,0.9);
+  border-radius: 10px; display: none; /* hidden since top bar replaces */
+}
+
+/* Navigation Bottom Sheet */
+.nav-bottom-sheet {
+  position: absolute; bottom: 84px; left: 0; right: 0; z-index: 40;
+  background: rgba(30,41,59,0.97); border-top: 1px solid rgba(148,163,184,0.2);
+  padding: 16px; backdrop-filter: blur(20px);
+}
+
+.nav-destination-info {
+  display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;
+}
+.dest-info { flex: 1; }
+.dest-name { color: white; font-size: 16px; font-weight: 800; }
+.dest-detail { color: #94a3b8; font-size: 12px; margin-top: 2px; }
+.dest-badge {
+  background: rgba(245,158,11,0.15); color: #f59e0b;
+  font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px;
+  border: 1px solid rgba(245,158,11,0.3);
+}
+
+.nav-progress-bar {
+  height: 4px; background: rgba(51,65,85,0.5); border-radius: 2px;
+  margin-bottom: 14px; overflow: hidden;
+}
+.nav-progress-fill {
+  width: 35%; height: 100%; background: linear-gradient(90deg, #3b82f6, #818cf8);
+  border-radius: 2px;
+}
+
+.nav-trip-stats {
+  display: flex; gap: 8px; margin-bottom: 14px;
+}
+.trip-stat {
+  flex: 1; text-align: center; padding: 8px;
+  background: rgba(51,65,85,0.4); border-radius: 10px;
+}
+.trip-stat-value { color: white; font-size: 14px; font-weight: 800; }
+.trip-stat-label { color: #94a3b8; font-size: 10px; margin-top: 2px; }
+.trip-stat.blue .trip-stat-value { color: #3b82f6; }
+.trip-stat.green .trip-stat-value { color: #22c55e; }
+.trip-stat.purple .trip-stat-value { color: #8b5cf6; }
+
+.nav-action-row {
+  display: flex; gap: 10px;
+}
+.nav-arrive-btn {
+  flex: 2; padding: 14px; border-radius: 14px; border: none;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white; font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 4px 15px rgba(34,197,94,0.4);
+}
+.nav-arrive-btn svg { width: 20px; height: 20px; fill: white; }
+.nav-cancel-btn {
+  flex: 1; padding: 14px; border-radius: 14px;
+  border: 1px solid rgba(239,68,68,0.3); background: rgba(239,68,68,0.1);
+  color: #ef4444; font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.nav-cancel-btn svg { width: 16px; height: 16px; fill: #ef4444; }
+
+/* GPS indicator */
+.gps-indicator {
+  position: absolute; top: 130px; left: 16px; z-index: 25;
+  background: rgba(34,197,94,0.2); border: 1px solid rgba(34,197,94,0.4);
+  border-radius: 10px; padding: 5px 10px; display: flex; align-items: center; gap: 6px;
+}
+.gps-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; animation: blink 1.5s infinite; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.gps-text { color: #22c55e; font-size: 10px; font-weight: 600; }
+
+/* Speed indicator */
+.speed-indicator {
+  position: absolute; top: 130px; right: 16px; z-index: 25;
+  background: rgba(30,41,59,0.9); border: 1px solid rgba(148,163,184,0.3);
+  border-radius: 12px; padding: 8px 12px; text-align: center;
+}
+.speed-value { color: white; font-size: 20px; font-weight: 800; }
+.speed-unit { color: #94a3b8; font-size: 9px; }
+
+/* Tab Bar */
+.tab-bar {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 84px; background: rgba(15,23,42,0.98);
+  border-top: 1px solid rgba(148,163,184,0.1);
+  display: flex; justify-content: space-around; align-items: flex-start;
+  padding-top: 10px; z-index: 50;
+}
+.tab-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #64748b; font-size: 10px; }
+.tab-item.active { color: #818cf8; }
+.tab-item svg { width: 22px; height: 22px; fill: currentColor; }
+
+/* Shop markers along route (dimmed) */
+.passed-marker {
+  position: absolute; z-index: 11; transform: translate(-50%, -100%); opacity: 0.4;
+}
+.passed-marker svg { width: 28px; height: 34px; }
+.passed-1 { top: 240px; left: 80px; }
+.passed-2 { top: 300px; left: 180px; }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+  <div class="dynamic-island"></div>
+  <div class="status-bar">
+    <span class="time">9:41</span>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+    </div>
+  </div>
+
+  <div class="map-container">
+    <div class="map-grid"></div>
+    <div class="road-main-h"></div>
+    <div class="road-main-v"></div>
+    <div class="road-h2"></div>
+    <div class="road-h3"></div>
+    <div class="road-v2"></div>
+    <div class="road-v3"></div>
+    <div class="block block-1"></div>
+    <div class="block block-2"></div>
+    <div class="block block-3"></div>
+    <div class="block block-4"></div>
+    <div class="block block-5"></div>
+    <div class="block block-6"></div>
+    <div class="block block-7"></div>
+    <div class="block block-8"></div>
+    <div class="block block-9"></div>
+    <div class="block block-10"></div>
+
+    <!-- Navigation Route SVG -->
+    <div class="nav-route">
+      <svg viewBox="0 0 390 680" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Route shadow -->
+        <path d="M130 300 L180 300 L180 180 L240 180" 
+              stroke="rgba(59,130,246,0.3)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Route line -->
+        <path d="M130 300 L180 300 L180 180 L240 180" 
+              stroke="#3b82f6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Animated dashes -->
+        <path d="M130 300 L180 300 L180 180 L240 180" 
+              stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-dasharray="8 12" stroke-linecap="round">
+          <animate attributeName="stroke-dashoffset" values="0;-20" dur="1s" repeatCount="indefinite"/>
+        </path>
+        <!-- Completed portion -->
+        <path d="M130 300 L180 300 L180 250" 
+              stroke="#22c55e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <!-- Passed markers (dimmed) -->
+    <div class="passed-marker passed-1">
+      <svg viewBox="0 0 40 48"><path d="M20 42C10.5 42 3 33.5 3 23c0-1 0-2 .1-3C4.3 10.1 11.2 4 20 4s15.7 6.1 16.9 16c.1 1 .1 2 .1 3 0 10.5-7.5 19-19 19z" fill="#22c55e"/><circle cx="20" cy="22" r="8" fill="white" opacity="0.9"/><path d="M17 22l2 2 4-4" stroke="#22c55e" stroke-width="2" fill="none"/></svg>
+    </div>
+    <div class="passed-marker passed-2">
+      <svg viewBox="0 0 40 48"><path d="M20 42C10.5 42 3 33.5 3 23c0-1 0-2 .1-3C4.3 10.1 11.2 4 20 4s15.7 6.1 16.9 16c.1 1 .1 2 .1 3 0 10.5-7.5 19-19 19z" fill="#22c55e"/><circle cx="20" cy="22" r="8" fill="white" opacity="0.9"/><path d="M17 22l2 2 4-4" stroke="#22c55e" stroke-width="2" fill="none"/></svg>
+    </div>
+
+    <!-- Current Location (navigation mode) -->
+    <div class="current-location">
+      <div class="nav-direction-arrow">
+        <svg viewBox="0 0 24 24"><path d="M12 2L4 12h5v10h6V12h5z"/></svg>
+      </div>
+    </div>
+
+    <!-- Destination Marker -->
+    <div class="dest-marker">
+      <div class="dest-pin">
+        <svg viewBox="0 0 48 56">
+          <path d="M24 50C13 50 4 41 4 29c0-1.5 0-3 .1-4.5C5.7 12.5 13.8 5 24 5s18.3 7.5 19.9 19.5c.1 1.5.1 3 .1 4.5 0 12-9 21-20 21z" fill="#f59e0b"/>
+          <circle cx="24" cy="28" r="10" fill="white" opacity="0.9"/>
+          <text x="24" y="32" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="bold">B</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- GPS Indicator -->
+    <div class="gps-indicator">
+      <div class="gps-dot"></div>
+      <span class="gps-text">GPS Live</span>
+    </div>
+
+    <!-- Speed Indicator -->
+    <div class="speed-indicator">
+      <div class="speed-value">12</div>
+      <div class="speed-unit">km/h</div>
+    </div>
+  </div>
+
+  <!-- Navigation Top Bar -->
+  <div class="nav-top-bar">
+    <div class="nav-direction-card">
+      <div class="nav-turn-icon">
+        <svg viewBox="0 0 24 24"><path d="M14 6l-3.75 5 2.85 3.8-1.6 1.2C9.81 13.75 7 10 7 10l-5 7h22L14 6z" transform="rotate(180 12 12)"/></svg>
+      </div>
+      <div class="nav-direction-text">
+        <div class="nav-direction-main">Dahain mudiyein</div>
+        <div class="nav-direction-sub">Jinnah Road pe — 200m aage</div>
+      </div>
+      <div class="nav-distance">
+        <div class="nav-distance-value">1.2</div>
+        <div class="nav-distance-unit">km</div>
+        <div class="nav-eta">ETA 5 min</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Bottom Sheet -->
+  <div class="nav-bottom-sheet">
+    <div class="nav-destination-info">
+      <div class="dest-info">
+        <div class="dest-name">Bilal General Store</div>
+        <div class="dest-detail">Jinnah Road, Market Area — Rs 8,500 outstanding</div>
+      </div>
+      <div class="dest-badge">Next Stop</div>
+    </div>
+
+    <div class="nav-progress-bar">
+      <div class="nav-progress-fill"></div>
+    </div>
+
+    <div class="nav-trip-stats">
+      <div class="trip-stat blue">
+        <div class="trip-stat-value">1.2 km</div>
+        <div class="trip-stat-label">Baaqi</div>
+      </div>
+      <div class="trip-stat green">
+        <div class="trip-stat-value">5 min</div>
+        <div class="trip-stat-label">ETA</div>
+      </div>
+      <div class="trip-stat purple">
+        <div class="trip-stat-value">2/6</div>
+        <div class="trip-stat-label">Shops Done</div>
+      </div>
+    </div>
+
+    <div class="nav-action-row">
+      <button class="nav-arrive-btn">
+        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Arrived at Shop
+      </button>
+      <button class="nav-cancel-btn">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <div class="tab-item active">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span>Map</span>
+    </div>
+    <div class="tab-item">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+      <span>Route</span>
+    </div>
+    <div class="tab-item">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+      <span>Recovery</span>
+    </div>
+    <div class="tab-item">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+      <span>Sync</span>
+    </div>
+    <div class="tab-item">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+      <span>Profile</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

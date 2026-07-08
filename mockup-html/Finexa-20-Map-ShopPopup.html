@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finexa Map Shop Popup</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0f172a; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+.phone-frame {
+  width: 390px; height: 844px;
+  background: #1e293b;
+  border-radius: 50px;
+  border: 4px solid #334155;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+}
+
+.dynamic-island {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 126px; height: 36px; background: #000; border-radius: 20px; z-index: 100;
+}
+
+.status-bar {
+  position: absolute; top: 14px; left: 0; right: 0; z-index: 99;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 30px; color: white; font-size: 14px; font-weight: 600;
+}
+.status-bar .time { font-size: 15px; font-weight: 700; }
+
+.map-container {
+  position: absolute; top: 54px; left: 0; right: 0; bottom: 160px;
+  background: #1a2332; overflow: hidden;
+  filter: brightness(0.6);
+}
+
+.map-grid {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: 
+    linear-gradient(90deg, rgba(71,85,105,0.3) 1px, transparent 1px),
+    linear-gradient(rgba(71,85,105,0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(71,85,105,0.15) 1px, transparent 1px),
+    linear-gradient(rgba(71,85,105,0.15) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 40px 40px, 40px 40px;
+}
+
+.road-h1 { position: absolute; top: 180px; left: 0; right: 0; height: 8px; background: rgba(148,163,184,0.4); }
+.road-v1 { position: absolute; left: 100px; top: 0; bottom: 0; width: 8px; background: rgba(148,163,184,0.4); }
+.road-v2 { position: absolute; left: 250px; top: 0; bottom: 0; width: 6px; background: rgba(148,163,184,0.3); }
+
+.block { position: absolute; background: rgba(51,65,85,0.5); border-radius: 4px; }
+.block-1 { top: 60px; left: 30px; width: 55px; height: 45px; }
+.block-2 { top: 60px; left: 120px; width: 115px; height: 45px; }
+.block-3 { top: 200px; left: 30px; width: 55px; height: 130px; }
+.block-4 { top: 200px; left: 120px; width: 50px; height: 60px; }
+.block-5 { top: 200px; left: 185px; width: 50px; height: 130px; }
+.block-6 { top: 370px; left: 120px; width: 115px; height: 50px; }
+
+/* Selected shop marker (larger, highlighted) */
+.selected-marker {
+  position: absolute; top: 200px; left: 280px; z-index: 20;
+  transform: translate(-50%, -100%);
+}
+.selected-marker .pin-glow {
+  position: absolute; top: -20px; left: -20px; width: 80px; height: 80px;
+  background: radial-gradient(circle, rgba(245,158,11,0.4) 0%, transparent 70%);
+  border-radius: 50%; animation: glow 2s infinite;
+}
+@keyframes glow { 0%,100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.3); opacity: 1; } }
+.selected-pin svg { width: 52px; height: 62px; filter: drop-shadow(0 4px 12px rgba(245,158,11,0.5)); }
+
+/* Other markers (dimmed) */
+.dim-marker { position: absolute; z-index: 10; transform: translate(-50%, -100%); opacity: 0.4; }
+.dim-marker svg { width: 32px; height: 38px; }
+.dim-1 { top: 130px; left: 150px; }
+.dim-2 { top: 230px; left: 70px; }
+.dim-3 { top: 370px; left: 180px; }
+
+/* Shop Detail Popup Card */
+.shop-popup {
+  position: absolute; bottom: 160px; left: 12px; right: 12px; z-index: 40;
+  background: rgba(30,41,59,0.97); border: 1px solid rgba(148,163,184,0.25);
+  border-radius: 24px; padding: 20px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.4);
+  animation: slideUp 0.3s ease-out;
+}
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.popup-handle {
+  width: 36px; height: 4px; background: rgba(148,163,184,0.3);
+  border-radius: 2px; margin: 0 auto 16px;
+}
+
+.popup-header {
+  display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;
+}
+.popup-shop-info { flex: 1; }
+.popup-shop-name { color: white; font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+.popup-shop-owner { color: #94a3b8; font-size: 13px; }
+.popup-shop-address { color: #64748b; font-size: 11px; margin-top: 2px; }
+.popup-status {
+  background: rgba(245,158,11,0.15); color: #f59e0b;
+  font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 20px;
+  border: 1px solid rgba(245,158,11,0.3);
+}
+
+.popup-stats {
+  display: flex; gap: 10px; margin-bottom: 16px;
+}
+.popup-stat {
+  flex: 1; background: rgba(51,65,85,0.5); border-radius: 14px; padding: 12px 10px; text-align: center;
+}
+.popup-stat-value { color: white; font-size: 16px; font-weight: 800; }
+.popup-stat-label { color: #94a3b8; font-size: 10px; margin-top: 2px; }
+.popup-stat.red .popup-stat-value { color: #ef4444; }
+.popup-stat.green .popup-stat-value { color: #22c55e; }
+.popup-stat.blue .popup-stat-value { color: #3b82f6; }
+
+.popup-contact-row {
+  display: flex; gap: 10px; margin-bottom: 16px;
+}
+.contact-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px; border-radius: 12px; border: 1px solid rgba(148,163,184,0.2);
+  background: rgba(51,65,85,0.4); color: #e2e8f0; font-size: 13px; font-weight: 600;
+}
+.contact-btn svg { width: 18px; height: 18px; }
+.contact-btn.call { border-color: rgba(34,197,94,0.3); }
+.contact-btn.call svg { fill: #22c55e; }
+.contact-btn.whatsapp { border-color: rgba(37,211,102,0.3); }
+.contact-btn.whatsapp svg { fill: #25d366; }
+
+.popup-actions {
+  display: flex; gap: 10px;
+}
+.attempt-btn {
+  flex: 2; padding: 14px; border-radius: 14px; border: none;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white; font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 4px 15px rgba(99,102,241,0.4);
+}
+.attempt-btn svg { width: 20px; height: 20px; fill: white; }
+.direction-btn {
+  flex: 1; padding: 14px; border-radius: 14px; border: 1px solid rgba(59,130,246,0.4);
+  background: rgba(59,130,246,0.15); color: #3b82f6; font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.direction-btn svg { width: 18px; height: 18px; fill: #3b82f6; }
+
+.popup-last-visit {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 14px;
+  padding: 8px 12px; background: rgba(239,68,68,0.08); border-radius: 10px;
+  border: 1px solid rgba(239,68,68,0.15);
+}
+.last-visit-icon { width: 16px; height: 16px; fill: #ef4444; }
+.last-visit-text { color: #fca5a5; font-size: 11px; }
+
+/* Bottom Panel - compact */
+.bottom-panel-compact {
+  position: absolute; bottom: 84px; left: 0; right: 0;
+  background: rgba(30,41,59,0.95);
+  padding: 10px 16px;
+  z-index: 30;
+  border-top: 1px solid rgba(148,163,184,0.1);
+}
+.mini-route {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.mini-route-info { display: flex; align-items: center; gap: 10px; }
+.mini-progress { display: flex; gap: 4px; }
+.mini-dot { width: 8px; height: 8px; border-radius: 50%; }
+.mini-dot.done { background: #22c55e; }
+.mini-dot.pending { background: rgba(148,163,184,0.3); }
+.mini-dot.current { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.5); }
+.mini-route-text { color: #94a3b8; font-size: 12px; }
+.mini-route-badge { color: #22c55e; font-size: 12px; font-weight: 700; }
+
+/* Tab Bar */
+.tab-bar {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 84px; background: rgba(15,23,42,0.98);
+  border-top: 1px solid rgba(148,163,184,0.1);
+  display: flex; justify-content: space-around; align-items: flex-start;
+  padding-top: 10px; z-index: 50;
+}
+.tab-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #64748b; font-size: 10px; }
+.tab-item.active { color: #818cf8; }
+.tab-item svg { width: 22px; height: 22px; fill: currentColor; }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+  <div class="dynamic-island"></div>
+  <div class="status-bar">
+    <span class="time">9:41</span>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+    </div>
+  </div>
+
+  <div class="map-container">
+    <div class="map-grid"></div>
+    <div class="road-h1"></div>
+    <div class="road-v1"></div>
+    <div class="road-v2"></div>
+    <div class="block block-1"></div>
+    <div class="block block-2"></div>
+    <div class="block block-3"></div>
+    <div class="block block-4"></div>
+    <div class="block block-5"></div>
+    <div class="block block-6"></div>
+
+    <!-- Dimmed other markers -->
+    <div class="dim-marker dim-1">
+      <svg viewBox="0 0 40 48"><path d="M20 42C10.5 42 3 33.5 3 23c0-1 0-2 .1-3C4.3 10.1 11.2 4 20 4s15.7 6.1 16.9 16c.1 1 .1 2 .1 3 0 10.5-7.5 19-19 19z" fill="#22c55e"/><circle cx="20" cy="22" r="8" fill="white" opacity="0.9"/><path d="M17 22l2 2 4-4" stroke="#22c55e" stroke-width="2" fill="none"/></svg>
+    </div>
+    <div class="dim-marker dim-2">
+      <svg viewBox="0 0 40 48"><path d="M20 42C10.5 42 3 33.5 3 23c0-1 0-2 .1-3C4.3 10.1 11.2 4 20 4s15.7 6.1 16.9 16c.1 1 .1 2 .1 3 0 10.5-7.5 19-19 19z" fill="#22c55e"/><circle cx="20" cy="22" r="8" fill="white" opacity="0.9"/><path d="M17 22l2 2 4-4" stroke="#22c55e" stroke-width="2" fill="none"/></svg>
+    </div>
+    <div class="dim-marker dim-3">
+      <svg viewBox="0 0 40 48"><path d="M20 42C10.5 42 3 33.5 3 23c0-1 0-2 .1-3C4.3 10.1 11.2 4 20 4s15.7 6.1 16.9 16c.1 1 .1 2 .1 3 0 10.5-7.5 19-19 19z" fill="#f59e0b"/><circle cx="20" cy="22" r="8" fill="white" opacity="0.9"/></svg>
+    </div>
+
+    <!-- Selected shop marker (highlighted) -->
+    <div class="selected-marker">
+      <div class="pin-glow"></div>
+      <div class="selected-pin">
+        <svg viewBox="0 0 52 62">
+          <path d="M26 56C14.5 56 5 46.5 5 34c0-1.3 0-2.6.1-3.9C6.6 16.4 15.2 8 26 8s19.4 8.4 20.9 22.1c.1 1.3.1 2.6.1 3.9 0 12.5-9.5 22-21 22z" fill="#f59e0b"/>
+          <circle cx="26" cy="30" r="10" fill="white" opacity="0.9"/>
+          <text x="26" y="34" text-anchor="middle" fill="#f59e0b" font-size="14" font-weight="bold">3</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shop Detail Popup -->
+  <div class="shop-popup">
+    <div class="popup-handle"></div>
+    <div class="popup-header">
+      <div class="popup-shop-info">
+        <div class="popup-shop-name">Bilal General Store</div>
+        <div class="popup-shop-owner">Owner: Bilal Ahmed</div>
+        <div class="popup-shop-address">Jinnah Road, Market Area</div>
+      </div>
+      <div class="popup-status">Pending</div>
+    </div>
+
+    <div class="popup-stats">
+      <div class="popup-stat red">
+        <div class="popup-stat-value">Rs 8,500</div>
+        <div class="popup-stat-label">Outstanding</div>
+      </div>
+      <div class="popup-stat green">
+        <div class="popup-stat-value">Rs 2,000</div>
+        <div class="popup-stat-label">Last Recovery</div>
+      </div>
+      <div class="popup-stat blue">
+        <div class="popup-stat-value">1.2 km</div>
+        <div class="popup-stat-label">Distance</div>
+      </div>
+    </div>
+
+    <div class="popup-last-visit">
+      <svg class="last-visit-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+      <span class="last-visit-text">Last visited: 3 days ago — Recovery: Rs 2,000</span>
+    </div>
+
+    <div class="popup-contact-row">
+      <div class="contact-btn call">
+        <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+        Call
+      </div>
+      <div class="contact-btn whatsapp">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+        WhatsApp
+      </div>
+    </div>
+
+    <div class="popup-actions">
+      <button class="attempt-btn">
+        <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        Attempt Visit
+      </button>
+      <button class="direction-btn">
+        <svg viewBox="0 0 24 24"><path d="M22.43 10.59l-9.01-9.01c-.75-.75-2.07-.76-2.83 0l-9 9.01c-.78.78-.78 2.04 0 2.82l9.01 9.01c.39.39.9.58 1.41.58.51 0 1.02-.19 1.41-.58l9.01-9.01c.78-.78.78-2.04 0-2.82zM12.01 20.99l-9-9.01 9-9.01 9.01 9.01-9.01 9.01zM8 11v2h4v3l4-4-4-4v3H8z"/></svg>
+        Navigate
+      </button>
+    </div>
+  </div>
+
+  <!-- Mini Route Bar -->
+  <div class="bottom-panel-compact">
+    <div class="mini-route">
+      <div class="mini-route-info">
+        <div class="mini-progress">
+          <div class="mini-dot done"></div>
+          <div class="mini-dot done"></div>
+          <div class="mini-dot current"></div>
+          <div class="mini-dot pending"></div>
+          <div class="mini-dot pending"></div>
+          <div class="mini-dot pending"></div>
+        </div>
+        <span class="mini-route-text">Bilal General (Shop 3/6)</span>
+      </div>
+      <span class="mini-route-badge">2/6 Done</span>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <div class="tab-item active">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span>Map</span>
+    </div>
+    <div class="tab-item">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+      <span>Route</span>
+    </div>
+    <div class="tab-item">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+      <span>Recovery</span>
+    </div>
+    <div class="tab-item">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+      <span>Sync</span>
+    </div>
+    <div class="tab-item">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+      <span>Profile</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

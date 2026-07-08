@@ -1,0 +1,407 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// NOTE: Uses PostgreSQL (Neon) on Vercel.
+// For local dev without PostgreSQL, the pg.ts adapter provides SQLite fallback.
+// Arrays (routeDays) are stored as native PostgreSQL String[] — handled natively by Prisma.
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  name      String
+  role      String   @default("orderbooker") // "admin" or "orderbooker"
+  phone     String?
+  email     String?  // admin email for password recovery
+  status    String   @default("active") // "active" or "inactive"
+  allRoutesEnabled Boolean @default(false) // admin can allow OB to see all days' shops
+  companyId String?  // nullable - PRIMARY company (backward compat, first company)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company            Company?         @relation(fields: [companyId], references: [id])
+  orderbookerShops   Shop[]
+  shopAssignments    ShopOrderbooker[] // additional shop assignments (multi-OB per shop)
+  userCompanies      UserCompany[]    // multi-company assignments
+  creditTransactions Transaction[] @relation("CreditBy")
+  auditLogs          AuditLog[]
+  shopNotes          ShopNote[]    @relation("NoteBy")
+  shopVisits         ShopVisit[]   @relation("VisitsBy")
+  dailyTargetsFor    DailyTarget[] @relation("TargetsFor")
+  dailyTargetsBy     DailyTarget[] @relation("TargetsBy")
+  preferences        UserPreference?
+  routeSessions      RouteSession[]    @relation("RouteSessions")
+  routeShopVisits    RouteShopVisit[]  @relation("RouteShopVisits")
+  passwordResetTokens PasswordResetToken[]
+
+  @@index([username])
+  @@index([role])
+  @@index([companyId])
+}
+
+model Shop {
+  id             String   @id @default(cuid())
+  name           String
+  ownerName      String?
+  area           String?
+  address        String?
+  phone          String?
+  routeDays      String[] // ["monday", "thursday"] — supports multiple route days per shop
+  orderbookerId  String
+  balance        Float    @default(0) // running balance
+  creditLimit    Float    @default(0) // 0 = no limit
+  status         String   @default("active") // "active" or "inactive"
+  lat            Float?   // Shop GPS latitude
+  lng            Float?   // Shop GPS longitude
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orderbooker      User                @relation(fields: [orderbookerId], references: [id])
+  transactions     Transaction[]
+  notes            ShopNote[]
+  visits           ShopVisit[]
+  companyBalances  ShopCompanyBalance[]
+  assignedOrderbookers ShopOrderbooker[]
+  routeShopVisits  RouteShopVisit[]
+
+  @@index([orderbookerId])
+  @@index([routeDays])
+  @@index([name])
+  @@index([area])
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  shopId        String
+  type          String   // "credit", "recovery", or "claim"
+  status        String   @default("approved") // "pending", "approved", "rejected"
+  amount        Float
+  previousBalance Float
+  newBalance    Float
+  description   String?
+  createdBy     String   // userId
+  approvedBy    String?  // admin userId who approved
+  approvedAt    DateTime?
+  rejectReason  String?
+  gpsLat        Float?
+  gpsLng        Float?
+  gpsAddress    String?
+  companyId     String?  // nullable - which company this transaction belongs to
+  idempotencyKey String? @unique // prevents duplicate recovery submissions
+  createdAt     DateTime @default(now())
+
+  shop    Shop           @relation(fields: [shopId], references: [id])
+  creator User           @relation("CreditBy", fields: [createdBy], references: [id])
+  company Company?       @relation(fields: [companyId], references: [id])
+
+  @@index([shopId])
+  @@index([type])
+  @@index([status])
+  @@index([createdBy])
+  @@index([createdAt])
+  @@index([companyId])
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  action        String   // "create", "edit", "credit_post", "recovery_entry", "status_change"
+  entityType    String   // "shop", "user", "transaction"
+  entityId      String?
+  performedBy   String?
+  oldValue      String?  // JSON string of old values
+  newValue      String?  // JSON string of new values
+  description   String?
+  createdAt     DateTime @default(now())
+
+  performer User? @relation(fields: [performedBy], references: [id])
+
+  @@index([action])
+  @@index([entityType])
+  @@index([performedBy])
+  @@index([createdAt])
+}
+
+model ShopNote {
+  id        String   @id @default(cuid())
+  shopId    String
+  note      String
+  createdBy String   // userId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shop    Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  creator User           @relation("NoteBy", fields: [createdBy], references: [id])
+
+  @@index([shopId])
+  @@index([createdBy])
+}
+
+model ShopVisit {
+  id            String   @id @default(cuid())
+  shopId        String
+  orderbookerId String   // userId
+  gpsLat        Float?
+  gpsLng        Float?
+  gpsAddress    String?
+  inRange       Boolean  @default(true) // whether visit was within 100m radius
+  createdAt     DateTime @default(now())
+
+  shop         Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  orderbooker  User           @relation("VisitsBy", fields: [orderbookerId], references: [id])
+
+  @@index([shopId])
+  @@index([orderbookerId])
+  @@index([createdAt])
+}
+
+model DailyTarget {
+  id             String   @id @default(cuid())
+  orderbookerId  String   // userId
+  target         Float    // monthly recovery target in PKR (legacy, kept for backward compat)
+  month          String   // "YYYY-MM" format e.g. "2026-05"
+  createdBy      String   // admin userId who set the target
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // ── NEW: Credit Closing Target System ────────────────────────────
+  // The orderbooker must bring their total outstanding credit balance
+  // down to `targetClosingCredit` by end of month.
+  // `openingCredit` is auto-set from previous month's closing balance
+  // (or current Shop.balance on 1st of month if no previous target).
+  // Both can be manually edited by admin.
+  openingCredit       Float?   // credit balance at start of month (PKR)
+  targetClosingCredit Float?   // credit balance target at end of month (PKR)
+  maxCreditThisMonth  Float?   // auto-tracked: highest credit during month (for progress calc)
+  closingCredit       Float?   // actual closing at month end (auto-set when month rolls over)
+
+  orderbooker User           @relation("TargetsFor", fields: [orderbookerId], references: [id])
+  creator     User           @relation("TargetsBy", fields: [createdBy], references: [id])
+
+  @@unique([orderbookerId, month])
+  @@index([orderbookerId])
+  @@index([month])
+}
+
+model UserPreference {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  tourCompleted  Boolean  @default(false)
+  preferences    String?  // JSON string for future extensibility
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Company {
+  id               String   @id @default(cuid())
+  name             String   @unique // e.g. "CBL", "Cadbury", "Shan Foods"
+  description      String?  // optional description
+  distributorPhone String?  // distributor contact number shown on receipts
+  status           String   @default("active") // "active" or "inactive"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  orderbookers       User[]
+  userCompanies      UserCompany[]
+  companyBalances    ShopCompanyBalance[]
+  transactions       Transaction[]
+  shopOrderbookers   ShopOrderbooker[]
+
+  @@index([name])
+  @@index([status])
+}
+
+model ShopCompanyBalance {
+  id          String   @id @default(cuid())
+  shopId      String
+  companyId   String
+  balance     Float    @default(0) // running balance per company
+  creditLimit Float    @default(0) // credit limit per company (0 = no limit)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shop    Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([shopId, companyId])
+  @@index([shopId])
+  @@index([companyId])
+}
+
+model UserCompany {
+  id          String   @id @default(cuid())
+  userId      String
+  companyId   String
+  isPrimary   Boolean  @default(false) // first assigned company is primary
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+}
+
+model ShopOrderbooker {
+  id            String   @id @default(cuid())
+  shopId        String
+  orderbookerId String
+  companyId     String   // which company this orderbooker handles for this shop
+  routeDays     String[] // route days specific to this assignment
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  shop         Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  orderbooker  User    @relation(fields: [orderbookerId], references: [id], onDelete: Cascade)
+  company      Company @relation(fields: [companyId], references: [id])
+
+  @@unique([shopId, orderbookerId, companyId])
+  @@index([shopId])
+  @@index([orderbookerId])
+  @@index([companyId])
+}
+
+model RouteSession {
+  id             String    @id @default(cuid())
+  orderbookerId  String    // userId
+  startTime      DateTime  @default(now())
+  endTime        DateTime? // null = still active
+  startLat       Float?
+  startLng       Float?
+  endLat         Float?
+  endLng         Float?
+  startAddress   String?
+  endAddress     String?
+  totalDistance   Float     @default(0)   // meters
+  totalDuration   Int      @default(0)   // seconds
+  status         String    @default("active") // "active", "ended", "auto_ended"
+  autoEndReason  String?   // "12am_auto"
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  orderbooker    User      @relation("RouteSessions", fields: [orderbookerId], references: [id])
+  locations      RouteLocation[]
+  shopVisits     RouteShopVisit[]
+
+  @@index([orderbookerId])
+  @@index([status])
+  @@index([startTime])
+}
+
+model RouteLocation {
+  id              String   @id @default(cuid())
+  sessionId       String
+  lat             Float
+  lng             Float
+  accuracy        Float?   // GPS accuracy in meters
+  speed           Float?   // m/s from GPS
+  altitude        Float?   // meters
+  batteryLevel    Float?   // 0-1
+  isOffline       Boolean  @default(false)
+  recordedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  session         RouteSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([recordedAt])
+}
+
+model RouteShopVisit {
+  id              String    @id @default(cuid())
+  sessionId       String
+  shopId          String
+  orderbookerId   String    // denormalized for fast queries
+  enterLat        Float?    // GPS when entering shop radius
+  enterLng        Float?
+  exitLat         Float?    // GPS when leaving shop radius
+  exitLng         Float?
+  enterTime       DateTime  // when OB entered 30m radius
+  exitTime        DateTime? // when OB left 30m radius
+  timeSpent       Int?      // seconds (computed on exit)
+  distanceToShop  Float?    // meters from shop center when detected
+  isAutoDetected  Boolean   @default(true) // true = GPS proximity, false = manual
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  session         RouteSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  shop            Shop         @relation(fields: [shopId], references: [id])
+  orderbooker     User         @relation("RouteShopVisits", fields: [orderbookerId], references: [id])
+
+  @@index([sessionId])
+  @@index([shopId])
+  @@index([orderbookerId])
+  @@index([enterTime])
+}
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
+
+model EmailConfig {
+  id           String   @id @default(cuid())
+  smtpHost     String
+  smtpPort     Int      @default(587)
+  smtpUser     String
+  smtpPass     String
+  fromName     String?
+  useTLS       Boolean  @default(true)
+  isConfigured Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  email     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model SmsLog {
+  id            String   @id @default(cuid())
+  shopId        String
+  shopName      String
+  shopPhone     String
+  orderbookerId String
+  transactionId String?
+  method        String   // "sms" | "whatsapp"
+  status        String   // "sent" | "failed" | "skipped"
+  message       String?
+  errorMessage  String?
+  sentAt        DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([orderbookerId])
+  @@index([shopId])
+  @@index([status])
+  @@index([sentAt])
+  @@index([method])
+}

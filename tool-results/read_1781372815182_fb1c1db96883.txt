@@ -1,0 +1,1012 @@
+     1→// Powered by Finexa
+     2→// Profile Screen — Modern redesign with gradient hero, glassmorphism cards,
+     3→// improved KPI section, and consistent indigo theme throughout.
+     4→import React, { useState, useEffect, useRef } from 'react';
+     5→import {
+     6→  View,
+     7→  Text,
+     8→  StyleSheet,
+     9→  Pressable,
+    10→  ScrollView,
+    11→  Alert,
+    12→  ActivityIndicator,
+    13→  Dimensions,
+    14→  TextInput,
+    15→} from 'react-native';
+    16→import { MaterialIcons } from '@expo/vector-icons';
+    17→import { LinearGradient } from 'expo-linear-gradient';
+    18→import { useSafeAreaInsets } from 'react-native-safe-area-context';
+    19→import { useRouter } from 'expo-router';
+    20→import { useAuth } from '@/hooks/useAuth';
+    21→import { useShops } from '@/hooks/useShops';
+    22→import { useLock } from '@/hooks/useLock';
+    23→import { useRouteTracking } from '@/contexts/RouteTrackingContext';
+    24→import { ApiService } from '@/services/api';
+    25→import { StorageService } from '@/services/storage';
+    26→import { SecureStorageService } from '@/services/secureStorage';
+    27→import { Colors, Spacing, Radius, FontSize, FontWeight, Shadow } from '@/constants/theme';
+    28→import { formatPKR, getTodayDateStr } from '@/utils/format';
+    29→import { RecoveryAnalysisChart } from '@/components/ui/RecoveryAnalysisChart';
+    30→import { RecoveryComparison } from '@/components/ui/RecoveryComparison';
+    31→import { PerformanceRanking } from '@/components/ui/PerformanceRanking';
+    32→
+    33→const { width: SCREEN_WIDTH } = Dimensions.get('window');
+    34→
+    35→// ── Info Row Component ──
+    36→function InfoRow({ icon, label, value, valueColor }: { icon: string; label: string; value: string; valueColor?: string }) {
+    37→  return (
+    38→    <View style={infoRowStyles.row}>
+    39→      <View style={infoRowStyles.iconWrap}>
+    40→        <MaterialIcons name={icon as any} size={18} color="#4F46E5" />
+    41→      </View>
+    42→      <View style={{ flex: 1 }}>
+    43→        <Text style={infoRowStyles.label}>{label}</Text>
+    44→        <Text style={[infoRowStyles.value, valueColor && { color: valueColor }]}>{value}</Text>
+    45→      </View>
+    46→    </View>
+    47→  );
+    48→}
+    49→const infoRowStyles = StyleSheet.create({
+    50→  row: {
+    51→    flexDirection: 'row',
+    52→    alignItems: 'center',
+    53→    gap: Spacing.sm,
+    54→    paddingVertical: Spacing.sm,
+    55→  },
+    56→  iconWrap: {
+    57→    width: 40,
+    58→    height: 40,
+    59→    borderRadius: 12,
+    60→    backgroundColor: '#EEF2FF',
+    61→    alignItems: 'center',
+    62→    justifyContent: 'center',
+    63→    borderWidth: 1,
+    64→    borderColor: '#E0E7FF',
+    65→  },
+    66→  label: {
+    67→    fontSize: FontSize.xs,
+    68→    color: Colors.textMuted,
+    69→    textTransform: 'uppercase',
+    70→    letterSpacing: 0.5,
+    71→    marginBottom: 1,
+    72→  },
+    73→  value: { fontSize: FontSize.base, fontWeight: FontWeight.semibold, color: Colors.text },
+    74→});
+    75→
+    76→// ── KPI Card Component ──
+    77→function KpiCard({
+    78→  label,
+    79→  value,
+    80→  color,
+    81→  bg,
+    82→  icon,
+    83→  subtext,
+    84→}: {
+    85→  label: string;
+    86→  value: string;
+    87→  color: string;
+    88→  bg: string;
+    89→  icon: string;
+    90→  subtext?: string;
+    91→}) {
+    92→  return (
+    93→    <View style={[kpiStyles.card, { borderLeftColor: color }]}>
+    94→      <View style={kpiStyles.top}>
+    95→        <View style={[kpiStyles.iconWrap, { backgroundColor: color + '18' }]}>
+    96→          <MaterialIcons name={icon as any} size={20} color={color} />
+    97→        </View>
+    98→        <Text style={[kpiStyles.value, { color }]}>{value}</Text>
+    99→      </View>
+   100→      <Text style={kpiStyles.label}>{label}</Text>
+   101→      {subtext ? <Text style={kpiStyles.sub}>{subtext}</Text> : null}
+   102→    </View>
+   103→  );
+   104→}
+   105→const kpiStyles = StyleSheet.create({
+   106→  card: {
+   107→    flex: 1,
+   108→    borderRadius: 16,
+   109→    padding: 14,
+   110→    backgroundColor: Colors.surface,
+   111→    ...Shadow.sm,
+   112→    borderWidth: 1,
+   113→    borderLeftWidth: 3,
+   114→    borderColor: Colors.borderLight,
+   115→  },
+   116→  top: {
+   117→    flexDirection: 'row',
+   118→    alignItems: 'center',
+   119→    justifyContent: 'space-between',
+   120→    marginBottom: 8,
+   121→  },
+   122→  iconWrap: {
+   123→    width: 36,
+   124→    height: 36,
+   125→    borderRadius: 10,
+   126→    alignItems: 'center',
+   127→    justifyContent: 'center',
+   128→  },
+   129→  value: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
+   130→  label: { fontSize: 10, color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, fontWeight: FontWeight.semibold },
+   131→  sub: { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
+   132→});
+   133→
+   134→// ── Action Row Component ──
+   135→function ActionRow({
+   136→  icon,
+   137→  iconColor,
+   138→  iconBg,
+   139→  title,
+   140→  subtitle,
+   141→  onPress,
+   142→  showChevron = true,
+   143→  danger = false,
+   144→}: {
+   145→  icon: string;
+   146→  iconColor: string;
+   147→  iconBg: string;
+   148→  title: string;
+   149→  subtitle: string;
+   150→  onPress: () => void;
+   151→  showChevron?: boolean;
+   152→  danger?: boolean;
+   153→}) {
+   154→  return (
+   155→    <Pressable
+   156→      style={({ pressed }) => [actionStyles.card, pressed && { opacity: 0.9, transform: [{ scale: 0.995}] }]}
+   157→      onPress={onPress}
+   158→    >
+   159→      <View style={[actionStyles.iconWrap, { backgroundColor: iconBg }]}>
+   160→        <MaterialIcons name={icon as any} size={20} color={iconColor} />
+   161→      </View>
+   162→      <View style={actionStyles.textWrap}>
+   163→        <Text style={[actionStyles.title, danger && { color: Colors.danger }]}>{title}</Text>
+   164→        <Text style={actionStyles.subtitle}>{subtitle}</Text>
+   165→      </View>
+   166→      {showChevron ? (
+   167→        <MaterialIcons name="chevron-right" size={22} color={Colors.textMuted} />
+   168→      ) : null}
+   169→    </Pressable>
+   170→  );
+   171→}
+   172→const actionStyles = StyleSheet.create({
+   173→  card: {
+   174→    flexDirection: 'row',
+   175→    alignItems: 'center',
+   176→    gap: Spacing.md,
+   177→    backgroundColor: Colors.surface,
+   178→    borderRadius: 16,
+   179→    padding: Spacing.md,
+   180→    marginHorizontal: Spacing.md,
+   181→    marginBottom: Spacing.sm,
+   182→    ...Shadow.sm,
+   183→    borderWidth: 1,
+   184→    borderColor: Colors.borderLight,
+   185→  },
+   186→  iconWrap: {
+   187→    width: 44,
+   188→    height: 44,
+   189→    borderRadius: 14,
+   190→    alignItems: 'center',
+   191→    justifyContent: 'center',
+   192→  },
+   193→  textWrap: {
+   194→    flex: 1,
+   195→  },
+   196→  title: {
+   197→    fontSize: FontSize.base,
+   198→    fontWeight: FontWeight.bold,
+   199→    color: Colors.text,
+   200→  },
+   201→  subtitle: {
+   202→    fontSize: FontSize.xs,
+   203→    color: Colors.textMuted,
+   204→    marginTop: 1,
+   205→  },
+   206→});
+   207→
+   208→export default function ProfileScreen() {
+   209→  const insets = useSafeAreaInsets();
+   210→  const router = useRouter();
+   211→  const { user, logout, updatePhone, companies, selectedCompanyId } = useAuth();
+   212→  const { allShops } = useShops();
+   213→  const { setNeedsPinSetup, lock } = useLock();
+   214→  const { isTracking, isStarting, isStopping, startRoute, endRoute, startTime, error: routeError } = useRouteTracking();
+   215→
+   216→  const [loggingOut, setLoggingOut] = useState(false);
+   217→  const [todayRecovery, setTodayRecovery] = useState(0);
+   218→  const [thisMonthRecovery, setThisMonthRecovery] = useState(0);
+   219→  const [showAnalysis, setShowAnalysis] = useState(false);
+   220→
+   221→  // Phone edit state
+   222→  const [isEditingPhone, setIsEditingPhone] = useState(false);
+   223→  const [phoneInput, setPhoneInput] = useState('');
+   224→  const [isSavingPhone, setIsSavingPhone] = useState(false);
+   225→  const phoneInputRef = useRef<TextInput>(null);
+   226→
+   227→  useEffect(() => {
+   228→    if (user) loadStats();
+   229→  }, [user]);
+   230→
+   231→  async function loadStats() {
+   232→    if (!user) return;
+   233→    try {
+   234→      const today = await ApiService.getRecoverySummary(getTodayDateStr());
+   235→      const myToday = today.orderbookers.find((ob) => ob.orderbookerId === user.id);
+   236→      if (myToday) setTodayRecovery(myToday.totalRecovery);
+   237→
+   238→      const now = new Date();
+   239→      const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+   240→      const monthTxns = await ApiService.getTransactions({
+   241→        createdBy: user.id,
+   242→        type: 'recovery',
+   243→        date: firstOfMonth,
+   244→        limit: 500,
+   245→      });
+   246→      setThisMonthRecovery(monthTxns.transactions.reduce((sum, t) => sum + t.amount, 0));
+   247→    } catch { /* not critical */ }
+   248→  }
+   249→
+   250→  const handleSavePhone = async () => {
+   251→    const trimmed = phoneInput.trim();
+   252→    if (trimmed && !/^[\d+\-\s()]{7,15}$/.test(trimmed)) {
+   253→      Alert.alert('Invalid Phone', 'Please enter a valid phone number (7-15 digits)');
+   254→      return;
+   255→    }
+   256→    setIsSavingPhone(true);
+   257→    try {
+   258→      await updatePhone(trimmed);
+   259→      setIsEditingPhone(false);
+   260→      setPhoneInput('');
+   261→      Alert.alert('Phone Updated', trimmed ? `Phone number updated to ${trimmed}` : 'Phone number removed');
+   262→    } catch (err: any) {
+   263→      Alert.alert('Error', err?.message || 'Failed to update phone number');
+   264→    } finally {
+   265→      setIsSavingPhone(false);
+   266→    }
+   267→  };
+   268→
+   269→  const handleLogout = () => {
+   270→    // If route is active, warn user first
+   271→    if (isTracking) {
+   272→      Alert.alert(
+   273→        'Active Route Detected',
+   274→        'You have an active route session. Logging out will stop route tracking. Do you want to end the route and logout?',
+   275→        [
+   276→          { text: 'Cancel', style: 'cancel' },
+   277→          {
+   278→            text: 'End Route & Logout',
+   279→            style: 'destructive',
+   280→            onPress: async () => {
+   281→              setLoggingOut(true);
+   282→              try {
+   283→                await endRoute();
+   284→              } catch {}
+   285→              try {
+   286→                await logout();
+   287→                await SecureStorageService.clearAll();
+   288→                setTimeout(() => {
+   289→                  router.replace('/');
+   290→                }, 100);
+   291→              } finally {
+   292→                setLoggingOut(false);
+   293→              }
+   294→            },
+   295→          },
+   296→        ]
+   297→      );
+   298→      return;
+   299→    }
+   300→
+   301→    Alert.alert('Logout', 'Are you sure you want to logout?', [
+   302→      { text: 'Cancel', style: 'cancel' },
+   303→      {
+   304→        text: 'Logout',
+   305→        style: 'destructive',
+   306→        onPress: async () => {
+   307→          setLoggingOut(true);
+   308→          try {
+   309→            await logout();
+   310→            await SecureStorageService.clearAll();
+   311→            router.replace('/login' as any);
+   312→          } finally {
+   313→            setLoggingOut(false);
+   314→          }
+   315→        },
+   316→      },
+   317→    ]);
+   318→  };
+   319→
+   320→  const handleChangePin = () => {
+   321→    Alert.alert('Change PIN', 'Do you want to change your PIN? You will need to set a new one.', [
+   322→      { text: 'Cancel', style: 'cancel' },
+   323→      {
+   324→        text: 'Change PIN',
+   325→        onPress: async () => {
+   326→          await SecureStorageService.clearPin();
+   327→          setNeedsPinSetup(true);
+   328→          lock();
+   329→        },
+   330→      },
+   331→    ]);
+   332→  };
+   333→
+   334→  if (!user) return null;
+   335→
+   336→  const initials = user.name
+   337→    .split(' ')
+   338→    .map((w) => w[0])
+   339→    .slice(0, 2)
+   340→    .join('')
+   341→    .toUpperCase();
+   342→
+   343→  return (
+   344→    <View style={[styles.root, { paddingTop: insets.top }]}>
+   345→      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+   346→        {/* ── Hero profile card — 3-color gradient ── */}
+   347→        <LinearGradient
+   348→          colors={['#4F46E5', '#6366F1', '#818CF8']}
+   349→          start={{ x: 0, y: 0 }}
+   350→          end={{ x: 1, y: 1 }}
+   351→          style={styles.profileHero}
+   352→        >
+   353→          {/* Decorative circles */}
+   354→          <View style={styles.bubble1} />
+   355→          <View style={styles.bubble2} />
+   356→          <View style={styles.bubble3} />
+   357→
+   358→          {/* Rounded Square Avatar */}
+   359→          <View style={styles.avatarWrap}>
+   360→            <View style={styles.avatarSquare}>
+   361→              <Text style={styles.avatarText}>{initials}</Text>
+   362→            </View>
+   363→            <View style={styles.activeIndicator} />
+   364→          </View>
+   365→          <Text style={styles.profileName}>{user.name}</Text>
+   366→          <View style={styles.roleBadge}>
+   367→            <MaterialIcons name="badge" size={12} color="rgba(255,255,255,0.9)" />
+   368→            <Text style={styles.roleText}>ORDER BOOKER</Text>
+   369→          </View>
+   370→          {companies.length > 1 && selectedCompanyId ? (
+   371→            <View style={styles.companyBadge}>
+   372→              <MaterialIcons name="business" size={11} color="rgba(255,255,255,0.8)" />
+   373→              <Text style={styles.companyBadgeText}>
+   374→                {companies.find((c) => c.companyId === selectedCompanyId)?.companyName || user.companyName || ''}
+   375→              </Text>
+   376→            </View>
+   377→          ) : null}
+   378→        </LinearGradient>
+   379→
+   380→        {/* ── Account Details Card ── */}
+   381→        <View style={styles.card}>
+   382→          <View style={styles.cardHeader}>
+   383→            <View style={styles.cardHeaderIcon}>
+   384→              <MaterialIcons name="person-outline" size={16} color="#4F46E5" />
+   385→            </View>
+   386→            <Text style={styles.cardTitle}>Account Details</Text>
+   387→          </View>
+   388→          <InfoRow icon="person" label="Username" value={`@${user.username}`} />
+   389→          <View style={styles.divider} />
+   390→          {/* Phone with edit */}
+   391→          <View style={infoRowStyles.row}>
+   392→            <View style={infoRowStyles.iconWrap}>
+   393→              <MaterialIcons name="call" size={18} color="#4F46E5" />
+   394→            </View>
+   395→            <View style={{ flex: 1 }}>
+   396→              <Text style={infoRowStyles.label}>Phone Number</Text>
+   397→              {isEditingPhone ? (
+   398→                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+   399→                  <TextInput
+   400→                    ref={phoneInputRef}
+   401→                    value={phoneInput}
+   402→                    onChangeText={setPhoneInput}
+   403→                    placeholder="03XXXXXXXXX"
+   404→                    keyboardType="phone-pad"
+   405→                    maxLength={15}
+   406→                    style={{
+   407→                      flex: 1,
+   408→                      height: 36,
+   409→                      borderWidth: 1,
+   410→                      borderColor: Colors.primary,
+   411→                      borderRadius: Radius.sm,
+   412→                      paddingHorizontal: 10,
+   413→                      fontSize: FontSize.base,
+   414→                      color: Colors.text,
+   415→                      backgroundColor: Colors.background,
+   416→                    }}
+   417→                    autoFocus
+   418→                    editable={!isSavingPhone}
+   419→                    onSubmitEditing={handleSavePhone}
+   420→                  />
+   421→                  <Pressable
+   422→                    onPress={handleSavePhone}
+   423→                    disabled={isSavingPhone}
+   424→                    style={{
+   425→                      width: 32,
+   426→                      height: 32,
+   427→                      borderRadius: 16,
+   428→                      backgroundColor: Colors.primary,
+   429→                      alignItems: 'center',
+   430→                      justifyContent: 'center',
+   431→                    }}
+   432→                  >
+   433→                    {isSavingPhone ? (
+   434→                      <ActivityIndicator size="small" color="#FFFFFF" />
+   435→                    ) : (
+   436→                      <MaterialIcons name="check" size={18} color="#FFFFFF" />
+   437→                    )}
+   438→                  </Pressable>
+   439→                  <Pressable
+   440→                    onPress={() => { setIsEditingPhone(false); setPhoneInput(''); }}
+   441→                    disabled={isSavingPhone}
+   442→                    style={{
+   443→                      width: 32,
+   444→                      height: 32,
+   445→                      borderRadius: 16,
+   446→                      backgroundColor: Colors.borderLight,
+   447→                      alignItems: 'center',
+   448→                      justifyContent: 'center',
+   449→                    }}
+   450→                  >
+   451→                    <MaterialIcons name="close" size={18} color={Colors.textSecondary} />
+   452→                  </Pressable>
+   453→                </View>
+   454→              ) : (
+   455→                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+   456→                  <Text style={infoRowStyles.value}>{user.phone || 'Not set'}</Text>
+   457→                  <Pressable
+   458→                    onPress={() => {
+   459→                      setPhoneInput(user.phone || '');
+   460→                      setIsEditingPhone(true);
+   461→                      setTimeout(() => phoneInputRef.current?.focus(), 100);
+   462→                    }}
+   463→                    style={{
+   464→                      width: 24,
+   465→                      height: 24,
+   466→                      borderRadius: 12,
+   467→                      backgroundColor: Colors.primaryLight,
+   468→                      alignItems: 'center',
+   469→                      justifyContent: 'center',
+   470→                    }}
+   471→                  >
+   472→                    <MaterialIcons name="edit" size={14} color={Colors.primary} />
+   473→                  </Pressable>
+   474→                </View>
+   475→              )}
+   476→            </View>
+   477→          </View>
+   478→          <View style={styles.divider} />
+   479→          <InfoRow
+   480→            icon="verified-user"
+   481→            label="Account Status"
+   482→            value={user.status === 'active' ? 'Active' : user.status}
+   483→            valueColor={user.status === 'active' ? '#10B981' : undefined}
+   484→          />
+   485→          {user.companyName || selectedCompanyId ? (
+   486→            <>
+   487→              <View style={styles.divider} />
+   488→              <InfoRow
+   489→                icon="business"
+   490→                label="Company"
+   491→                value={selectedCompanyId
+   492→                  ? companies.find((c) => c.companyId === selectedCompanyId)?.companyName || user.companyName || 'N/A'
+   493→                  : user.companyName || 'N/A'
+   494→                }
+   495→              />
+   496→            </>
+   497→          ) : null}
+   498→        </View>
+   499→
+   500→        {/* ── Performance KPIs ── */}
+   501→        <View style={styles.sectionHeader}>
+   502→          <View style={styles.sectionHeaderIcon}>
+   503→            <MaterialIcons name="analytics" size={16} color="#4F46E5" />
+   504→          </View>
+   505→          <Text style={styles.sectionTitle}>Performance Overview</Text>
+   506→        </View>
+   507→        <View style={styles.kpiGrid}>
+   508→          <KpiCard
+   509→            label="Month Recovery"
+   510→            value={
+   511→              thisMonthRecovery >= 1000000
+   512→                ? `Rs. ${(thisMonthRecovery / 1000000).toFixed(1)}M`
+   513→                : thisMonthRecovery >= 1000
+   514→                ? `Rs. ${(thisMonthRecovery / 1000).toFixed(0)}K`
+   515→                : formatPKR(thisMonthRecovery)
+   516→            }
+   517→            color={Colors.primary}
+   518→            bg={Colors.primaryLight}
+   519→            icon="trending-up"
+   520→          />
+   521→          <KpiCard
+   522→            label="Today's Recovery"
+   523→            value={
+   524→              todayRecovery >= 1000
+   525→                ? `Rs. ${(todayRecovery / 1000).toFixed(0)}K`
+   526→                : formatPKR(todayRecovery)
+   527→            }
+   528→            color="#3B82F6"
+   529→            bg="#EFF6FF"
+   530→            icon="today"
+   531→            subtext="Pending approval"
+   532→          />
+   533→          <KpiCard
+   534→            label="Shops Assigned"
+   535→            value={String(allShops.length)}
+   536→            color={Colors.secondary}
+   537→            bg={Colors.secondaryLight}
+   538→            icon="store"
+   539→          />
+   540→        </View>
+   541→
+   542→        {/* Recovery Comparison: This vs Last Week */}
+   543→        <RecoveryComparison userId={user.id} />
+   544→
+   545→        {/* ── Recovery Analysis Toggle ── */}
+   546→        <Pressable
+   547→          style={({ pressed }) => [styles.analysisToggle, pressed && { opacity: 0.9, transform: [{ scale: 0.995 }] }]}
+   548→          onPress={() => setShowAnalysis((v) => !v)}
+   549→        >
+   550→          <View style={styles.analysisToggleLeft}>
+   551→            <View style={styles.analysisToggleIcon}>
+   552→              <MaterialIcons name="analytics" size={20} color="#4F46E5" />
+   553→            </View>
+   554→            <View>
+   555→              <Text style={styles.analysisToggleTitle}>Recovery Analysis</Text>
+   556→              <Text style={styles.analysisToggleSub}>Credit vs recovery chart</Text>
+   557→            </View>
+   558→          </View>
+   559→          <View style={[styles.toggleIconWrap, showAnalysis && styles.toggleIconWrapActive]}>
+   560→            <MaterialIcons
+   561→              name={showAnalysis ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+   562→              size={22}
+   563→              color={showAnalysis ? '#4F46E5' : Colors.textSecondary}
+   564→            />
+   565→          </View>
+   566→        </Pressable>
+   567→
+   568→        {showAnalysis ? <RecoveryAnalysisChart userId={user.id} /> : null}
+   569→
+   570→        {/* Performance Ranking */}
+   571→        <PerformanceRanking />
+   572→
+   573→        {/* ── Route Tracking Section ── */}
+   574→        <View style={styles.sectionHeader}>
+   575→          <View style={styles.sectionHeaderIcon}>
+   576→            <MaterialIcons name="navigation" size={16} color="#4F46E5" />
+   577→          </View>
+   578→          <Text style={styles.sectionTitle}>Route Tracking</Text>
+   579→        </View>
+   580→
+   581→        {routeError ? (
+   582→          <View style={{
+   583→            marginHorizontal: Spacing.md,
+   584→            marginBottom: Spacing.sm,
+   585→            backgroundColor: '#FEF2F2',
+   586→            borderRadius: 12,
+   587→            padding: 12,
+   588→            borderWidth: 1,
+   589→            borderColor: '#FECACA',
+   590→          }}>
+   591→            <Text style={{ fontSize: FontSize.xs, color: '#DC2626' }}>{routeError}</Text>
+   592→          </View>
+   593→        ) : null}
+   594→
+   595→        {isTracking ? (
+   596→          <View style={{
+   597→            marginHorizontal: Spacing.md,
+   598→            marginBottom: Spacing.sm,
+   599→            backgroundColor: '#ECFDF5',
+   600→            borderRadius: 16,
+   601→            padding: Spacing.md,
+   602→            borderWidth: 1,
+   603→            borderColor: '#A7F3D0',
+   604→          }}>
+   605→            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+   606→              <View style={{
+   607→                width: 10, height: 10, borderRadius: 5,
+   608→                backgroundColor: '#10B981',
+   609→                // Simple pulse effect
+   610→              }} />
+   611→              <Text style={{ fontSize: FontSize.base, fontWeight: FontWeight.bold, color: '#065F46' }}>
+   612→                Route Active
+   613→              </Text>
+   614→            </View>
+   615→            <Text style={{ fontSize: FontSize.xs, color: '#047857', marginBottom: 12 }}>
+   616→              Started at {startTime ? new Date(startTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Karachi' }) : '--:--'}
+   617→              {'\n'}Your live location is being tracked on the admin panel.
+   618→            </Text>
+   619→            <Pressable
+   620→              style={({ pressed }) => [{
+   621→                flexDirection: 'row',
+   622→                alignItems: 'center',
+   623→                justifyContent: 'center',
+   624→                gap: 6,
+   625→                backgroundColor: pressed ? '#DC2626' : '#EF4444',
+   626→                borderRadius: 12,
+   627→                paddingVertical: 10,
+   628→              }]}
+   629→              onPress={() => {
+   630→                Alert.alert(
+   631→                  'End Route',
+   632→                  'Are you sure you want to end the route? This will stop GPS tracking.',
+   633→                  [
+   634→                    { text: 'Cancel', style: 'cancel' },
+   635→                    { text: 'End Route', style: 'destructive', onPress: endRoute },
+   636→                  ]
+   637→                );
+   638→              }}
+   639→              disabled={isStopping}
+   640→            >
+   641→              {isStopping ? (
+   642→                <ActivityIndicator size="small" color="#FFFFFF" />
+   643→              ) : (
+   644→                <>
+   645→                  <MaterialIcons name="stop" size={18} color="#FFFFFF" />
+   646→                  <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: '#FFFFFF' }}>
+   647→                    End Route
+   648→                  </Text>
+   649→                </>
+   650→              )}
+   651→            </Pressable>
+   652→          </View>
+   653→        ) : (
+   654→          <Pressable
+   655→            style={({ pressed }) => [actionStyles.card, pressed && { opacity: 0.9, transform: [{ scale: 0.995 }] }]}
+   656→            onPress={() => {
+   657→              Alert.alert(
+   658→                'Start Route',
+   659→                'Start tracking your route? Your live location will be visible to the admin panel.',
+   660→                [
+   661→                  { text: 'Cancel', style: 'cancel' },
+   662→                  { text: 'Start Route', onPress: startRoute },
+   663→                ]
+   664→              );
+   665→            }}
+   666→            disabled={isStarting}
+   667→          >
+   668→            <View style={[actionStyles.iconWrap, { backgroundColor: '#ECFDF5' }]}>
+   669→              {isStarting ? (
+   670→                <ActivityIndicator size="small" color="#10B981" />
+   671→              ) : (
+   672→                <MaterialIcons name="navigation" size={20} color="#10B981" />
+   673→              )}
+   674→            </View>
+   675→            <View style={actionStyles.textWrap}>
+   676→              <Text style={actionStyles.title}>Start Route</Text>
+   677→              <Text style={actionStyles.subtitle}>Begin GPS tracking for live route monitoring</Text>
+   678→            </View>
+   679→          </Pressable>
+   680→        )}
+   681→
+   682→        {/* ── Actions Section ── */}
+   683→        <View style={styles.sectionHeader}>
+   684→          <View style={styles.sectionHeaderIcon}>
+   685→            <MaterialIcons name="settings" size={16} color="#4F46E5" />
+   686→          </View>
+   687→          <Text style={styles.sectionTitle}>Settings</Text>
+   688→        </View>
+   689→
+   690→        <ActionRow
+   691→          icon="pin"
+   692→          iconColor="#4F46E5"
+   693→          iconBg="#EEF2FF"
+   694→          title="Change PIN"
+   695→          subtitle="Update your 4-digit security PIN"
+   696→          onPress={handleChangePin}
+   697→        />
+   698→
+   699→        <ActionRow
+   700→          icon="cloud-upload"
+   701→          iconColor="#10B981"
+   702→          iconBg="#ECFDF5"
+   703→          title="Sync Upload Data"
+   704→          subtitle="Upload all pending data to server"
+   705→          onPress={async () => {
+   706→            Alert.alert(
+   707→              '📤 Sync Upload',
+   708→              'Sab pending data (recoveries, GPS, route) server par upload karein?',
+   709→              [
+   710→                { text: 'Cancel', style: 'cancel' },
+   711→                {
+   712→                  text: 'Upload',
+   713→                  onPress: async () => {
+   714→                    try {
+   715→                      const { performSyncUpload } = await import('@/services/syncUpload');
+   716→                      const result = await performSyncUpload();
+   717→                      if (result.success) {
+   718→                        Alert.alert(
+   719→                          '✅ Sync Complete',
+   720→                          `Route: ${result.routeUploaded ? '✓' : '-'}\nGPS Points: ${result.locationsUploaded}\nTransactions: ${result.transactionsSynced}\nFailed: ${result.transactionsFailed}`
+   721→                        );
+   722→                      } else {
+   723→                        Alert.alert('Sync Failed', result.error || 'Upload nahi ho saka. Dobarra try karein.');
+   724→                      }
+   725→                    } catch (e: any) {
+   726→                      Alert.alert('Error', e.message || 'Sync failed');
+   727→                    }
+   728→                  },
+   729→                },
+   730→              ]
+   731→            );
+   732→          }}
+   733→        />
+   734→
+   735→        <ActionRow
+   736→          icon="delete-sweep"
+   737→          iconColor="#EF4444"
+   738→          iconBg="#FEF2F2"
+   739→          title="Clear App Data"
+   740→          subtitle="Remove all data including saved URL"
+   741→          danger
+   742→          onPress={() => {
+   743→            Alert.alert(
+   744→              '⚠️ Clear All Data',
+   745→              'YE SAB DATA DELETE HO JAYEGA:\n• Downloaded shops\n• Offline recoveries\n• GPS waypoints\n• Saved URL\n\nKya aap sure hain?',
+   746→              [
+   747→                { text: 'Cancel', style: 'cancel' },
+   748→                {
+   749→                  text: 'Clear Everything',
+   750→                  style: 'destructive',
+   751→                  onPress: async () => {
+   752→                    await StorageService.clearAllAppData();
+   753→                    const { clearCachedUrl } = await import('@/constants/config');
+   754→                    clearCachedUrl();
+   755→                    await logout();
+   756→                    router.replace('/setup-url' as any);
+   757→                  },
+   758→                },
+   759→              ]
+   760→            );
+   761→          }}
+   762→        />
+   763→
+   764→        {/* Gradient Logout Button */}
+   765→        <Pressable
+   766→          style={({ pressed }) => [styles.logoutBtnWrap, pressed && { opacity: 0.85, transform: [{ scale: 0.995 }] }]}
+   767→          onPress={handleLogout}
+   768→          disabled={loggingOut}
+   769→        >
+   770→          <LinearGradient
+   771→            colors={['#EF4444', '#F87171']}
+   772→            start={{ x: 0, y: 0 }}
+   773→            end={{ x: 1, y: 0 }}
+   774→            style={styles.logoutBtnGradient}
+   775→          >
+   776→            {loggingOut ? (
+   777→              <ActivityIndicator size="small" color="#FFFFFF" />
+   778→            ) : (
+   779→              <>
+   780→                <MaterialIcons name="logout" size={20} color={Colors.textInverse} />
+   781→                <Text style={styles.logoutBtnText}>Logout</Text>
+   782→              </>
+   783→            )}
+   784→          </LinearGradient>
+   785→        </Pressable>
+   786→
+   787→        <View style={{ height: Spacing.xxl }} />
+   788→      </ScrollView>
+   789→    </View>
+   790→  );
+   791→}
+   792→
+   793→const styles = StyleSheet.create({
+   794→  root: { flex: 1, backgroundColor: '#F8FAFC' },
+   795→  scroll: { paddingBottom: 100 },
+   796→  
+   797→  // ── Hero ──
+   798→  profileHero: {
+   799→    alignItems: 'center',
+   800→    paddingTop: Spacing.xl + 4,
+   801→    paddingBottom: Spacing.xl + 8,
+   802→    paddingHorizontal: Spacing.md,
+   803→    overflow: 'hidden',
+   804→    borderBottomLeftRadius: 32,
+   805→    borderBottomRightRadius: 32,
+   806→  },
+   807→  bubble1: {
+   808→    position: 'absolute',
+   809→    width: 220,
+   810→    height: 220,
+   811→    borderRadius: 110,
+   812→    backgroundColor: 'rgba(129,140,248,0.15)',
+   813→    top: -90,
+   814→    right: -70,
+   815→  },
+   816→  bubble2: {
+   817→    position: 'absolute',
+   818→    width: 140,
+   819→    height: 140,
+   820→    borderRadius: 70,
+   821→    backgroundColor: 'rgba(129,140,248,0.10)',
+   822→    bottom: -50,
+   823→    left: -40,
+   824→  },
+   825→  bubble3: {
+   826→    position: 'absolute',
+   827→    width: 80,
+   828→    height: 80,
+   829→    borderRadius: 40,
+   830→    backgroundColor: 'rgba(255,255,255,0.05)',
+   831→    top: 40,
+   832→    left: 30,
+   833→  },
+   834→  avatarWrap: { position: 'relative', marginBottom: Spacing.md },
+   835→  avatarSquare: {
+   836→    width: 92,
+   837→    height: 92,
+   838→    borderRadius: 28,
+   839→    backgroundColor: 'rgba(255,255,255,0.2)',
+   840→    alignItems: 'center',
+   841→    justifyContent: 'center',
+   842→    borderWidth: 3,
+   843→    borderColor: 'rgba(255,255,255,0.35)',
+   844→  },
+   845→  avatarText: { fontSize: FontSize.xxl + 2, fontWeight: FontWeight.bold, color: '#FFFFFF' },
+   846→  activeIndicator: {
+   847→    position: 'absolute',
+   848→    bottom: 4,
+   849→    right: 4,
+   850→    width: 16,
+   851→    height: 16,
+   852→    borderRadius: 8,
+   853→    backgroundColor: '#A7F3D0',
+   854→    borderWidth: 3,
+   855→    borderColor: '#4F46E5',
+   856→  },
+   857→  profileName: {
+   858→    fontSize: FontSize.xl + 2,
+   859→    fontWeight: FontWeight.bold,
+   860→    color: '#FFFFFF',
+   861→    marginBottom: Spacing.sm,
+   862→  },
+   863→  roleBadge: {
+   864→    flexDirection: 'row',
+   865→    alignItems: 'center',
+   866→    gap: 5,
+   867→    backgroundColor: 'rgba(255,255,255,0.18)',
+   868→    borderRadius: Radius.full,
+   869→    paddingHorizontal: Spacing.md,
+   870→    paddingVertical: 5,
+   871→    borderWidth: 1,
+   872→    borderColor: 'rgba(255,255,255,0.25)',
+   873→  },
+   874→  roleText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold, color: '#FFFFFF', letterSpacing: 1 },
+   875→  companyBadge: {
+   876→    flexDirection: 'row',
+   877→    alignItems: 'center',
+   878→    gap: 4,
+   879→    backgroundColor: 'rgba(255,255,255,0.12)',
+   880→    borderRadius: Radius.full,
+   881→    paddingHorizontal: Spacing.sm,
+   882→    paddingVertical: 3,
+   883→    marginTop: Spacing.sm,
+   884→  },
+   885→  companyBadgeText: {
+   886→    fontSize: FontSize.xs,
+   887→    color: 'rgba(255,255,255,0.85)',
+   888→    fontWeight: FontWeight.semibold,
+   889→  },
+   890→
+   891→  // ── Glassmorphism Info Card ──
+   892→  card: {
+   893→    backgroundColor: Colors.surface,
+   894→    borderRadius: 20,
+   895→    padding: Spacing.md,
+   896→    margin: Spacing.md,
+   897→    marginTop: -Spacing.md,
+   898→    ...Shadow.lg,
+   899→    borderWidth: 1,
+   900→    borderColor: Colors.borderLight,
+   901→  },
+   902→  cardHeader: {
+   903→    flexDirection: 'row',
+   904→    alignItems: 'center',
+   905→    gap: Spacing.sm,
+   906→    marginBottom: Spacing.xs,
+   907→  },
+   908→  cardHeaderIcon: {
+   909→    width: 28,
+   910→    height: 28,
+   911→    borderRadius: 8,
+   912→    backgroundColor: '#EEF2FF',
+   913→    alignItems: 'center',
+   914→    justifyContent: 'center',
+   915→  },
+   916→  cardTitle: {
+   917→    fontSize: FontSize.sm,
+   918→    fontWeight: FontWeight.bold,
+   919→    color: Colors.textMuted,
+   920→    textTransform: 'uppercase',
+   921→    letterSpacing: 0.8,
+   922→  },
+   923→  divider: { height: 1, backgroundColor: Colors.borderLight, marginVertical: 2 },
+   924→
+   925→  // ── Section Header ──
+   926→  sectionHeader: {
+   927→    flexDirection: 'row',
+   928→    alignItems: 'center',
+   929→    gap: Spacing.sm,
+   930→    marginHorizontal: Spacing.md,
+   931→    marginTop: Spacing.md,
+   932→    marginBottom: Spacing.sm,
+   933→  },
+   934→  sectionHeaderIcon: {
+   935→    width: 28,
+   936→    height: 28,
+   937→    borderRadius: 8,
+   938→    backgroundColor: '#EEF2FF',
+   939→    alignItems: 'center',
+   940→    justifyContent: 'center',
+   941→  },
+   942→  sectionTitle: {
+   943→    fontSize: FontSize.md,
+   944→    fontWeight: FontWeight.bold,
+   945→    color: Colors.text,
+   946→  },
+   947→
+   948→  // ── KPI Grid ──
+   949→  kpiGrid: {
+   950→    flexDirection: 'row',
+   951→    gap: Spacing.sm,
+   952→    marginHorizontal: Spacing.md,
+   953→    marginBottom: Spacing.md,
+   954→  },
+   955→
+   956→  // ── Analysis Toggle ──
+   957→  analysisToggle: {
+   958→    flexDirection: 'row',
+   959→    alignItems: 'center',
+   960→    justifyContent: 'space-between',
+   961→    backgroundColor: Colors.surface,
+   962→    borderRadius: 16,
+   963→    padding: Spacing.md,
+   964→    marginHorizontal: Spacing.md,
+   965→    marginBottom: Spacing.sm,
+   966→    ...Shadow.sm,
+   967→    borderWidth: 1,
+   968→    borderColor: Colors.borderLight,
+   969→  },
+   970→  analysisToggleLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+   971→  analysisToggleIcon: {
+   972→    width: 42,
+   973→    height: 42,
+   974→    borderRadius: 14,
+   975→    backgroundColor: '#EEF2FF',
+   976→    alignItems: 'center',
+   977→    justifyContent: 'center',
+   978→    borderWidth: 1,
+   979→    borderColor: '#E0E7FF',
+   980→  },
+   981→  analysisToggleTitle: { fontSize: FontSize.base, fontWeight: FontWeight.bold, color: Colors.text },
+   982→  analysisToggleSub: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 1 },
+   983→  toggleIconWrap: {
+   984→    width: 32,
+   985→    height: 32,
+   986→    borderRadius: 16,
+   987→    backgroundColor: Colors.background,
+   988→    alignItems: 'center',
+   989→    justifyContent: 'center',
+   990→  },
+   991→  toggleIconWrapActive: {
+   992→    backgroundColor: '#EEF2FF',
+   993→  },
+   994→
+   995→  // ── Logout Button ──
+   996→  logoutBtnWrap: {
+   997→    marginHorizontal: Spacing.md,
+   998→    marginTop: Spacing.sm,
+   999→    borderRadius: 16,
+  1000→    overflow: 'hidden',
+  1001→    ...Shadow.md,
+  1002→  },
+  1003→  logoutBtnGradient: {
+  1004→    flexDirection: 'row',
+  1005→    alignItems: 'center',
+  1006→    justifyContent: 'center',
+  1007→    gap: Spacing.sm,
+  1008→    paddingVertical: 15,
+  1009→  },
+  1010→  logoutBtnText: { fontSize: FontSize.base, fontWeight: FontWeight.bold, color: Colors.textInverse },
+  1011→});
+  1012→

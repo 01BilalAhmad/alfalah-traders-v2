@@ -1,0 +1,1290 @@
+     1→// Powered by Finexa
+     2→import React, { useEffect, useState, memo } from 'react';
+     3→import {
+     4→  View,
+     5→  Text,
+     6→  StyleSheet,
+     7→  Modal,
+     8→  Pressable,
+     9→  ScrollView,
+    10→  ActivityIndicator,
+    11→  Linking,
+    12→  Dimensions,
+    13→  TextInput,
+    14→  Alert,
+    15→  KeyboardAvoidingView,
+    16→  Platform,
+    17→} from 'react-native';
+    18→import { MaterialIcons } from '@expo/vector-icons';
+    19→import { LinearGradient } from 'expo-linear-gradient';
+    20→import { BarChart } from 'react-native-chart-kit';
+    21→import { Colors, Spacing, Radius, FontSize, FontWeight, Shadow } from '@/constants/theme';
+    22→import { Shop, Transaction, ApiService } from '@/services/api';
+    23→import { getShopDisplayBalance } from '@/components/ui/ShopCard';
+    24→import { formatPKR, formatDateTime } from '@/utils/format';
+    25→import { CreditBar } from './CreditBar';
+    26→import { Badge } from './Badge';
+    27→import { StorageService, ShopNote } from '@/services/storage';
+    28→
+    29→const screenWidth = Dimensions.get('window').width;
+    30→
+    31→interface ShopDetailModalProps {
+    32→  visible: boolean;
+    33→  shop: Shop | null;
+    34→  companyId?: string;
+    35→  onClose: () => void;
+    36→  onCollect: () => void;
+    37→  hasRecoveryToday?: boolean; // Whether recovery was submitted for this shop today
+    38→  onResendReceipt?: () => void; // Callback to resend receipt
+    39→  onEditPendingRecovery?: (txn: Transaction) => void; // Callback to edit a pending recovery
+    40→}
+    41→
+    42→export const ShopDetailModal = memo(function ShopDetailModal({
+    43→  visible,
+    44→  shop,
+    45→  companyId,
+    46→  onClose,
+    47→  onCollect,
+    48→  hasRecoveryToday,
+    49→  onResendReceipt,
+    50→  onEditPendingRecovery,
+    51→}: ShopDetailModalProps) {
+    52→  const [recentTxns, setRecentTxns] = useState<Transaction[]>([]);
+    53→  const [loading, setLoading] = useState(false);
+    54→  const [chartData, setChartData] = useState<{ labels: string[]; credits: number[]; recoveries: number[] }>({
+    55→    labels: [],
+    56→    credits: [],
+    57→    recoveries: [],
+    58→  });
+    59→  const [chartLoading, setChartLoading] = useState(false);
+    60→  const [shopNote, setShopNote] = useState<ShopNote | null>(null);
+    61→  const [noteInput, setNoteInput] = useState('');
+    62→  const [noteSaving, setNoteSaving] = useState(false);
+    63→
+    64→  // Phone edit state
+    65→  const [editingPhone, setEditingPhone] = useState(false);
+    66→  const [phoneInput, setPhoneInput] = useState('');
+    67→  const [phoneSaving, setPhoneSaving] = useState(false);
+    68→  const [localPhone, setLocalPhone] = useState<string | null>(null);
+    69→  const [ownerNameInput, setOwnerNameInput] = useState('');
+    70→  const [localOwnerName, setLocalOwnerName] = useState<string | null>(null);
+    71→
+    72→  useEffect(() => {
+    73→    if (visible && shop) {
+    74→      loadRecent();
+    75→      loadChartData();
+    76→      loadShopNote();
+    77→      setLocalPhone(null);
+    78→      setEditingPhone(false);
+    79→      setPhoneInput('');
+    80→      setOwnerNameInput('');
+    81→      setLocalOwnerName(null);
+    82→    }
+    83→  }, [visible, shop]);
+    84→
+    85→  async function loadRecent() {
+    86→    if (!shop) return;
+    87→    setLoading(true);
+    88→    try {
+    89→      const res = await ApiService.getTransactions({ shopId: shop.id, limit: 8 });
+    90→      setRecentTxns(res.transactions);
+    91→    } catch {
+    92→      setRecentTxns([]);
+    93→    } finally {
+    94→      setLoading(false);
+    95→    }
+    96→  }
+    97→
+    98→  async function loadChartData() {
+    99→    if (!shop) return;
+   100→    setChartLoading(true);
+   101→    try {
+   102→      const now = new Date();
+   103→      const labels: string[] = [];
+   104→      const credits: number[] = [];
+   105→      const recoveries: number[] = [];
+   106→
+   107→      for (let i = 5; i >= 0; i--) {
+   108→        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+   109→        const label = d.toLocaleDateString('en-PK', { month: 'short' });
+   110→        const startDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+   111→        const endD = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+   112→        labels.push(label);
+   113→        try {
+   114→          const res = await ApiService.getTransactions({ shopId: shop.id, date: startDate, limit: 500 });
+   115→          const endDateStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+   116→          const monthTxns = res.transactions.filter((t) => {
+   117→            const tDate = t.createdAt.split('T')[0];
+   118→            return tDate >= startDate && tDate <= endDateStr;
+   119→          });
+   120→          const c = monthTxns.filter((t) => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
+   121→          const r = monthTxns.filter((t) => t.type === 'recovery').reduce((s, t) => s + t.amount, 0);
+   122→          credits.push(c);
+   123→          recoveries.push(r);
+   124→        } catch {
+   125→          credits.push(0);
+   126→          recoveries.push(0);
+   127→        }
+   128→      }
+   129→      setChartData({ labels, credits, recoveries });
+   130→    } catch {
+   131→      setChartData({ labels: [], credits: [], recoveries: [] });
+   132→    } finally {
+   133→      setChartLoading(false);
+   134→    }
+   135→  }
+   136→
+   137→  async function loadShopNote() {
+   138→    if (!shop) return;
+   139→    try {
+   140→      const note = await StorageService.getShopNote(shop.id);
+   141→      setShopNote(note);
+   142→      setNoteInput(note ? note.note : '');
+   143→    } catch {
+   144→      setShopNote(null);
+   145→      setNoteInput('');
+   146→    }
+   147→  }
+   148→
+   149→  async function handleSaveNote() {
+   150→    if (!shop) return;
+   151→    setNoteSaving(true);
+   152→    try {
+   153→      await StorageService.saveShopNote(shop.id, noteInput.trim());
+   154→      await loadShopNote();
+   155→    } catch {
+   156→      Alert.alert('Error', 'Could not save note.');
+   157→    } finally {
+   158→      setNoteSaving(false);
+   159→    }
+   160→  }
+   161→
+   162→  async function handleDeleteNote() {
+   163→    if (!shop) return;
+   164→    Alert.alert('Delete Note', 'Are you sure you want to delete this note?', [
+   165→      { text: 'Cancel', style: 'cancel' },
+   166→      {
+   167→        text: 'Delete',
+   168→        style: 'destructive',
+   169→        onPress: async () => {
+   170→          try {
+   171→            await StorageService.deleteShopNote(shop.id);
+   172→            setShopNote(null);
+   173→            setNoteInput('');
+   174→          } catch { /* not critical */ }
+   175→        },
+   176→      },
+   177→    ]);
+   178→  }
+   179→
+   180→  // Current phone: local override or shop prop
+   181→  const currentPhone = localPhone ?? shop?.phone ?? '';
+   182→  const currentOwnerName = localOwnerName ?? shop?.ownerName ?? '';
+   183→
+   184→  function handleSmsPress() {
+   185→    if (!shop) return;
+   186→    if (!currentPhone) {
+   187→      Alert.alert(
+   188→        'No Phone Number',
+   189→        "This shop doesn't have a phone number saved.",
+   190→        [
+   191→          { text: 'Cancel', style: 'cancel' },
+   192→          {
+   193→            text: 'Add Phone Number',
+   194→            onPress: () => {
+   195→              setPhoneInput('');
+   196→              setEditingPhone(true);
+   197→            },
+   198→          },
+   199→        ]
+   200→      );
+   201→      return;
+   202→    }
+   203→    const phone = currentPhone.trim().replace(/[^0-9+]/g, '');
+   204→    Linking.openURL(`sms:${phone}`);
+   205→  }
+   206→
+   207→  function handleWhatsappPress() {
+   208→    if (!shop) return;
+   209→    if (!currentPhone) {
+   210→      Alert.alert(
+   211→        'No Phone Number',
+   212→        "This shop doesn't have a phone number saved.",
+   213→        [
+   214→          { text: 'Cancel', style: 'cancel' },
+   215→          {
+   216→            text: 'Add Phone Number',
+   217→            onPress: () => {
+   218→              setPhoneInput('');
+   219→              setEditingPhone(true);
+   220→            },
+   221→          },
+   222→        ]
+   223→      );
+   224→      return;
+   225→    }
+   226→    let formattedPhone = currentPhone.trim().replace(/[^0-9]/g, '');
+   227→    if (formattedPhone.startsWith('0')) {
+   228→      formattedPhone = formattedPhone.substring(1);
+   229→    }
+   230→    if (!formattedPhone.startsWith('92')) {
+   231→      formattedPhone = '92' + formattedPhone;
+   232→    }
+   233→    Linking.openURL(`https://wa.me/${formattedPhone}`);
+   234→  }
+   235→
+   236→  async function handleSavePhone() {
+   237→    if (!shop) return;
+   238→    const trimmed = phoneInput.trim();
+   239→    if (!trimmed) {
+   240→      Alert.alert('Invalid Phone', 'Please enter a valid phone number.');
+   241→      return;
+   242→    }
+   243→    setPhoneSaving(true);
+   244→    try {
+   245→      const trimmedOwner = ownerNameInput.trim();
+   246→      await ApiService.updateShopPhone(shop.id, trimmed, trimmedOwner || undefined);
+   247→      setLocalPhone(trimmed);
+   248→      if (trimmedOwner) setLocalOwnerName(trimmedOwner);
+   249→      setEditingPhone(false);
+   250→      setPhoneInput('');
+   251→      setOwnerNameInput('');
+   252→      Alert.alert('Updated', 'Phone number and owner name have been updated successfully.');
+   253→    } catch (e: any) {
+   254→      Alert.alert('Error', e.message || 'Failed to update. Please try again.');
+   255→    } finally {
+   256→      setPhoneSaving(false);
+   257→    }
+   258→  }
+   259→
+   260→  function handleEditPhone() {
+   261→    setPhoneInput(currentPhone);
+   262→    setOwnerNameInput(currentOwnerName);
+   263→    setEditingPhone(true);
+   264→  }
+   265→
+   266→  if (!shop) return null;
+   267→
+   268→  const { balance: displayBalance, creditLimit: displayCreditLimit } = getShopDisplayBalance(shop, companyId);
+   269→  const utilisationPct = displayCreditLimit > 0 ? Math.min((displayBalance / displayCreditLimit) * 100, 100) : 0;
+   270→  const isOverLimit = displayBalance > displayCreditLimit;
+   271→  const hasChartData = chartData.credits.some((v) => v > 0) || chartData.recoveries.some((v) => v > 0);
+   272→
+   273→  const totalRecovery = chartData.recoveries.reduce((s, v) => s + v, 0);
+   274→  const totalCredit = chartData.credits.reduce((s, v) => s + v, 0);
+   275→
+   276→  return (
+   277→    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+   278→      <View style={styles.backdrop}>
+   279→        <View style={styles.container}>
+   280→          {/* Handle */}
+   281→          <View style={styles.handle} />
+   282→
+   283→          {/* Gradient Header */}
+   284→          <LinearGradient
+   285→            colors={['#4F46E5', '#6366F1', '#818CF8']}
+   286→            start={{ x: 0, y: 0 }}
+   287→            end={{ x: 1, y: 1 }}
+   288→            style={styles.header}
+   289→          >
+   290→            <View style={styles.headerBubble1} />
+   291→            <View style={styles.headerBubble2} />
+   292→            <View style={styles.shopIconWrap}>
+   293→              <Text style={styles.shopIcon}>{shop.name.charAt(0).toUpperCase()}</Text>
+   294→            </View>
+   295→            <View style={styles.headerInfo}>
+   296→              <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
+   297→              <Text style={styles.owner}>{currentOwnerName || shop.ownerName}</Text>
+   298→            </View>
+   299→            <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={12}>
+   300→              <MaterialIcons name="close" size={22} color="rgba(255,255,255,0.8)" />
+   301→            </Pressable>
+   302→          </LinearGradient>
+   303→
+   304→          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+   305→            {/* Info chips */}
+   306→            <View style={styles.chipRow}>
+   307→              {shop.area ? (
+   308→                <View style={styles.chip}>
+   309→                  <MaterialIcons name="location-on" size={13} color={Colors.textSecondary} />
+   310→                  <Text style={styles.chipText}>{shop.area}</Text>
+   311→                </View>
+   312→              ) : null}
+   313→              {shop.routeDays && shop.routeDays.length > 0 ? (
+   314→                <View style={[styles.chip, { backgroundColor: Colors.primaryLight }]}>
+   315→                  <MaterialIcons name="calendar-today" size={13} color={Colors.primaryDark} />
+   316→                  <Text style={[styles.chipText, { color: Colors.primaryDark }]}>
+   317→                    {shop.routeDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}
+   318→                  </Text>
+   319→                </View>
+   320→              ) : null}
+   321→              {currentPhone ? (
+   322→                <View style={styles.phoneChipRow}>
+   323→                  <Pressable
+   324→                    style={[styles.chip, { backgroundColor: '#EEF2FF' }]}
+   325→                    onPress={() => Linking.openURL(`tel:${currentPhone}`)}
+   326→                  >
+   327→                    <MaterialIcons name="call" size={13} color="#4F46E5" />
+   328→                    <Text style={[styles.chipText, { color: '#4F46E5' }]}>{currentPhone}</Text>
+   329→                  </Pressable>
+   330→                  <Pressable onPress={handleEditPhone} hitSlop={8} style={styles.phoneEditBtn}>
+   331→                    <MaterialIcons name="edit" size={14} color="#4F46E5" />
+   332→                  </Pressable>
+   333→                </View>
+   334→              ) : (
+   335→                <Pressable
+   336→                  style={[styles.chip, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B', borderWidth: 1 }]}
+   337→                  onPress={handleEditPhone}
+   338→                >
+   339→                  <MaterialIcons name="phone-disabled" size={13} color="#D97706" />
+   340→                  <Text style={[styles.chipText, { color: '#D97706' }]}>No phone</Text>
+   341→                  <MaterialIcons name="add-circle-outline" size={12} color="#D97706" />
+   342→                </Pressable>
+   343→              )}
+   344→              {/* SMS & WhatsApp action chips */}
+   345→              <Pressable
+   346→                style={[styles.chip, { backgroundColor: '#E0F2FE' }]}
+   347→                onPress={handleSmsPress}
+   348→              >
+   349→                <MaterialIcons name="sms" size={13} color="#0284C7" />
+   350→                <Text style={[styles.chipText, { color: '#0284C7' }]}>SMS</Text>
+   351→              </Pressable>
+   352→              <Pressable
+   353→                style={[styles.chip, { backgroundColor: '#DCFCE7' }]}
+   354→                onPress={handleWhatsappPress}
+   355→              >
+   356→                <MaterialIcons name="chat" size={13} color="#16A34A" />
+   357→                <Text style={[styles.chipText, { color: '#16A34A' }]}>WhatsApp</Text>
+   358→              </Pressable>
+   359→            </View>
+   360→
+   361→            {/* Balance + Credit cards */}
+   362→            <View style={styles.balanceRow}>
+   363→              <View style={styles.balanceCard}>
+   364→                <View style={[styles.balanceIconWrap, { backgroundColor: Colors.dangerLight }]}>
+   365→                  <MaterialIcons name="account-balance-wallet" size={20} color={Colors.danger} />
+   366→                </View>
+   367→                <Text style={styles.balanceLabel}>Outstanding</Text>
+   368→                <Text style={[styles.balanceValue, { color: Colors.danger }]}>
+   369→                  {formatPKR(displayBalance)}
+   370→                </Text>
+   371→              </View>
+   372→              <View style={styles.balanceDivider} />
+   373→              <View style={styles.balanceCard}>
+   374→                <View style={[styles.balanceIconWrap, { backgroundColor: '#EEF2FF' }]}>
+   375→                  <MaterialIcons name="credit-card" size={20} color="#4F46E5" />
+   376→                </View>
+   377→                <Text style={styles.balanceLabel}>Credit Limit</Text>
+   378→                <Text style={[styles.balanceValue, { color: '#4F46E5' }]}>
+   379→                  {formatPKR(displayCreditLimit)}
+   380→                </Text>
+   381→              </View>
+   382→            </View>
+   383→
+   384→            {/* Credit utilisation */}
+   385→            <View style={styles.utilisationCard}>
+   386→              <View style={styles.utilisationHeader}>
+   387→                <Text style={styles.utilisationLabel}>Credit Utilisation</Text>
+   388→                <Text style={[styles.utilisationPct, { color: isOverLimit ? Colors.danger : utilisationPct > 80 ? Colors.secondary : Colors.primary }]}>
+   389→                  {utilisationPct.toFixed(0)}%
+   390→                </Text>
+   391→              </View>
+   392→              <View style={styles.progressTrack}>
+   393→                <View
+   394→                  style={[
+   395→                    styles.progressFill,
+   396→                    {
+   397→                      width: `${utilisationPct}%`,
+   398→                      backgroundColor: isOverLimit ? Colors.danger : utilisationPct > 80 ? Colors.secondary : Colors.primary,
+   399→                    },
+   400→                  ]}
+   401→                />
+   402→              </View>
+   403→              {isOverLimit ? (
+   404→                <View style={styles.overLimitRow}>
+   405→                  <MaterialIcons name="warning" size={14} color={Colors.danger} />
+   406→                  <Text style={styles.overLimitText}>Over Credit Limit by {formatPKR(displayBalance - displayCreditLimit)}</Text>
+   407→                </View>
+   408→              ) : null}
+   409→            </View>
+   410→
+   411→            {/* 6-Month Performance Chart */}
+   412→            <View style={styles.chartCard}>
+   413→              <View style={styles.chartTitleRow}>
+   414→                <View>
+   415→                  <Text style={styles.sectionTitle}>6-Month Performance</Text>
+   416→                  <Text style={styles.chartSubtitle}>Credit vs Recovery trend</Text>
+   417→                </View>
+   418→                <View style={styles.chartLegend}>
+   419→                  <View style={styles.legendItem}>
+   420→                    <View style={[styles.legendDot, { backgroundColor: Colors.secondary }]} />
+   421→                    <Text style={styles.legendText}>Credit</Text>
+   422→                  </View>
+   423→                  <View style={styles.legendItem}>
+   424→                    <View style={[styles.legendDot, { backgroundColor: Colors.primary }]} />
+   425→                    <Text style={styles.legendText}>Recovery</Text>
+   426→                  </View>
+   427→                </View>
+   428→              </View>
+   429→
+   430→              {/* Summary pills */}
+   431→              <View style={styles.chartPills}>
+   432→                <View style={[styles.chartPill, { backgroundColor: Colors.secondaryLight }]}>
+   433→                  <Text style={styles.chartPillLabel}>Total Credit</Text>
+   434→                  <Text style={[styles.chartPillValue, { color: Colors.secondary }]}>{formatPKR(totalCredit)}</Text>
+   435→                </View>
+   436→                <View style={[styles.chartPill, { backgroundColor: Colors.primaryLight }]}>
+   437→                  <Text style={styles.chartPillLabel}>Total Recovery</Text>
+   438→                  <Text style={[styles.chartPillValue, { color: Colors.primary }]}>{formatPKR(totalRecovery)}</Text>
+   439→                </View>
+   440→              </View>
+   441→
+   442→              {chartLoading ? (
+   443→                <View style={styles.chartLoading}>
+   444→                  <ActivityIndicator size="small" color={Colors.primary} />
+   445→                  <Text style={styles.chartLoadingText}>Loading chart...</Text>
+   446→                </View>
+   447→              ) : !hasChartData ? (
+   448→                <View style={styles.chartEmpty}>
+   449→                  <Text style={styles.chartEmptyIcon}>📊</Text>
+   450→                  <Text style={styles.chartEmptyText}>No transaction history available</Text>
+   451→                </View>
+   452→              ) : (
+   453→                <BarChart
+   454→                  data={{
+   455→                    labels: chartData.labels,
+   456→                    datasets: [
+   457→                      {
+   458→                        data: chartData.recoveries.map((v) => Math.max(v, 0)),
+   459→                        color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
+   460→                      },
+   461→                    ],
+   462→                  }}
+   463→                  width={screenWidth - 80}
+   464→                  height={150}
+   465→                  yAxisLabel="Rs."
+   466→                  yAxisSuffix=""
+   467→                  chartConfig={{
+   468→                    backgroundColor: Colors.surface,
+   469→                    backgroundGradientFrom: Colors.surface,
+   470→                    backgroundGradientTo: Colors.surface,
+   471→                    decimalPlaces: 0,
+   472→                    color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
+   473→                    labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
+   474→                    barPercentage: 0.7,
+   475→                    propsForBackgroundLines: {
+   476→                      stroke: Colors.borderLight,
+   477→                    },
+   478→                  }}
+   479→                  style={{ borderRadius: Radius.md, marginLeft: -Spacing.md }}
+   480→                  showValuesOnTopOfBars={false}
+   481→                  withInnerLines
+   482→                  fromZero
+   483→                />
+   484→              )}
+   485→            </View>
+   486→
+   487→            {/* Recent transactions */}
+   488→            <Text style={styles.sectionTitle}>Recent Transactions</Text>
+   489→
+   490→            {/* Notes Section */}
+   491→            <View style={styles.notesSection}>
+   492→              <View style={styles.notesHeader}>
+   493→                <View style={styles.notesHeaderLeft}>
+   494→                  <View style={styles.notesIconWrap}>
+   495→                    <MaterialIcons name="sticky-note-2" size={16} color={Colors.secondary} />
+   496→                  </View>
+   497→                  <Text style={styles.sectionTitleInline}>Notes / Remarks</Text>
+   498→                </View>
+   499→                {shopNote ? (
+   500→                  <Pressable onPress={handleDeleteNote} hitSlop={8} style={styles.noteDeleteBtn}>
+   501→                    <MaterialIcons name="delete-outline" size={16} color={Colors.danger} />
+   502→                  </Pressable>
+   503→                ) : null}
+   504→              </View>
+   505→              <View style={styles.noteInputWrap}>
+   506→                <TextInput
+   507→                  style={styles.noteTextInput}
+   508→                  value={noteInput}
+   509→                  onChangeText={setNoteInput}
+   510→                  placeholder="Add a note about this shop..."
+   511→                  placeholderTextColor={Colors.textMuted}
+   512→                  maxLength={500}
+   513→                  multiline
+   514→                  numberOfLines={3}
+   515→                />
+   516→              </View>
+   517→              <View style={styles.noteActions}>
+   518→                {shopNote ? (
+   519→                  <Text style={styles.noteUpdatedAt}>
+   520→                    Last updated: {formatDateTime(shopNote.updatedAt)}
+   521→                  </Text>
+   522→                ) : null}
+   523→                <Pressable
+   524→                  style={({ pressed }) => [styles.noteSaveBtn, pressed && { opacity: 0.7 }]}
+   525→                  onPress={handleSaveNote}
+   526→                  disabled={!noteInput.trim() || noteSaving}
+   527→                >
+   528→                  {noteSaving ? (
+   529→                    <ActivityIndicator size="small" color="#FFFFFF" />
+   530→                  ) : (
+   531→                    <MaterialIcons name="save" size={14} color="#FFFFFF" />
+   532→                  )}
+   533→                  <Text style={styles.noteSaveBtnText}>
+   534→                    {noteSaving ? 'Saving...' : shopNote ? 'Update' : 'Save Note'}
+   535→                  </Text>
+   536→                </Pressable>
+   537→              </View>
+   538→            </View>
+   539→            {loading ? (
+   540→              <ActivityIndicator color={Colors.primary} style={{ marginVertical: Spacing.md }} />
+   541→            ) : recentTxns.length === 0 ? (
+   542→              <View style={styles.emptyTxnWrap}>
+   543→                <MaterialIcons name="receipt-long" size={36} color={Colors.textMuted} />
+   544→                <Text style={styles.emptyTxn}>No transactions found</Text>
+   545→              </View>
+   546→            ) : (
+   547→              recentTxns.map((txn) => (
+   548→                <View key={txn.id} style={styles.txnRow}>
+   549→                  <View style={[
+   550→                    styles.txnTypeIcon,
+   551→                    { backgroundColor: txn.type === 'credit' ? Colors.secondaryLight : Colors.primaryLight },
+   552→                  ]}>
+   553→                    <MaterialIcons
+   554→                      name={txn.type === 'credit' ? 'arrow-downward' : 'arrow-upward'}
+   555→                      size={14}
+   556→                      color={txn.type === 'credit' ? Colors.secondary : Colors.primary}
+   557→                    />
+   558→                  </View>
+   559→                  <View style={styles.txnInfo}>
+   560→                    <View style={styles.txnInfoTop}>
+   561→                      <Text style={styles.txnType}>{txn.type === 'credit' ? 'Credit' : 'Recovery'}</Text>
+   562→                      {txn.status === 'pending' ? (
+   563→                        <Badge label="Pending" bgColor="#FEF3C7" color="#92400E" size="sm" />
+   564→                      ) : txn.status === 'rejected' ? (
+   565→                        <Badge label="Rejected" bgColor={Colors.dangerLight} color={Colors.danger} size="sm" />
+   566→                      ) : null}
+   567→                    </View>
+   568→                    <Text style={styles.txnDate}>{formatDateTime(txn.createdAt)}</Text>
+   569→                    {txn.description ? (
+   570→                      <Text style={styles.txnDesc} numberOfLines={1}>{txn.description}</Text>
+   571→                    ) : null}
+   572→                  </View>
+   573→                  <View style={styles.txnAmountCol}>
+   574→                    <Text style={[styles.txnAmount, { color: txn.type === 'credit' ? Colors.secondary : Colors.primary }]}>
+   575→                      {formatPKR(txn.amount)}
+   576→                    </Text>
+   577→                    <Text style={styles.txnBalAfter}>{formatPKR(txn.newBalance)}</Text>
+   578→                    {/* Edit button for pending recoveries only — approved recoveries cannot be edited */}
+   579→                    {txn.type === 'recovery' && txn.status === 'pending' && onEditPendingRecovery ? (
+   580→                      <Pressable
+   581→                        style={styles.txnEditBtn}
+   582→                        onPress={() => onEditPendingRecovery(txn)}
+   583→                        hitSlop={6}
+   584→                      >
+   585→                        <MaterialIcons name="edit" size={14} color="#4F46E5" />
+   586→                        <Text style={styles.txnEditBtnText}>Edit</Text>
+   587→                      </Pressable>
+   588→                    ) : null}
+   589→                  </View>
+   590→                </View>
+   591→              ))
+   592→            )}
+   593→
+   594→            <View style={{ height: Spacing.sm }} />
+   595→          </ScrollView>
+   596→
+   597→          {/* Collect button / Resend Receipt */}
+   598→          <View style={styles.footer}>
+   599→            {/* Always show Resend if shop has phone and recovery was done today */}
+   600→            {onResendReceipt && currentPhone ? (
+   601→              <View style={styles.footerButtonsRow}>
+   602→                <Pressable
+   603→                  style={({ pressed }) => [styles.collectBtn, { flex: 1 }, pressed && styles.collectBtnPressed]}
+   604→                  onPress={() => { onClose(); onCollect(); }}
+   605→                >
+   606→                  <MaterialIcons name="payments" size={20} color={Colors.textInverse} />
+   607→                  <Text style={styles.collectBtnText}>Collect</Text>
+   608→                </Pressable>
+   609→                <Pressable
+   610→                  style={({ pressed }) => [styles.resendBtn, pressed && styles.collectBtnPressed]}
+   611→                  onPress={onResendReceipt}
+   612→                >
+   613→                  <MaterialIcons name="chat" size={20} color="#FFFFFF" />
+   614→                  <Text style={styles.collectBtnText}>Resend Receipt</Text>
+   615→                </Pressable>
+   616→              </View>
+   617→            ) : (
+   618→              <Pressable
+   619→                style={({ pressed }) => [styles.collectBtn, pressed && styles.collectBtnPressed]}
+   620→                onPress={() => { onClose(); onCollect(); }}
+   621→              >
+   622→                <MaterialIcons name="payments" size={20} color={Colors.textInverse} />
+   623→                <Text style={styles.collectBtnText}>Collect Recovery</Text>
+   624→              </Pressable>
+   625→            )}
+   626→          </View>
+   627→        </View>
+   628→
+   629→        {/* Phone Edit Modal */}
+   630→        <Modal visible={editingPhone} transparent animationType="fade">
+   631→          <KeyboardAvoidingView
+   632→            style={styles.phoneEditBackdrop}
+   633→            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+   634→          >
+   635→            <View style={styles.phoneEditCard}>
+   636→              <View style={styles.phoneEditHeader}>
+   637→                <View style={styles.phoneEditIconWrap}>
+   638→                  <MaterialIcons name="phone" size={22} color="#4F46E5" />
+   639→                </View>
+   640→                <Text style={styles.phoneEditTitle}>Edit Phone & Owner</Text>
+   641→                <Text style={styles.phoneEditSubtitle}>{shop.name}</Text>
+   642→              </View>
+   643→              {/* Owner Name Input */}
+   644→              <View style={styles.phoneEditInputWrap}>
+   645→                <MaterialIcons name="person" size={18} color={Colors.textMuted} />
+   646→                <TextInput
+   647→                  style={styles.phoneEditInput}
+   648→                  value={ownerNameInput}
+   649→                  onChangeText={setOwnerNameInput}
+   650→                  placeholder="Owner Name (e.g. Muhammad Ali)"
+   651→                  placeholderTextColor={Colors.textMuted}
+   652→                  maxLength={50}
+   653→                />
+   654→                {ownerNameInput ? (
+   655→                  <Pressable onPress={() => setOwnerNameInput('')} hitSlop={8}>
+   656→                    <MaterialIcons name="cancel" size={16} color={Colors.textMuted} />
+   657→                  </Pressable>
+   658→                ) : null}
+   659→              </View>
+   660→              {/* Phone Input */}
+   661→              <View style={styles.phoneEditInputWrap}>
+   662→                <MaterialIcons name="call" size={18} color={Colors.textMuted} />
+   663→                <TextInput
+   664→                  style={styles.phoneEditInput}
+   665→                  value={phoneInput}
+   666→                  onChangeText={setPhoneInput}
+   667→                  placeholder="e.g. 03001234567"
+   668→                  placeholderTextColor={Colors.textMuted}
+   669→                  keyboardType="phone-pad"
+   670→                  maxLength={15}
+   671→                  autoFocus
+   672→                />
+   673→                {phoneInput ? (
+   674→                  <Pressable onPress={() => setPhoneInput('')} hitSlop={8}>
+   675→                    <MaterialIcons name="cancel" size={16} color={Colors.textMuted} />
+   676→                  </Pressable>
+   677→                ) : null}
+   678→              </View>
+   679→              <View style={styles.phoneEditActions}>
+   680→                <Pressable
+   681→                  style={({ pressed }) => [styles.phoneEditCancelBtn, pressed && { opacity: 0.7 }]}
+   682→                  onPress={() => { setEditingPhone(false); setPhoneInput(''); }}
+   683→                  disabled={phoneSaving}
+   684→                >
+   685→                  <Text style={styles.phoneEditCancelText}>Cancel</Text>
+   686→                </Pressable>
+   687→                <Pressable
+   688→                  style={({ pressed }) => [
+   689→                    styles.phoneEditSaveBtn,
+   690→                    (!phoneInput.trim() || phoneSaving) && styles.phoneEditSaveBtnDisabled,
+   691→                    pressed && { opacity: 0.7 },
+   692→                  ]}
+   693→                  onPress={handleSavePhone}
+   694→                  disabled={!phoneInput.trim() || phoneSaving}
+   695→                >
+   696→                  {phoneSaving ? (
+   697→                    <ActivityIndicator size="small" color="#FFFFFF" />
+   698→                  ) : (
+   699→                    <MaterialIcons name="check" size={16} color="#FFFFFF" />
+   700→                  )}
+   701→                  <Text style={styles.phoneEditSaveText}>
+   702→                    {phoneSaving ? 'Saving...' : 'Save'}
+   703→                  </Text>
+   704→                </Pressable>
+   705→              </View>
+   706→            </View>
+   707→          </KeyboardAvoidingView>
+   708→        </Modal>
+   709→      </View>
+   710→    </Modal>
+   711→  );
+   712→});
+   713→
+   714→const styles = StyleSheet.create({
+   715→  backdrop: {
+   716→    flex: 1,
+   717→    backgroundColor: 'rgba(0,0,0,0.55)',
+   718→    justifyContent: 'flex-end',
+   719→  },
+   720→  container: {
+   721→    backgroundColor: Colors.surface,
+   722→    borderTopLeftRadius: Radius.xl,
+   723→    borderTopRightRadius: Radius.xl,
+   724→    paddingTop: Spacing.sm,
+   725→    maxHeight: '92%',
+   726→    ...Shadow.lg,
+   727→  },
+   728→  handle: {
+   729→    width: 40,
+   730→    height: 4,
+   731→    backgroundColor: Colors.border,
+   732→    borderRadius: Radius.full,
+   733→    alignSelf: 'center',
+   734→    marginBottom: Spacing.sm,
+   735→  },
+   736→  header: {
+   737→    flexDirection: 'row',
+   738→    alignItems: 'center',
+   739→    paddingHorizontal: Spacing.md,
+   740→    paddingTop: Spacing.md,
+   741→    paddingBottom: Spacing.md,
+   742→    gap: Spacing.sm,
+   743→    overflow: 'hidden',
+   744→    position: 'relative',
+   745→  },
+   746→  headerBubble1: {
+   747→    position: 'absolute',
+   748→    width: 140,
+   749→    height: 140,
+   750→    borderRadius: 70,
+   751→    backgroundColor: 'rgba(255,255,255,0.06)',
+   752→    top: -50,
+   753→    right: -30,
+   754→  },
+   755→  headerBubble2: {
+   756→    position: 'absolute',
+   757→    width: 80,
+   758→    height: 80,
+   759→    borderRadius: 40,
+   760→    backgroundColor: 'rgba(255,255,255,0.04)',
+   761→    bottom: -20,
+   762→    left: -15,
+   763→  },
+   764→  shopIconWrap: {
+   765→    width: 48,
+   766→    height: 48,
+   767→    borderRadius: 16,
+   768→    backgroundColor: 'rgba(255,255,255,0.2)',
+   769→    alignItems: 'center',
+   770→    justifyContent: 'center',
+   771→    borderWidth: 1.5,
+   772→    borderColor: 'rgba(255,255,255,0.3)',
+   773→  },
+   774→  shopIcon: {
+   775→    fontSize: FontSize.xl,
+   776→    fontWeight: FontWeight.bold,
+   777→    color: '#FFFFFF',
+   778→  },
+   779→  headerInfo: {
+   780→    flex: 1,
+   781→  },
+   782→  shopName: {
+   783→    fontSize: FontSize.lg,
+   784→    fontWeight: FontWeight.bold,
+   785→    color: '#FFFFFF',
+   786→  },
+   787→  owner: {
+   788→    fontSize: FontSize.sm,
+   789→    color: 'rgba(255,255,255,0.75)',
+   790→    marginTop: 1,
+   791→  },
+   792→  closeBtn: {
+   793→    width: 36,
+   794→    height: 36,
+   795→    borderRadius: 18,
+   796→    backgroundColor: 'rgba(255,255,255,0.15)',
+   797→    alignItems: 'center',
+   798→    justifyContent: 'center',
+   799→  },
+   800→  scroll: {
+   801→    padding: Spacing.md,
+   802→    paddingBottom: Spacing.sm,
+   803→  },
+   804→  chipRow: {
+   805→    flexDirection: 'row',
+   806→    flexWrap: 'wrap',
+   807→    gap: Spacing.xs,
+   808→    marginBottom: Spacing.md,
+   809→  },
+   810→  chip: {
+   811→    flexDirection: 'row',
+   812→    alignItems: 'center',
+   813→    gap: 4,
+   814→    backgroundColor: Colors.background,
+   815→    borderRadius: Radius.full,
+   816→    paddingHorizontal: Spacing.sm,
+   817→    paddingVertical: 5,
+   818→  },
+   819→  chipText: {
+   820→    fontSize: FontSize.xs,
+   821→    color: Colors.textSecondary,
+   822→    fontWeight: FontWeight.medium,
+   823→  },
+   824→  balanceRow: {
+   825→    flexDirection: 'row',
+   826→    backgroundColor: Colors.background,
+   827→    borderRadius: Radius.lg,
+   828→    padding: Spacing.md,
+   829→    marginBottom: Spacing.md,
+   830→    ...Shadow.sm,
+   831→  },
+   832→  balanceCard: {
+   833→    flex: 1,
+   834→    alignItems: 'center',
+   835→    gap: 4,
+   836→  },
+   837→  balanceDivider: {
+   838→    width: 1,
+   839→    backgroundColor: Colors.border,
+   840→    marginVertical: Spacing.xs,
+   841→  },
+   842→  balanceIconWrap: {
+   843→    width: 40,
+   844→    height: 40,
+   845→    borderRadius: 20,
+   846→    alignItems: 'center',
+   847→    justifyContent: 'center',
+   848→    marginBottom: 4,
+   849→  },
+   850→  balanceLabel: {
+   851→    fontSize: FontSize.xs,
+   852→    color: Colors.textMuted,
+   853→    textTransform: 'uppercase',
+   854→    letterSpacing: 0.5,
+   855→    fontWeight: FontWeight.medium,
+   856→  },
+   857→  balanceValue: {
+   858→    fontSize: FontSize.lg,
+   859→    fontWeight: FontWeight.bold,
+   860→  },
+   861→  utilisationCard: {
+   862→    backgroundColor: Colors.background,
+   863→    borderRadius: Radius.md,
+   864→    padding: Spacing.md,
+   865→    marginBottom: Spacing.md,
+   866→    ...Shadow.sm,
+   867→  },
+   868→  utilisationHeader: {
+   869→    flexDirection: 'row',
+   870→    justifyContent: 'space-between',
+   871→    alignItems: 'center',
+   872→    marginBottom: Spacing.sm,
+   873→  },
+   874→  utilisationLabel: {
+   875→    fontSize: FontSize.sm,
+   876→    color: Colors.textSecondary,
+   877→    fontWeight: FontWeight.medium,
+   878→  },
+   879→  utilisationPct: {
+   880→    fontSize: FontSize.md,
+   881→    fontWeight: FontWeight.bold,
+   882→  },
+   883→  progressTrack: {
+   884→    height: 10,
+   885→    backgroundColor: Colors.border,
+   886→    borderRadius: Radius.full,
+   887→    overflow: 'hidden',
+   888→  },
+   889→  progressFill: {
+   890→    height: 10,
+   891→    borderRadius: Radius.full,
+   892→  },
+   893→  overLimitRow: {
+   894→    flexDirection: 'row',
+   895→    alignItems: 'center',
+   896→    gap: 4,
+   897→    marginTop: Spacing.xs,
+   898→  },
+   899→  overLimitText: {
+   900→    fontSize: FontSize.xs,
+   901→    color: Colors.danger,
+   902→    fontWeight: FontWeight.semibold,
+   903→  },
+   904→  chartCard: {
+   905→    backgroundColor: Colors.background,
+   906→    borderRadius: Radius.lg,
+   907→    padding: Spacing.md,
+   908→    marginBottom: Spacing.md,
+   909→    ...Shadow.sm,
+   910→    overflow: 'hidden',
+   911→  },
+   912→  chartTitleRow: {
+   913→    flexDirection: 'row',
+   914→    alignItems: 'flex-start',
+   915→    justifyContent: 'space-between',
+   916→    marginBottom: Spacing.sm,
+   917→  },
+   918→  sectionTitle: {
+   919→    fontSize: FontSize.md,
+   920→    fontWeight: FontWeight.bold,
+   921→    color: Colors.text,
+   922→    marginBottom: Spacing.sm,
+   923→  },
+   924→  chartSubtitle: {
+   925→    fontSize: FontSize.xs,
+   926→    color: Colors.textMuted,
+   927→    marginTop: 1,
+   928→  },
+   929→  chartLegend: {
+   930→    gap: 4,
+   931→    alignItems: 'flex-end',
+   932→  },
+   933→  legendItem: {
+   934→    flexDirection: 'row',
+   935→    alignItems: 'center',
+   936→    gap: 4,
+   937→  },
+   938→  legendDot: {
+   939→    width: 8,
+   940→    height: 8,
+   941→    borderRadius: 4,
+   942→  },
+   943→  legendText: {
+   944→    fontSize: FontSize.xs,
+   945→    color: Colors.textSecondary,
+   946→  },
+   947→  chartPills: {
+   948→    flexDirection: 'row',
+   949→    gap: Spacing.sm,
+   950→    marginBottom: Spacing.sm,
+   951→  },
+   952→  chartPill: {
+   953→    flex: 1,
+   954→    borderRadius: Radius.sm,
+   955→    padding: Spacing.sm,
+   956→    alignItems: 'center',
+   957→  },
+   958→  chartPillLabel: {
+   959→    fontSize: FontSize.xs,
+   960→    color: Colors.textMuted,
+   961→    textTransform: 'uppercase',
+   962→    letterSpacing: 0.4,
+   963→    marginBottom: 2,
+   964→  },
+   965→  chartPillValue: {
+   966→    fontSize: FontSize.sm,
+   967→    fontWeight: FontWeight.bold,
+   968→  },
+   969→  chartLoading: {
+   970→    height: 120,
+   971→    alignItems: 'center',
+   972→    justifyContent: 'center',
+   973→    gap: Spacing.sm,
+   974→  },
+   975→  chartLoadingText: {
+   976→    fontSize: FontSize.sm,
+   977→    color: Colors.textMuted,
+   978→  },
+   979→  chartEmpty: {
+   980→    height: 100,
+   981→    alignItems: 'center',
+   982→    justifyContent: 'center',
+   983→    gap: 4,
+   984→  },
+   985→  chartEmptyIcon: {
+   986→    fontSize: 28,
+   987→  },
+   988→  chartEmptyText: {
+   989→    fontSize: FontSize.sm,
+   990→    color: Colors.textMuted,
+   991→  },
+   992→  txnRow: {
+   993→    flexDirection: 'row',
+   994→    alignItems: 'center',
+   995→    paddingVertical: Spacing.sm,
+   996→    borderBottomWidth: 1,
+   997→    borderBottomColor: Colors.borderLight,
+   998→    gap: Spacing.sm,
+   999→  },
+  1000→  txnTypeIcon: {
+  1001→    width: 32,
+  1002→    height: 32,
+  1003→    borderRadius: 16,
+  1004→    alignItems: 'center',
+  1005→    justifyContent: 'center',
+  1006→  },
+  1007→  txnInfo: {
+  1008→    flex: 1,
+  1009→    gap: 2,
+  1010→  },
+  1011→  txnInfoTop: {
+  1012→    flexDirection: 'row',
+  1013→    alignItems: 'center',
+  1014→    gap: 6,
+  1015→  },
+  1016→  txnType: {
+  1017→    fontSize: FontSize.sm,
+  1018→    fontWeight: FontWeight.semibold,
+  1019→    color: Colors.text,
+  1020→  },
+  1021→  txnDate: {
+  1022→    fontSize: FontSize.xs,
+  1023→    color: Colors.textSecondary,
+  1024→  },
+  1025→  txnDesc: {
+  1026→    fontSize: FontSize.xs,
+  1027→    color: Colors.textMuted,
+  1028→  },
+  1029→  txnAmountCol: {
+  1030→    alignItems: 'flex-end',
+  1031→    gap: 2,
+  1032→  },
+  1033→  txnAmount: {
+  1034→    fontSize: FontSize.base,
+  1035→    fontWeight: FontWeight.bold,
+  1036→  },
+  1037→  txnBalAfter: {
+  1038→    fontSize: FontSize.xs,
+  1039→    color: Colors.textMuted,
+  1040→    marginTop: 1,
+  1041→  },
+  1042→  txnEditBtn: {
+  1043→    flexDirection: 'row',
+  1044→    alignItems: 'center',
+  1045→    gap: 2,
+  1046→    backgroundColor: '#EEF2FF',
+  1047→    borderRadius: Radius.sm,
+  1048→    paddingHorizontal: 6,
+  1049→    paddingVertical: 3,
+  1050→    marginTop: 2,
+  1051→  },
+  1052→  txnEditBtnText: {
+  1053→    fontSize: FontSize.xs,
+  1054→    color: '#4F46E5',
+  1055→    fontWeight: FontWeight.semibold,
+  1056→  },
+  1057→  emptyTxnWrap: {
+  1058→    alignItems: 'center',
+  1059→    paddingVertical: Spacing.lg,
+  1060→    gap: Spacing.xs,
+  1061→  },
+  1062→  emptyTxn: {
+  1063→    fontSize: FontSize.sm,
+  1064→    color: Colors.textMuted,
+  1065→    textAlign: 'center',
+  1066→  },
+  1067→  footer: {
+  1068→    padding: Spacing.md,
+  1069→    paddingTop: Spacing.sm,
+  1070→    borderTopWidth: 1,
+  1071→    borderTopColor: Colors.borderLight,
+  1072→  },
+  1073→  collectBtn: {
+  1074→    flexDirection: 'row',
+  1075→    alignItems: 'center',
+  1076→    justifyContent: 'center',
+  1077→    gap: Spacing.sm,
+  1078→    backgroundColor: '#4F46E5',
+  1079→    borderRadius: 30,
+  1080→    paddingVertical: 16,
+  1081→    ...Shadow.md,
+  1082→  },
+  1083→  collectBtnPressed: { opacity: 0.85 },
+  1084→  footerButtonsRow: {
+  1085→    flexDirection: 'row',
+  1086→    gap: Spacing.sm,
+  1087→  },
+  1088→  resendBtn: {
+  1089→    flex: 1,
+  1090→    flexDirection: 'row',
+  1091→    alignItems: 'center',
+  1092→    justifyContent: 'center',
+  1093→    gap: Spacing.sm,
+  1094→    backgroundColor: '#25D366',
+  1095→    borderRadius: Radius.md,
+  1096→    paddingVertical: 16,
+  1097→  },
+  1098→  collectBtnText: {
+  1099→    fontSize: FontSize.md,
+  1100→    fontWeight: FontWeight.bold,
+  1101→    color: Colors.textInverse,
+  1102→  },
+  1103→  // Notes section
+  1104→  notesSection: {
+  1105→    backgroundColor: Colors.background,
+  1106→    borderRadius: Radius.md,
+  1107→    padding: Spacing.md,
+  1108→    marginBottom: Spacing.md,
+  1109→    ...Shadow.sm,
+  1110→  },
+  1111→  notesHeader: {
+  1112→    flexDirection: 'row',
+  1113→    alignItems: 'center',
+  1114→    justifyContent: 'space-between',
+  1115→    marginBottom: Spacing.sm,
+  1116→  },
+  1117→  notesHeaderLeft: {
+  1118→    flexDirection: 'row',
+  1119→    alignItems: 'center',
+  1120→    gap: Spacing.sm,
+  1121→  },
+  1122→  notesIconWrap: {
+  1123→    width: 28,
+  1124→    height: 28,
+  1125→    borderRadius: 8,
+  1126→    backgroundColor: Colors.secondaryLight,
+  1127→    alignItems: 'center',
+  1128→    justifyContent: 'center',
+  1129→  },
+  1130→  sectionTitleInline: {
+  1131→    fontSize: FontSize.md,
+  1132→    fontWeight: FontWeight.bold,
+  1133→    color: Colors.text,
+  1134→  },
+  1135→  noteDeleteBtn: {
+  1136→    width: 32,
+  1137→    height: 32,
+  1138→    borderRadius: 16,
+  1139→    backgroundColor: Colors.dangerLight,
+  1140→    alignItems: 'center',
+  1141→    justifyContent: 'center',
+  1142→  },
+  1143→  noteInputWrap: {
+  1144→    backgroundColor: Colors.surface,
+  1145→    borderRadius: Radius.sm,
+  1146→    borderWidth: 1,
+  1147→    borderColor: Colors.border,
+  1148→    padding: Spacing.sm,
+  1149→    marginBottom: Spacing.sm,
+  1150→  },
+  1151→  noteTextInput: {
+  1152→    fontSize: FontSize.sm,
+  1153→    color: Colors.text,
+  1154→    minHeight: 60,
+  1155→    textAlignVertical: 'top',
+  1156→  },
+  1157→  noteActions: {
+  1158→    flexDirection: 'row',
+  1159→    alignItems: 'center',
+  1160→    justifyContent: 'space-between',
+  1161→  },
+  1162→  noteUpdatedAt: {
+  1163→    fontSize: FontSize.xs,
+  1164→    color: Colors.textMuted,
+  1165→    flex: 1,
+  1166→  },
+  1167→  noteSaveBtn: {
+  1168→    flexDirection: 'row',
+  1169→    alignItems: 'center',
+  1170→    gap: 4,
+  1171→    backgroundColor: Colors.secondary,
+  1172→    borderRadius: Radius.sm,
+  1173→    paddingHorizontal: Spacing.md,
+  1174→    paddingVertical: 8,
+  1175→  },
+  1176→  noteSaveBtnText: {
+  1177→    fontSize: FontSize.xs,
+  1178→    fontWeight: FontWeight.bold,
+  1179→    color: '#FFFFFF',
+  1180→  },
+  1181→  // Phone chip row & edit
+  1182→  phoneChipRow: {
+  1183→    flexDirection: 'row',
+  1184→    alignItems: 'center',
+  1185→    gap: 2,
+  1186→  },
+  1187→  phoneEditBtn: {
+  1188→    width: 26,
+  1189→    height: 26,
+  1190→    borderRadius: 13,
+  1191→    backgroundColor: '#EEF2FF',
+  1192→    alignItems: 'center',
+  1193→    justifyContent: 'center',
+  1194→  },
+  1195→  // Phone Edit Modal styles
+  1196→  phoneEditBackdrop: {
+  1197→    flex: 1,
+  1198→    backgroundColor: 'rgba(0,0,0,0.55)',
+  1199→    justifyContent: 'center',
+  1200→    alignItems: 'center',
+  1201→    padding: Spacing.lg,
+  1202→  },
+  1203→  phoneEditCard: {
+  1204→    backgroundColor: Colors.surface,
+  1205→    borderRadius: Radius.xl,
+  1206→    padding: Spacing.lg,
+  1207→    width: '100%',
+  1208→    maxWidth: 380,
+  1209→    ...Shadow.xl,
+  1210→  },
+  1211→  phoneEditHeader: {
+  1212→    alignItems: 'center',
+  1213→    marginBottom: Spacing.md,
+  1214→  },
+  1215→  phoneEditIconWrap: {
+  1216→    width: 52,
+  1217→    height: 52,
+  1218→    borderRadius: 26,
+  1219→    backgroundColor: '#EEF2FF',
+  1220→    alignItems: 'center',
+  1221→    justifyContent: 'center',
+  1222→    marginBottom: Spacing.sm,
+  1223→  },
+  1224→  phoneEditTitle: {
+  1225→    fontSize: FontSize.lg,
+  1226→    fontWeight: FontWeight.bold,
+  1227→    color: Colors.text,
+  1228→  },
+  1229→  phoneEditSubtitle: {
+  1230→    fontSize: FontSize.sm,
+  1231→    color: Colors.textSecondary,
+  1232→    marginTop: 2,
+  1233→  },
+  1234→  phoneEditInputWrap: {
+  1235→    flexDirection: 'row',
+  1236→    alignItems: 'center',
+  1237→    backgroundColor: Colors.background,
+  1238→    borderRadius: Radius.md,
+  1239→    borderWidth: 1,
+  1240→    borderColor: Colors.border,
+  1241→    paddingHorizontal: Spacing.sm,
+  1242→    paddingVertical: 2,
+  1243→    marginBottom: Spacing.md,
+  1244→    gap: Spacing.xs,
+  1245→  },
+  1246→  phoneEditInput: {
+  1247→    flex: 1,
+  1248→    fontSize: FontSize.md,
+  1249→    color: Colors.text,
+  1250→    paddingVertical: 12,
+  1251→  },
+  1252→  phoneEditActions: {
+  1253→    flexDirection: 'row',
+  1254→    gap: Spacing.sm,
+  1255→  },
+  1256→  phoneEditCancelBtn: {
+  1257→    flex: 1,
+  1258→    alignItems: 'center',
+  1259→    justifyContent: 'center',
+  1260→    paddingVertical: 14,
+  1261→    borderRadius: Radius.md,
+  1262→    backgroundColor: Colors.background,
+  1263→    borderWidth: 1,
+  1264→    borderColor: Colors.border,
+  1265→  },
+  1266→  phoneEditCancelText: {
+  1267→    fontSize: FontSize.base,
+  1268→    fontWeight: FontWeight.semibold,
+  1269→    color: Colors.textSecondary,
+  1270→  },
+  1271→  phoneEditSaveBtn: {
+  1272→    flex: 1,
+  1273→    flexDirection: 'row',
+  1274→    alignItems: 'center',
+  1275→    justifyContent: 'center',
+  1276→    gap: 4,
+  1277→    paddingVertical: 14,
+  1278→    borderRadius: Radius.md,
+  1279→    backgroundColor: '#4F46E5',
+  1280→  },
+  1281→  phoneEditSaveBtnDisabled: {
+  1282→    opacity: 0.5,
+  1283→  },
+  1284→  phoneEditSaveText: {
+  1285→    fontSize: FontSize.base,
+  1286→    fontWeight: FontWeight.bold,
+  1287→    color: '#FFFFFF',
+  1288→  },
+  1289→});
+  1290→

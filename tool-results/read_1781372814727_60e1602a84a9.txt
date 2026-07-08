@@ -1,0 +1,2002 @@
+     1→// Finexa Recovery App
+     2→import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+     3→import {
+     4→  View,
+     5→  Text,
+     6→  StyleSheet,
+     7→  FlatList,
+     8→  RefreshControl,
+     9→  Alert,
+    10→  TextInput,
+    11→  Pressable,
+    12→  Linking,
+    13→  AppState,
+    14→  AppStateStatus,
+    15→} from 'react-native';
+    16→import { MaterialIcons } from '@expo/vector-icons';
+    17→import { LinearGradient } from 'expo-linear-gradient';
+    18→import { useSafeAreaInsets } from 'react-native-safe-area-context';
+    19→import { useAuth } from '@/hooks/useAuth';
+    20→import { useShops } from '@/hooks/useShops';
+    21→import { ApiService, Shop, Transaction } from '@/services/api';
+    22→import { getShopDisplayBalance } from '@/components/ui/ShopCard';
+    23→import { Colors, Spacing, Radius, FontSize, FontWeight, Shadow } from '@/constants/theme';
+    24→import { ROUTE_DAYS, DAY_LABELS } from '@/constants/config';
+    25→import { getTodayDayName, getTodayLabel, getTodayDateStr, capitalize, formatPKR } from '@/utils/format';
+    26→import { ShopCard } from '@/components/ui/ShopCard';
+    27→import { RecoveryBottomSheet } from '@/components/ui/RecoveryBottomSheet';
+    28→import { GpsVisitBottomSheet } from '@/components/ui/GpsVisitBottomSheet';
+    29→import { ShopDetailModal } from '@/components/ui/ShopDetailModal';
+    30→import { SuccessOverlay } from '@/components/ui/SuccessOverlay';
+    31→import { OfflineBanner } from '@/components/ui/OfflineBanner';
+    32→import { PendingCreditAlert } from '@/components/ui/PendingCreditAlert';
+    33→import { VisitStreakCounter } from '@/components/ui/VisitStreakCounter';
+    34→import { PerformanceChart } from '@/components/ui/PerformanceChart';
+    35→import { RecoveryAnalysisChart } from '@/components/ui/RecoveryAnalysisChart';
+    36→import { NotificationChoice, NotificationMethod } from '@/components/ui/NotificationChoice';
+    37→import { DailyReportCard } from '@/components/ui/DailyReportCard';
+    38→import { PendingMessagesSheet } from '@/components/ui/PendingMessagesSheet';
+    39→import { DailyTargetProgress } from '@/components/ui/DailyTargetProgress';
+    40→import { StorageService, PendingNotification, OfflineRecovery } from '@/services/storage';
+    41→import { RecoveryReminder } from '@/components/ui/RecoveryReminder';
+    42→import { RecoveryReceipt } from '@/components/ui/RecoveryReceipt';
+    43→import { EditRecoveryModal, EditedRecoveryReceiptData } from '@/components/ui/EditRecoveryModal';
+    44→import { AppTour } from '@/components/ui/AppTour';
+    45→import { PhoneInputModal } from '@/components/ui/PhoneInputModal';
+    46→import { CompanySelector } from '@/components/ui/CompanySelector';
+    47→
+    48→// Route tracking for End Route + Sync Upload button
+    49→import { useRouteTracking } from '@/contexts/RouteTrackingContext';
+    50→
+    51→type ChartView = 'trend' | 'analysis' | 'none';
+    52→
+    53→// ── Section item types for grouped FlatList ──────────────────────────────────
+    54→type SectionItem =
+    55→  | { type: 'header'; dayKey: string; dayLabel: string; shopCount: number; isToday: boolean }
+    56→  | { type: 'shop'; shop: Shop; dayKey: string };
+    57→
+    58→export default function TodayRouteScreen() {
+    59→  const insets = useSafeAreaInsets();
+    60→  const { user, distributorPhone, companies, selectedCompanyId, setSelectedCompanyId } = useAuth();
+    61→  const {
+    62→    todayShops,
+    63→    allShops,
+    64→    isLoadingToday,
+    65→    offlineQueueCount,
+    66→    isOnline,
+    67→    isSyncing,
+    68→    syncStatus,
+    69→    lastSyncTime,
+    70→    loadTodayShops,
+    71→    loadAllShops,
+    72→    addToOfflineQueue,
+    73→    syncOfflineQueue,
+    74→  } = useShops();
+    75→  const { isTracking, isStopping, endRoute, startTime } = useRouteTracking();
+    76→
+    77→  const [recoveryShop, setRecoveryShop] = useState<Shop | null>(null);
+    78→  const [detailShop, setDetailShop] = useState<Shop | null>(null);
+    79→  const [gpsVisitShop, setGpsVisitShop] = useState<Shop | null>(null);
+    80→  const [isSubmitting, setIsSubmitting] = useState(false);
+    81→  const [successState, setSuccessState] = useState<{
+    82→    visible: boolean;
+    83→    shopName: string;
+    84→    amount: number;
+    85→    isOffline: boolean;
+    86→  }>({ visible: false, shopName: '', amount: 0, isOffline: false });
+    87→  const [notifChoice, setNotifChoice] = useState<{
+    88→    visible: boolean;
+    89→    shopId: string;
+    90→    shopPhone: string;
+    91→    shopName: string;
+    92→    shopAddress?: string;
+    93→    shopOwnerName?: string;
+    94→    openingBalance: number;
+    95→    recoveryAmount: number;
+    96→    remainingBalance: number;
+    97→    companyName?: string;
+    98→    orderbookerName?: string;
+    99→    distributorPhone?: string;
+   100→  }>({ visible: false, shopId: '', shopPhone: '', shopName: '', openingBalance: 0, recoveryAmount: 0, remainingBalance: 0 });
+   101→  const [visitedShopIds, setVisitedShopIds] = useState<Set<string>>(new Set());
+   102→  const [todayRecovery, setTodayRecovery] = useState(0);
+   103→  const [recoverySubmittedShopIds, setRecoverySubmittedShopIds] = useState<Set<string>>(new Set());
+   104→
+   105→  // Helper: create a composite key for recovery tracking (shopId_companyId)
+   106→  // If companyId exists, use "shopId_companyId" format for per-company tracking
+   107→  // If no companyId (legacy/single-company users), use just "shopId" for backward compatibility
+   108→  const getRecoveryKey = useCallback((shopId: string, companyId?: string | null): string => {
+   109→    if (companyId) return `${shopId}_${companyId}`;
+   110→    return shopId;
+   111→  }, []);
+   112→
+   113→  // Helper: check if recovery was submitted for a shop under a specific company
+   114→  const isRecoverySubmitted = useCallback((shopId: string, companyId?: string | null): boolean => {
+   115→    return recoverySubmittedShopIds.has(getRecoveryKey(shopId, companyId));
+   116→  }, [recoverySubmittedShopIds, getRecoveryKey]);
+   117→  const [phoneInputShop, setPhoneInputShop] = useState<Shop | null>(null);
+   118→  const [pendingNotifAfterSuccess, setPendingNotifAfterSuccess] = useState<{
+   119→    shopId: string;
+   120→    shopPhone: string;
+   121→    shopName: string;
+   122→    shopAddress?: string;
+   123→    shopOwnerName?: string;
+   124→    openingBalance: number;
+   125→    recoveryAmount: number;
+   126→    remainingBalance: number;
+   127→    companyName?: string;
+   128→    orderbookerName?: string;
+   129→    distributorPhone?: string;
+   130→  } | null>(null);
+   131→
+   132→  // Receipt regeneration state — persists receipt data so it can be reopened anytime
+   133→  const [lastReceiptData, setLastReceiptData] = useState<{
+   134→    shopName: string;
+   135→    shopAddress?: string;
+   136→    shopOwnerName?: string;
+   137→    shopPhone: string;
+   138→    openingBalance: number;
+   139→    recoveryAmount: number;
+   140→    remainingBalance: number;
+   141→    companyName?: string;
+   142→    orderbookerName?: string;
+   143→    distributorPhone?: string;
+   144→  } | null>(null);
+   145→  const [showReceiptModal, setShowReceiptModal] = useState(false);
+   146→
+   147→  // Edit pending recovery state
+   148→  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+   149→
+   150→  // Load cached todayRecovery on mount so it doesn't show 0 after refresh
+   151→  useEffect(() => {
+   152→    StorageService.getTodayRecovery().then((cached) => {
+   153→      if (cached > 0) setTodayRecovery(cached);
+   154→    });
+   155→    // Load cached visited shops so they persist across app refreshes
+   156→    StorageService.getVisitedShops().then((cached) => {
+   157→      if (cached.length > 0) setVisitedShopIds(new Set(cached));
+   158→    });
+   159→    // Load cached recovery submitted shops for duplicate prevention
+   160→    StorageService.getRecoverySubmittedShops().then((cached) => {
+   161→      if (cached.length > 0) setRecoverySubmittedShopIds(new Set(cached));
+   162→    });
+   163→    // Load cached notification counts so they persist across app refreshes
+   164→    StorageService.getNotifCounts().then((counts) => {
+   165→      if (counts.sms > 0) setSmsSentCount(counts.sms);
+   166→      if (counts.whatsapp > 0) setWhatsappSentCount(counts.whatsapp);
+   167→    });
+   168→  }, []);
+   169→
+   170→  const [searchQuery, setSearchQuery] = useState('');
+   171→  const [chartView, setChartView] = useState<ChartView>('none');
+   172→  const [smsSentCount, setSmsSentCount] = useState(0);
+   173→  const [whatsappSentCount, setWhatsappSentCount] = useState(0);
+   174→  const [showReport, setShowReport] = useState(false);
+   175→  const [showPending, setShowPending] = useState(false);
+   176→  const [pendingNotifications, setPendingNotifications] = useState<PendingNotification[]>([]);
+   177→
+   178→  // Feature 12: Undo tracking
+   179→  const [lastRecoveryInfo, setLastRecoveryInfo] = useState<{
+   180→    shopId: string;
+   181→    amount: number;
+   182→    isOffline: boolean;
+   183→    transactionId?: string;
+   184→    localId?: string;
+   185→    companyId?: string;
+   186→  } | null>(null);
+   187→
+   188→  // Feature 14: Tour state
+   189→  const [showTour, setShowTour] = useState(false);
+   190→
+   191→  const todayDay = getTodayDayName();
+   192→  const isFriday = todayDay === 'friday';
+   193→  // Route-wise by default (Sunday = Sunday shops only).
+   194→  // Admin can enable "All Routes Access" from website to show all days' shops.
+   195→  const allRoutesEnabled = user?.allRoutesEnabled ?? false;
+   196→
+   197→  // Feature 14: Check if tour has been completed on mount
+   198→  useEffect(() => {
+   199→    if (user) {
+   200→      StorageService.isTourCompleted().then((completed) => {
+   201→        if (!completed) setShowTour(true);
+   202→      });
+   203→    }
+   204→  }, [user]);
+   205→
+   206→  useEffect(() => {
+   207→    if (user) {
+   208→      loadTodayShops(user.id, allRoutesEnabled, selectedCompanyId || undefined);
+   209→      loadAllShops(user.id, selectedCompanyId || undefined);
+   210→      loadTodayStats();
+   211→      loadPendingNotifications();
+   212→    }
+   213→  }, [user, allRoutesEnabled, selectedCompanyId]);
+   214→
+   215→  // ── Pending Reminder: Show alert when app comes to foreground with pending receipts ──
+   216→  useEffect(() => {
+   217→    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+   218→      if (nextState === 'active') {
+   219→        // Check for pending notifications when app comes to foreground
+   220→        loadPendingNotifications();
+   221→      }
+   222→    });
+   223→    return () => subscription.remove();
+   224→  }, []);
+   225→
+   226→  // ── Pending Reminder: Show alert on app open if there are pending receipts ──
+   227→  const pendingAlertShownRef = useRef(false);
+   228→  useEffect(() => {
+   229→    if (pendingNotifications.length > 0 && user && !pendingAlertShownRef.current) {
+   230→      pendingAlertShownRef.current = true;
+   231→      // Small delay to not interfere with initial load
+   232→      const timer = setTimeout(() => {
+   233→        Alert.alert(
+   234→          'Pending Receipts',
+   235→          `${pendingNotifications.length} receipt${pendingNotifications.length > 1 ? 's' : ''} pending hain — SMS/WhatsApp bhejna lazmi hai!`,
+   236→          [
+   237→            { text: 'Abhi Bhej', onPress: () => setShowPending(true) },
+   238→            { text: 'Baad Mein', style: 'cancel' },
+   239→          ]
+   240→        );
+   241→      }, 2000);
+   242→      return () => clearTimeout(timer);
+   243→    }
+   244→    if (pendingNotifications.length === 0) {
+   245→      pendingAlertShownRef.current = false;
+   246→    }
+   247→  }, [pendingNotifications.length, user]);
+   248→
+   249→  async function loadPendingNotifications() {
+   250→    try {
+   251→      const today = getTodayDateStr();
+   252→      const list = await StorageService.getPendingNotifications(today);
+   253→      setPendingNotifications(list);
+   254→    } catch { /* not critical */ }
+   255→  }
+   256→
+   257→  // Company-wise recovery breakdown for reports
+   258→  const [companyRecoveryBreakdown, setCompanyRecoveryBreakdown] = useState<{
+   259→    companyId: string; companyName: string; totalRecovery: number; shops: number;
+   260→  }[]>([]);
+   261→
+   262→  async function loadTodayStats() {
+   263→    if (!user) return;
+   264→    try {
+   265→      const res = await ApiService.getRecoverySummary(getTodayDateStr(), selectedCompanyId || undefined);
+   266→      const myEntry = res.orderbookers.find((ob) => ob.orderbookerId === user.id);
+   267→      if (myEntry) {
+   268→        setTodayRecovery(myEntry.totalRecovery);
+   269→        StorageService.saveTodayRecovery(myEntry.totalRecovery);
+   270→        const visited = new Set(
+   271→          myEntry.shops.filter((s) => s.visited).map((s) => s.shopId)
+   272→        );
+   273→        // Merge API visited with locally tracked visited (local takes precedence)
+   274→        setVisitedShopIds((prev) => {
+   275→          const merged = new Set([...prev, ...visited]);
+   276→          StorageService.saveVisitedShops([...merged]);
+   277→          return merged;
+   278→        });
+   279→      }
+   280→      // Store company breakdown for the report card
+   281→      if (res.companyBreakdown && res.companyBreakdown.length > 0) {
+   282→        setCompanyRecoveryBreakdown(res.companyBreakdown);
+   283→      }
+   284→
+   285→      // ── Sync recoverySubmittedShopIds with server ──────────────────────────
+   286→      // If admin rejected a recovery, remove that shop+company from the submitted set
+   287→      // so the orderbooker can re-add recovery for that shop under that company
+   288→      if (recoverySubmittedShopIds.size > 0) {
+   289→        try {
+   290→          const todayTxns = await ApiService.getTransactions({
+   291→            createdBy: user.id,
+   292→            type: 'recovery',
+   293→            date: getTodayDateStr(),
+   294→            limit: 500,
+   295→          });
+   296→          // For each recovery key in recoverySubmittedShopIds, check if ALL today's recoveries for that
+   297→          // shopId+companyId combo are rejected
+   298→          const keysToRemove: string[] = [];
+   299→          for (const key of recoverySubmittedShopIds) {
+   300→            // Parse key: could be "shopId" or "shopId_companyId"
+   301→            const lastUnderscore = key.lastIndexOf('_');
+   302→            // Check if the part after last underscore looks like a companyId (cuid format: 25+ chars)
+   303→            let shopId: string;
+   304→            let companyId: string | undefined;
+   305→            if (lastUnderscore > 0 && key.length - lastUnderscore - 1 > 20) {
+   306→              // Likely a "shopId_companyId" composite key
+   307→              shopId = key.substring(0, lastUnderscore);
+   308→              companyId = key.substring(lastUnderscore + 1);
+   309→            } else {
+   310→              // Legacy "shopId" only key
+   311→              shopId = key;
+   312→            }
+   313→            // Filter transactions for this shopId AND companyId (if applicable)
+   314→            const shopTxns = todayTxns.transactions.filter((t) => {
+   315→              if (t.shopId !== shopId) return false;
+   316→              if (companyId && t.companyId && t.companyId !== companyId) return false;
+   317→              return true;
+   318→            });
+   319→            // Only remove if we found transactions AND all of them are rejected
+   320→            // (if no transactions found, don't remove — might be offline/not synced yet)
+   321→            if (shopTxns.length > 0 && shopTxns.every((t) => t.status === 'rejected')) {
+   322→              keysToRemove.push(key);
+   323→            }
+   324→          }
+   325→          if (keysToRemove.length > 0) {
+   326→            console.log('[loadTodayStats] Removing shop+company keys with only rejected recoveries:', keysToRemove);
+   327→            setRecoverySubmittedShopIds((prev) => {
+   328→              const next = new Set(prev);
+   329→              for (const id of keysToRemove) {
+   330→                next.delete(id);
+   331→                StorageService.removeRecoverySubmittedShop(id);
+   332→              }
+   333→              return next;
+   334→            });
+   335→          }
+   336→        } catch (e) {
+   337→          console.warn('[loadTodayStats] Failed to sync recovery rejection statuses:', e);
+   338→        }
+   339→      }
+   340→      // If myEntry not found, don't reset — keep cached value
+   341→    } catch {
+   342→      // API failed — keep cached value, don't reset to 0
+   343→      console.warn('[loadTodayStats] Failed to fetch, using cached value');
+   344→    }
+   345→  }
+   346→
+   347→  const handleRefresh = useCallback(async () => {
+   348→    if (user) {
+   349→      await loadTodayShops(user.id, allRoutesEnabled, selectedCompanyId || undefined);
+   350→      await loadAllShops(user.id, selectedCompanyId || undefined);
+   351→      await loadTodayStats();
+   352→    }
+   353→  }, [user, allRoutesEnabled, selectedCompanyId]);
+   354→
+   355→  const handleSync = async () => {
+   356→    // Full sync upload — GPS waypoints + route session + transactions + visits
+   357→    Alert.alert(
+   358→      'Sync Upload',
+   359→      'Sab pending data (recoveries, GPS, route) server par upload karein?',
+   360→      [
+   361→        { text: 'Cancel', style: 'cancel' },
+   362→        {
+   363→          text: 'Upload',
+   364→          onPress: async () => {
+   365→            try {
+   366→              const { performSyncUpload } = await import('@/services/syncUpload');
+   367→              const result = await performSyncUpload();
+   368→              if (result.success) {
+   369→                Alert.alert(
+   370→                  'Sync Complete',
+   371→                  `GPS Points: ${result.locationsUploaded}\nTransactions: ${result.transactionsSynced}${result.transactionsFailed > 0 ? `\nFailed: ${result.transactionsFailed}` : ''}`
+   372→                );
+   373→                handleRefresh();
+   374→              } else {
+   375→                Alert.alert('Sync Failed', result.error || 'Upload nahi ho saka. Dobarra try karein.');
+   376→              }
+   377→            } catch (e: any) {
+   378→              Alert.alert('Error', e.message || 'Sync failed');
+   379→            }
+   380→          },
+   381→        },
+   382→      ]
+   383→    );
+   384→  };
+   385→
+   386→  const handleSubmitRecovery = async (payload: {
+   387→    amount: number;
+   388→    description: string;
+   389→    gpsLat?: number;
+   390→    gpsLng?: number;
+   391→    gpsAddress?: string;
+   392→    markGpsVisit: boolean;
+   393→    outOfRange?: boolean;
+   394→  }) => {
+   395→    if (!recoveryShop || !user) return;
+   396→    // Duplicate recovery prevention - check if recovery already submitted for this shop+company today
+   397→    const currentCompanyId = selectedCompanyId || user?.companyId;
+   398→    if (isRecoverySubmitted(recoveryShop.id, currentCompanyId)) {
+   399→      const companyName = currentCompanyId ? ` under this company` : '';
+   400→      Alert.alert('Already Recovered', `Recovery for ${recoveryShop.name}${companyName} has already been submitted today. You cannot submit duplicate recovery.`);
+   401→      return;
+   402→    }
+   403→    setIsSubmitting(true);
+   404→    const shopName = recoveryShop.name;
+   405→    const shopId = recoveryShop.id;
+   406→    const shopPhone = recoveryShop.phone;
+   407→    const openingBalance = getShopDisplayBalance(recoveryShop, selectedCompanyId || user?.companyId).balance;
+   408→    // Generate idempotency key to prevent duplicate submissions
+   409→    const idempotencyKey = `${shopId}_${user.id}_${payload.amount}_${Date.now()}`;
+   410→    try {
+   411→      if (isOnline) {
+   412→        const result = await ApiService.submitRecovery({
+   413→          shopId,
+   414→          type: 'recovery',
+   415→          amount: payload.amount,
+   416→          createdBy: user.id,
+   417→          description: payload.description || undefined,
+   418→          gpsLat: payload.gpsLat,
+   419→          gpsLng: payload.gpsLng,
+   420→          gpsAddress: payload.gpsAddress,
+   421→          outOfRange: payload.outOfRange,
+   422→          companyId: selectedCompanyId || user.companyId || undefined,
+   423→          idempotencyKey,
+   424→        });
+   425→        setVisitedShopIds((prev) => new Set([...prev, shopId]));
+   426→        StorageService.addVisitedShop(shopId);
+   427→        // Mark shop+company as recovery submitted (duplicate prevention)
+   428→        const recoveryKey = getRecoveryKey(shopId, currentCompanyId);
+   429→        setRecoverySubmittedShopIds((prev) => new Set([...prev, recoveryKey]));
+   430→        StorageService.addRecoverySubmittedShop(recoveryKey);
+   431→        setTodayRecovery((prev) => {
+   432→          const newTotal = prev + payload.amount;
+   433→          StorageService.saveTodayRecovery(newTotal);
+   434→          return newTotal;
+   435→        });
+   436→        // Also create a ShopVisit record so admin map can show the location
+   437→        if (payload.markGpsVisit && payload.gpsLat && payload.gpsLng) {
+   438→          try {
+   439→            await ApiService.recordVisit(shopId, {
+   440→              orderbookerId: user.id,
+   441→              gpsLat: payload.gpsLat,
+   442→              gpsLng: payload.gpsLng,
+   443→              gpsAddress: payload.gpsAddress,
+   444→              inRange: !payload.outOfRange,
+   445→            });
+   446→          } catch (e) {
+   447→            console.warn('Failed to record GPS visit from recovery:', e);
+   448→          }
+   449→        }
+   450→        // Feature 12: Track last recovery for undo
+   451→        setLastRecoveryInfo({ shopId, amount: payload.amount, isOffline: false, transactionId: result.id, companyId: currentCompanyId });
+   452→        // Feature 13: Update last recovery date
+   453→        StorageService.updateLastRecoveryDate(shopId, new Date().toISOString());
+   454→        setSuccessState({ visible: true, shopName, amount: payload.amount, isOffline: false });
+   455→
+   456→        if (shopPhone) {
+   457→          const remainingBalance = openingBalance - payload.amount;
+   458→          const pendingNotif: PendingNotification = {
+   459→            id: `${shopId}_${Date.now()}`,
+   460→            shopId,
+   461→            shopName,
+   462→            shopPhone,
+   463→            area: recoveryShop.area,
+   464→            openingBalance,
+   465→            recoveryAmount: payload.amount,
+   466→            remainingBalance,
+   467→            companyName: selectedCompanyName || undefined,
+   468→            orderbookerName: user.name || undefined,
+   469→            distributorPhone: distributorPhone || undefined,
+   470→            createdAt: new Date().toISOString(),
+   471→            date: getTodayDateStr(),
+   472→          };
+   473→          await StorageService.addPendingNotification(pendingNotif);
+   474→          loadPendingNotifications();
+   475→
+   476→          // Store pending notification data — will be shown when SuccessOverlay dismisses
+   477→          // This is more reliable than setTimeout which can be interrupted
+   478→          setPendingNotifAfterSuccess({
+   479→            shopId,
+   480→            shopPhone,
+   481→            shopName,
+   482→            shopAddress: recoveryShop.address || recoveryShop.area || undefined,
+   483→            shopOwnerName: recoveryShop.ownerName || undefined,
+   484→            openingBalance,
+   485→            recoveryAmount: payload.amount,
+   486→            remainingBalance,
+   487→            companyName: selectedCompanyName || undefined,
+   488→            orderbookerName: user.name || undefined,
+   489→            distributorPhone: distributorPhone || undefined,
+   490→          });
+   491→
+   492→          // Save receipt data for regeneration — persists so receipt can be reopened anytime
+   493→          setLastReceiptData({
+   494→            shopName,
+   495→            shopAddress: recoveryShop.address || recoveryShop.area || undefined,
+   496→            shopOwnerName: recoveryShop.ownerName || undefined,
+   497→            shopPhone,
+   498→            openingBalance,
+   499→            recoveryAmount: payload.amount,
+   500→            remainingBalance,
+   501→            companyName: selectedCompanyName || undefined,
+   502→            orderbookerName: user.name || undefined,
+   503→            distributorPhone: distributorPhone || undefined,
+   504→          });
+   505→
+   506→          // Fallback timeout in case SuccessOverlay doesn't dismiss properly
+   507→          // This ensures the SMS popup always shows even if overlay has issues
+   508→          setTimeout(() => {
+   509→            setNotifChoice((prev) => {
+   510→              // Only set if not already visible (avoid double-show)
+   511→              if (prev.visible) return prev;
+   512→              return {
+   513→                visible: true,
+   514→                shopId: shopId,
+   515→                shopPhone,
+   516→                shopName,
+   517→                shopAddress: recoveryShop.address || recoveryShop.area || undefined,
+   518→                shopOwnerName: recoveryShop.ownerName || undefined,
+   519→                openingBalance,
+   520→                recoveryAmount: payload.amount,
+   521→                remainingBalance,
+   522→                companyName: selectedCompanyName || undefined,
+   523→                orderbookerName: user.name || undefined,
+   524→                distributorPhone: distributorPhone || undefined,
+   525→              };
+   526→            });
+   527→            setPendingNotifAfterSuccess(null);
+   528→          }, 4000);
+   529→        } else {
+   530→          // No phone number — show phone input popup to add number
+   531→          // After saving, NotificationChoice will be shown automatically
+   532→          setPhoneInputShop(recoveryShop);
+   533→        }
+   534→      } else {
+   535→        const localId = `local_${Date.now()}`;
+   536→        await addToOfflineQueue({
+   537→          localId,
+   538→          shopId,
+   539→          shopName,
+   540→          amount: payload.amount,
+   541→          description: payload.description,
+   542→          gpsLat: payload.gpsLat,
+   543→          gpsLng: payload.gpsLng,
+   544→          gpsAddress: payload.gpsAddress,
+   545→          createdBy: user.id,
+   546→          createdAt: new Date().toISOString(),
+   547→          companyId: selectedCompanyId || user.companyId || undefined,
+   548→        });
+   549→        if (payload.markGpsVisit) {
+   550→          setVisitedShopIds((prev) => new Set([...prev, shopId]));
+   551→          StorageService.addVisitedShop(shopId);
+   552→        }
+   553→        // Mark shop+company as recovery submitted (duplicate prevention) for offline too
+   554→        const offlineRecoveryKey = getRecoveryKey(shopId, currentCompanyId);
+   555→        setRecoverySubmittedShopIds((prev) => new Set([...prev, offlineRecoveryKey]));
+   556→        StorageService.addRecoverySubmittedShop(offlineRecoveryKey);
+   557→        // Increment todayRecovery for offline recoveries too
+   558→        setTodayRecovery((prev) => {
+   559→          const newTotal = prev + payload.amount;
+   560→          StorageService.saveTodayRecovery(newTotal);
+   561→          return newTotal;
+   562→        });
+   563→        // Feature 12: Track last offline recovery for undo
+   564→        setLastRecoveryInfo({ shopId, amount: payload.amount, isOffline: true, localId, companyId: currentCompanyId });
+   565→        // Feature 13: Update last recovery date
+   566→        StorageService.updateLastRecoveryDate(shopId, new Date().toISOString());
+   567→        setSuccessState({ visible: true, shopName, amount: payload.amount, isOffline: true });
+   568→
+   569→        // OFFLINE: Also create pending notification and show receipt/notification choice
+   570→        // Even when offline, user can add phone number and send receipt later
+   571→        const remainingBalance = openingBalance - payload.amount;
+   572→        if (shopPhone) {
+   573→          // Shop has phone — create pending notification and show NotificationChoice
+   574→          const pendingNotif: PendingNotification = {
+   575→            id: `${shopId}_${Date.now()}`,
+   576→            shopId,
+   577→            shopName,
+   578→            shopPhone,
+   579→            area: recoveryShop.area,
+   580→            openingBalance,
+   581→            recoveryAmount: payload.amount,
+   582→            remainingBalance,
+   583→            companyName: selectedCompanyName || undefined,
+   584→            orderbookerName: user.name || undefined,
+   585→            distributorPhone: distributorPhone || undefined,
+   586→            createdAt: new Date().toISOString(),
+   587→            date: getTodayDateStr(),
+   588→          };
+   589→          await StorageService.addPendingNotification(pendingNotif);
+   590→          loadPendingNotifications();
+   591→
+   592→          // Store pending notification data for after SuccessOverlay dismisses
+   593→          setPendingNotifAfterSuccess({
+   594→            shopId,
+   595→            shopPhone,
+   596→            shopName,
+   597→            shopAddress: recoveryShop.address || recoveryShop.area || undefined,
+   598→            shopOwnerName: recoveryShop.ownerName || undefined,
+   599→            openingBalance,
+   600→            recoveryAmount: payload.amount,
+   601→            remainingBalance,
+   602→            companyName: selectedCompanyName || undefined,
+   603→            orderbookerName: user.name || undefined,
+   604→            distributorPhone: distributorPhone || undefined,
+   605→          });
+   606→
+   607→          // Save receipt data for regeneration — persists so receipt can be reopened anytime
+   608→          setLastReceiptData({
+   609→            shopName,
+   610→            shopAddress: recoveryShop.address || recoveryShop.area || undefined,
+   611→            shopOwnerName: recoveryShop.ownerName || undefined,
+   612→            shopPhone,
+   613→            openingBalance,
+   614→            recoveryAmount: payload.amount,
+   615→            remainingBalance,
+   616→            companyName: selectedCompanyName || undefined,
+   617→            orderbookerName: user.name || undefined,
+   618→            distributorPhone: distributorPhone || undefined,
+   619→          });
+   620→
+   621→          // Fallback timeout in case SuccessOverlay doesn't dismiss properly
+   622→          setTimeout(() => {
+   623→            setNotifChoice((prev) => {
+   624→              if (prev.visible) return prev;
+   625→              return {
+   626→                visible: true,
+   627→                shopId: shopId,
+   628→                shopPhone,
+   629→                shopName,
+   630→                shopAddress: recoveryShop.address || recoveryShop.area || undefined,
+   631→                shopOwnerName: recoveryShop.ownerName || undefined,
+   632→                openingBalance,
+   633→                recoveryAmount: payload.amount,
+   634→                remainingBalance,
+   635→                companyName: selectedCompanyName || undefined,
+   636→                orderbookerName: user.name || undefined,
+   637→                distributorPhone: distributorPhone || undefined,
+   638→              };
+   639→            });
+   640→            setPendingNotifAfterSuccess(null);
+   641→          }, 4000);
+   642→        } else {
+   643→          // No phone number — show phone input popup even in offline mode
+   644→          // Phone will be saved when online, receipt will be sent after
+   645→          setPhoneInputShop(recoveryShop);
+   646→        }
+   647→      }
+   648→      setRecoveryShop(null);
+   649→    } catch (e: any) {
+   650→      Alert.alert('Error', e.message || 'Failed to submit recovery. Please try again.');
+   651→    } finally {
+   652→      setIsSubmitting(false);
+   653→    }
+   654→  };
+   655→
+   656→  const handleGpsVisitMarked = async (shopId: string, gpsLat: number, gpsLng: number, address: string) => {
+   657→    setVisitedShopIds((prev) => new Set([...prev, shopId]));
+   658→    StorageService.addVisitedShop(shopId);
+   659→    // Create a ShopVisit record on the server so admin map can show the location
+   660→    if (user && isOnline) {
+   661→      try {
+   662→        await ApiService.recordVisit(shopId, {
+   663→          orderbookerId: user.id,
+   664→          gpsLat,
+   665→          gpsLng,
+   666→          gpsAddress: address,
+   667→          inRange: true,
+   668→        });
+   669→      } catch (e) {
+   670→        console.warn('Failed to record GPS visit on server:', e);
+   671→      }
+   672→
+   673→      // GPS UPDATE FIX: Check if this shop has a recovery submitted today without GPS
+   674→      // If so, update that transaction's GPS coordinates
+   675→      try {
+   676→        const today = getTodayDateStr();
+   677→        const txnResult = await ApiService.getTransactions({
+   678→          shopId,
+   679→          createdBy: user.id,
+   680→          type: 'recovery',
+   681→          date: today,
+   682→          limit: 10,
+   683→        });
+   684→        // Find a transaction without GPS
+   685→        const txnWithoutGps = txnResult.transactions.find(
+   686→          (t) => !t.gpsLat && !t.gpsLng
+   687→        );
+   688→        if (txnWithoutGps) {
+   689→          console.log('[GPS Update] Found transaction without GPS:', txnWithoutGps.id, '— updating...');
+   690→          await ApiService.updateTransactionGps(txnWithoutGps.id, {
+   691→            gpsLat,
+   692→            gpsLng,
+   693→            gpsAddress: address,
+   694→          });
+   695→          console.log('[GPS Update] Successfully updated GPS for transaction:', txnWithoutGps.id);
+   696→        }
+   697→      } catch (e) {
+   698→        console.warn('Failed to update GPS on existing transaction:', e);
+   699→      }
+   700→    }
+   701→  };
+   702→
+   703→  // Feature 12: Undo last recovery
+   704→  const handleUndoRecovery = useCallback(async () => {
+   705→    if (!lastRecoveryInfo) return;
+   706→    const { shopId, amount, isOffline, transactionId, localId } = lastRecoveryInfo;
+   707→
+   708→    try {
+   709→      // Reverse the local state
+   710→      setTodayRecovery((prev) => {
+   711→        const newTotal = Math.max(0, prev - amount);
+   712→        StorageService.saveTodayRecovery(newTotal);
+   713→        return newTotal;
+   714→      });
+   715→      setVisitedShopIds((prev) => {
+   716→        const next = new Set(prev);
+   717→        next.delete(shopId);
+   718→        StorageService.saveVisitedShops([...next]);
+   719→        return next;
+   720→      });
+   721→      // Remove from recovery submitted (undo means no longer submitted)
+   722→      setRecoverySubmittedShopIds((prev) => {
+   723→        const next = new Set(prev);
+   724→        const undoKey = getRecoveryKey(shopId, lastRecoveryInfo.companyId);
+   725→        next.delete(undoKey);
+   726→        StorageService.removeRecoverySubmittedShop(undoKey);
+   727→        return next;
+   728→      });
+   729→
+   730→      if (isOffline && localId) {
+   731→        // Remove from offline queue
+   732→        await StorageService.removeFromOfflineQueue([localId]);
+   733→      } else if (!isOffline && transactionId) {
+   734→        // Delete the online transaction via API
+   735→        try {
+   736→          await ApiService.deleteTransaction(transactionId);
+   737→        } catch {
+   738→          // If API delete fails, still reverse local state
+   739→          console.warn('[Undo] Failed to delete transaction on server');
+   740→        }
+   741→      }
+   742→
+   743→      // Feature 13: Remove last recovery date for this shop
+   744→      await StorageService.removeLastRecoveryDate(shopId);
+   745→
+   746→      setLastRecoveryInfo(null);
+   747→      setSuccessState((s) => ({ ...s, visible: false }));
+   748→    } catch {
+   749→      Alert.alert('Undo Failed', 'Could not reverse the recovery. Please try again.');
+   750→    }
+   751→  }, [lastRecoveryInfo]);
+   752→
+   753→  // Feature 14: Tour complete handler
+   754→  const handleTourComplete = useCallback(async () => {
+   755→    await StorageService.markTourCompleted();
+   756→    setShowTour(false);
+   757→  }, []);
+   758→
+   759→  // Handle phone number saved from PhoneInputModal → show NotificationChoice
+   760→  const handlePhoneSaved = useCallback((savedPhone: string, savedOwnerName?: string) => {
+   761→    if (!phoneInputShop || !user) return;
+   762→    const shopName = phoneInputShop.name;
+   763→    const shopId = phoneInputShop.id;
+   764→    const openingBalance = getShopDisplayBalance(phoneInputShop, selectedCompanyId || user?.companyId).balance;
+   765→
+   766→    // Find the last recovery amount for this shop
+   767→    const remainingBalance = openingBalance - (lastRecoveryInfo?.shopId === shopId ? lastRecoveryInfo.amount : 0);
+   768→    const recoveryAmount = lastRecoveryInfo?.shopId === shopId ? lastRecoveryInfo.amount : 0;
+   769→
+   770→    // Use saved owner name if provided, otherwise fall back to shop's existing ownerName
+   771→    const ownerName = savedOwnerName || phoneInputShop.ownerName || undefined;
+   772→
+   773→    // Create pending notification with the new phone number
+   774→    const pendingNotif: PendingNotification = {
+   775→      id: `${shopId}_${Date.now()}`,
+   776→      shopId,
+   777→      shopName,
+   778→      shopPhone: savedPhone,
+   779→      area: phoneInputShop.area,
+   780→      openingBalance,
+   781→      recoveryAmount,
+   782→      remainingBalance,
+   783→      companyName: selectedCompanyName || undefined,
+   784→      orderbookerName: user.name || undefined,
+   785→      distributorPhone: distributorPhone || undefined,
+   786→      createdAt: new Date().toISOString(),
+   787→      date: getTodayDateStr(),
+   788→    };
+   789→    StorageService.addPendingNotification(pendingNotif);
+   790→    loadPendingNotifications();
+   791→
+   792→    // Close phone input modal and show notification choice
+   793→    setPhoneInputShop(null);
+   794→    setNotifChoice({
+   795→      visible: true,
+   796→      shopId: phoneInputShop?.id || '',
+   797→      shopPhone: savedPhone,
+   798→      shopName,
+   799→      shopAddress: phoneInputShop.address || phoneInputShop.area || undefined,
+   800→      shopOwnerName: ownerName,
+   801→      openingBalance,
+   802→      recoveryAmount,
+   803→      remainingBalance,
+   804→      companyName: selectedCompanyName || undefined,
+   805→      orderbookerName: user.name || undefined,
+   806→      distributorPhone: distributorPhone || undefined,
+   807→    });
+   808→  }, [phoneInputShop, user, lastRecoveryInfo, distributorPhone, selectedCompanyId]);
+   809→
+   810→  // Feature 13: Handle reminder shop press
+   811→  const handleReminderShopPress = useCallback((shopId: string) => {
+   812→    const shop = todayShops.find((s) => s.id === shopId);
+   813→    if (shop) {
+   814→      setRecoveryShop(shop);
+   815→    } else {
+   816→      const allShop = allShops.find((s) => s.id === shopId);
+   817→      if (allShop) setDetailShop(allShop);
+   818→    }
+   819→  }, [todayShops, allShops]);
+   820→
+   821→  // Open recovery sheet with duplicate check (per shop+company)
+   822→  const handleOpenRecovery = useCallback((shop: Shop) => {
+   823→    const currentCompanyId = selectedCompanyId || user?.companyId;
+   824→    if (isRecoverySubmitted(shop.id, currentCompanyId)) {
+   825→      const companyName = currentCompanyId ? ` under this company` : '';
+   826→      Alert.alert('Already Recovered', `Recovery for ${shop.name}${companyName} has already been submitted today. You cannot submit duplicate recovery.`);
+   827→      return;
+   828→    }
+   829→    setRecoveryShop(shop);
+   830→  }, [isRecoverySubmitted, selectedCompanyId, user?.companyId]);
+   831→
+   832→  // ── Filtered shops (search) ──────────────────────────────────────────────
+   833→  const filteredShops = useMemo(() => {
+   834→    if (!searchQuery.trim()) return todayShops;
+   835→    try {
+   836→      const q = searchQuery.toLowerCase();
+   837→      return todayShops.filter(
+   838→        (s) =>
+   839→          (s.name || '').toLowerCase().includes(q) ||
+   840→          (s.area || '').toLowerCase().includes(q) ||
+   841→          (s.ownerName || '').toLowerCase().includes(q) ||
+   842→          (s.phone || '').includes(q)
+   843→      );
+   844→    } catch {
+   845→      return todayShops;
+   846→    }
+   847→  }, [todayShops, searchQuery]);
+   848→
+   849→  // ── Group shops by day for all-routes mode ───────────────────────────────
+   850→  const groupedSections = useMemo(() => {
+   851→    if (!allRoutesEnabled) return null;
+   852→
+   853→    // Group filtered shops by routeDays — each shop appears ONLY ONCE under its primary day
+   854→    // (prefer today's route, otherwise first day in its routeDays array)
+   855→    const groups: Record<string, Shop[]> = {};
+   856→    const assignedShops = new Set<string>();
+   857→
+   858→    for (const shop of filteredShops) {
+   859→      if (assignedShops.has(shop.id)) continue; // skip if already placed
+   860→
+   861→      const days = (shop.routeDays && shop.routeDays.length > 0) ? shop.routeDays : ['other'];
+   862→      // Prefer today's route if the shop has it, otherwise use first day
+   863→      const primaryDay = days.includes(todayDay) ? todayDay : days[0];
+   864→
+   865→      if (!groups[primaryDay]) groups[primaryDay] = [];
+   866→      groups[primaryDay].push(shop);
+   867→      assignedShops.add(shop.id);
+   868→    }
+   869→
+   870→    // Sort: today's route FIRST, then other days by ROUTE_DAYS order
+   871→    const sortedDays = Object.keys(groups).sort((a, b) => {
+   872→      // Today's route always comes first
+   873→      if (a === todayDay && b !== todayDay) return -1;
+   874→      if (b === todayDay && a !== todayDay) return 1;
+   875→      const idxA = ROUTE_DAYS.indexOf(a);
+   876→      const idxB = ROUTE_DAYS.indexOf(b);
+   877→      if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+   878→      if (idxA === -1) return 1;
+   879→      if (idxB === -1) return -1;
+   880→      return idxA - idxB;
+   881→    });
+   882→
+   883→    // Build section items for FlatList
+   884→    const items: SectionItem[] = [];
+   885→    for (const dayKey of sortedDays) {
+   886→      const dayShops = groups[dayKey];
+   887→      const isToday = dayKey === todayDay;
+   888→      items.push({
+   889→        type: 'header',
+   890→        dayKey,
+   891→        dayLabel: DAY_LABELS[dayKey] || capitalize(dayKey),
+   892→        shopCount: dayShops.length,
+   893→        isToday,
+   894→      });
+   895→      for (const shop of dayShops) {
+   896→        items.push({ type: 'shop', shop, dayKey });
+   897→      }
+   898→    }
+   899→    return items;
+   900→  }, [filteredShops, allRoutesEnabled, todayDay]);
+   901→
+   902→  // ── Stats ────────────────────────────────────────────────────────────────
+   903→  const totalOutstanding = todayShops.reduce((sum, s) => {
+   904→    try {
+   905→      return sum + getShopDisplayBalance(s, selectedCompanyId || user?.companyId).balance;
+   906→    } catch {
+   907→      return sum + (s.balance || 0);
+   908→    }
+   909→  }, 0);
+   910→  const visitedCount = visitedShopIds.size;
+   911→  const progressPct = todayShops.length > 0 ? (visitedCount / todayShops.length) * 100 : 0;
+   912→
+   913→  // ── Determine if Friday should show holiday screen ───────────────────────
+   914→  // Only show holiday if NOT allRoutesEnabled. If allRoutesEnabled, show shops even on Friday.
+   915→  const showFridayHoliday = isFriday && !allRoutesEnabled;
+   916→
+   917→  // ── Hero badge label ─────────────────────────────────────────────────────
+   918→  const routeBadgeLabel = allRoutesEnabled ? 'All Routes' : capitalize(todayDay);
+   919→  const routeBadgeIcon: React.ComponentProps<typeof MaterialIcons>['name'] = allRoutesEnabled ? 'map' : 'route';
+   920→
+   921→  // ── Selected company name for notifications ────────────────────────────────
+   922→  const selectedCompanyName = selectedCompanyId
+   923→    ? companies.find((c) => c.companyId === selectedCompanyId)?.companyName
+   924→    : user?.companyName;
+   925→
+   926→  return (
+   927→    <View style={[styles.root, { paddingTop: insets.top }]}>
+   928→      <OfflineBanner
+   929→        isOnline={isOnline}
+   930→        queueCount={offlineQueueCount}
+   931→        isSyncing={isSyncing}
+   932→        syncStatus={syncStatus}
+   933→        lastSyncTime={lastSyncTime}
+   934→        onSync={handleSync}
+   935→      />
+   936→
+   937→      <PendingCreditAlert orderbookerId={user?.id} />
+   938→
+   939→      {showFridayHoliday ? (
+   940→        <View style={styles.holidayContainer}>
+   941→          <LinearGradient colors={['#FEF3C7', '#FFFBEB']} style={styles.holidayGradient}>
+   942→            <MaterialIcons name="wb-sunny" size={64} color={Colors.secondary} />
+   943→            <Text style={styles.holidayTitle}>Friday — Day Off</Text>
+   944→            <Text style={styles.holidaySubtitle}>No route scheduled today. Enjoy your day!</Text>
+   945→          </LinearGradient>
+   946→        </View>
+   947→      ) : allRoutesEnabled && groupedSections ? (
+   948→        /* ── ALL ROUTES MODE: Day-wise grouped sections ─────────────────── */
+   949→        <FlatList
+   950→          data={groupedSections}
+   951→          keyExtractor={(item, idx) =>
+   952→            item.type === 'header' ? `header_${item.dayKey}` : `shop_${item.shop.id}_${item.dayKey}`
+   953→          }
+   954→          showsVerticalScrollIndicator={false}
+   955→          refreshControl={
+   956→            <RefreshControl
+   957→              refreshing={isLoadingToday}
+   958→              onRefresh={handleRefresh}
+   959→              tintColor={Colors.primary}
+   960→              colors={[Colors.primary]}
+   961→            />
+   962→          }
+   963→          ListHeaderComponent={
+   964→            <View>
+   965→              {/* Hero Card - All Routes */}
+   966→              <LinearGradient
+   967→                colors={['#4F46E5', '#6366F1', '#818CF8']}
+   968→                start={{ x: 0, y: 0 }}
+   969→                end={{ x: 1, y: 1 }}
+   970→                style={styles.heroCard}
+   971→              >
+   972→                <View style={styles.heroBubble1} />
+   973→                <View style={styles.heroBubble2} />
+   974→
+   975→                <View style={styles.heroTop}>
+   976→                  <View style={{ flex: 1 }}>
+   977→                    <Text style={styles.heroGreeting} numberOfLines={1}>
+   978→                      Hello, {user ? user.name.split(' ')[0] : 'Order Booker'} 👋
+   979→                    </Text>
+   980→                    <Text style={styles.heroDate}>{getTodayLabel()}</Text>
+   981→                  </View>
+   982→                  {/* Company Selector */}
+   983→                  {companies.length > 0 ? (
+   984→                    <CompanySelector
+   985→                      companies={companies}
+   986→                      selectedCompanyId={selectedCompanyId}
+   987→                      onSelectCompany={setSelectedCompanyId}
+   988→                    />
+   989→                  ) : null}
+   990→                  {/* Route Status Indicator + End Route Button */}
+   991→                  {isTracking ? (
+   992→                    <Pressable
+   993→                      style={({ pressed }) => [
+   994→                        styles.endRouteBtn,
+   995→                        pressed && styles.endRouteBtnPressed,
+   996→                      ]}
+   997→                      onPress={() => {
+   998→                        Alert.alert(
+   999→                          'End Route & Sync',
+  1000→                          'Route end karein aur data sync upload karein?',
+  1001→                          [
+  1002→                            { text: 'Cancel', style: 'cancel' },
+  1003→                            {
+  1004→                              text: 'End & Upload',
+  1005→                              style: 'destructive',
+  1006→                              onPress: async () => {
+  1007→                                try {
+  1008→                                  await endRoute();
+  1009→                                  // After ending route, trigger sync upload
+  1010→                                  const { performSyncUpload } = await import('@/services/syncUpload');
+  1011→                                  const result = await performSyncUpload();
+  1012→                                  if (result.success) {
+  1013→                                    Alert.alert(
+  1014→                                      'Sync Complete',
+  1015→                                      `Route ended!\nGPS Points: ${result.locationsUploaded}\nTransactions: ${result.transactionsSynced}`
+  1016→                                    );
+  1017→                                  } else {
+  1018→                                    Alert.alert('Route Ended', 'Route end ho gaya! Data sync upload karein Profile mein.');
+  1019→                                  }
+  1020→                                } catch (e: any) {
+  1021→                                  Alert.alert('Error', e.message || 'Failed to end route');
+  1022→                                }
+  1023→                              },
+  1024→                            },
+  1025→                          ]
+  1026→                        );
+  1027→                      }}
+  1028→                      disabled={isStopping}
+  1029→                    >
+  1030→                      <View style={styles.endRouteDot} />
+  1031→                      <Text style={styles.endRouteText}>
+  1032→                        {isStopping ? 'Ending...' : 'End Route'}
+  1033→                      </Text>
+  1034→                    </Pressable>
+  1035→                  ) : null}
+  1036→                </View>
+  1037→
+  1038→                {/* Visit Streak Counter */}
+  1039→                {user ? (
+  1040→                  <VisitStreakCounter orderbookerId={user.id} visitedCount={visitedCount} />
+  1041→                ) : null}
+  1042→
+  1043→                {/* Badges */}
+  1044→                <View style={styles.badgesRow}>
+  1045→                  <View style={[styles.heroDayBadge, styles.allRoutesBadge]}>
+  1046→                    <MaterialIcons name={routeBadgeIcon} size={13} color="rgba(255,255,255,0.95)" />
+  1047→                    <Text style={styles.badgeText}>{routeBadgeLabel}</Text>
+  1048→                  </View>
+  1049→                  <Pressable style={styles.reportBadge} onPress={() => setShowReport(true)} hitSlop={8}>
+  1050→                    <MaterialIcons name="assessment" size={13} color="rgba(255,255,255,0.9)" />
+  1051→                    <Text style={styles.badgeText}>Report</Text>
+  1052→                  </Pressable>
+  1053→                  <Pressable
+  1054→                    style={[
+  1055→                      styles.pendingBadge,
+  1056→                      pendingNotifications.length > 0 && styles.pendingBadgeActive,
+  1057→                    ]}
+  1058→                    onPress={() => setShowPending(true)}
+  1059→                    hitSlop={8}
+  1060→                  >
+  1061→                    <MaterialIcons name="pending-actions" size={13} color="rgba(255,255,255,0.9)" />
+  1062→                    <Text style={styles.badgeText}>Pending</Text>
+  1063→                    {pendingNotifications.length > 0 ? (
+  1064→                      <View style={styles.pendingCountDot}>
+  1065→                        <Text style={styles.pendingCountText}>{pendingNotifications.length}</Text>
+  1066→                      </View>
+  1067→                    ) : null}
+  1068→                  </Pressable>
+  1069→                </View>
+  1070→
+  1071→                {/* Bento Stats Grid — All Routes */}
+  1072→                <View style={styles.bentoGrid}>
+  1073→                  <View style={styles.bentoCard}>
+  1074→                    <View style={styles.bentoIconWrap}>
+  1075→                      <MaterialIcons name="store" size={14} color="#FFFFFF" />
+  1076→                    </View>
+  1077→                    <Text style={styles.bentoValue}>{todayShops.length}</Text>
+  1078→                    <Text style={styles.bentoLabel}>Shops</Text>
+  1079→                  </View>
+  1080→                  <View style={styles.bentoCard}>
+  1081→                    <View style={styles.bentoIconWrap}>
+  1082→                      <MaterialIcons name="account-balance-wallet" size={14} color="#FFFFFF" />
+  1083→                    </View>
+  1084→                    <Text style={styles.bentoValue}>{formatPKR(totalOutstanding)}</Text>
+  1085→                    <Text style={styles.bentoLabel}>Outstanding</Text>
+  1086→                  </View>
+  1087→                  <View style={styles.bentoCardWide}>
+  1088→                    <View style={styles.bentoWideTop}>
+  1089→                      <View style={{ flex: 1 }}>
+  1090→                        <Text style={styles.bentoRecoveryValue}>{formatPKR(todayRecovery)}</Text>
+  1091→                        <Text style={styles.bentoLabel}>Today's Recovery</Text>
+  1092→                      </View>
+  1093→                      <View style={styles.bentoRecoveryIcon}>
+  1094→                        <MaterialIcons name="trending-up" size={16} color="#34D399" />
+  1095→                      </View>
+  1096→                    </View>
+  1097→                    <View style={styles.bentoProgressTrack}>
+  1098→                      <View style={[styles.bentoProgressFill, { width: `${Math.min(progressPct, 100)}%` }]} />
+  1099→                    </View>
+  1100→                    <Text style={styles.bentoProgressText}>{visitedCount} of {todayShops.length} shops visited · {Math.round(progressPct)}%</Text>
+  1101→                  </View>
+  1102→                </View>
+  1103→
+  1104→                {/* Company-wise balance breakdown (multi-company only) */}
+  1105→                {companies.length > 1 && !selectedCompanyId ? (
+  1106→                  <View style={styles.companyBalanceRow}>
+  1107→                    {companies.map((comp) => {
+  1108→                      const compOutstanding = todayShops.reduce((sum, s) => {
+  1109→                        const cb = s.companyBalances?.find((b) => b && b.companyId === comp.companyId);
+  1110→                        return sum + (cb?.balance ?? 0);
+  1111→                      }, 0);
+  1112→                      if (compOutstanding === 0) return null;
+  1113→                      return (
+  1114→                        <View key={comp.companyId} style={styles.companyBalChip}>
+  1115→                          <View style={styles.companyBalDot} />
+  1116→                          <Text style={styles.companyBalName} numberOfLines={1}>{comp.companyName}</Text>
+  1117→                          <Text style={styles.companyBalAmount}>{formatPKR(compOutstanding)}</Text>
+  1118→                        </View>
+  1119→                      );
+  1120→                    })}
+  1121→                  </View>
+  1122→                ) : null}
+  1123→              </LinearGradient>
+  1124→
+  1125→
+  1126→              {/* Daily Target Progress */}
+  1127→              <DailyTargetProgress todayRecovery={todayRecovery} />
+  1128→
+  1129→              {/* Chart Toggle */}
+  1130→              <View style={styles.chartToggleRow}>
+  1131→                {(
+  1132→                  [
+  1133→                    { key: 'trend' as ChartView, icon: 'show-chart', label: 'Trend' },
+  1134→                    { key: 'analysis' as ChartView, icon: 'analytics', label: 'Analysis' },
+  1135→                    { key: 'none' as ChartView, icon: 'visibility-off', label: 'Hide' },
+  1136→                  ]
+  1137→                ).map((opt) => (
+  1138→                  <Pressable
+  1139→                    key={opt.key}
+  1140→                    style={[
+  1141→                      styles.chartTabBtn,
+  1142→                      chartView === opt.key && styles.chartTabBtnActive,
+  1143→                    ]}
+  1144→                    onPress={() => setChartView(opt.key)}
+  1145→                    hitSlop={4}
+  1146→                  >
+  1147→                    <MaterialIcons
+  1148→                      name={opt.icon as any}
+  1149→                      size={13}
+  1150→                      color={chartView === opt.key ? Colors.primaryDark : Colors.textMuted}
+  1151→                    />
+  1152→                    <Text
+  1153→                      style={[
+  1154→                        styles.chartTabLabel,
+  1155→                        chartView === opt.key && styles.chartTabLabelActive,
+  1156→                      ]}
+  1157→                    >
+  1158→                      {opt.label}
+  1159→                    </Text>
+  1160→                  </Pressable>
+  1161→                ))}
+  1162→              </View>
+  1163→
+  1164→              {chartView === 'trend' && user ? (
+  1165→                <View style={styles.chartWrap}>
+  1166→                  <PerformanceChart userId={user.id} />
+  1167→                </View>
+  1168→              ) : chartView === 'analysis' && user ? (
+  1169→                <View style={styles.chartWrap}>
+  1170→                  <RecoveryAnalysisChart userId={user.id} />
+  1171→                </View>
+  1172→              ) : null}
+  1173→
+  1174→              {/* Search Bar */}
+  1175→              <View style={styles.searchRow}>
+  1176→                <MaterialIcons name="search" size={18} color={Colors.textSecondary} />
+  1177→                <TextInput
+  1178→                  style={styles.searchInput}
+  1179→                  value={searchQuery}
+  1180→                  onChangeText={setSearchQuery}
+  1181→                  placeholder="Search shops, areas..."
+  1182→                  placeholderTextColor={Colors.textMuted}
+  1183→                />
+  1184→                {searchQuery ? (
+  1185→                  <Pressable
+  1186→                    onPress={() => setSearchQuery('')}
+  1187→                    hitSlop={8}
+  1188→                    style={styles.searchClear}
+  1189→                  >
+  1190→                    <MaterialIcons name="cancel" size={16} color={Colors.textMuted} />
+  1191→                  </Pressable>
+  1192→                ) : null}
+  1193→              </View>
+  1194→
+  1195→              {/* All Routes indicator */}
+  1196→              <View style={styles.shopCountRow}>
+  1197→                <View style={styles.shopCountLeft}>
+  1198→                  <View style={[styles.shopCountDot, { backgroundColor: Colors.blue }]} />
+  1199→                  <Text style={styles.shopCountText}>
+  1200→                    {filteredShops.length} {filteredShops.length === 1 ? 'shop' : 'shops'} across all routes
+  1201→                  </Text>
+  1202→                </View>
+  1203→                {visitedCount > 0 ? (
+  1204→                  <View style={styles.visitedChip}>
+  1205→                    <MaterialIcons name="check-circle" size={12} color={Colors.primary} />
+  1206→                    <Text style={styles.visitedChipText}>{visitedCount} visited</Text>
+  1207→                  </View>
+  1208→                ) : null}
+  1209→              </View>
+  1210→
+  1211→              {/* Feature 13: Recovery Reminder */}
+  1212→              <RecoveryReminder
+  1213→                shops={allShops.length > 0 ? allShops : todayShops}
+  1214→                onShopPress={handleReminderShopPress}
+  1215→              />
+  1216→            </View>
+  1217→          }
+  1218→          ListEmptyComponent={
+  1219→            !isLoadingToday ? (
+  1220→              <View style={styles.emptyContainer}>
+  1221→                <LinearGradient
+  1222→                  colors={[Colors.primaryLight, Colors.background]}
+  1223→                  style={styles.emptyGradient}
+  1224→                >
+  1225→                  <MaterialIcons name="store-mall-directory" size={56} color={Colors.primary} />
+  1226→                  <Text style={styles.emptyTitle}>
+  1227→                    {searchQuery ? 'No shops found' : 'No shops found'}
+  1228→                  </Text>
+  1229→                  <Text style={styles.emptySubtitle}>
+  1230→                    {searchQuery
+  1231→                      ? 'Try a different search term'
+  1232→                      : 'No shops are assigned to your routes'}
+  1233→                  </Text>
+  1234→                </LinearGradient>
+  1235→              </View>
+  1236→            ) : null
+  1237→          }
+  1238→          renderItem={({ item }: { item: SectionItem }) => {
+  1239→            if (item.type === 'header') {
+  1240→              return (
+  1241→                <View style={[styles.daySectionHeader, item.isToday && styles.daySectionHeaderToday]}>
+  1242→                  <View style={styles.daySectionLeft}>
+  1243→                    {item.isToday ? (
+  1244→                      <View style={styles.todayDot} />
+  1245→                    ) : null}
+  1246→                    <MaterialIcons
+  1247→                      name={item.isToday ? 'today' : 'calendar-view-day'}
+  1248→                      size={16}
+  1249→                      color={item.isToday ? Colors.primary : Colors.textSecondary}
+  1250→                    />
+  1251→                    <Text style={[styles.daySectionTitle, item.isToday && styles.daySectionTitleToday]}>
+  1252→                      {item.dayLabel}
+  1253→                    </Text>
+  1254→                    {item.isToday ? (
+  1255→                      <View style={styles.todayBadge}>
+  1256→                        <Text style={styles.todayBadgeText}>Today</Text>
+  1257→                      </View>
+  1258→                    ) : null}
+  1259→                  </View>
+  1260→                  <Text style={styles.daySectionCount}>{item.shopCount} shops</Text>
+  1261→                </View>
+  1262→              );
+  1263→            }
+  1264→            // Shop card
+  1265→            return (
+  1266→              <View style={styles.shopCardInGroup}>
+  1267→                <ShopCard
+  1268→                  shop={item.shop}
+  1269→                  isVisited={visitedShopIds.has(item.shop.id)}
+  1270→                  hasRecovery={isRecoverySubmitted(item.shop.id, selectedCompanyId || user?.companyId)}
+  1271→                  onCollect={() => handleOpenRecovery(item.shop)}
+  1272→                  onPress={() => setDetailShop(item.shop)}
+  1273→                  onGpsVisit={() => setGpsVisitShop(item.shop)}
+  1274→                  companyId={selectedCompanyId || user?.companyId}
+  1275→                />
+  1276→              </View>
+  1277→            );
+  1278→          }}
+  1279→          contentContainerStyle={styles.listContent}
+  1280→        />
+  1281→      ) : (
+  1282→        /* ── NORMAL MODE: Today's route only ────────────────────────────── */
+  1283→        <FlatList
+  1284→          data={filteredShops}
+  1285→          keyExtractor={(item) => item.id}
+  1286→          showsVerticalScrollIndicator={false}
+  1287→          refreshControl={
+  1288→            <RefreshControl
+  1289→              refreshing={isLoadingToday}
+  1290→              onRefresh={handleRefresh}
+  1291→              tintColor={Colors.primary}
+  1292→              colors={[Colors.primary]}
+  1293→            />
+  1294→          }
+  1295→          ListHeaderComponent={
+  1296→            <View>
+  1297→              {/* Hero Card - Normal */}
+  1298→              <LinearGradient
+  1299→                colors={['#4F46E5', '#6366F1', '#818CF8']}
+  1300→                start={{ x: 0, y: 0 }}
+  1301→                end={{ x: 1, y: 1 }}
+  1302→                style={styles.heroCard}
+  1303→              >
+  1304→                <View style={styles.heroBubble1} />
+  1305→                <View style={styles.heroBubble2} />
+  1306→
+  1307→                <View style={styles.heroTop}>
+  1308→                  <View style={{ flex: 1 }}>
+  1309→                    <Text style={styles.heroGreeting} numberOfLines={1}>
+  1310→                      Hello, {user ? user.name.split(' ')[0] : 'Order Booker'} 👋
+  1311→                    </Text>
+  1312→                    <Text style={styles.heroDate}>{getTodayLabel()}</Text>
+  1313→                  </View>
+  1314→                  {/* Company Selector */}
+  1315→                  {companies.length > 0 ? (
+  1316→                    <CompanySelector
+  1317→                      companies={companies}
+  1318→                      selectedCompanyId={selectedCompanyId}
+  1319→                      onSelectCompany={setSelectedCompanyId}
+  1320→                    />
+  1321→                  ) : null}
+  1322→                  {/* Route Status Indicator + End Route Button */}
+  1323→                  {isTracking ? (
+  1324→                    <Pressable
+  1325→                      style={({ pressed }) => [
+  1326→                        styles.endRouteBtn,
+  1327→                        pressed && styles.endRouteBtnPressed,
+  1328→                      ]}
+  1329→                      onPress={() => {
+  1330→                        Alert.alert(
+  1331→                          'End Route & Sync',
+  1332→                          'Route end karein aur data sync upload karein?',
+  1333→                          [
+  1334→                            { text: 'Cancel', style: 'cancel' },
+  1335→                            {
+  1336→                              text: 'End & Upload',
+  1337→                              style: 'destructive',
+  1338→                              onPress: async () => {
+  1339→                                try {
+  1340→                                  await endRoute();
+  1341→                                  // After ending route, trigger sync upload
+  1342→                                  const { performSyncUpload } = await import('@/services/syncUpload');
+  1343→                                  const result = await performSyncUpload();
+  1344→                                  if (result.success) {
+  1345→                                    Alert.alert(
+  1346→                                      'Sync Complete',
+  1347→                                      `Route ended!\nGPS Points: ${result.locationsUploaded}\nTransactions: ${result.transactionsSynced}`
+  1348→                                    );
+  1349→                                  } else {
+  1350→                                    Alert.alert('Route Ended', 'Route end ho gaya! Data sync upload karein Profile mein.');
+  1351→                                  }
+  1352→                                } catch (e: any) {
+  1353→                                  Alert.alert('Error', e.message || 'Failed to end route');
+  1354→                                }
+  1355→                              },
+  1356→                            },
+  1357→                          ]
+  1358→                        );
+  1359→                      }}
+  1360→                      disabled={isStopping}
+  1361→                    >
+  1362→                      <View style={styles.endRouteDot} />
+  1363→                      <Text style={styles.endRouteText}>
+  1364→                        {isStopping ? 'Ending...' : 'End Route'}
+  1365→                      </Text>
+  1366→                    </Pressable>
+  1367→                  ) : null}
+  1368→                </View>
+  1369→
+  1370→                {/* Visit Streak Counter */}
+  1371→                {user ? (
+  1372→                  <VisitStreakCounter orderbookerId={user.id} visitedCount={visitedCount} />
+  1373→                ) : null}
+  1374→
+  1375→                {/* Badges */}
+  1376→                <View style={styles.badgesRow}>
+  1377→                  <View style={styles.heroDayBadge}>
+  1378→                    <MaterialIcons name={routeBadgeIcon} size={13} color="rgba(255,255,255,0.9)" />
+  1379→                    <Text style={styles.badgeText}>{routeBadgeLabel}</Text>
+  1380→                  </View>
+  1381→                  <Pressable style={styles.reportBadge} onPress={() => setShowReport(true)} hitSlop={8}>
+  1382→                    <MaterialIcons name="assessment" size={13} color="rgba(255,255,255,0.9)" />
+  1383→                    <Text style={styles.badgeText}>Report</Text>
+  1384→                  </Pressable>
+  1385→                  <Pressable
+  1386→                    style={[
+  1387→                      styles.pendingBadge,
+  1388→                      pendingNotifications.length > 0 && styles.pendingBadgeActive,
+  1389→                    ]}
+  1390→                    onPress={() => setShowPending(true)}
+  1391→                    hitSlop={8}
+  1392→                  >
+  1393→                    <MaterialIcons name="pending-actions" size={13} color="rgba(255,255,255,0.9)" />
+  1394→                    <Text style={styles.badgeText}>Pending</Text>
+  1395→                    {pendingNotifications.length > 0 ? (
+  1396→                      <View style={styles.pendingCountDot}>
+  1397→                        <Text style={styles.pendingCountText}>{pendingNotifications.length}</Text>
+  1398→                      </View>
+  1399→                    ) : null}
+  1400→                  </Pressable>
+  1401→                </View>
+  1402→
+  1403→                {/* Bento Stats Grid */}
+  1404→                <View style={styles.bentoGrid}>
+  1405→                  <View style={styles.bentoCard}>
+  1406→                    <View style={styles.bentoIconWrap}>
+  1407→                      <MaterialIcons name="store" size={14} color="#FFFFFF" />
+  1408→                    </View>
+  1409→                    <Text style={styles.bentoValue}>{todayShops.length}</Text>
+  1410→                    <Text style={styles.bentoLabel}>Shops</Text>
+  1411→                  </View>
+  1412→                  <View style={styles.bentoCard}>
+  1413→                    <View style={styles.bentoIconWrap}>
+  1414→                      <MaterialIcons name="account-balance-wallet" size={14} color="#FFFFFF" />
+  1415→                    </View>
+  1416→                    <Text style={styles.bentoValue}>{formatPKR(totalOutstanding)}</Text>
+  1417→                    <Text style={styles.bentoLabel}>Outstanding</Text>
+  1418→                  </View>
+  1419→                  <View style={styles.bentoCardWide}>
+  1420→                    <View style={styles.bentoWideTop}>
+  1421→                      <View style={{ flex: 1 }}>
+  1422→                        <Text style={styles.bentoRecoveryValue}>{formatPKR(todayRecovery)}</Text>
+  1423→                        <Text style={styles.bentoLabel}>Today's Recovery</Text>
+  1424→                      </View>
+  1425→                      <View style={styles.bentoRecoveryIcon}>
+  1426→                        <MaterialIcons name="trending-up" size={16} color="#34D399" />
+  1427→                      </View>
+  1428→                    </View>
+  1429→                    <View style={styles.bentoProgressTrack}>
+  1430→                      <View style={[styles.bentoProgressFill, { width: `${Math.min(progressPct, 100)}%` }]} />
+  1431→                    </View>
+  1432→                    <Text style={styles.bentoProgressText}>{visitedCount} of {todayShops.length} shops visited · {Math.round(progressPct)}%</Text>
+  1433→                  </View>
+  1434→                </View>
+  1435→
+  1436→                {/* Company-wise balance breakdown (multi-company only) */}
+  1437→                {companies.length > 1 && !selectedCompanyId ? (
+  1438→                  <View style={styles.companyBalanceRow}>
+  1439→                    {companies.map((comp) => {
+  1440→                      const compOutstanding = todayShops.reduce((sum, s) => {
+  1441→                        const cb = s.companyBalances?.find((b) => b && b.companyId === comp.companyId);
+  1442→                        return sum + (cb?.balance ?? 0);
+  1443→                      }, 0);
+  1444→                      if (compOutstanding === 0) return null;
+  1445→                      return (
+  1446→                        <View key={comp.companyId} style={styles.companyBalChip}>
+  1447→                          <View style={styles.companyBalDot} />
+  1448→                          <Text style={styles.companyBalName} numberOfLines={1}>{comp.companyName}</Text>
+  1449→                          <Text style={styles.companyBalAmount}>{formatPKR(compOutstanding)}</Text>
+  1450→                        </View>
+  1451→                      );
+  1452→                    })}
+  1453→                  </View>
+  1454→                ) : null}
+  1455→              </LinearGradient>
+  1456→
+  1457→
+  1458→              {/* Daily Target Progress */}
+  1459→              <DailyTargetProgress todayRecovery={todayRecovery} />
+  1460→
+  1461→              {/* Chart Toggle */}
+  1462→              <View style={styles.chartToggleRow}>
+  1463→                {(
+  1464→                  [
+  1465→                    { key: 'trend' as ChartView, icon: 'show-chart', label: 'Trend' },
+  1466→                    { key: 'analysis' as ChartView, icon: 'analytics', label: 'Analysis' },
+  1467→                    { key: 'none' as ChartView, icon: 'visibility-off', label: 'Hide' },
+  1468→                  ]
+  1469→                ).map((opt) => (
+  1470→                  <Pressable
+  1471→                    key={opt.key}
+  1472→                    style={[
+  1473→                      styles.chartTabBtn,
+  1474→                      chartView === opt.key && styles.chartTabBtnActive,
+  1475→                    ]}
+  1476→                    onPress={() => setChartView(opt.key)}
+  1477→                    hitSlop={4}
+  1478→                  >
+  1479→                    <MaterialIcons
+  1480→                      name={opt.icon as any}
+  1481→                      size={13}
+  1482→                      color={chartView === opt.key ? Colors.primaryDark : Colors.textMuted}
+  1483→                    />
+  1484→                    <Text
+  1485→                      style={[
+  1486→                        styles.chartTabLabel,
+  1487→                        chartView === opt.key && styles.chartTabLabelActive,
+  1488→                      ]}
+  1489→                    >
+  1490→                      {opt.label}
+  1491→                    </Text>
+  1492→                  </Pressable>
+  1493→                ))}
+  1494→              </View>
+  1495→
+  1496→              {chartView === 'trend' && user ? (
+  1497→                <View style={styles.chartWrap}>
+  1498→                  <PerformanceChart userId={user.id} />
+  1499→                </View>
+  1500→              ) : chartView === 'analysis' && user ? (
+  1501→                <View style={styles.chartWrap}>
+  1502→                  <RecoveryAnalysisChart userId={user.id} />
+  1503→                </View>
+  1504→              ) : null}
+  1505→
+  1506→              {/* Search Bar */}
+  1507→              <View style={styles.searchRow}>
+  1508→                <MaterialIcons name="search" size={18} color={Colors.textSecondary} />
+  1509→                <TextInput
+  1510→                  style={styles.searchInput}
+  1511→                  value={searchQuery}
+  1512→                  onChangeText={setSearchQuery}
+  1513→                  placeholder="Search shops, areas..."
+  1514→                  placeholderTextColor={Colors.textMuted}
+  1515→                />
+  1516→                {searchQuery ? (
+  1517→                  <Pressable
+  1518→                    onPress={() => setSearchQuery('')}
+  1519→                    hitSlop={8}
+  1520→                    style={styles.searchClear}
+  1521→                  >
+  1522→                    <MaterialIcons name="cancel" size={16} color={Colors.textMuted} />
+  1523→                  </Pressable>
+  1524→                ) : null}
+  1525→              </View>
+  1526→
+  1527→              {/* Shop count */}
+  1528→              <View style={styles.shopCountRow}>
+  1529→                <View style={styles.shopCountLeft}>
+  1530→                  <View style={styles.shopCountDot} />
+  1531→                  <Text style={styles.shopCountText}>
+  1532→                    {filteredShops.length} {filteredShops.length === 1 ? 'shop' : 'shops'}
+  1533→                    {searchQuery ? ` found` : ' on route'}
+  1534→                  </Text>
+  1535→                </View>
+  1536→                {visitedCount > 0 ? (
+  1537→                  <View style={styles.visitedChip}>
+  1538→                    <MaterialIcons name="check-circle" size={12} color={Colors.primary} />
+  1539→                    <Text style={styles.visitedChipText}>{visitedCount} visited</Text>
+  1540→                  </View>
+  1541→                ) : null}
+  1542→              </View>
+  1543→
+  1544→              {/* Feature 13: Recovery Reminder */}
+  1545→              <RecoveryReminder
+  1546→                shops={allShops.length > 0 ? allShops : todayShops}
+  1547→                onShopPress={handleReminderShopPress}
+  1548→              />
+  1549→            </View>
+  1550→          }
+  1551→          ListEmptyComponent={
+  1552→            !isLoadingToday ? (
+  1553→              <View style={styles.emptyContainer}>
+  1554→                <LinearGradient
+  1555→                  colors={[Colors.primaryLight, Colors.background]}
+  1556→                  style={styles.emptyGradient}
+  1557→                >
+  1558→                  <MaterialIcons name="store-mall-directory" size={56} color={Colors.primary} />
+  1559→                  <Text style={styles.emptyTitle}>
+  1560→                    {searchQuery ? 'No shops found' : 'No shops for today'}
+  1561→                  </Text>
+  1562→                  <Text style={styles.emptySubtitle}>
+  1563→                    {searchQuery
+  1564→                      ? 'Try a different search term'
+  1565→                      : "No shops are scheduled for today's route"}
+  1566→                  </Text>
+  1567→                </LinearGradient>
+  1568→              </View>
+  1569→            ) : null
+  1570→          }
+  1571→          renderItem={({ item }: { item: Shop }) => (
+  1572→            <ShopCard
+  1573→              shop={item}
+  1574→              isVisited={visitedShopIds.has(item.id)}
+  1575→              hasRecovery={isRecoverySubmitted(item.id, selectedCompanyId || user?.companyId)}
+  1576→              onCollect={() => handleOpenRecovery(item)}
+  1577→              onPress={() => setDetailShop(item)}
+  1578→              onGpsVisit={() => setGpsVisitShop(item)}
+  1579→              companyId={selectedCompanyId || user?.companyId}
+  1580→            />
+  1581→          )}
+  1582→          contentContainerStyle={styles.listContent}
+  1583→        />
+  1584→      )}
+  1585→
+  1586→      <RecoveryBottomSheet
+  1587→        visible={recoveryShop !== null}
+  1588→        shop={recoveryShop}
+  1589→        companyId={selectedCompanyId || user?.companyId}
+  1590→        onClose={() => setRecoveryShop(null)}
+  1591→        onSubmit={handleSubmitRecovery}
+  1592→        isSubmitting={isSubmitting}
+  1593→      />
+  1594→
+  1595→      <GpsVisitBottomSheet
+  1596→        visible={gpsVisitShop !== null}
+  1597→        shop={gpsVisitShop}
+  1598→        onClose={() => setGpsVisitShop(null)}
+  1599→        onVisitMarked={handleGpsVisitMarked}
+  1600→      />
+  1601→
+  1602→      <ShopDetailModal
+  1603→        visible={detailShop !== null}
+  1604→        shop={detailShop}
+  1605→        companyId={selectedCompanyId || user?.companyId}
+  1606→        onClose={() => setDetailShop(null)}
+  1607→        onCollect={() => {
+  1608→          if (detailShop && isRecoverySubmitted(detailShop.id, selectedCompanyId || user?.companyId)) {
+  1609→            Alert.alert('Already Recovered', `Recovery for ${detailShop.name} under this company has already been submitted today.`);
+  1610→            return;
+  1611→          }
+  1612→          setRecoveryShop(detailShop);
+  1613→          setDetailShop(null);
+  1614→        }}
+  1615→        hasRecoveryToday={detailShop ? isRecoverySubmitted(detailShop.id, selectedCompanyId || user?.companyId) : false}
+  1616→        onResendReceipt={() => {
+  1617→          // Show the receipt modal again for regeneration
+  1618→          if (lastReceiptData) {
+  1619→            setShowReceiptModal(true);
+  1620→          } else {
+  1621→            Alert.alert('No Receipt', 'No receipt data available for this shop. Receipts are only available for the most recent recovery.');
+  1622→          }
+  1623→        }}
+  1624→        onEditPendingRecovery={(txn) => {
+  1625→          // Open edit recovery modal
+  1626→          setEditingTransaction(txn);
+  1627→        }}
+  1628→      />
+  1629→
+  1630→      {/* Phone Input Modal - shows when shop has no phone after recovery */}
+  1631→      <PhoneInputModal
+  1632→        visible={phoneInputShop !== null}
+  1633→        shop={phoneInputShop}
+  1634→        onPhoneSaved={handlePhoneSaved}
+  1635→        onSkip={() => setPhoneInputShop(null)}
+  1636→      />
+  1637→
+  1638→      {/* Receipt Regeneration Modal — can be reopened anytime */}
+  1639→      <RecoveryReceipt
+  1640→        visible={showReceiptModal && lastReceiptData !== null}
+  1641→        shopName={lastReceiptData?.shopName || ''}
+  1642→        shopAddress={lastReceiptData?.shopAddress}
+  1643→        shopOwnerName={lastReceiptData?.shopOwnerName}
+  1644→        shopPhone={lastReceiptData?.shopPhone || ''}
+  1645→        openingBalance={lastReceiptData?.openingBalance || 0}
+  1646→        recoveryAmount={lastReceiptData?.recoveryAmount || 0}
+  1647→        remainingBalance={lastReceiptData?.remainingBalance || 0}
+  1648→        companyName={lastReceiptData?.companyName}
+  1649→        orderbookerName={lastReceiptData?.orderbookerName}
+  1650→        distributorPhone={lastReceiptData?.distributorPhone}
+  1651→        onClose={() => setShowReceiptModal(false)}
+  1652→      />
+  1653→
+  1654→      {/* Edit Pending Recovery Modal — only pending recoveries can be edited */}
+  1655→      <EditRecoveryModal
+  1656→        visible={editingTransaction !== null}
+  1657→        transaction={editingTransaction}
+  1658→        userId={user?.id || ''}
+  1659→        companyName={selectedCompanyName}
+  1660→        orderbookerName={user?.name}
+  1661→        shopPhone={editingTransaction?.shop ? (allShops.find(s => s.id === editingTransaction.shopId)?.phone || '') : ''}
+  1662→        shopAddress={editingTransaction?.shop ? (allShops.find(s => s.id === editingTransaction.shopId)?.address || allShops.find(s => s.id === editingTransaction.shopId)?.area || undefined) : undefined}
+  1663→        shopOwnerName={editingTransaction?.shop ? (allShops.find(s => s.id === editingTransaction.shopId)?.ownerName || undefined) : undefined}
+  1664→        onClose={() => setEditingTransaction(null)}
+  1665→        onUpdated={(receiptData?: EditedRecoveryReceiptData) => {
+  1666→          // Refresh shop detail after edit
+  1667→          setDetailShop(null);
+  1668→          // Refresh shops data
+  1669→          if (user) {
+  1670→            loadTodayShops(user.id, allRoutesEnabled, selectedCompanyId || user.companyId || undefined);
+  1671→          }
+  1672→          // If receipt data returned, show updated receipt for regeneration
+  1673→          if (receiptData) {
+  1674→            setLastReceiptData({
+  1675→              shopName: receiptData.shopName,
+  1676→              shopAddress: receiptData.shopAddress,
+  1677→              shopOwnerName: receiptData.shopOwnerName,
+  1678→              shopPhone: receiptData.shopPhone,
+  1679→              openingBalance: receiptData.openingBalance,
+  1680→              recoveryAmount: receiptData.recoveryAmount,
+  1681→              remainingBalance: receiptData.remainingBalance,
+  1682→              companyName: selectedCompanyName || undefined,
+  1683→              orderbookerName: user?.name || undefined,
+  1684→              distributorPhone: distributorPhone || undefined,
+  1685→            });
+  1686→            // Auto-show receipt after a short delay so modal closes first
+  1687→            setTimeout(() => {
+  1688→              setShowReceiptModal(true);
+  1689→            }, 500);
+  1690→          }
+  1691→        }}
+  1692→      />
+  1693→
+  1694→      <SuccessOverlay
+  1695→        visible={successState.visible}
+  1696→        shopName={successState.shopName}
+  1697→        amount={successState.amount}
+  1698→        isOffline={successState.isOffline}
+  1699→        onDismiss={() => {
+  1700→          setSuccessState((s) => ({ ...s, visible: false }));
+  1701→          // Show SMS popup immediately when success overlay dismisses
+  1702→          if (pendingNotifAfterSuccess) {
+  1703→            setNotifChoice({
+  1704→              visible: true,
+  1705→              ...pendingNotifAfterSuccess,
+  1706→            });
+  1707→            setPendingNotifAfterSuccess(null);
+  1708→          }
+  1709→        }}
+  1710→        onUndo={handleUndoRecovery}
+  1711→      />
+  1712→      <NotificationChoice
+  1713→        visible={notifChoice.visible}
+  1714→        payload={notifChoice.visible ? {
+  1715→          shopPhone: notifChoice.shopPhone,
+  1716→          shopName: notifChoice.shopName,
+  1717→          shopAddress: notifChoice.shopAddress,
+  1718→          shopOwnerName: notifChoice.shopOwnerName,
+  1719→          openingBalance: notifChoice.openingBalance,
+  1720→          recoveryAmount: notifChoice.recoveryAmount,
+  1721→          remainingBalance: notifChoice.remainingBalance,
+  1722→          companyName: notifChoice.companyName,
+  1723→          orderbookerName: notifChoice.orderbookerName,
+  1724→          distributorPhone: notifChoice.distributorPhone,
+  1725→        } : null}
+  1726→        onDone={(method: NotificationMethod) => {
+  1727→          setNotifChoice((s) => ({ ...s, visible: false }));
+  1728→
+  1729→          // If user denied sending (clicked "Nahi, Abhi Bhejna Hai"), keep in pending
+  1730→          if (method === ('_keep_pending' as NotificationMethod)) {
+  1731→            // Don't remove from pending, don't increment count
+  1732→            // Receipt stays in pending list for later
+  1733→            return;
+  1734→          }
+  1735→
+  1736→          // Increment count (unique per shop via StorageService)
+  1737→          StorageService.incrementNotifCount(method, notifChoice.shopId || undefined).then((counts) => {
+  1738→            setSmsSentCount(counts.sms);
+  1739→            setWhatsappSentCount(counts.whatsapp);
+  1740→          });
+  1741→          StorageService.getPendingNotifications(getTodayDateStr()).then((list) => {
+  1742→            const entry = list.find((n) => n.shopName === notifChoice.shopName);
+  1743→            if (entry) {
+  1744→              StorageService.removePendingNotification(entry.id);
+  1745→              loadPendingNotifications();
+  1746→            }
+  1747→          });
+  1748→        }}
+  1749→      />
+  1750→      <DailyReportCard
+  1751→        visible={showReport}
+  1752→        onClose={() => setShowReport(false)}
+  1753→        shopsVisited={visitedCount}
+  1754→        totalShops={todayShops.length}
+  1755→        totalRecovery={todayRecovery}
+  1756→        totalOutstanding={totalOutstanding}
+  1757→        smsSent={smsSentCount}
+  1758→        whatsappSent={whatsappSentCount}
+  1759→        pendingMessages={pendingNotifications.length}
+  1760→        orderbookerName={user?.name || 'Orderbooker'}
+  1761→        companyBreakdown={companyRecoveryBreakdown}
+  1762→        selectedCompanyName={selectedCompanyName}
+  1763→      />
+  1764→      <PendingMessagesSheet
+  1765→        visible={showPending}
+  1766→        pendingList={pendingNotifications}
+  1767→        onSendSms={(id) => {
+  1768→          // Find the shopId from the pending notification for dedup
+  1769→          const entry = pendingNotifications.find((n) => n.id === id);
+  1770→          const shopId = entry?.shopId;
+  1771→          StorageService.removePendingNotification(id);
+  1772→          loadPendingNotifications();
+  1773→          // Use incrementNotifCount for proper dedup (unique shops only)
+  1774→          StorageService.incrementNotifCount('sms', shopId).then((counts) => {
+  1775→            setSmsSentCount(counts.sms);
+  1776→            setWhatsappSentCount(counts.whatsapp);
+  1777→          });
+  1778→        }}
+  1779→        onSendWhatsapp={(id) => {
+  1780→          // Find the shopId from the pending notification for dedup
+  1781→          const entry = pendingNotifications.find((n) => n.id === id);
+  1782→          const shopId = entry?.shopId;
+  1783→          StorageService.removePendingNotification(id);
+  1784→          loadPendingNotifications();
+  1785→          // Use incrementNotifCount for proper dedup (unique shops only)
+  1786→          StorageService.incrementNotifCount('whatsapp', shopId).then((counts) => {
+  1787→            setSmsSentCount(counts.sms);
+  1788→            setWhatsappSentCount(counts.whatsapp);
+  1789→          });
+  1790→        }}
+  1791→        onClose={() => setShowPending(false)}
+  1792→        onRefresh={loadPendingNotifications}
+  1793→      />
+  1794→
+  1795→      {/* Feature 14: App Tour */}
+  1796→      <AppTour
+  1797→        visible={showTour}
+  1798→        onComplete={handleTourComplete}
+  1799→      />
+  1800→    </View>
+  1801→  );
+  1802→}
+  1803→
+  1804→const styles = StyleSheet.create({
+  1805→  root: {
+  1806→    flex: 1,
+  1807→    backgroundColor: Colors.background,
+  1808→  },
+  1809→  listContent: {
+  1810→    paddingBottom: 100,
+  1811→  },
+  1812→  // Hero Card
+  1813→  heroCard: {
+  1814→    margin: Spacing.md,
+  1815→    marginBottom: Spacing.sm,
+  1816→    borderBottomLeftRadius: 28,
+  1817→    borderBottomRightRadius: 28,
+  1818→    padding: Spacing.lg,
+  1819→    overflow: 'hidden',
+  1820→    ...Shadow.lg,
+  1821→  },
+  1822→  heroBubble1: {
+  1823→    position: 'absolute',
+  1824→    width: 160,
+  1825→    height: 160,
+  1826→    borderRadius: 80,
+  1827→    backgroundColor: 'rgba(129,140,248,0.15)',
+  1828→    top: -50,
+  1829→    right: -40,
+  1830→  },
+  1831→  heroBubble2: {
+  1832→    position: 'absolute',
+  1833→    width: 100,
+  1834→    height: 100,
+  1835→    borderRadius: 50,
+  1836→    backgroundColor: 'rgba(129,140,248,0.10)',
+  1837→    bottom: -30,
+  1838→    left: -20,
+  1839→  },
+  1840→  heroTop: {
+  1841→    marginBottom: Spacing.sm,
+  1842→  },
+  1843→  heroGreeting: {
+  1844→    fontSize: FontSize.lg,
+  1845→    fontWeight: FontWeight.bold,
+  1846→    color: '#FFFFFF',
+  1847→  },
+  1848→  heroDate: {
+  1849→    fontSize: FontSize.sm,
+  1850→    color: 'rgba(255,255,255,0.65)',
+  1851→    marginTop: 2,
+  1852→  },
+  1853→  // Badges
+  1854→  badgesRow: {
+  1855→    flexDirection: 'row',
+  1856→    alignItems: 'center',
+  1857→    gap: Spacing.xs,
+  1858→    marginBottom: Spacing.md,
+  1859→  },
+  1860→  heroDayBadge: {
+  1861→    flexDirection: 'row',
+  1862→    alignItems: 'center',
+  1863→    gap: 5,
+  1864→    backgroundColor: 'rgba(255,255,255,0.2)',
+  1865→    borderRadius: Radius.full,
+  1866→    paddingHorizontal: 12,
+  1867→    paddingVertical: 6,
+  1868→    borderWidth: 1,
+  1869→    borderColor: 'rgba(255,255,255,0.25)',
+  1870→  },
+  1871→  allRoutesBadge: {
+  1872→    backgroundColor: 'rgba(255,255,255,0.2)',
+  1873→    borderColor: 'rgba(255,255,255,0.25)',
+  1874→  },
+  1875→  reportBadge: {
+  1876→    flexDirection: 'row',
+  1877→    alignItems: 'center',
+  1878→    gap: 5,
+  1879→    backgroundColor: 'rgba(255,255,255,0.2)',
+  1880→    borderRadius: Radius.full,
+  1881→    paddingHorizontal: 12,
+  1882→    paddingVertical: 6,
+  1883→    borderWidth: 1,
+  1884→    borderColor: 'rgba(255,255,255,0.25)',
+  1885→  },
+  1886→  pendingBadge: {
+  1887→    flexDirection: 'row',
+  1888→    alignItems: 'center',
+  1889→    gap: 5,
+  1890→    backgroundColor: 'rgba(255,255,255,0.2)',
+  1891→    borderRadius: Radius.full,
+  1892→    paddingHorizontal: 12,
+  1893→    paddingVertical: 6,
+  1894→    borderWidth: 1,
+  1895→    borderColor: 'rgba(255,255,255,0.25)',
+  1896→  },
+  1897→  pendingBadgeActive: {
+  1898→    backgroundColor: 'rgba(239,68,68,0.2)',
+  1899→    borderColor: 'rgba(239,68,68,0.45)',
+  1900→  },
+  1901→  pendingCountDot: {
+  1902→    width: 18,
+  1903→    height: 18,
+  1904→    borderRadius: 9,
+  1905→    backgroundColor: '#EF4444',
+  1906→    alignItems: 'center',
+  1907→    justifyContent: 'center',
+  1908→    marginLeft: 2,
+  1909→  },
+  1910→  pendingCountText: {
+  1911→    fontSize: 10,
+  1912→    fontWeight: FontWeight.bold,
+  1913→    color: '#FFFFFF',
+  1914→  },
+  1915→  badgeText: {
+  1916→    fontSize: FontSize.xs,
+  1917→    fontWeight: FontWeight.semibold,
+  1918→    color: '#FFFFFF',
+  1919→    letterSpacing: 0.3,
+  1920→  },
+  1921→  // Progress
+  1922→  progressSection: {
+  1923→    marginBottom: Spacing.md,
+  1924→  },
+  1925→  progressHeader: {
+  1926→    flexDirection: 'row',
+  1927→    justifyContent: 'space-between',
+  1928→    marginBottom: 6,
+  1929→  },
+  1930→  progressLabel: {
+  1931→    fontSize: FontSize.xs,
+  1932→    color: 'rgba(255,255,255,0.75)',
+  1933→    fontWeight: FontWeight.medium,
+  1934→  },
+  1935→  progressPct: {
+  1936→    fontSize: FontSize.xs,
+  1937→    color: '#FFFFFF',
+  1938→    fontWeight: FontWeight.bold,
+  1939→  },
+  1940→  progressTrack: {
+  1941→    height: 8,
+  1942→    backgroundColor: 'rgba(255,255,255,0.18)',
+  1943→    borderRadius: Radius.full,
+  1944→    overflow: 'hidden',
+  1945→  },
+  1946→  progressFill: {
+  1947→    height: 8,
+  1948→    backgroundColor: '#A5B4FC',
+  1949→    borderRadius: Radius.full,
+  1950→  },
+  1951→  // Bento Grid — glassmorphism stat cards
+  1952→  bentoGrid: {
+  1953→    flexDirection: 'row',
+  1954→    flexWrap: 'wrap',
+  1955→    gap: 10,
+  1956→    marginTop: Spacing.sm,
+  1957→  },
+  1958→  bentoCard: {
+  1959→    flex: 1,
+  1960→    minWidth: '45%',
+  1961→    backgroundColor: 'rgba(255,255,255,0.15)',
+  1962→    borderRadius: 16,
+  1963→    padding: 12,
+  1964→    alignItems: 'center',
+  1965→    borderWidth: 1,
+  1966→    borderColor: 'rgba(255,255,255,0.18)',
+  1967→  },
+  1968→  bentoCardWide: {
+  1969→    width: '100%',
+  1970→    backgroundColor: 'rgba(255,255,255,0.15)',
+  1971→    borderRadius: 16,
+  1972→    padding: 12,
+  1973→    borderWidth: 1,
+  1974→    borderColor: 'rgba(255,255,255,0.18)',
+  1975→  },
+  1976→  bentoIconWrap: {
+  1977→    width: 28,
+  1978→    height: 28,
+  1979→    borderRadius: 8,
+  1980→    backgroundColor: 'rgba(255,255,255,0.2)',
+  1981→    alignItems: 'center',
+  1982→    justifyContent: 'center',
+  1983→    marginBottom: 6,
+  1984→  },
+  1985→  bentoValue: {
+  1986→    fontSize: 20,
+  1987→    fontWeight: '800',
+  1988→    color: '#FFFFFF',
+  1989→    letterSpacing: -0.5,
+  1990→  },
+  1991→  bentoLabel: {
+  1992→    fontSize: 10,
+  1993→    color: 'rgba(255,255,255,0.65)',
+  1994→    fontWeight: FontWeight.semibold,
+  1995→    textTransform: 'uppercase',
+  1996→    letterSpacing: 0.5,
+  1997→    marginTop: 2,
+  1998→  },
+  1999→  bentoWideTop: {
+  2000→    flexDirection: 'row',
+
+[showing lines 1-2000 of 2305; use offset=2001 with limit to continue reading]

@@ -1,0 +1,586 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useCallback, useMemo } from 'react';
+     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+     5→import { Button } from '@/components/ui/button';
+     6→import { Badge } from '@/components/ui/badge';
+     7→import { Skeleton } from '@/components/ui/skeleton';
+     8→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+     9→import { Input } from '@/components/ui/input';
+    10→import {
+    11→  Table,
+    12→  TableBody,
+    13→  TableCell,
+    14→  TableHead,
+    15→  TableHeader,
+    16→  TableRow,
+    17→} from '@/components/ui/table';
+    18→import {
+    19→  MapPin,
+    20→  CheckCircle2,
+    21→  XCircle,
+    22→  Flame,
+    23→  Trophy,
+    24→  Users,
+    25→  Navigation,
+    26→  AlertCircle,
+    27→  Loader2,
+    28→  RefreshCw,
+    29→  Search,
+    30→  Calendar,
+    31→  Clock,
+    32→} from 'lucide-react';
+    33→import { toast } from '@/hooks/use-toast';
+    34→import { apiFetch } from '@/lib/api';
+    35→import { useAppStore } from '@/lib/store';
+    36→import { useRouter } from 'next/navigation';
+    37→import { formatPKR } from '@/lib/utils';
+    38→
+    39→interface Orderbooker {
+    40→  id: string;
+    41→  name: string;
+    42→  username: string;
+    43→  phone: string | null;
+    44→  status: string;
+    45→}
+    46→
+    47→interface VisitStreak {
+    48→  orderbookerId: string;
+    49→  currentStreak: number;
+    50→  longestStreak: number;
+    51→  lastVisitDate: string | null;
+    52→  totalVisitDays: number;
+    53→}
+    54→
+    55→interface ShopVisit {
+    56→  id: string;
+    57→  shopId: string;
+    58→  orderbookerId: string;
+    59→  orderbookerName: string;
+    60→  gpsLat: number | null;
+    61→  gpsLng: number | null;
+    62→  gpsAddress: string | null;
+    63→  inRange: boolean;
+    64→  createdAt: string;
+    65→  shopName?: string;
+    66→  source?: 'gps' | 'transaction';
+    67→  sourceLabel?: string;
+    68→  amount?: number | null;
+    69→  transactionType?: string | null;
+    70→  transactionStatus?: string | null;
+    71→}
+    72→
+    73→function VisitSkeleton() {
+    74→  return (
+    75→    <div className="space-y-6">
+    76→      <div className="flex items-center justify-between">
+    77→        <div>
+    78→          <Skeleton className="skeleton-shimmer h-7 w-56 mb-1" />
+    79→          <Skeleton className="skeleton-shimmer h-4 w-80" />
+    80→        </div>
+    81→        <Skeleton className="skeleton-shimmer h-9 w-36" />
+    82→      </div>
+    83→      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    84→        {Array.from({ length: 4 }).map((_, i) => (
+    85→          <Card key={i} className="card-elevated">
+    86→            <CardContent className="p-4">
+    87→              <Skeleton className="skeleton-shimmer h-8 w-8 rounded-lg mb-3" />
+    88→              <Skeleton className="skeleton-shimmer h-3 w-24 mb-2" />
+    89→              <Skeleton className="skeleton-shimmer h-6 w-28" />
+    90→            </CardContent>
+    91→          </Card>
+    92→        ))}
+    93→      </div>
+    94→      <Card className="card-elevated">
+    95→        <CardContent className="p-0">
+    96→          {Array.from({ length: 5 }).map((_, i) => (
+    97→            <div key={i} className="flex items-center gap-4 px-5 py-3">
+    98→              <Skeleton className="skeleton-shimmer h-5 w-5" />
+    99→              <Skeleton className="skeleton-shimmer h-4 w-32" />
+   100→              <Skeleton className="skeleton-shimmer h-4 w-20" />
+   101→              <Skeleton className="skeleton-shimmer h-4 w-24" />
+   102→              <Skeleton className="skeleton-shimmer h-4 w-20" />
+   103→            </div>
+   104→          ))}
+   105→        </CardContent>
+   106→      </Card>
+   107→    </div>
+   108→  );
+   109→}
+   110→
+   111→function StreakBadge({ streak }: { streak: number }) {
+   112→  if (streak >= 7) {
+   113→    return (
+   114→      <Badge className="text-[10px] bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-800 font-semibold">
+   115→        <Flame className="h-3 w-3 mr-1" /> {streak} days — On Fire!
+   116→      </Badge>
+   117→    );
+   118→  }
+   119→  if (streak >= 3) {
+   120→    return (
+   121→      <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-800 font-semibold">
+   122→        {streak} days — Good
+   123→      </Badge>
+   124→    );
+   125→  }
+   126→  if (streak >= 1) {
+   127→    return (
+   128→      <Badge className="text-[10px] bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800 font-semibold">
+   129→        {streak} day{streak > 1 ? 's' : ''}
+   130→      </Badge>
+   131→    );
+   132→  }
+   133→  return (
+   134→    <Badge variant="outline" className="text-[10px]">Inactive</Badge>
+   135→  );
+   136→}
+   137→
+   138→export default function AdminVisitTracking() {
+   139→  const { setSelectedShopId, setSelectedShopName } = useAppStore();
+   140→  const router = useRouter();
+   141→  const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
+   142→  const [streaks, setStreaks] = useState<Record<string, VisitStreak>>({});
+   143→  const [recentVisits, setRecentVisits] = useState<ShopVisit[]>([]);
+   144→  const [loading, setLoading] = useState(true);
+   145→  const [selectedOB, setSelectedOB] = useState<string>('all');
+   146→  const [searchQuery, setSearchQuery] = useState('');
+   147→  const [visitsLoading, setVisitsLoading] = useState(false);
+   148→
+   149→  const fetchStreaks = useCallback(async () => {
+   150→    setLoading(true);
+   151→    try {
+   152→      const obRes = await apiFetch('/api/orderbookers');
+   153→      if (!obRes.ok) {
+   154→        toast({ title: 'Error', description: 'Failed to load orderbookers', variant: 'destructive' });
+   155→        setLoading(false);
+   156→        return;
+   157→      }
+   158→      const obs = await obRes.json();
+   159→      const activeOBs = Array.isArray(obs) ? obs.filter((o: Orderbooker) => o.status === 'active') : [];
+   160→      setOrderbookers(activeOBs);
+   161→
+   162→      // Fetch streaks for each OB
+   163→      const streakPromises = activeOBs.map((ob: Orderbooker) =>
+   164→        apiFetch(`/api/users/${ob.id}/visit-streak`)
+   165→          .then(r => r.ok ? r.json() : null)
+   166→          .catch(() => null)
+   167→      );
+   168→      const streakResults = await Promise.all(streakPromises);
+   169→      const streakMap: Record<string, VisitStreak> = {};
+   170→      streakResults.forEach((s, i) => {
+   171→        if (s) streakMap[activeOBs[i].id] = s;
+   172→      });
+   173→      setStreaks(streakMap);
+   174→    } catch {
+   175→      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+   176→    } finally {
+   177→      setLoading(false);
+   178→    }
+   179→  }, []);
+   180→
+   181→  const fetchRecentVisits = useCallback(async () => {
+   182→    setVisitsLoading(true);
+   183→    try {
+   184→      // Use the global visits endpoint that combines ShopVisit + Transaction data
+   185→      const res = await apiFetch('/api/visits/recent?limit=200');
+   186→      if (!res.ok) {
+   187→        setVisitsLoading(false);
+   188→        return;
+   189→      }
+   190→      const visits = await res.json();
+   191→      setRecentVisits(Array.isArray(visits) ? visits : []);
+   192→    } catch {
+   193→      // silent
+   194→    } finally {
+   195→      setVisitsLoading(false);
+   196→    }
+   197→  }, []);
+   198→
+   199→  useEffect(() => {
+   200→    fetchStreaks();
+   201→    fetchRecentVisits();
+   202→
+   203→    // Auto-refresh every 30 seconds so admin sees new visits in real-time
+   204→    const interval = setInterval(() => {
+   205→      fetchRecentVisits();
+   206→    }, 30000);
+   207→
+   208→    return () => clearInterval(interval);
+   209→  }, [fetchRecentVisits]);
+   210→
+   211→  // Filtered visits
+   212→  const filteredVisits = useMemo(() => {
+   213→    let result = recentVisits;
+   214→    if (selectedOB !== 'all') {
+   215→      result = result.filter(v => v.orderbookerId === selectedOB);
+   216→    }
+   217→    if (searchQuery.trim()) {
+   218→      const q = searchQuery.toLowerCase();
+   219→      result = result.filter(
+   220→        v => v.shopName?.toLowerCase().includes(q) ||
+   221→             v.orderbookerName?.toLowerCase().includes(q) ||
+   222→             v.gpsAddress?.toLowerCase().includes(q)
+   223→      );
+   224→    }
+   225→    return result;
+   226→  }, [recentVisits, selectedOB, searchQuery]);
+   227→
+   228→  // Summary
+   229→  const summary = useMemo(() => {
+   230→    const streakValues = Object.values(streaks);
+   231→    const totalVisitDays = streakValues.reduce((s, v) => s + v.totalVisitDays, 0);
+   232→    const avgStreak = streakValues.length > 0
+   233→      ? Math.round(streakValues.reduce((s, v) => s + v.currentStreak, 0) / streakValues.length)
+   234→      : 0;
+   235→    const bestStreak = Math.max(0, ...streakValues.map(v => v.currentStreak));
+   236→
+   237→    // Active today: count OBs who have visits in recentVisits (today's data)
+   238→    const obsWithVisitToday = new Set(recentVisits.map(v => v.orderbookerId));
+   239→    // Also check streak data
+   240→    const obsWithStreakToday = streakValues.filter(v => {
+   241→      if (!v.lastVisitDate) return false;
+   242→      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+   243→      return v.lastVisitDate.startsWith(today);
+   244→    }).map(v => v.orderbookerId);
+   245→    obsWithStreakToday.forEach(id => obsWithVisitToday.add(id));
+   246→
+   247→    const activeToday = obsWithVisitToday.size;
+   248→
+   249→    // Shops visited today count
+   250→    const shopsVisitedToday = new Set(recentVisits.map(v => v.shopId)).size;
+   251→
+   252→    return { totalVisitDays, avgStreak, bestStreak, activeToday, totalOBs: orderbookers.length, shopsVisitedToday };
+   253→  }, [streaks, orderbookers, recentVisits]);
+   254→
+   255→  const handleShopClick = (shopId: string, shopName: string) => {
+   256→    setSelectedShopId(shopId);
+   257→    setSelectedShopName(shopName);
+   258→    router.push(`/shops/${shopId}`);
+   259→  };
+   260→
+   261→  if (loading) return <VisitSkeleton />;
+   262→
+   263→  return (
+   264→    <div className="space-y-6">
+   265→      {/* Page Header */}
+   266→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   267→        <div>
+   268→          <h2 className="text-lg font-bold flex items-center gap-2">
+   269→            <Navigation className="h-5 w-5 text-primary" />
+   270→            Visit Tracking
+   271→          </h2>
+   272→          <p className="text-sm text-muted-foreground mt-1">
+   273→            Today's shop visits by orderbookers (from recovery, credit & GPS check-ins)
+   274→          </p>
+   275→        </div>
+   276→        <div className="flex items-center gap-3">
+   277→          <Button size="sm" variant="outline" className="h-9 gap-1.5" onClick={() => { fetchStreaks(); fetchRecentVisits(); }}>
+   278→            <RefreshCw className="h-3.5 w-3.5" />
+   279→            Refresh
+   280→          </Button>
+   281→        </div>
+   282→      </div>
+   283→
+   284→      {/* Summary KPIs */}
+   285→      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 stagger-children">
+   286→        <Card className="card-elevated card-hover border border-border">
+   287→          <CardContent className="p-4">
+   288→            <div className="flex items-center justify-between mb-3">
+   289→              <div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shadow-sm">
+   290→                <Flame className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+   291→              </div>
+   292→              <Badge variant="secondary" className="text-[10px] font-medium">Best</Badge>
+   293→            </div>
+   294→            <p className="text-xs text-muted-foreground font-medium mb-0.5">Best Active Streak</p>
+   295→            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{summary.bestStreak}d</p>
+   296→          </CardContent>
+   297→        </Card>
+   298→        <Card className="card-elevated card-hover border border-border">
+   299→          <CardContent className="p-4">
+   300→            <div className="flex items-center justify-between mb-3">
+   301→              <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shadow-sm">
+   302→                <Users className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+   303→              </div>
+   304→              <Badge variant="secondary" className="text-[10px] font-medium">Average</Badge>
+   305→            </div>
+   306→            <p className="text-xs text-muted-foreground font-medium mb-0.5">Avg Active Streak</p>
+   307→            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{summary.avgStreak}d</p>
+   308→          </CardContent>
+   309→        </Card>
+   310→        <Card className="card-elevated card-hover border border-border">
+   311→          <CardContent className="p-4">
+   312→            <div className="flex items-center justify-between mb-3">
+   313→              <div className="h-10 w-10 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shadow-sm">
+   314→                <Calendar className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+   315→              </div>
+   316→              <Badge variant="secondary" className="text-[10px] font-medium">All Time</Badge>
+   317→            </div>
+   318→            <p className="text-xs text-muted-foreground font-medium mb-0.5">Total Visit Days</p>
+   319→            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">{summary.totalVisitDays}</p>
+   320→          </CardContent>
+   321→        </Card>
+   322→        <Card className="card-elevated card-hover border border-border">
+   323→          <CardContent className="p-4">
+   324→            <div className="flex items-center justify-between mb-3">
+   325→              <div className="h-10 w-10 rounded-xl bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center shadow-sm">
+   326→                <MapPin className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+   327→              </div>
+   328→              <Badge variant="secondary" className="text-[10px] font-medium">Today</Badge>
+   329→            </div>
+   330→            <p className="text-xs text-muted-foreground font-medium mb-0.5">Shops Visited Today</p>
+   331→            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">
+   332→              {summary.shopsVisitedToday}
+   333→            </p>
+   334→          </CardContent>
+   335→        </Card>
+   336→        <Card className="card-elevated card-hover border border-border">
+   337→          <CardContent className="p-4">
+   338→            <div className="flex items-center justify-between mb-3">
+   339→              <div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shadow-sm">
+   340→                <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+   341→              </div>
+   342→              <Badge variant="secondary" className="text-[10px] font-medium">Today</Badge>
+   343→            </div>
+   344→            <p className="text-xs text-muted-foreground font-medium mb-0.5">OBs Active Today</p>
+   345→            <p className="text-2xl font-bold text-foreground tabular-nums number-animate">
+   346→              {summary.activeToday}/{summary.totalOBs}
+   347→            </p>
+   348→          </CardContent>
+   349→        </Card>
+   350→      </div>
+   351→
+   352→      {/* OB Streaks Table */}
+   353→      <Card className="card-elevated">
+   354→        <CardHeader className="pb-3 pt-4 px-5">
+   355→          <CardTitle className="text-base font-semibold flex items-center gap-2">
+   356→            <Flame className="h-4 w-4 text-primary" />
+   357→            Orderbooker Visit Streaks
+   358→          </CardTitle>
+   359→        </CardHeader>
+   360→        <CardContent className="p-0">
+   361→          <div className="overflow-x-auto">
+   362→            <Table>
+   363→              <TableHeader>
+   364→                <TableRow className="bg-primary hover:bg-transparent">
+   365→                  <TableHead className="text-white font-semibold text-xs w-12">#</TableHead>
+   366→                  <TableHead className="text-white font-semibold text-xs">Name</TableHead>
+   367→                  <TableHead className="text-white font-semibold text-xs text-center">Current Streak</TableHead>
+   368→                  <TableHead className="text-white font-semibold text-xs text-center hidden sm:table-cell">Longest Streak</TableHead>
+   369→                  <TableHead className="text-white font-semibold text-xs text-center hidden md:table-cell">Total Visit Days</TableHead>
+   370→                  <TableHead className="text-white font-semibold text-xs text-center hidden lg:table-cell">Last Visit</TableHead>
+   371→                </TableRow>
+   372→              </TableHeader>
+   373→              <TableBody>
+   374→                {orderbookers.length === 0 ? (
+   375→                  <TableRow>
+   376→                    <TableCell colSpan={6}>
+   377→                      <div className="text-center py-10">
+   378→                        <AlertCircle className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
+   379→                        <p className="font-medium text-muted-foreground text-sm">No orderbookers found</p>
+   380→                      </div>
+   381→                    </TableCell>
+   382→                  </TableRow>
+   383→                ) : (
+   384→                  orderbookers
+   385→                    .map(ob => ({ ob, streak: streaks[ob.id] }))
+   386→                    .sort((a, b) => (b.streak?.currentStreak || 0) - (a.streak?.currentStreak || 0))
+   387→                    .map(({ ob, streak }, idx) => (
+   388→                      <TableRow
+   389→                        key={ob.id}
+   390→                        className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} table-row-hover-effect`}
+   391→                      >
+   392→                        <TableCell className="text-sm">
+   393→                          <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
+   394→                            idx === 0 ? 'bg-amber-200 text-amber-700 dark:bg-amber-700 dark:text-amber-300'
+   395→                            : idx === 1 ? 'bg-amber-100 text-amber-600 dark:bg-amber-800 dark:text-amber-300'
+   396→                            : idx === 2 ? 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
+   397→                            : 'bg-muted text-muted-foreground'
+   398→                          }`}>
+   399→                            {idx + 1}
+   400→                          </span>
+   401→                        </TableCell>
+   402→                        <TableCell>
+   403→                          <div>
+   404→                            <p className="text-sm font-medium">{ob.name}</p>
+   405→                            <p className="text-[11px] text-muted-foreground">{ob.phone || ob.username}</p>
+   406→                          </div>
+   407→                        </TableCell>
+   408→                        <TableCell className="text-center">
+   409→                          <StreakBadge streak={streak?.currentStreak || 0} />
+   410→                        </TableCell>
+   411→                        <TableCell className="text-center hidden sm:table-cell">
+   412→                          <div className="flex items-center justify-center gap-1.5">
+   413→                            <Trophy className="h-3 w-3 text-slate-500 dark:text-slate-400" />
+   414→                            <span className="text-sm font-semibold tabular-nums">{streak?.longestStreak || 0}d</span>
+   415→                          </div>
+   416→                        </TableCell>
+   417→                        <TableCell className="text-center hidden md:table-cell">
+   418→                          <span className="text-sm tabular-nums text-muted-foreground">{streak?.totalVisitDays || 0}</span>
+   419→                        </TableCell>
+   420→                        <TableCell className="text-center hidden lg:table-cell">
+   421→                          {streak?.lastVisitDate ? (
+   422→                            <span className="text-xs text-muted-foreground">
+   423→                              {new Date(streak.lastVisitDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}
+   424→                            </span>
+   425→                          ) : (
+   426→                            <span className="text-xs text-muted-foreground italic">Never</span>
+   427→                          )}
+   428→                        </TableCell>
+   429→                      </TableRow>
+   430→                    ))
+   431→                )}
+   432→              </TableBody>
+   433→            </Table>
+   434→          </div>
+   435→        </CardContent>
+   436→      </Card>
+   437→
+   438→      {/* Recent Visits */}
+   439→      <Card className="card-elevated">
+   440→        <CardHeader className="pb-3 pt-4 px-5">
+   441→          <div className="flex items-center justify-between gap-4 flex-wrap">
+   442→            <CardTitle className="text-base font-semibold flex items-center gap-2">
+   443→              <MapPin className="h-4 w-4 text-primary" />
+   444→              Recent Shop Visits
+   445→              <Badge variant="secondary" className="text-[11px] ml-1">
+   446→                {filteredVisits.length} records
+   447→              </Badge>
+   448→            </CardTitle>
+   449→            <div className="flex items-center gap-3">
+   450→              <Select value={selectedOB} onValueChange={setSelectedOB}>
+   451→                <SelectTrigger className="w-[150px] h-9 text-sm">
+   452→                  <SelectValue placeholder="All OBs" />
+   453→                </SelectTrigger>
+   454→                <SelectContent>
+   455→                  <SelectItem value="all">All Orderbookers</SelectItem>
+   456→                  {orderbookers.map(ob => (
+   457→                    <SelectItem key={ob.id} value={ob.id}>{ob.name}</SelectItem>
+   458→                  ))}
+   459→                </SelectContent>
+   460→              </Select>
+   461→              <div className="relative w-56">
+   462→                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   463→                <Input
+   464→                  placeholder="Search visits..."
+   465→                  value={searchQuery}
+   466→                  onChange={(e) => setSearchQuery(e.target.value)}
+   467→                  className="pl-9 h-9 text-sm"
+   468→                />
+   469→              </div>
+   470→            </div>
+   471→          </div>
+   472→        </CardHeader>
+   473→        <CardContent className="p-0">
+   474→          {visitsLoading ? (
+   475→            <div className="flex items-center justify-center py-10">
+   476→              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+   477→            </div>
+   478→          ) : (
+   479→            <div className="overflow-x-auto">
+   480→              <Table>
+   481→                <TableHeader>
+   482→                  <TableRow className="bg-primary hover:bg-transparent">
+   483→                    <TableHead className="text-white font-semibold text-xs">Shop</TableHead>
+   484→                    <TableHead className="text-white font-semibold text-xs">Orderbooker</TableHead>
+   485→                    <TableHead className="text-white font-semibold text-xs text-center">Source</TableHead>
+   486→                    <TableHead className="text-white font-semibold text-xs text-right hidden sm:table-cell">Amount</TableHead>
+   487→                    <TableHead className="text-white font-semibold text-xs text-center hidden md:table-cell">GPS</TableHead>
+   488→                    <TableHead className="text-white font-semibold text-xs text-right">Time</TableHead>
+   489→                  </TableRow>
+   490→                </TableHeader>
+   491→                <TableBody>
+   492→                  {filteredVisits.length === 0 ? (
+   493→                    <TableRow>
+   494→                      <TableCell colSpan={6}>
+   495→                        <div className="text-center py-10">
+   496→                          <MapPin className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
+   497→                          <p className="font-medium text-muted-foreground text-sm">No visits recorded today</p>
+   498→                          <p className="text-xs text-muted-foreground/70 mt-1">Visits appear when orderbookers post recovery or check in at shops</p>
+   499→                        </div>
+   500→                      </TableCell>
+   501→                    </TableRow>
+   502→                  ) : (
+   503→                    filteredVisits.map((visit) => (
+   504→                      <TableRow
+   505→                        key={visit.id}
+   506→                        className="table-row-hover-effect cursor-pointer"
+   507→                        onClick={() => visit.shopName && handleShopClick(visit.shopId, visit.shopName)}
+   508→                      >
+   509→                        <TableCell>
+   510→                          <p className="text-sm font-medium hover:text-primary transition-colors">
+   511→                            {visit.shopName || 'Unknown Shop'}
+   512→                          </p>
+   513→                        </TableCell>
+   514→                        <TableCell>
+   515→                          <span className="text-sm text-muted-foreground">{visit.orderbookerName}</span>
+   516→                        </TableCell>
+   517→                        <TableCell className="text-center">
+   518→                          <div className="flex flex-col items-center gap-1">
+   519→                            {visit.source === 'gps' ? (
+   520→                              <Badge className="text-[10px] bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/50 dark:text-cyan-300 dark:border-cyan-800">
+   521→                                <MapPin className="h-3 w-3 mr-1" /> Check-in
+   522→                              </Badge>
+   523→                            ) : visit.transactionType === 'recovery' ? (
+   524→                              <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800">
+   525→                                Recovery
+   526→                              </Badge>
+   527→                            ) : (
+   528→                              <Badge className="text-[10px] bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-800">
+   529→                                Credit
+   530→                              </Badge>
+   531→                            )}
+   532→                            {visit.transactionStatus && visit.transactionStatus !== 'approved' && (
+   533→                              <Badge className={`text-[9px] ${visit.transactionStatus === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-800' : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800'}`}>
+   534→                                {visit.transactionStatus === 'pending' ? '⏳ Pending' : '✗ Rejected'}
+   535→                              </Badge>
+   536→                            )}
+   537→                          </div>
+   538→                        </TableCell>
+   539→                        <TableCell className="text-right hidden sm:table-cell">
+   540→                          {visit.amount != null ? (
+   541→                            <span className={`text-sm font-semibold tabular-nums text-foreground`}>
+   542→                              {formatPKR(visit.amount)}
+   543→                            </span>
+   544→                          ) : (
+   545→                            <span className="text-xs text-muted-foreground">—</span>
+   546→                          )}
+   547→                        </TableCell>
+   548→                        <TableCell className="text-center hidden md:table-cell">
+   549→                          {visit.inRange ? (
+   550→                            <Badge className="text-[10px] bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800">
+   551→                              <CheckCircle2 className="h-3 w-3 mr-1" /> In Range
+   552→                            </Badge>
+   553→                          ) : visit.gpsLat && visit.gpsLng ? (
+   554→                            <Badge className="text-[10px] bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800">
+   555→                              <XCircle className="h-3 w-3 mr-1" /> Out
+   556→                            </Badge>
+   557→                          ) : (
+   558→                            <span className="text-xs text-muted-foreground">—</span>
+   559→                          )}
+   560→                        </TableCell>
+   561→                        <TableCell className="text-right">
+   562→                          <div className="flex items-center justify-end gap-1.5">
+   563→                            <Clock className="h-3 w-3 text-muted-foreground" />
+   564→                            <span className="text-xs text-muted-foreground">
+   565→                              {new Date(visit.createdAt).toLocaleString('en-PK', {
+   566→                                day: 'numeric',
+   567→                                month: 'short',
+   568→                                hour: '2-digit',
+   569→                                minute: '2-digit',
+   570→                              })}
+   571→                            </span>
+   572→                          </div>
+   573→                        </TableCell>
+   574→                      </TableRow>
+   575→                    ))
+   576→                  )}
+   577→                </TableBody>
+   578→              </Table>
+   579→            </div>
+   580→          )}
+   581→        </CardContent>
+   582→      </Card>
+   583→    </div>
+   584→  );
+   585→}
+   586→

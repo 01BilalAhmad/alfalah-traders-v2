@@ -1,0 +1,1157 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: #FAFAFA;
+  --foreground: #1A1A1A;
+  --card: #FFFFFF;
+  --card-foreground: #1A1A1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
+  --primary: #4F46E5;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F5F5F5;
+  --secondary-foreground: #1A1A1A;
+  --muted: #F5F5F5;
+  --muted-foreground: #757575;
+  --accent: #F5F5F5;
+  --accent-foreground: #4F46E5;
+  --destructive: #DC2626;
+  --border: #EBEBEB;
+  --input: #D4D4D4;
+  --ring: #4F46E5;
+  --chart-1: #4F46E5;
+  --chart-2: #06B6D4;
+  --chart-3: #10B981;
+  --chart-4: #F59E0B;
+  --chart-5: #EF4444;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #1A1A1A;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F5F5F5;
+  --sidebar-accent-foreground: #1A1A1A;
+  --sidebar-border: #EBEBEB;
+  --sidebar-ring: #4F46E5;
+}
+
+.dark {
+  --background: #121212;
+  --foreground: #ECECEC;
+  --card: #1E1E1E;
+  --card-foreground: #ECECEC;
+  --popover: #1E1E1E;
+  --popover-foreground: #ECECEC;
+  --primary: #7C7CFF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #2A2A2A;
+  --secondary-foreground: #ECECEC;
+  --muted: #2A2A2A;
+  --muted-foreground: #B8B8B8;
+  --accent: #2A2A2A;
+  --accent-foreground: #9B9BFF;
+  --destructive: #EF4444;
+  --border: #2E2E2E;
+  --input: #3A3A3A;
+  --ring: #7C7CFF;
+  --chart-1: #7C7CFF;
+  --chart-2: #22D3EE;
+  --chart-3: #34D399;
+  --chart-4: #FBBF24;
+  --chart-5: #F87171;
+  --sidebar: #1A1A1A;
+  --sidebar-foreground: #E8E8E8;
+  --sidebar-primary: #7C7CFF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #2A2A2A;
+  --sidebar-accent-foreground: #E8E8E8;
+  --sidebar-border: #2E2E2E;
+  --sidebar-ring: #7C7CFF;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ====== Finexa — Clean Professional Theme (Mercury-inspired) ====== */
+
+/* Custom Scrollbar — minimal */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #D4D4D4;
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #A3A3A3;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #3A3A3A;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #525252;
+}
+
+/* Sidebar scrollbar */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #D4D4D4;
+  border-radius: 2px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #A3A3A3;
+}
+.dark .sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ====== Leaflet Dark Mode — popup & map controls ====== */
+.dark .leaflet-popup-content-wrapper {
+  background-color: #1E1E1E;
+  color: #ECECEC;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+.dark .leaflet-popup-tip {
+  background-color: #1E1E1E;
+}
+.dark .leaflet-popup-content {
+  margin: 10px 14px;
+  color: #ECECEC;
+}
+.dark .leaflet-popup-content p,
+.dark .leaflet-popup-content span,
+.dark .leaflet-popup-content div {
+  color: inherit;
+}
+.dark .leaflet-popup-close-button {
+  color: #B8B8B8 !important;
+}
+.dark .leaflet-popup-close-button:hover {
+  color: #FFFFFF !important;
+}
+.dark .leaflet-control-zoom a {
+  background-color: #1E1E1E !important;
+  color: #ECECEC !important;
+  border-color: #2E2E2E !important;
+}
+.dark .leaflet-control-zoom a:hover {
+  background-color: #2A2A2A !important;
+  color: #FFFFFF !important;
+}
+.dark .leaflet-control-attribution {
+  background-color: rgba(18, 18, 18, 0.8) !important;
+  color: #888888 !important;
+}
+.dark .leaflet-control-attribution a {
+  color: #9B9BFF !important;
+}
+
+/* ====== Badge Styles — Mercury-muted ====== */
+.badge-credit {
+  background-color: #FEF9EC;
+  color: #92600E;
+}
+.badge-recovery {
+  background-color: #EEFBF4;
+  color: #1B6B45;
+}
+.badge-active {
+  background-color: #EEFBF4;
+  color: #1B6B45;
+}
+.badge-inactive {
+  background-color: #FEF1F1;
+  color: #9B2020;
+}
+.dark .badge-credit {
+  background-color: #3B2A0A;
+  color: #FDE68A;
+}
+.dark .badge-recovery {
+  background-color: #0A3524;
+  color: #A7F3D0;
+}
+.dark .badge-active {
+  background-color: #0A3524;
+  color: #A7F3D0;
+}
+.dark .badge-inactive {
+  background-color: #3B1010;
+  color: #FECACA;
+}
+
+/* ====== Essential Animations (minimal) ====== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in {
+  animation: scaleIn 0.15s ease-out;
+}
+
+/* Shimmer loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.04) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+.dark .animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Success checkmark */
+@keyframes checkmark {
+  0% { stroke-dashoffset: 100; }
+  100% { stroke-dashoffset: 0; }
+}
+
+/* Card elevation — subtle shadow + border for dark mode readability */
+.card-elevated {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border);
+}
+.dark .card-elevated {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+}
+
+/* Pulse for live indicators */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.animate-live-pulse {
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+/* Spin slow */
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spinSlow 3s linear infinite;
+}
+
+/* ====== Toast Styling — Mercury-clean ====== */
+.toast-credit { border-left: 3px solid #D9A012; }
+.toast-recovery { border-left: 3px solid #0EA472; }
+.toast-error { border-left: 3px solid #DC3535; }
+
+/* Sonner toast — clean & minimal */
+[data-sonner-toast] {
+  border-radius: 8px !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark [data-sonner-toast] {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+}
+
+[data-type="success"] [data-sonner-toast] {
+  border-left: 3px solid #10B981;
+}
+[data-type="error"] [data-sonner-toast] {
+  border-left: 3px solid #EF4444;
+}
+[data-type="warning"] [data-sonner-toast] {
+  border-left: 3px solid #F59E0B;
+}
+[data-type="info"] [data-sonner-toast] {
+  border-left: 3px solid #4F46E5;
+}
+
+/* ====== Focus-visible ====== */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ====== Table Row Styles — Mercury-subtle ====== */
+.data-table-row-even { background-color: #FAFAFA; }
+.data-table-row-odd { background-color: #FFFFFF; }
+.dark .data-table-row-even { background-color: #1A1A1A; }
+.dark .data-table-row-odd { background-color: #121212; }
+.data-table-row-odd:hover,
+.data-table-row-even:hover {
+  background-color: #F5F5F5;
+  transition: background-color 0.1s ease;
+}
+.dark .data-table-row-odd:hover,
+.dark .data-table-row-even:hover {
+  background-color: #2A2A2A;
+}
+
+/* ====== Stat Cards — Mercury-clean border only ====== */
+.stat-card-amber { border-left: 2px solid #D9A012; }
+.stat-card-green { border-left: 2px solid #0EA472; }
+.stat-card-blue { border-left: 2px solid #4F46E5; }
+.stat-card-red { border-left: 2px solid #DC3535; }
+
+/* ====== Print Styles ====== */
+@media print {
+  /* Hide elements that should not be printed */
+  .no-print,
+  .print-hidden { display: none !important; }
+
+  /* Show elements that are only for print */
+  .print-only { display: block !important; }
+  .print-area { display: block !important; }
+
+  /* Force light mode background for clean printing */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* ─── Hide Radix UI dialog overlays, backdrops, and portal wrappers ─── */
+  [data-radix-popper-content-wrapper],
+  [data-radix-overlay],
+  [data-radix-backdrop],
+  [data-state="open"][role="dialog"]:not(:has(.receipt-content)) {
+    display: none !important;
+  }
+
+  /* Hide the Dialog overlay/viewport container but keep receipt-content visible */
+  [data-radix-dialog-overlay],
+  [data-radix-dialog-viewport] {
+    display: none !important;
+  }
+
+  /* ─── Receipt isolation: when .receipt-root-wrapper is present ─── */
+  /* Hide everything in body except the receipt root wrapper */
+  body.printing-receipt > *:not(.receipt-root-wrapper) {
+    display: none !important;
+  }
+
+  /* Make receipt content the only visible element */
+  .receipt-content {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 600px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Force all receipt text to dark on white */
+  .receipt-content,
+  .receipt-content * {
+    color: #111827 !important;
+  }
+  /* Preserve white text on branded header */
+  .receipt-content .bg-primary,
+  .receipt-content .bg-primary * {
+    color: #ffffff !important;
+  }
+  /* Muted text should be gray, not invisible */
+  .receipt-content .text-muted-foreground {
+    color: #6B7280 !important;
+  }
+  /* Keep the branded header background */
+  .receipt-content .bg-primary {
+    background-color: #4F46E5 !important;
+  }
+  .receipt-content .bg-indigo-50 {
+    background-color: #EEF2FF !important;
+  }
+  .receipt-content .border-border\/40,
+  .receipt-content .border-border\/60 {
+    border-color: #E5E7EB !important;
+  }
+  /* Card bg in receipt should be white */
+  .receipt-content .dark\:bg-card {
+    background-color: #ffffff !important;
+  }
+
+  /* ─── Fix hidden sm:table-cell columns for print ─── */
+  .hidden.sm\:table-cell {
+    display: table-cell !important;
+  }
+  .hidden.sm\:inline {
+    display: inline !important;
+  }
+  .hidden.sm\:block {
+    display: block !important;
+  }
+
+  /* ─── Force black text on common dark: variants ─── */
+  .dark\:text-indigo-400,
+  .dark\:text-emerald-400,
+  .dark\:text-amber-400,
+  .dark\:text-violet-400,
+  .dark\:text-blue-400,
+  .dark\:text-green-400,
+  .dark\:text-red-400,
+  .dark\:text-indigo-300,
+  .dark\:text-emerald-300,
+  .dark\:text-slate-100,
+  .dark\:text-slate-300,
+  .dark\:text-cyan-400,
+  .dark\:text-amber-400 {
+    color: #111827 !important;
+  }
+
+  /* Remove shadows and borders for cleaner print */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Ensure backgrounds print (for colored table headers) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Remove sticky positioning that causes layout issues */
+  .sticky {
+    position: static !important;
+  }
+
+  /* Make main content full width when sidebar is hidden */
+  main {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Remove animations */
+  .animate-fade-in,
+  .animate-gentle-float,
+  .animate-live-pulse {
+    animation: none !important;
+  }
+
+  /* Ensure tables break properly across pages */
+  table { page-break-inside: auto; }
+  tr    { page-break-inside: avoid; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+
+  /* ====== Balance Report Print Styles ====== */
+
+  /* Print Header */
+  .print-header {
+    text-align: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #4F46E5;
+  }
+  .print-header-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .print-header-logo {
+    font-size: 20px;
+    font-weight: 800;
+    color: #4F46E5;
+    letter-spacing: 0.5px;
+  }
+  .print-header-divider {
+    width: 60px;
+    height: 2px;
+    background: #4F46E5;
+    margin: 6px auto;
+  }
+  .print-header-subtitle {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+  }
+  .print-header-date {
+    font-size: 11px;
+    color: #6B7280;
+    margin-top: 2px;
+  }
+  .print-header-stats {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 10px;
+    padding: 8px 16px;
+    background: #EEF2FF;
+    border-radius: 6px;
+  }
+  .print-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+  .print-stat-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: #4F46E5;
+  }
+  .print-stat-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6B7280;
+  }
+
+  /* Day Summary Table */
+  .print-day-summary {
+    margin-bottom: 12px;
+  }
+
+  /* Print Details Container */
+  .print-details {
+    margin-top: 8px;
+  }
+
+  /* Balance Section (per orderbooker) */
+  .balance-section {
+    margin-bottom: 16px;
+    page-break-inside: avoid;
+  }
+
+  /* Orderbooker Header */
+  .ob-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    background: #4F46E5;
+    color: white;
+    border-radius: 4px 4px 0 0;
+    margin-bottom: 0;
+  }
+  .ob-name {
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .ob-phone {
+    font-size: 10px;
+    opacity: 0.85;
+  }
+
+  /* Company Section */
+  .company-section {
+    margin-bottom: 0;
+  }
+  .company-header {
+    padding: 4px 12px;
+    background: #F3F4F6;
+    border-left: 3px solid #4F46E5;
+  }
+  .company-name {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #4B5563;
+  }
+
+  /* Balance Table */
+  .balance-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  .balance-table thead th {
+    background: #F9FAFB;
+    color: #374151;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    padding: 6px 10px;
+    border-bottom: 2px solid #D1D5DB;
+    text-align: left;
+  }
+  .balance-table tbody td {
+    padding: 5px 10px;
+    border-bottom: 1px solid #E5E7EB;
+    color: #111827;
+  }
+  .balance-table tbody tr:nth-child(even) {
+    background: #F9FAFB;
+  }
+  .balance-table tbody tr:nth-child(odd) {
+    background: #FFFFFF;
+  }
+
+  /* Table Column Widths */
+  .col-num {
+    width: 30px;
+    text-align: center;
+    font-size: 10px;
+    color: #9CA3AF;
+  }
+  .col-shop {
+    min-width: 140px;
+    font-weight: 500;
+  }
+  .col-area {
+    width: 120px;
+    color: #6B7280;
+    font-size: 10px;
+  }
+  .col-phone {
+    width: 110px;
+    color: #6B7280;
+    font-size: 10px;
+  }
+  .col-balance {
+    width: 100px;
+    text-align: right;
+    font-weight: 700;
+    color: #111827;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Total Row */
+  .total-row {
+    border-top: 2px solid #D1D5DB !important;
+  }
+  .total-row td {
+    padding: 6px 10px !important;
+    background: #F3F4F6 !important;
+    font-weight: 600 !important;
+  }
+  .total-label {
+    text-align: right;
+    font-size: 11px;
+    color: #374151;
+  }
+  .total-value {
+    text-align: right;
+    font-weight: 700 !important;
+    color: #111827;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Orderbooker Total */
+  .ob-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #EEF2FF;
+    border: 1px solid #C7D2FE;
+    border-radius: 0 0 4px 4px;
+    margin-top: 0;
+  }
+  .ob-total-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #4338CA;
+  }
+  .ob-total-value {
+    font-size: 14px;
+    font-weight: 800;
+    color: #4338CA;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Grand Total Page */
+  .grand-total-page {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 3px double #4F46E5;
+    page-break-inside: avoid;
+  }
+  .grand-total-inner {
+    text-align: center;
+  }
+  .grand-total-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #4F46E5;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .grand-total-day {
+    font-size: 11px;
+    color: #6B7280;
+    margin-top: 2px;
+  }
+  .grand-total-amount {
+    font-size: 24px;
+    font-weight: 800;
+    color: #111827;
+    margin: 8px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .grand-total-breakdown {
+    display: inline-block;
+    text-align: left;
+    margin-top: 8px;
+    padding: 8px 16px;
+    background: #F9FAFB;
+    border-radius: 6px;
+    border: 1px solid #E5E7EB;
+  }
+  .grand-total-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 32px;
+    padding: 2px 0;
+    font-size: 11px;
+  }
+  .grand-total-row span:first-child {
+    color: #6B7280;
+  }
+  .grand-total-row span:last-child {
+    font-weight: 700;
+    color: #111827;
+    font-variant-numeric: tabular-nums;
+  }
+}
+.print-only { display: none; }
+.print-area { display: none; }
+
+/* ====== Selection — Mercury subtle ====== */
+::selection {
+  background-color: rgba(79, 70, 229, 0.1);
+  color: inherit;
+}
+.dark ::selection {
+  background-color: rgba(124, 124, 255, 0.15);
+}
+
+/* ====== Tag Pill ====== */
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+}
+
+/* ====== Notification Dot ====== */
+.notification-dot {
+  position: relative;
+}
+.notification-dot::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  background: #EF4444;
+  border-radius: 50%;
+  border: 2px solid var(--card);
+}
+
+@keyframes notificationPing {
+  0% { transform: scale(1); opacity: 1; }
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+.notification-dot-ping::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  background: #EF4444;
+  border-radius: 50%;
+  animation: notificationPing 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* ====== Progress Bar — animated shimmer ====== */
+.progress-bar-animated {
+  position: relative;
+  overflow: hidden;
+}
+.progress-bar-animated::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* ====== Bottom Navigation Glass Effect ====== */
+.bottom-nav-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+}
+.dark .bottom-nav-glass {
+  background: rgba(18, 18, 18, 0.85);
+  border-top: 1px solid var(--border);
+}
+
+/* ====== Card subtle hover — Mercury border-shift ====== */
+.card-hover {
+  transition: border-color 0.15s ease;
+  border: 1px solid var(--border);
+}
+.card-hover:hover {
+  border-color: #D4D4D4;
+}
+.dark .card-hover:hover {
+  border-color: #3A3A3A;
+}
+
+/* ====== Smooth page transitions ====== */
+@media (prefers-reduced-motion: no-preference) {
+  .data-table-row-odd,
+  .data-table-row-even {
+    transition: background-color 0.1s ease;
+  }
+}
+
+/* ====== Login Card — Mercury professional ====== */
+
+/* Logo wrapper */
+.login-logo-wrap {
+  display: flex;
+  justify-content: center;
+}
+.dark .login-logo-wrap {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.login-card {
+  max-width: 380px;
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 28px 32px;
+  border: 1px solid #EBEBEB;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  margin: 16px auto;
+  transition: border-color 0.15s ease;
+}
+.login-card:hover {
+  border-color: #D4D4D4;
+}
+
+/* Dark mode login card */
+.dark .login-card {
+  background: #1E1E1E;
+  border-color: #2E2E2E;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+.dark .login-card:hover {
+  border-color: #3A3A3A;
+}
+
+/* ====== Login Input — Mercury clean ====== */
+.login-input {
+  width: 100%;
+  background: #FFFFFF;
+  border: 1px solid #EBEBEB;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  color: #1A1A1A;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.login-input::placeholder {
+  color: #A3A3A3;
+}
+.login-input:focus {
+  outline: none;
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.1);
+}
+
+/* Dark mode login input */
+.dark .login-input {
+  background: #2A2A2A;
+  color: #E8E8E8;
+  border-color: #2E2E2E;
+}
+.dark .login-input::placeholder {
+  color: #666666;
+}
+.dark .login-input:focus {
+  border-color: #7C7CFF;
+  box-shadow: 0 0 0 1px rgba(124, 124, 255, 0.1);
+}
+
+/* ====== Login Button — Mercury solid flat ====== */
+.login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  font-weight: 600;
+  font-size: 14px;
+  background: #4F46E5;
+  color: white;
+  padding: 12px 0;
+  margin-top: 8px;
+  border-radius: 8px;
+  box-shadow: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.login-btn:hover:not(:disabled) {
+  background: #4338CA;
+}
+.login-btn:active:not(:disabled) {
+  background: #3730A3;
+}
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Dark mode login button */
+.dark .login-btn {
+  background: #7C7CFF;
+}
+.dark .login-btn:hover:not(:disabled) {
+  background: #6B6BEE;
+}
+.dark .login-btn:active:not(:disabled) {
+  background: #5A5ADD;
+}
+
+/* ====== Finexa Toggle — Mercury clean ====== */
+
+/* Toggle container */
+.finexa-toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+}
+
+/* Track — the background rail */
+.finexa-toggle-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #D4D4D4;
+  border-radius: 12px;
+  transition: background-color 0.2s ease;
+}
+
+.finexa-toggle-track::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  z-index: 0;
+}
+
+/* Track glow — appears when checked */
+.finexa-toggle-track-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #4F46E5;
+  opacity: 0;
+  border-radius: 12px;
+  z-index: 1;
+  transition: opacity 0.2s ease;
+}
+
+/* Track dots — hidden in Mercury style */
+.finexa-toggle-track-dots {
+  display: none;
+}
+
+.finexa-toggle-track-dot {
+  display: none;
+}
+
+/* Thumb — the sliding circle */
+.finexa-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: #FFFFFF;
+  border-radius: 50%;
+  z-index: 2;
+  transition: left 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.finexa-toggle-thumb-shadow {
+  display: none;
+}
+
+.finexa-toggle-thumb-highlight {
+  display: none;
+}
+
+/* Particles — hidden in Mercury style */
+.finexa-toggle-particles {
+  display: none;
+}
+
+.finexa-toggle-particle {
+  display: none;
+}
+
+/* ====== Checked State ====== */
+.finexa-toggle[data-state="checked"] .finexa-toggle-track-glow {
+  opacity: 1;
+}
+
+.finexa-toggle[data-state="checked"] .finexa-toggle-track::before {
+  background: transparent;
+}
+
+.finexa-toggle[data-state="checked"] .finexa-toggle-thumb {
+  left: calc(100% - 22px);
+  background: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* ====== Hover State ====== */
+.finexa-toggle:hover .finexa-toggle-track {
+  background: #BDBDBD;
+}
+
+.finexa-toggle[data-state="checked"]:hover .finexa-toggle-track-glow {
+  opacity: 0.9;
+}
+
+.finexa-toggle[data-state="checked"]:hover .finexa-toggle-thumb {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* ====== Focus State ====== */
+.finexa-toggle:focus-visible {
+  outline: none;
+}
+
+.finexa-toggle:focus-visible::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 14px;
+  border: 2px solid rgba(79, 70, 229, 0.4);
+}
+
+/* ====== Dark Mode ====== */
+.dark .finexa-toggle-track {
+  background: #3A3A3A;
+}
+
+.dark .finexa-toggle-track::before {
+  background: transparent;
+}
+
+.dark .finexa-toggle-track-glow {
+  background: #7C7CFF;
+}
+
+.dark .finexa-toggle-thumb {
+  background: #666666;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.dark .finexa-toggle[data-state="checked"] .finexa-toggle-track::before {
+  background: transparent;
+}
+
+.dark .finexa-toggle[data-state="checked"] .finexa-toggle-thumb {
+  background: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.dark .finexa-toggle:hover .finexa-toggle-track {
+  background: #4A4A4A;
+}
+
+.dark .finexa-toggle:focus-visible::after {
+  border-color: rgba(124, 124, 255, 0.4);
+}

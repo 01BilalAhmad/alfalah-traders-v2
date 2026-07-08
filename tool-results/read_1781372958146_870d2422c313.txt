@@ -1,0 +1,834 @@
+     1→// Map Screen — Shows shops on map, route polyline, current location
+     2→// Part of Finexa Smart Credit Routes app
+     3→// CRASH FIX: Lazy load MapView to prevent native crash from killing the app
+     4→import React, { Component, useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react';
+     5→import {
+     6→  View,
+     7→  Text,
+     8→  StyleSheet,
+     9→  Pressable,
+    10→  Alert,
+    11→  ActivityIndicator,
+    12→  Platform,
+    13→  Dimensions,
+    14→  ScrollView,
+    15→} from 'react-native';
+    16→import { MaterialIcons } from '@expo/vector-icons';
+    17→import { useSafeAreaInsets } from 'react-native-safe-area-context';
+    18→import { useAuth } from '@/hooks/useAuth';
+    19→import { useShops } from '@/hooks/useShops';
+    20→import { Shop } from '@/services/api';
+    21→import { StorageService } from '@/services/storage';
+    22→import { Colors, Spacing, FontSize, FontWeight, Radius, Shadow } from '@/constants/theme';
+    23→import { formatPKR } from '@/utils/format';
+    24→import { getDistanceMeters } from '@/utils/distance';
+    25→import { useRouteTracking } from '@/contexts/RouteTrackingContext';
+    26→
+    27→const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+    28→const PROXIMITY_RADIUS = 30; // 30 meters — shop proximity detection radius
+    29→const DEFAULT_LAT = 30.3753; // Pakistan center
+    30→const DEFAULT_LNG = 69.3451;
+    31→const DEFAULT_ZOOM = 0.05;
+    32→
+    33→interface GPSPoint {
+    34→  lat: number;
+    35→  lng: number;
+    36→  accuracy: number | null;
+    37→  speed: number | null;
+    38→  altitude: number | null;
+    39→  batteryLevel: number | null;
+    40→  isOffline: boolean;
+    41→  recordedAt: string;
+    42→}
+    43→
+    44→// Error Boundary class component — catches React render errors that try-catch cannot
+    45→class MapErrorBoundary extends Component<
+    46→  { children: React.ReactNode; onError: () => void },
+    47→  { hasError: boolean; error: Error | null }
+    48→> {
+    49→  state = { hasError: false, error: null as Error | null };
+    50→
+    51→  static getDerivedStateFromError(error: Error) {
+    52→    return { hasError: true, error };
+    53→  }
+    54→
+    55→  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    56→    console.error('[Map] ErrorBoundary caught:', error, info);
+    57→    // Notify parent so it can show fallback
+    58→    this.props.onError();
+    59→  }
+    60→
+    61→  render() {
+    62→    if (this.state.hasError) {
+    63→      return null; // Parent will show fallback
+    64→    }
+    65→    return this.props.children;
+    66→  }
+    67→}
+    68→
+    69→// Lazy load MapView and related components to prevent native crash from killing the whole app
+    70→let MapViewComponent: any = null;
+    71→let MarkerComponent: any = null;
+    72→let PolylineComponent: any = null;
+    73→let CircleComponent: any = null;
+    74→let PROVIDER_DEFAULT_CONST: any = null;
+    75→
+    76→async function loadMapComponents() {
+    77→  try {
+    78→    const maps = await import('react-native-maps');
+    79→    MapViewComponent = maps.default;
+    80→    MarkerComponent = maps.Marker;
+    81→    PolylineComponent = maps.Polyline;
+    82→    CircleComponent = maps.Circle;
+    83→    PROVIDER_DEFAULT_CONST = maps.PROVIDER_DEFAULT;
+    84→    return true;
+    85→  } catch (e) {
+    86→    console.error('[Map] Failed to load react-native-maps:', e);
+    87→    return false;
+    88→  }
+    89→}
+    90→
+    91→export default function MapScreen() {
+    92→  const [mapLoaded, setMapLoaded] = useState(false);
+    93→  const [mapFailed, setMapFailed] = useState(false);
+    94→
+    95→  useEffect(() => {
+    96→    loadMapComponents().then((success) => {
+    97→      if (success) {
+    98→        setMapLoaded(true);
+    99→      } else {
+   100→        setMapFailed(true);
+   101→      }
+   102→    }).catch(() => {
+   103→      setMapFailed(true);
+   104→    });
+   105→  }, []);
+   106→
+   107→  if (mapFailed) {
+   108→    return <MapFallback />;
+   109→  }
+   110→
+   111→  if (!mapLoaded) {
+   112→    return (
+   113→      <View style={styles.root}>
+   114→        <View style={styles.loadingContainer}>
+   115→          <ActivityIndicator size="large" color={Colors.primary} />
+   116→          <Text style={styles.loadingText}>Loading Map...</Text>
+   117→        </View>
+   118→      </View>
+   119→    );
+   120→  }
+   121→
+   122→  return (
+   123→    <MapErrorBoundary onError={() => setMapFailed(true)}>
+   124→      <MapScreenInner />
+   125→    </MapErrorBoundary>
+   126→  );
+   127→}
+   128→
+   129→// Fallback: Show shop list when map is not available
+   130→function MapFallback() {
+   131→  const { todayShops } = useShops();
+   132→  const { selectedCompanyId } = useAuth();
+   133→  const insets = useSafeAreaInsets();
+   134→
+   135→  return (
+   136→    <View style={[styles.root, { paddingTop: insets.top }]}>
+   137→      <View style={styles.header}>
+   138→        <View style={styles.headerLeft}>
+   139→          <MaterialIcons name="map" size={22} color={Colors.primary} />
+   140→          <Text style={styles.headerTitle}>Route Map</Text>
+   141→        </View>
+   142→      </View>
+   143→      <View style={styles.fallbackContainer}>
+   144→        <MaterialIcons name="map" size={64} color={Colors.textMuted} />
+   145→        <Text style={styles.fallbackTitle}>Map Unavailable</Text>
+   146→        <Text style={styles.fallbackDesc}>
+   147→          Google Maps load nahi ho saka. Android mein Google Maps API key configure karna zaroori hai.
+   148→          Abhi shops ki list neeche dikh rahi hai.
+   149→        </Text>
+   150→      </View>
+   151→      <ScrollView style={styles.fallbackList} contentContainerStyle={{ paddingBottom: 100 }}>
+   152→        {todayShops.map((shop) => (
+   153→          <View key={shop.id} style={styles.fallbackShopItem}>
+   154→            <View style={styles.fallbackShopIcon}>
+   155→              <MaterialIcons name="store" size={20} color={Colors.primary} />
+   156→            </View>
+   157→            <View style={styles.fallbackShopInfo}>
+   158→              <Text style={styles.fallbackShopName}>{shop.name}</Text>
+   159→              <Text style={styles.fallbackShopArea}>{shop.area}</Text>
+   160→            </View>
+   161→            <Text style={styles.fallbackShopBalance}>{formatPKR(shop.balance || 0)}</Text>
+   162→          </View>
+   163→        ))}
+   164→      </ScrollView>
+   165→    </View>
+   166→  );
+   167→}
+   168→
+   169→function MapScreenInner() {
+   170→  const insets = useSafeAreaInsets();
+   171→  const { user, selectedCompanyId } = useAuth();
+   172→  const { todayShops, isOnline } = useShops();
+   173→  const { isTracking, startTime } = useRouteTracking();
+   174→
+   175→  const mapRef = useRef<any>(null);
+   176→  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+   177→  const [routePoints, setRoutePoints] = useState<Array<{ latitude: number; longitude: number }>>([]);
+   178→  const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
+   179→  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+   180→  const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard');
+   181→  const [showVisitedOnly, setShowVisitedOnly] = useState(false);
+   182→  const [visitedShopIds, setVisitedShopIds] = useState<Set<string>>(new Set());
+   183→
+   184→  // Load current location
+   185→  useEffect(() => {
+   186→    (async () => {
+   187→      try {
+   188→        const Location = require('expo-location');
+   189→        const { status } = await Location.requestForegroundPermissionsAsync();
+   190→        if (status !== 'granted') {
+   191→          setIsLoadingLocation(false);
+   192→          return;
+   193→        }
+   194→
+   195→        const loc = await Location.getCurrentPositionAsync({
+   196→          accuracy: Location.Accuracy.High,
+   197→        });
+   198→        setCurrentLocation({
+   199→          lat: loc.coords.latitude,
+   200→          lng: loc.coords.longitude,
+   201→        });
+   202→      } catch (e) {
+   203→        console.warn('[Map] Failed to get current location:', e);
+   204→      } finally {
+   205→        setIsLoadingLocation(false);
+   206→      }
+   207→    })();
+   208→  }, []);
+   209→
+   210→  // Load GPS route points from offline storage
+   211→  useEffect(() => {
+   212→    (async () => {
+   213→      try {
+   214→        const locations: GPSPoint[] = await StorageService.getOfflineRouteLocations();
+   215→        if (locations.length > 0) {
+   216→          const points = locations
+   217→            .filter((l) => l.lat && l.lng)
+   218→            .map((l) => ({ latitude: l.lat, longitude: l.lng }));
+   219→          setRoutePoints(points);
+   220→        }
+   221→      } catch (e) {
+   222→        console.warn('[Map] Failed to load route points:', e);
+   223→      }
+   224→    })();
+   225→  }, [isTracking]);
+   226→
+   227→  // Load visited shops
+   228→  useEffect(() => {
+   229→    (async () => {
+   230→      const cached = await StorageService.getVisitedShops();
+   231→      if (cached.length > 0) setVisitedShopIds(new Set(cached));
+   232→    })();
+   233→  }, []);
+   234→
+   235→  // Center map on current location
+   236→  const centerOnUser = useCallback(() => {
+   237→    if (currentLocation && mapRef.current) {
+   238→      mapRef.current.animateToRegion({
+   239→        latitude: currentLocation.lat,
+   240→        longitude: currentLocation.lng,
+   241→        latitudeDelta: 0.01,
+   242→        longitudeDelta: 0.01,
+   243→      }, 500);
+   244→    }
+   245→  }, [currentLocation]);
+   246→
+   247→  // Fit all shops in view
+   248→  const fitAllShops = useCallback(() => {
+   249→    if (todayShops.length === 0 || !mapRef.current) return;
+   250→
+   251→    const shopsWithCoords = todayShops.filter((s) => s.lat && s.lng);
+   252→    if (shopsWithCoords.length === 0) return;
+   253→
+   254→    if (shopsWithCoords.length === 1) {
+   255→      mapRef.current.animateToRegion({
+   256→        latitude: shopsWithCoords[0].lat!,
+   257→        longitude: shopsWithCoords[0].lng!,
+   258→        latitudeDelta: 0.01,
+   259→        longitudeDelta: 0.01,
+   260→      }, 500);
+   261→      return;
+   262→    }
+   263→
+   264→    // Calculate bounding box
+   265→    const latitudes = shopsWithCoords.map((s) => s.lat!);
+   266→    const longitudes = shopsWithCoords.map((s) => s.lng!);
+   267→    const minLat = Math.min(...latitudes);
+   268→    const maxLat = Math.max(...latitudes);
+   269→    const minLng = Math.min(...longitudes);
+   270→    const maxLng = Math.max(...longitudes);
+   271→
+   272→    mapRef.current.animateToRegion({
+   273→      latitude: (minLat + maxLat) / 2,
+   274→      longitude: (minLng + maxLng) / 2,
+   275→      latitudeDelta: (maxLat - minLat) * 1.3 + 0.01,
+   276→      longitudeDelta: (maxLng - minLng) * 1.3 + 0.01,
+   277→    }, 500);
+   278→  }, [todayShops]);
+   279→
+   280→  // Shops with GPS coordinates
+   281→  const shopsWithCoords = useMemo(() => {
+   282→    const shops = showVisitedOnly
+   283→      ? todayShops.filter((s) => visitedShopIds.has(s.id))
+   284→      : todayShops;
+   285→    return shops.filter((s) => s.lat && s.lng);
+   286→  }, [todayShops, showVisitedOnly, visitedShopIds]);
+   287→
+   288→  // Initial region — always provide a valid default
+   289→  const initialRegion = useMemo(() => {
+   290→    if (currentLocation) {
+   291→      return {
+   292→        latitude: currentLocation.lat,
+   293→        longitude: currentLocation.lng,
+   294→        latitudeDelta: 0.02,
+   295→        longitudeDelta: 0.02,
+   296→      };
+   297→    }
+   298→    if (shopsWithCoords.length > 0) {
+   299→      const latitudes = shopsWithCoords.map((s) => s.lat!);
+   300→      const longitudes = shopsWithCoords.map((s) => s.lng!);
+   301→      return {
+   302→        latitude: (Math.min(...latitudes) + Math.max(...latitudes)) / 2,
+   303→        longitude: (Math.min(...longitudes) + Math.max(...longitudes)) / 2,
+   304→        latitudeDelta: 0.05,
+   305→        longitudeDelta: 0.05,
+   306→      };
+   307→    }
+   308→    return {
+   309→      latitude: DEFAULT_LAT,
+   310→      longitude: DEFAULT_LNG,
+   311→      latitudeDelta: 0.5,
+   312→      longitudeDelta: 0.5,
+   313→    };
+   314→  }, [currentLocation, shopsWithCoords]);
+   315→
+   316→  // Get distance from current location to shop
+   317→  const getDistanceToShop = useCallback((shop: Shop): string | null => {
+   318→    if (!currentLocation || !shop.lat || !shop.lng) return null;
+   319→    const meters = getDistanceMeters(currentLocation.lat, currentLocation.lng, shop.lat, shop.lng);
+   320→    if (meters < 1000) return `${Math.round(meters)}m`;
+   321→    return `${(meters / 1000).toFixed(1)}km`;
+   322→  }, [currentLocation]);
+   323→
+   324→  // Get shop balance for display
+   325→  const getShopBalance = useCallback((shop: Shop): number => {
+   326→    try {
+   327→      if (shop.companyBalances && shop.companyBalances.length > 0 && selectedCompanyId) {
+   328→        const companyBal = shop.companyBalances.find((cb) => cb.companyId === selectedCompanyId);
+   329→        if (companyBal) return companyBal.balance;
+   330→      }
+   331→      return shop.balance || 0;
+   332→    } catch {
+   333→      return shop.balance || 0;
+   334→    }
+   335→  }, [selectedCompanyId]);
+   336→
+   337→  // Stats
+   338→  const totalShops = todayShops.length;
+   339→  const shopsOnMap = shopsWithCoords.length;
+   340→  const visitedCount = visitedShopIds.size;
+   341→
+   342→  // Ensure MapViewComponent is available
+   343→  if (!MapViewComponent) {
+   344→    return <MapFallback />;
+   345→  }
+   346→
+   347→  return (
+   348→    <View style={[styles.root, { paddingTop: insets.top }]}>
+   349→      {/* Map Header */}
+   350→      <View style={styles.header}>
+   351→        <View style={styles.headerLeft}>
+   352→          <MaterialIcons name="map" size={22} color={Colors.primary} />
+   353→          <Text style={styles.headerTitle}>Route Map</Text>
+   354→        </View>
+   355→        <View style={styles.headerRight}>
+   356→          <Pressable
+   357→            style={[styles.headerBtn, showVisitedOnly && styles.headerBtnActive]}
+   358→            onPress={() => setShowVisitedOnly((v) => !v)}
+   359→          >
+   360→            <MaterialIcons
+   361→              name={showVisitedOnly ? 'visibility' : 'visibility-off'}
+   362→              size={18}
+   363→              color={showVisitedOnly ? Colors.primary : Colors.textSecondary}
+   364→            />
+   365→          </Pressable>
+   366→          <Pressable
+   367→            style={styles.headerBtn}
+   368→            onPress={() => setMapType((t) => t === 'standard' ? 'satellite' : 'standard')}
+   369→          >
+   370→            <MaterialIcons name="layers" size={18} color={Colors.textSecondary} />
+   371→          </Pressable>
+   372→        </View>
+   373→      </View>
+   374→
+   375→      {/* Route Status Bar */}
+   376→      {isTracking && (
+   377→        <View style={styles.routeStatusBar}>
+   378→          <View style={styles.routeStatusDot} />
+   379→          <Text style={styles.routeStatusText}>
+   380→            Route Active — {routePoints.length} GPS points
+   381→          </Text>
+   382→          <Text style={styles.routeStatusTime}>
+   383→            Since {startTime ? new Date(startTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Karachi' }) : '--:--'}
+   384→          </Text>
+   385→        </View>
+   386→      )}
+   387→
+   388→      {/* Map View — dynamically loaded */}
+   389→      <MapViewComponent
+   390→        ref={mapRef}
+   391→        style={styles.map}
+   392→        provider={PROVIDER_DEFAULT_CONST}
+   393→        initialRegion={initialRegion}
+   394→        mapType={mapType}
+   395→        showsUserLocation={true}
+   396→        showsMyLocationButton={false}
+   397→        showsCompass={true}
+   398→        showsScale={true}
+   399→        loadingEnabled={true}
+   400→        loadingBackgroundColor={Colors.background}
+   401→        loadingIndicatorColor={Colors.primary}
+   402→      >
+   403→        {/* Shop Markers */}
+   404→        {shopsWithCoords.map((shop) => {
+   405→          const isVisited = visitedShopIds.has(shop.id);
+   406→          const distance = getDistanceToShop(shop);
+   407→          const balance = getShopBalance(shop);
+   408→
+   409→          return (
+   410→            <React.Fragment key={shop.id}>
+   411→              {/* 30m Proximity Circle */}
+   412→              {CircleComponent && (
+   413→                <CircleComponent
+   414→                  center={{ latitude: shop.lat!, longitude: shop.lng! }}
+   415→                  radius={PROXIMITY_RADIUS}
+   416→                  strokeColor={isVisited ? '#10B981' : '#6366F180'}
+   417→                  fillColor={isVisited ? '#10B98115' : '#6366F108'}
+   418→                  strokeWidth={1}
+   419→                />
+   420→              )}
+   421→              {/* Shop Marker */}
+   422→              {MarkerComponent && (
+   423→                <MarkerComponent
+   424→                  coordinate={{ latitude: shop.lat!, longitude: shop.lng! }}
+   425→                  onPress={() => setSelectedShop(shop)}
+   426→                  pinColor={isVisited ? '#10B981' : '#6366F1'}
+   427→                  title={shop.name}
+   428→                  description={`${shop.area} • ${formatPKR(balance)}`}
+   429→                />
+   430→              )}
+   431→            </React.Fragment>
+   432→          );
+   433→        })}
+   434→
+   435→        {/* Route Polyline (GPS waypoints) */}
+   436→        {routePoints.length > 1 && PolylineComponent && (
+   437→          <PolylineComponent
+   438→            coordinates={routePoints}
+   439→            strokeColor="#4F46E5"
+   440→            strokeWidth={4}
+   441→            lineCap="round"
+   442→            lineJoin="round"
+   443→            fillColor="#4F46E520"
+   444→          />
+   445→        )}
+   446→
+   447→        {/* Current Location Marker (custom blue dot) — shown if no native blue dot */}
+   448→        {currentLocation && !isTracking && CircleComponent && (
+   449→          <CircleComponent
+   450→            center={{ latitude: currentLocation.lat, longitude: currentLocation.lng }}
+   451→            radius={5}
+   452→            strokeColor="#3B82F6"
+   453→            fillColor="#3B82F6"
+   454→          />
+   455→        )}
+   456→      </MapViewComponent>
+   457→
+   458→      {/* Floating Action Buttons */}
+   459→      <View style={[styles.fabContainer, { bottom: insets.bottom + 90 }]}>
+   460→        <Pressable style={styles.fabBtn} onPress={centerOnUser}>
+   461→          <MaterialIcons name="my-location" size={22} color={Colors.primary} />
+   462→        </Pressable>
+   463→        <Pressable style={styles.fabBtn} onPress={fitAllShops}>
+   464→          <MaterialIcons name="zoom-out-map" size={22} color={Colors.primary} />
+   465→        </Pressable>
+   466→      </View>
+   467→
+   468→      {/* Map Stats Overlay */}
+   469→      <View style={[styles.statsOverlay, { bottom: insets.bottom + 90 }]}>
+   470→        <View style={styles.statsRow}>
+   471→          <View style={styles.statChip}>
+   472→            <MaterialIcons name="store" size={14} color={Colors.primary} />
+   473→            <Text style={styles.statText}>{shopsOnMap}/{totalShops}</Text>
+   474→          </View>
+   475→          <View style={[styles.statChip, { backgroundColor: '#ECFDF5' }]}>
+   476→            <MaterialIcons name="check-circle" size={14} color="#10B981" />
+   477→            <Text style={[styles.statText, { color: '#065F46' }]}>{visitedCount} visited</Text>
+   478→          </View>
+   479→          {routePoints.length > 0 && (
+   480→            <View style={[styles.statChip, { backgroundColor: '#EEF2FF' }]}>
+   481→              <MaterialIcons name="route" size={14} color="#4F46E5" />
+   482→              <Text style={[styles.statText, { color: '#3730A3' }]}>{routePoints.length} pts</Text>
+   483→            </View>
+   484→          )}
+   485→        </View>
+   486→      </View>
+   487→
+   488→      {/* Selected Shop Info Card */}
+   489→      {selectedShop && (
+   490→        <View style={[styles.shopCard, { bottom: insets.bottom + 140 }]}>
+   491→          <Pressable style={styles.shopCardClose} onPress={() => setSelectedShop(null)}>
+   492→            <MaterialIcons name="close" size={18} color={Colors.textSecondary} />
+   493→          </Pressable>
+   494→          <View style={styles.shopCardHeader}>
+   495→            <View style={[styles.shopPin, { backgroundColor: visitedShopIds.has(selectedShop.id) ? '#10B981' : '#6366F1' }]}>
+   496→              <MaterialIcons name="store" size={16} color="#FFFFFF" />
+   497→            </View>
+   498→            <View style={styles.shopCardInfo}>
+   499→              <Text style={styles.shopCardName} numberOfLines={1}>{selectedShop.name}</Text>
+   500→              <Text style={styles.shopCardArea} numberOfLines={1}>{selectedShop.area}</Text>
+   501→            </View>
+   502→          </View>
+   503→          <View style={styles.shopCardDetails}>
+   504→            <View style={styles.shopDetailRow}>
+   505→              <MaterialIcons name="account-balance-wallet" size={16} color={Colors.primary} />
+   506→              <Text style={styles.shopDetailText}>Balance: {formatPKR(getShopBalance(selectedShop))}</Text>
+   507→            </View>
+   508→            {selectedShop.ownerName ? (
+   509→              <View style={styles.shopDetailRow}>
+   510→                <MaterialIcons name="person" size={16} color={Colors.textSecondary} />
+   511→                <Text style={styles.shopDetailText}>{selectedShop.ownerName}</Text>
+   512→              </View>
+   513→            ) : null}
+   514→            {getDistanceToShop(selectedShop) && (
+   515→              <View style={styles.shopDetailRow}>
+   516→                <MaterialIcons name="straighten" size={16} color={Colors.textSecondary} />
+   517→                <Text style={styles.shopDetailText}>{getDistanceToShop(selectedShop)} away</Text>
+   518→              </View>
+   519→            )}
+   520→            {selectedShop.phone ? (
+   521→              <View style={styles.shopDetailRow}>
+   522→                <MaterialIcons name="phone" size={16} color={Colors.textSecondary} />
+   523→                <Text style={styles.shopDetailText}>{selectedShop.phone}</Text>
+   524→              </View>
+   525→            ) : null}
+   526→          </View>
+   527→          <View style={styles.shopCardBadge}>
+   528→            <View style={[styles.badgeDot, { backgroundColor: visitedShopIds.has(selectedShop.id) ? '#10B981' : '#9CA3AF' }]} />
+   529→            <Text style={[styles.badgeText, { color: visitedShopIds.has(selectedShop.id) ? '#065F46' : '#6B7280' }]}>
+   530→              {visitedShopIds.has(selectedShop.id) ? 'Visited' : 'Not Visited'}
+   531→            </Text>
+   532→          </View>
+   533→        </View>
+   534→      )}
+   535→
+   536→      {/* No Shops Warning */}
+   537→      {shopsOnMap === 0 && !isLoadingLocation && (
+   538→        <View style={styles.noDataOverlay}>
+   539→          <MaterialIcons name="location-off" size={48} color={Colors.textMuted} />
+   540→          <Text style={styles.noDataTitle}>No Shop Locations</Text>
+   541→          <Text style={styles.noDataDesc}>
+   542→            {totalShops === 0
+   543→              ? 'No shops loaded. Download data first.'
+   544→              : `${totalShops} shops found but none have GPS coordinates set.`}
+   545→          </Text>
+   546→        </View>
+   547→      )}
+   548→    </View>
+   549→  );
+   550→}
+   551→
+   552→const styles = StyleSheet.create({
+   553→  root: {
+   554→    flex: 1,
+   555→    backgroundColor: Colors.background,
+   556→  },
+   557→  loadingContainer: {
+   558→    flex: 1,
+   559→    justifyContent: 'center',
+   560→    alignItems: 'center',
+   561→    gap: Spacing.md,
+   562→  },
+   563→  loadingText: {
+   564→    fontSize: FontSize.base,
+   565→    color: Colors.textSecondary,
+   566→  },
+   567→  fallbackContainer: {
+   568→    alignItems: 'center',
+   569→    paddingVertical: Spacing.xl,
+   570→    paddingHorizontal: Spacing.lg,
+   571→  },
+   572→  fallbackTitle: {
+   573→    fontSize: FontSize.xl,
+   574→    fontWeight: FontWeight.bold,
+   575→    color: Colors.text,
+   576→    marginTop: Spacing.md,
+   577→  },
+   578→  fallbackDesc: {
+   579→    fontSize: FontSize.sm,
+   580→    color: Colors.textSecondary,
+   581→    textAlign: 'center',
+   582→    marginTop: Spacing.xs,
+   583→    lineHeight: 20,
+   584→  },
+   585→  fallbackList: {
+   586→    flex: 1,
+   587→    paddingHorizontal: Spacing.md,
+   588→  },
+   589→  fallbackShopItem: {
+   590→    flexDirection: 'row',
+   591→    alignItems: 'center',
+   592→    backgroundColor: Colors.surface,
+   593→    borderRadius: 12,
+   594→    padding: Spacing.md,
+   595→    marginBottom: Spacing.sm,
+   596→    borderWidth: 1,
+   597→    borderColor: Colors.borderLight,
+   598→  },
+   599→  fallbackShopIcon: {
+   600→    width: 36,
+   601→    height: 36,
+   602→    borderRadius: 10,
+   603→    backgroundColor: '#EEF2FF',
+   604→    alignItems: 'center',
+   605→    justifyContent: 'center',
+   606→    marginRight: Spacing.md,
+   607→  },
+   608→  fallbackShopInfo: {
+   609→    flex: 1,
+   610→  },
+   611→  fallbackShopName: {
+   612→    fontSize: FontSize.base,
+   613→    fontWeight: FontWeight.bold,
+   614→    color: Colors.text,
+   615→  },
+   616→  fallbackShopArea: {
+   617→    fontSize: FontSize.xs,
+   618→    color: Colors.textSecondary,
+   619→  },
+   620→  fallbackShopBalance: {
+   621→    fontSize: FontSize.sm,
+   622→    fontWeight: FontWeight.bold,
+   623→    color: Colors.primary,
+   624→  },
+   625→  header: {
+   626→    flexDirection: 'row',
+   627→    alignItems: 'center',
+   628→    justifyContent: 'space-between',
+   629→    paddingHorizontal: Spacing.md,
+   630→    paddingVertical: Spacing.sm,
+   631→    backgroundColor: Colors.surface,
+   632→    borderBottomWidth: 1,
+   633→    borderBottomColor: Colors.borderLight,
+   634→  },
+   635→  headerLeft: {
+   636→    flexDirection: 'row',
+   637→    alignItems: 'center',
+   638→    gap: Spacing.sm,
+   639→  },
+   640→  headerTitle: {
+   641→    fontSize: FontSize.lg,
+   642→    fontWeight: FontWeight.bold,
+   643→    color: Colors.text,
+   644→  },
+   645→  headerRight: {
+   646→    flexDirection: 'row',
+   647→    alignItems: 'center',
+   648→    gap: Spacing.xs,
+   649→  },
+   650→  headerBtn: {
+   651→    width: 36,
+   652→    height: 36,
+   653→    borderRadius: 18,
+   654→    backgroundColor: Colors.background,
+   655→    alignItems: 'center',
+   656→    justifyContent: 'center',
+   657→    borderWidth: 1,
+   658→    borderColor: Colors.borderLight,
+   659→  },
+   660→  headerBtnActive: {
+   661→    backgroundColor: '#EEF2FF',
+   662→    borderColor: Colors.primary,
+   663→  },
+   664→  routeStatusBar: {
+   665→    flexDirection: 'row',
+   666→    alignItems: 'center',
+   667→    gap: Spacing.sm,
+   668→    paddingHorizontal: Spacing.md,
+   669→    paddingVertical: Spacing.xs,
+   670→    backgroundColor: '#ECFDF5',
+   671→    borderBottomWidth: 1,
+   672→    borderBottomColor: '#A7F3D0',
+   673→  },
+   674→  routeStatusDot: {
+   675→    width: 8,
+   676→    height: 8,
+   677→    borderRadius: 4,
+   678→    backgroundColor: '#10B981',
+   679→  },
+   680→  routeStatusText: {
+   681→    fontSize: FontSize.xs,
+   682→    fontWeight: FontWeight.semibold,
+   683→    color: '#065F46',
+   684→    flex: 1,
+   685→  },
+   686→  routeStatusTime: {
+   687→    fontSize: FontSize.xs,
+   688→    color: '#047857',
+   689→  },
+   690→  map: {
+   691→    flex: 1,
+   692→  },
+   693→  fabContainer: {
+   694→    position: 'absolute',
+   695→    right: Spacing.md,
+   696→    gap: Spacing.sm,
+   697→  },
+   698→  fabBtn: {
+   699→    width: 44,
+   700→    height: 44,
+   701→    borderRadius: 22,
+   702→    backgroundColor: Colors.surface,
+   703→    alignItems: 'center',
+   704→    justifyContent: 'center',
+   705→    ...Shadow.md,
+   706→    borderWidth: 1,
+   707→    borderColor: Colors.borderLight,
+   708→  },
+   709→  statsOverlay: {
+   710→    position: 'absolute',
+   711→    left: Spacing.md,
+   712→  },
+   713→  statsRow: {
+   714→    flexDirection: 'row',
+   715→    gap: Spacing.xs,
+   716→    flexWrap: 'wrap',
+   717→  },
+   718→  statChip: {
+   719→    flexDirection: 'row',
+   720→    alignItems: 'center',
+   721→    gap: 4,
+   722→    backgroundColor: '#F8FAFC',
+   723→    paddingHorizontal: 10,
+   724→    paddingVertical: 6,
+   725→    borderRadius: 20,
+   726→    borderWidth: 1,
+   727→    borderColor: Colors.borderLight,
+   728→    ...Shadow.sm,
+   729→  },
+   730→  statText: {
+   731→    fontSize: 11,
+   732→    fontWeight: FontWeight.semibold,
+   733→    color: Colors.text,
+   734→  },
+   735→  shopCard: {
+   736→    position: 'absolute',
+   737→    left: Spacing.md,
+   738→    right: Spacing.md,
+   739→    backgroundColor: Colors.surface,
+   740→    borderRadius: 16,
+   741→    padding: Spacing.md,
+   742→    ...Shadow.xl,
+   743→    borderWidth: 1,
+   744→    borderColor: Colors.borderLight,
+   745→  },
+   746→  shopCardClose: {
+   747→    position: 'absolute',
+   748→    top: 8,
+   749→    right: 8,
+   750→    width: 28,
+   751→    height: 28,
+   752→    borderRadius: 14,
+   753→    backgroundColor: Colors.background,
+   754→    alignItems: 'center',
+   755→    justifyContent: 'center',
+   756→  },
+   757→  shopCardHeader: {
+   758→    flexDirection: 'row',
+   759→    alignItems: 'center',
+   760→    gap: Spacing.sm,
+   761→    marginBottom: Spacing.sm,
+   762→  },
+   763→  shopPin: {
+   764→    width: 36,
+   765→    height: 36,
+   766→    borderRadius: 10,
+   767→    alignItems: 'center',
+   768→    justifyContent: 'center',
+   769→  },
+   770→  shopCardInfo: {
+   771→    flex: 1,
+   772→  },
+   773→  shopCardName: {
+   774→    fontSize: FontSize.base,
+   775→    fontWeight: FontWeight.bold,
+   776→    color: Colors.text,
+   777→  },
+   778→  shopCardArea: {
+   779→    fontSize: FontSize.xs,
+   780→    color: Colors.textSecondary,
+   781→  },
+   782→  shopCardDetails: {
+   783→    gap: 4,
+   784→    marginBottom: Spacing.sm,
+   785→  },
+   786→  shopDetailRow: {
+   787→    flexDirection: 'row',
+   788→    alignItems: 'center',
+   789→    gap: Spacing.sm,
+   790→  },
+   791→  shopDetailText: {
+   792→    fontSize: FontSize.sm,
+   793→    color: Colors.text,
+   794→  },
+   795→  shopCardBadge: {
+   796→    flexDirection: 'row',
+   797→    alignItems: 'center',
+   798→    gap: 6,
+   799→  },
+   800→  badgeDot: {
+   801→    width: 8,
+   802→    height: 8,
+   803→    borderRadius: 4,
+   804→  },
+   805→  badgeText: {
+   806→    fontSize: FontSize.xs,
+   807→    fontWeight: FontWeight.semibold,
+   808→  },
+   809→  noDataOverlay: {
+   810→    position: 'absolute',
+   811→    top: '40%',
+   812→    left: Spacing.xl,
+   813→    right: Spacing.xl,
+   814→    alignItems: 'center',
+   815→    backgroundColor: 'rgba(255,255,255,0.95)',
+   816→    borderRadius: 20,
+   817→    padding: Spacing.xl,
+   818→    ...Shadow.lg,
+   819→  },
+   820→  noDataTitle: {
+   821→    fontSize: FontSize.lg,
+   822→    fontWeight: FontWeight.bold,
+   823→    color: Colors.text,
+   824→    marginTop: Spacing.md,
+   825→  },
+   826→  noDataDesc: {
+   827→    fontSize: FontSize.sm,
+   828→    color: Colors.textSecondary,
+   829→    textAlign: 'center',
+   830→    marginTop: Spacing.xs,
+   831→    lineHeight: 20,
+   832→  },
+   833→});
+   834→

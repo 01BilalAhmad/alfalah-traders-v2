@@ -1,0 +1,710 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useCallback, useMemo } from 'react';
+     4→import dynamic from 'next/dynamic';
+     5→import { apiFetch } from '@/lib/api';
+     6→import { getLocalDateString } from '@/lib/utils';
+     7→import { Card, CardContent } from '@/components/ui/card';
+     8→import { Button } from '@/components/ui/button';
+     9→import { Badge } from '@/components/ui/badge';
+    10→import { Skeleton } from '@/components/ui/skeleton';
+    11→import { ScrollArea } from '@/components/ui/scroll-area';
+    12→import { Separator } from '@/components/ui/separator';
+    13→import {
+    14→  Select,
+    15→  SelectContent,
+    16→  SelectItem,
+    17→  SelectTrigger,
+    18→  SelectValue,
+    19→} from '@/components/ui/select';
+    20→import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+    21→import { Calendar } from '@/components/ui/calendar';
+    22→import {
+    23→  Radio,
+    24→  MapPin,
+    25→  Clock,
+    26→  Route,
+    27→  Store,
+    28→  Navigation,
+    29→  Loader2,
+    30→  CalendarDays,
+    31→  ChevronDown,
+    32→  Timer,
+    33→  Footprints,
+    34→  Users,
+    35→  Play,
+    36→  Store as StoreIcon,
+    37→} from 'lucide-react';
+    38→import { toast } from '@/hooks/use-toast';
+    39→
+    40→// Dynamically import RouteTrackerMap to avoid SSR issues with Leaflet
+    41→const RouteTrackerMap = dynamic(() => import('./RouteTrackerMap'), {
+    42→  ssr: false,
+    43→  loading: () => (
+    44→    <div className="w-full h-full flex items-center justify-center bg-muted/30 rounded-xl">
+    45→      <div className="text-center">
+    46→        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+    47→        <p className="text-sm text-muted-foreground">Loading map...</p>
+    48→      </div>
+    49→    </div>
+    50→  ),
+    51→});
+    52→
+    53→// ── Types ──────────────────────────────────────────────────────────────────
+    54→interface ShopVisit {
+    55→  id: string;
+    56→  sessionId: string;
+    57→  shopId: string | null;
+    58→  shopName: string | null;
+    59→  orderbookerId: string;
+    60→  enterLat: number | null;
+    61→  enterLng: number | null;
+    62→  exitLat: number | null;
+    63→  exitLng: number | null;
+    64→  enterTime: string;
+    65→  exitTime: string | null;
+    66→  timeSpent: number | null;
+    67→  distanceToShop: number | null;
+    68→  isAutoDetected: boolean;
+    69→}
+    70→
+    71→interface SessionData {
+    72→  session: {
+    73→    id: string;
+    74→    orderbookerId: string;
+    75→    startTime: string;
+    76→    endTime: string | null;
+    77→    startLat: number | null;
+    78→    startLng: number | null;
+    79→    startAddress: string | null;
+    80→    endLat: number | null;
+    81→    endLng: number | null;
+    82→    endAddress: string | null;
+    83→    totalDistance: number;
+    84→    totalDuration: number | null;
+    85→    status: string;
+    86→    autoEndReason: string | null;
+    87→  };
+    88→  latestLocation?: { lat: number; lng: number; accuracy: number | null; recordedAt: string } | null;
+    89→  shopVisits: ShopVisit[];
+    90→  orderbooker: { id: string; name: string; phone?: string };
+    91→  locations?: Array<{
+    92→    id: string;
+    93→    sessionId: string;
+    94→    lat: number;
+    95→    lng: number;
+    96→    accuracy: number | null;
+    97→    speed: number | null;
+    98→    recordedAt: string;
+    99→  }>;
+   100→}
+   101→
+   102→interface Orderbooker {
+   103→  id: string;
+   104→  name: string;
+   105→  status: string;
+   106→}
+   107→
+   108→// ── OB Colors ──────────────────────────────────────────────────────────────
+   109→const OB_COLORS = ['#4F46E5', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
+   110→
+   111→function getOBColor(index: number): string {
+   112→  return OB_COLORS[index % OB_COLORS.length];
+   113→}
+   114→
+   115→// ── Time/Duration Formatting ───────────────────────────────────────────────
+   116→function formatTime(isoString: string): string {
+   117→  try {
+   118→    return new Date(isoString).toLocaleTimeString('en-PK', {
+   119→      timeZone: 'Asia/Karachi',
+   120→      hour: '2-digit',
+   121→      minute: '2-digit',
+   122→      hour12: true,
+   123→    });
+   124→  } catch {
+   125→    return '--:--';
+   126→  }
+   127→}
+   128→
+   129→function formatDuration(seconds: number | null): string {
+   130→  if (!seconds) return '--';
+   131→  const h = Math.floor(seconds / 3600);
+   132→  const m = Math.floor((seconds % 3600) / 60);
+   133→  if (h > 0) return `${h}h ${m}m`;
+   134→  return `${m}m`;
+   135→}
+   136→
+   137→function formatMinutes(seconds: number | null): string {
+   138→  if (!seconds) return '--';
+   139→  const m = Math.round(seconds / 60);
+   140→  if (m < 1) return '<1m';
+   141→  return `${m}m`;
+   142→}
+   143→
+   144→function calcDuration(startTime: string, endTime?: string | null): number {
+   145→  const start = new Date(startTime).getTime();
+   146→  const end = endTime ? new Date(endTime).getTime() : Date.now();
+   147→  return Math.max(0, Math.round((end - start) / 1000));
+   148→}
+   149→
+   150→// ── Loading Skeleton ───────────────────────────────────────────────────────
+   151→function RouteTrackerSkeleton() {
+   152→  return (
+   153→    <div className="space-y-4">
+   154→      <div className="flex items-center gap-2">
+   155→        <Skeleton className="h-7 w-48" />
+   156→      </div>
+   157→      <div className="flex gap-3">
+   158→        <Skeleton className="h-9 w-40" />
+   159→        <Skeleton className="h-9 w-48" />
+   160→      </div>
+   161→      <div className="flex gap-4">
+   162→        <Skeleton className="flex-1 h-[500px] rounded-xl" />
+   163→        <Skeleton className="w-80 h-[500px] rounded-xl hidden lg:block" />
+   164→      </div>
+   165→    </div>
+   166→  );
+   167→}
+   168→
+   169→// ── Main Component ─────────────────────────────────────────────────────────
+   170→export default function AdminRouteTracker() {
+   171→  const today = useMemo(() => getLocalDateString(), []);
+   172→
+   173→  // Data state
+   174→  const [sessions, setSessions] = useState<SessionData[]>([]);
+   175→  const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
+   176→  const [loading, setLoading] = useState(true);
+   177→  const [error, setError] = useState<string | null>(null);
+   178→
+   179→  // Filter state
+   180→  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+   181→  const [selectedOB, setSelectedOB] = useState<string>('__all__');
+   182→  const [calendarOpen, setCalendarOpen] = useState(false);
+   183→
+   184→  // Leaflet CSS injection
+   185→  const [leafletCssLoaded, setLeafletCssLoaded] = useState(false);
+   186→
+   187→  // Computed: is the selected date today?
+   188→  const isToday = useMemo(() => {
+   189→    const dateStr = selectedDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+   190→    return dateStr === today;
+   191→  }, [selectedDate, today]);
+   192→
+   193→  const selectedDateStr = useMemo(() => {
+   194→    return selectedDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+   195→  }, [selectedDate]);
+   196→
+   197→  // Inject Leaflet CSS
+   198→  useEffect(() => {
+   199→    const link = document.createElement('link');
+   200→    link.rel = 'stylesheet';
+   201→    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+   202→    link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+   203→    link.crossOrigin = '';
+   204→    if (!document.querySelector('link[href*="leaflet"]')) {
+   205→      document.head.appendChild(link);
+   206→    }
+   207→    setLeafletCssLoaded(true);
+   208→
+   209→    return () => {
+   210→      const existing = document.querySelector('link[href*="leaflet"]');
+   211→      if (existing) existing.remove();
+   212→    };
+   213→  }, []);
+   214→
+   215→  // Fetch orderbookers
+   216→  useEffect(() => {
+   217→    async function fetchOBs() {
+   218→      try {
+   219→        const res = await apiFetch('/api/orderbookers');
+   220→        if (res.ok) {
+   221→          const data = await res.json();
+   222→          setOrderbookers(
+   223→            Array.isArray(data)
+   224→              ? data.filter((o: Orderbooker) => o.status === 'active')
+   225→              : []
+   226→          );
+   227→        }
+   228→      } catch {
+   229→        // silent
+   230→      }
+   231→    }
+   232→    fetchOBs();
+   233→  }, []);
+   234→
+   235→  // Fetch route data
+   236→  const fetchRouteData = useCallback(async () => {
+   237→    setError(null);
+   238→    try {
+   239→      const obParam = selectedOB !== '__all__' ? `&orderbookerId=${selectedOB}` : '';
+   240→
+   241→      if (isToday) {
+   242→        // Live mode
+   243→        const res = await apiFetch(`/api/route-sessions/live?${obParam.slice(1)}`);
+   244→        if (!res.ok) throw new Error('Failed to fetch live data');
+   245→        const data = await res.json();
+   246→        setSessions(data.sessions || []);
+   247→      } else {
+   248→        // Historical mode
+   249→        const res = await apiFetch(`/api/route-sessions/history?date=${selectedDateStr}${obParam}`);
+   250→        if (!res.ok) throw new Error('Failed to fetch historical data');
+   251→        const data = await res.json();
+   252→        setSessions(data.sessions || []);
+   253→      }
+   254→    } catch (err) {
+   255→      const msg = err instanceof Error ? err.message : 'Failed to fetch route data';
+   256→      setError(msg);
+   257→      toast({ title: 'Error', description: msg, variant: 'destructive' });
+   258→    } finally {
+   259→      setLoading(false);
+   260→    }
+   261→  }, [isToday, selectedDateStr, selectedOB]);
+   262→
+   263→  // Initial fetch
+   264→  useEffect(() => {
+   265→    setLoading(true);
+   266→    fetchRouteData();
+   267→  }, [fetchRouteData]);
+   268→
+   269→  // Live polling every 5 seconds when viewing today
+   270→  useEffect(() => {
+   271→    if (!isToday) return;
+   272→
+   273→    const interval = setInterval(() => {
+   274→      fetchRouteData();
+   275→    }, 5000);
+   276→
+   277→    return () => clearInterval(interval);
+   278→  }, [isToday, fetchRouteData]);
+   279→
+   280→  // ── Computed Data ──────────────────────────────────────────────────────────
+   281→
+   282→  const filteredSessions = useMemo(() => {
+   283→    if (selectedOB === '__all__') return sessions;
+   284→    return sessions.filter((s) => s.orderbooker.id === selectedOB);
+   285→  }, [sessions, selectedOB]);
+   286→
+   287→  // Active OB IDs from sessions
+   288→  const activeOBIds = useMemo(() => new Set(sessions.map((s) => s.orderbooker.id)), [sessions]);
+   289→
+   290→  // Aggregate stats
+   291→  const stats = useMemo(() => {
+   292→    const totalOBsActive = filteredSessions.length;
+   293→    const totalDistance = filteredSessions.reduce((sum, s) => sum + (s.session.totalDistance || 0), 0);
+   294→    const totalShopsVisited = filteredSessions.reduce((sum, s) => sum + s.shopVisits.length, 0);
+   295→
+   296→    return { totalOBsActive, totalDistance, totalShopsVisited };
+   297→  }, [filteredSessions]);
+   298→
+   299→  // Selected session for timeline detail
+   300→  const selectedSession = useMemo(() => {
+   301→    if (selectedOB !== '__all__' && filteredSessions.length > 0) {
+   302→      return filteredSessions[0];
+   303→    }
+   304→    return filteredSessions.length > 0 ? filteredSessions[0] : null;
+   305→  }, [filteredSessions, selectedOB]);
+   306→
+   307→  // Timeline events for selected session
+   308→  const timelineEvents = useMemo(() => {
+   309→    if (!selectedSession) return [];
+   310→
+   311→    const events: Array<{
+   312→      type: 'start' | 'shop' | 'end';
+   313→      time: string;
+   314→      label: string;
+   315→      detail?: string;
+   316→      duration?: number;
+   317→      isAutoDetected?: boolean;
+   318→    }> = [];
+   319→
+   320→    // Start event
+   321→    events.push({
+   322→      type: 'start',
+   323→      time: selectedSession.session.startTime,
+   324→      label: 'Route Started',
+   325→      detail: selectedSession.session.startAddress || undefined,
+   326→    });
+   327→
+   328→    // Shop visits
+   329→    for (const visit of selectedSession.shopVisits) {
+   330→      events.push({
+   331→        type: 'shop',
+   332→        time: visit.enterTime,
+   333→        label: visit.shopName || 'Unknown Shop',
+   334→        duration: visit.timeSpent ?? undefined,
+   335→        isAutoDetected: visit.isAutoDetected,
+   336→      });
+   337→    }
+   338→
+   339→    // End event
+   340→    if (selectedSession.session.endTime) {
+   341→      events.push({
+   342→        type: 'end',
+   343→        time: selectedSession.session.endTime,
+   344→        label: 'Route Ended',
+   345→        detail: selectedSession.session.endAddress || undefined,
+   346→      });
+   347→    }
+   348→
+   349→    return events;
+   350→  }, [selectedSession]);
+   351→
+   352→  // ── Render ────────────────────────────────────────────────────────────────
+   353→
+   354→  if (loading && sessions.length === 0) return <RouteTrackerSkeleton />;
+   355→
+   356→  return (
+   357→    <div className="space-y-4">
+   358→      {/* Page Header */}
+   359→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+   360→        <div>
+   361→          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+   362→            <Radio className="h-5 w-5 text-primary" />
+   363→            Live Route Tracker
+   364→          </h2>
+   365→          <p className="text-sm text-muted-foreground mt-0.5">
+   366→            Track orderbooker routes in real-time and review historical data
+   367→          </p>
+   368→        </div>
+   369→
+   370→        {/* Controls */}
+   371→        <div className="flex items-center gap-2 flex-wrap">
+   372→          {/* Live indicator */}
+   373→          {isToday && (
+   374→            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[10px] font-bold flex items-center gap-1.5">
+   375→              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-live-pulse" />
+   376→              LIVE
+   377→            </Badge>
+   378→          )}
+   379→          {!isToday && (
+   380→            <Badge variant="secondary" className="text-[10px] font-bold">
+   381→              HISTORICAL
+   382→            </Badge>
+   383→          )}
+   384→
+   385→          {/* Date Picker */}
+   386→          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+   387→            <PopoverTrigger asChild>
+   388→              <Button variant="outline" size="sm" className="h-9 gap-2 text-xs font-medium">
+   389→                <CalendarDays className="h-3.5 w-3.5" />
+   390→                {selectedDate.toLocaleDateString('en-PK', {
+   391→                  timeZone: 'Asia/Karachi',
+   392→                  day: '2-digit',
+   393→                  month: 'short',
+   394→                  year: 'numeric',
+   395→                })}
+   396→                <ChevronDown className="h-3 w-3 opacity-50" />
+   397→              </Button>
+   398→            </PopoverTrigger>
+   399→            <PopoverContent className="w-auto p-0" align="end">
+   400→              <Calendar
+   401→                mode="single"
+   402→                selected={selectedDate}
+   403→                onSelect={(date) => {
+   404→                  if (date) {
+   405→                    setSelectedDate(date);
+   406→                    setCalendarOpen(false);
+   407→                  }
+   408→                }}
+   409→                disabled={(date) => date > new Date()}
+   410→                initialFocus
+   411→              />
+   412→            </PopoverContent>
+   413→          </Popover>
+   414→
+   415→          {/* OB Selector */}
+   416→          <Select value={selectedOB} onValueChange={setSelectedOB}>
+   417→            <SelectTrigger className="w-48 h-9 text-xs">
+   418→              <SelectValue placeholder="All Orderbookers" />
+   419→            </SelectTrigger>
+   420→            <SelectContent>
+   421→              <SelectItem value="__all__">All Orderbookers</SelectItem>
+   422→              {orderbookers.map((ob) => (
+   423→                <SelectItem key={ob.id} value={ob.id}>
+   424→                  <div className="flex items-center gap-2">
+   425→                    <div
+   426→                      className={`h-2 w-2 rounded-full ${
+   427→                        activeOBIds.has(ob.id) ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+   428→                      }`}
+   429→                    />
+   430→                    {ob.name}
+   431→                  </div>
+   432→                </SelectItem>
+   433→              ))}
+   434→            </SelectContent>
+   435→          </Select>
+   436→        </div>
+   437→      </div>
+   438→
+   439→      {/* Main Content: Map + Sidebar */}
+   440→      <div className="flex flex-col lg:flex-row gap-4">
+   441→        {/* Map Area */}
+   442→        <Card className="flex-1 card-elevated overflow-hidden">
+   443→          <CardContent className="p-0">
+   444→            <div className="h-[500px] lg:h-[600px] relative">
+   445→              {leafletCssLoaded ? (
+   446→                <RouteTrackerMap
+   447→                  sessions={filteredSessions}
+   448→                  selectedOB={selectedOB === '__all__' ? null : selectedOB}
+   449→                  isLive={isToday}
+   450→                />
+   451→              ) : (
+   452→                <div className="w-full h-full flex items-center justify-center bg-muted/30">
+   453→                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+   454→                </div>
+   455→              )}
+   456→            </div>
+   457→          </CardContent>
+   458→        </Card>
+   459→
+   460→        {/* Timeline Sidebar */}
+   461→        <div className="w-full lg:w-80 shrink-0 space-y-4">
+   462→          {/* Route Info Card */}
+   463→          {selectedSession && (
+   464→            <Card className="card-elevated">
+   465→              <CardContent className="p-4">
+   466→                <div className="flex items-center gap-2 mb-3">
+   467→                  <div
+   468→                    className="h-3 w-3 rounded-full"
+   469→                    style={{
+   470→                      backgroundColor: getOBColor(
+   471→                        filteredSessions.findIndex((s) => s.session.id === selectedSession.session.id)
+   472→                      ),
+   473→                    }}
+   474→                  />
+   475→                  <span className="font-semibold text-sm text-foreground">
+   476→                    {selectedSession.orderbooker.name}
+   477→                  </span>
+   478→                  {isToday && selectedSession.session.status === 'active' && (
+   479→                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[9px] font-bold px-1.5 h-4">
+   480→                      Active
+   481→                    </Badge>
+   482→                  )}
+   483→                </div>
+   484→
+   485→                <div className="grid grid-cols-2 gap-3">
+   486→                  <div className="space-y-0.5">
+   487→                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Started</p>
+   488→                    <p className="text-xs font-semibold text-foreground flex items-center gap-1">
+   489→                      <Clock className="h-3 w-3 text-muted-foreground" />
+   490→                      {formatTime(selectedSession.session.startTime)}
+   491→                    </p>
+   492→                  </div>
+   493→                  <div className="space-y-0.5">
+   494→                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Duration</p>
+   495→                    <p className="text-xs font-semibold text-foreground flex items-center gap-1">
+   496→                      <Timer className="h-3 w-3 text-muted-foreground" />
+   497→                      {formatDuration(
+   498→                        selectedSession.session.totalDuration ||
+   499→                          calcDuration(selectedSession.session.startTime, selectedSession.session.endTime)
+   500→                      )}
+   501→                    </p>
+   502→                  </div>
+   503→                  <div className="space-y-0.5">
+   504→                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Distance</p>
+   505→                    <p className="text-xs font-semibold text-foreground flex items-center gap-1">
+   506→                      <Footprints className="h-3 w-3 text-muted-foreground" />
+   507→                      {(selectedSession.session.totalDistance / 1000).toFixed(1)} km
+   508→                    </p>
+   509→                  </div>
+   510→                  <div className="space-y-0.5">
+   511→                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Shops</p>
+   512→                    <p className="text-xs font-semibold text-foreground flex items-center gap-1">
+   513→                      <Store className="h-3 w-3 text-muted-foreground" />
+   514→                      {selectedSession.shopVisits.length} visited
+   515→                    </p>
+   516→                  </div>
+   517→                </div>
+   518→
+   519→                {selectedSession.session.startAddress && (
+   520→                  <div className="mt-2 pt-2 border-t border-border">
+   521→                    <p className="text-[10px] text-muted-foreground">
+   522→                      Start: {selectedSession.session.startAddress}
+   523→                    </p>
+   524→                  </div>
+   525→                )}
+   526→              </CardContent>
+   527→            </Card>
+   528→          )}
+   529→
+   530→          {/* Timeline Card */}
+   531→          <Card className="card-elevated">
+   532→            <CardContent className="p-4">
+   533→              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+   534→                <Route className="h-4 w-4 text-primary" />
+   535→                Timeline
+   536→              </h3>
+   537→
+   538→              {timelineEvents.length === 0 ? (
+   539→                <div className="text-center py-6">
+   540→                  <Route className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+   541→                  <p className="text-xs text-muted-foreground">No route events to display</p>
+   542→                </div>
+   543→              ) : (
+   544→                <ScrollArea className="max-h-72">
+   545→                  <div className="space-y-0">
+   546→                    {timelineEvents.map((event, idx) => (
+   547→                      <div key={idx} className="flex gap-3 pb-3 last:pb-0">
+   548→                        {/* Timeline line + dot */}
+   549→                        <div className="flex flex-col items-center shrink-0">
+   550→                          <div
+   551→                            className={`h-5 w-5 rounded-full flex items-center justify-center ${
+   552→                              event.type === 'start'
+   553→                                ? 'bg-emerald-100 dark:bg-emerald-900/40'
+   554→                                : event.type === 'shop'
+   555→                                ? 'bg-blue-100 dark:bg-blue-900/40'
+   556→                                : 'bg-red-100 dark:bg-red-900/40'
+   557→                            }`}
+   558→                          >
+   559→                            {event.type === 'start' ? (
+   560→                              <Play className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400" />
+   561→                            ) : event.type === 'shop' ? (
+   562→                              <StoreIcon className="h-2.5 w-2.5 text-blue-600 dark:text-blue-400" />
+   563→                            ) : (
+   564→                              <div className="h-2 w-2 rounded-full bg-red-500" />
+   565→                            )}
+   566→                          </div>
+   567→                          {idx < timelineEvents.length - 1 && (
+   568→                            <div className="w-px flex-1 bg-border min-h-[8px]" />
+   569→                          )}
+   570→                        </div>
+   571→
+   572→                        {/* Event content */}
+   573→                        <div className="flex-1 min-w-0 pt-0.5">
+   574→                          <div className="flex items-center gap-1.5">
+   575→                            <span className="text-[11px] font-semibold text-foreground truncate">
+   576→                              {event.label}
+   577→                            </span>
+   578→                            {event.isAutoDetected && (
+   579→                              <span className="text-[8px] px-1 py-0 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 font-bold shrink-0">
+   580→                                AUTO
+   581→                              </span>
+   582→                            )}
+   583→                          </div>
+   584→                          <p className="text-[10px] text-muted-foreground">
+   585→                            {formatTime(event.time)}
+   586→                            {event.duration != null && (
+   587→                              <span className="ml-1.5 text-foreground/70">
+   588→                                ({formatMinutes(event.duration)})
+   589→                              </span>
+   590→                            )}
+   591→                          </p>
+   592→                          {event.detail && (
+   593→                            <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+   594→                              {event.detail}
+   595→                            </p>
+   596→                          )}
+   597→                        </div>
+   598→                      </div>
+   599→                    ))}
+   600→                  </div>
+   601→                </ScrollArea>
+   602→              )}
+   603→            </CardContent>
+   604→          </Card>
+   605→
+   606→          {/* Orderbookers List Card */}
+   607→          <Card className="card-elevated">
+   608→            <CardContent className="p-4">
+   609→              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+   610→                <Users className="h-4 w-4 text-primary" />
+   611→                Orderbookers
+   612→              </h3>
+   613→              <ScrollArea className="max-h-48">
+   614→                <div className="space-y-1.5">
+   615→                  {orderbookers.length === 0 ? (
+   616→                    <p className="text-xs text-muted-foreground text-center py-3">
+   617→                      No orderbookers found
+   618→                    </p>
+   619→                  ) : (
+   620→                    orderbookers.map((ob, idx) => {
+   621→                      const isActive = activeOBIds.has(ob.id);
+   622→                      const obSession = sessions.find((s) => s.orderbooker.id === ob.id);
+   623→                      const isSelected = selectedOB === ob.id;
+   624→
+   625→                      return (
+   626→                        <button
+   627→                          key={ob.id}
+   628→                          onClick={() => setSelectedOB(isSelected ? '__all__' : ob.id)}
+   629→                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${
+   630→                            isSelected
+   631→                              ? 'bg-primary/10 border border-primary/20'
+   632→                              : 'hover:bg-muted/50 border border-transparent'
+   633→                          }`}
+   634→                        >
+   635→                          <div
+   636→                            className="h-2.5 w-2.5 rounded-full shrink-0"
+   637→                            style={{
+   638→                              backgroundColor: isActive
+   639→                                ? getOBColor(sessions.findIndex((s) => s.orderbooker.id === ob.id))
+   640→                                : '#9CA3AF',
+   641→                            }}
+   642→                          />
+   643→                          <div className="flex-1 min-w-0">
+   644→                            <p className="text-xs font-medium text-foreground truncate">{ob.name}</p>
+   645→                            {obSession && (
+   646→                              <p className="text-[10px] text-muted-foreground">
+   647→                                {obSession.shopVisits.length} shops &bull;{' '}
+   648→                                {(obSession.session.totalDistance / 1000).toFixed(1)} km
+   649→                              </p>
+   650→                            )}
+   651→                          </div>
+   652→                          <div className="flex items-center gap-1 shrink-0">
+   653→                            {isActive ? (
+   654→                              <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+   655→                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-live-pulse" />
+   656→                                Active
+   657→                              </span>
+   658→                            ) : (
+   659→                              <span className="text-[9px] text-muted-foreground">No route</span>
+   660→                            )}
+   661→                          </div>
+   662→                        </button>
+   663→                      );
+   664→                    })
+   665→                  )}
+   666→                </div>
+   667→              </ScrollArea>
+   668→            </CardContent>
+   669→          </Card>
+   670→        </div>
+   671→      </div>
+   672→
+   673→      {/* Stats Bar */}
+   674→      <Card className="card-elevated">
+   675→        <CardContent className="p-4">
+   676→          <div className="grid grid-cols-3 gap-4">
+   677→            <div className="flex items-center gap-3">
+   678→              <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center shrink-0">
+   679→                <Navigation className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+   680→              </div>
+   681→              <div>
+   682→                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">OBs Active</p>
+   683→                <p className="text-lg font-bold text-foreground">{stats.totalOBsActive}</p>
+   684→              </div>
+   685→            </div>
+   686→            <div className="flex items-center gap-3">
+   687→              <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center shrink-0">
+   688→                <Footprints className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+   689→              </div>
+   690→              <div>
+   691→                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Total Distance</p>
+   692→                <p className="text-lg font-bold text-foreground">{(stats.totalDistance / 1000).toFixed(1)} km</p>
+   693→              </div>
+   694→            </div>
+   695→            <div className="flex items-center gap-3">
+   696→              <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center shrink-0">
+   697→                <Store className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+   698→              </div>
+   699→              <div>
+   700→                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Shops Visited</p>
+   701→                <p className="text-lg font-bold text-foreground">{stats.totalShopsVisited}</p>
+   702→              </div>
+   703→            </div>
+   704→          </div>
+   705→        </CardContent>
+   706→      </Card>
+   707→    </div>
+   708→  );
+   709→}
+   710→

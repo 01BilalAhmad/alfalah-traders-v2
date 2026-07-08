@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/keep-alive",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/auto-end-routes",
+      "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/auto-backup?token=finexa-backup-2026",
+      "schedule": "0 22 * * 0"
+    }
+  ]
+}
