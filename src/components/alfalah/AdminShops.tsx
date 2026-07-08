@@ -1113,10 +1113,10 @@ export default function AdminShops() {
                             {shop.ownerName && (
                               <p className="text-[11px] text-muted-foreground truncate">{shop.ownerName}</p>
                             )}
-                            {shop.area && (
+                            {(shop.address || shop.area) && (
                               <div className="flex items-center gap-0.5 mt-0.5">
                                 <MapPin className="h-2.5 w-2.5 text-muted-foreground/60" />
-                                <span className="text-[10px] text-muted-foreground/80 truncate">{shop.area}</span>
+                                <span className="text-[10px] text-muted-foreground/80 truncate">{shop.address || shop.area}</span>
                               </div>
                             )}
                           </div>
@@ -1588,9 +1588,9 @@ export default function AdminShops() {
                     {detailShop?.name || 'Shop Details'}
                   </DialogTitle>
                   <DialogDescription className="text-cyan-200 text-xs mt-1">
-                    {detailShop?.area && (
+                    {(detailShop?.address || detailShop?.area) && (
                       <span className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" /> {detailShop.area}
+                        <MapPin className="h-3 w-3" /> {detailShop.address || detailShop.area}
                       </span>
                     )}
                   </DialogDescription>
