@@ -172,8 +172,36 @@ export default function AdminCreditRecoveryAnalysis() {
       let obChartImg: string | null = null;
       try {
         const html2canvas = (await import('html2canvas')).default;
-        if (lineChartRef.current) { await new Promise(r => setTimeout(r, 300)); const canvas = await html2canvas(lineChartRef.current, { scale: 2, backgroundColor: '#FFFFFF', logging: false, useCORS: true }); lineChartImg = canvas.toDataURL('image/png'); }
-        if (obChartRef.current && data.obBreakdown.length > 0) { await new Promise(r => setTimeout(r, 200)); const canvas2 = await html2canvas(obChartRef.current, { scale: 2, backgroundColor: '#FFFFFF', logging: false, useCORS: true }); obChartImg = canvas2.toDataURL('image/png'); }
+        
+        // Helper function to capture chart with retries
+        const captureChart = async (ref: React.RefObject<HTMLDivElement>, retries = 3): Promise<string | null> => {
+          for (let i = 0; i < retries; i++) {
+            try {
+              if (!ref.current) return null;
+              // Wait for chart to render
+              await new Promise(r => setTimeout(r, 500 + i * 200));
+              const canvas = await html2canvas(ref.current, {
+                scale: 2,
+                backgroundColor: '#FFFFFF',
+                logging: false,
+                useCORS: true,
+                allowTaint: true,
+                foreignObjectRendering: false,
+              });
+              if (canvas && canvas.width > 0 && canvas.height > 0) {
+                return canvas.toDataURL('image/png');
+              }
+            } catch (e) {
+              console.warn(`Chart capture attempt ${i + 1} failed:`, e);
+            }
+          }
+          return null;
+        };
+
+        lineChartImg = await captureChart(lineChartRef);
+        if (data.obBreakdown.length > 0) {
+          obChartImg = await captureChart(obChartRef);
+        }
       } catch (chartErr) { console.warn('Chart capture failed:', chartErr); }
 
       const doc = new jsPDF('p', 'mm', 'a4');
@@ -401,7 +429,7 @@ export default function AdminCreditRecoveryAnalysis() {
               <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" />{viewMode === 'cumulative' ? 'Cumulative Trend' : 'Daily Trend'} — Credit vs Recovery</CardTitle>
             </CardHeader>
             <CardContent>
-              <div ref={lineChartRef} className="h-80 bg-white dark:bg-slate-900 p-2 rounded-lg">
+              <div ref={lineChartRef} className="h-80 bg-white p-2 rounded-lg" style={{ backgroundColor: '#FFFFFF' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
@@ -421,7 +449,7 @@ export default function AdminCreditRecoveryAnalysis() {
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4 text-primary" />Orderbooker-wise Breakdown</CardTitle></CardHeader>
               <CardContent>
-                <div ref={obChartRef} className="h-64 bg-white dark:bg-slate-900 p-2 rounded-lg">
+                <div ref={obChartRef} className="h-64 bg-white p-2 rounded-lg" style={{ backgroundColor: '#FFFFFF' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.obBreakdown.map((ob) => ({ name: ob.orderbookerName, Credit: ob.totalCredit, Recovery: ob.totalRecovery }))} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
