@@ -109,6 +109,8 @@ const adminNavSections: NavSection[] = [
       { id: 'admin-shops', label: 'Manage Shops', icon: <Store className="h-4 w-4" /> },
       { id: 'admin-orderbookers', label: 'Manage Orderbookers', icon: <Users className="h-4 w-4" /> },
       { id: 'admin-companies', label: 'Manage Companies', icon: <Building2 className="h-4 w-4" /> },
+      { id: 'admin-daily-targets', label: 'Recovery Targets', icon: <Target className="h-4 w-4" /> },
+      { id: 'admin-credit-targets', label: 'Credit Targets', icon: <TrendingDown className="h-4 w-4" /> },
     ],
   },
   {
@@ -116,20 +118,24 @@ const adminNavSections: NavSection[] = [
     label: 'Reports',
     icon: <ClipboardList className="h-4 w-4" />,
     items: [
+      // Daily use reports (top)
       { id: 'admin-ob-recovery-report', label: 'OB Recovery Report', icon: <FileText className="h-4 w-4" /> },
+      { id: 'admin-credit-recovery-analysis', label: 'Credit vs Recovery Analysis', icon: <BarChart3 className="h-4 w-4" /> },
+      { id: 'admin-overdue-shops', label: 'Overdue Shops', icon: <AlertTriangle className="h-4 w-4" /> },
+      // Financial reports
       { id: 'admin-monthly-summary', label: 'Monthly Summary', icon: <CalendarDays className="h-4 w-4" /> },
-      { id: 'admin-ob-analytics', label: 'OB Analytics', icon: <BarChart3 className="h-4 w-4" /> },
       { id: 'admin-balance-report', label: 'Balance Report', icon: <Banknote className="h-4 w-4" /> },
       { id: 'admin-company-report', label: 'Company Report', icon: <FileSpreadsheet className="h-4 w-4" /> },
-      { id: 'admin-activity', label: 'Activity', icon: <Activity className="h-4 w-4" /> },
-      { id: 'admin-sms-tracking', label: 'SMS Tracking', icon: <MessageSquare className="h-4 w-4" /> },
       { id: 'admin-aging-report', label: 'Aging Report', icon: <Clock className="h-4 w-4" /> },
-      { id: 'admin-area-distribution', label: 'Area Distribution', icon: <MapPin className="h-4 w-4" /> },
       { id: 'admin-shop-ratio', label: 'Credit Recovery Ratio', icon: <PieChart className="h-4 w-4" /> },
-      { id: 'admin-daily-targets', label: 'Recovery Targets', icon: <Target className="h-4 w-4" /> },
-      { id: 'admin-credit-targets', label: 'Credit Targets', icon: <TrendingDown className="h-4 w-4" /> },
-      { id: 'admin-overdue-shops', label: 'Overdue Shops', icon: <AlertTriangle className="h-4 w-4" /> },
-      { id: 'admin-export-data', label: 'Export & Reports', icon: <FileDown className="h-4 w-4" /> },
+      // Performance & analytics
+      { id: 'admin-ob-analytics', label: 'OB Analytics', icon: <BarChart3 className="h-4 w-4" /> },
+      { id: 'admin-area-distribution', label: 'Area Distribution', icon: <MapPin className="h-4 w-4" /> },
+      // Monitoring & logs
+      { id: 'admin-activity', label: 'Activity Log', icon: <Activity className="h-4 w-4" /> },
+      { id: 'admin-sms-tracking', label: 'SMS Tracking', icon: <MessageSquare className="h-4 w-4" /> },
+      // Export
+      { id: 'admin-export-data', label: 'Export & Backup', icon: <FileDown className="h-4 w-4" /> },
     ],
   },
   {
