@@ -178,6 +178,9 @@ export default function AdminCreditRecoveryAnalysis() {
           for (let i = 0; i < retries; i++) {
             try {
               if (!ref.current) return null;
+              // Temporarily set white background for PDF capture
+              const originalBg = ref.current.style.backgroundColor;
+              ref.current.style.backgroundColor = '#FFFFFF';
               // Wait for chart to render
               await new Promise(r => setTimeout(r, 500 + i * 200));
               const canvas = await html2canvas(ref.current, {
@@ -188,11 +191,15 @@ export default function AdminCreditRecoveryAnalysis() {
                 allowTaint: true,
                 foreignObjectRendering: false,
               });
+              // Restore original background
+              ref.current.style.backgroundColor = originalBg;
               if (canvas && canvas.width > 0 && canvas.height > 0) {
                 return canvas.toDataURL('image/png');
               }
             } catch (e) {
               console.warn(`Chart capture attempt ${i + 1} failed:`, e);
+              // Restore background even on error
+              if (ref.current) ref.current.style.backgroundColor = '';
             }
           }
           return null;
@@ -429,7 +436,7 @@ export default function AdminCreditRecoveryAnalysis() {
               <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" />{viewMode === 'cumulative' ? 'Cumulative Trend' : 'Daily Trend'} — Credit vs Recovery</CardTitle>
             </CardHeader>
             <CardContent>
-              <div ref={lineChartRef} className="h-80 bg-white p-2 rounded-lg" style={{ backgroundColor: '#FFFFFF' }}>
+              <div ref={lineChartRef} className="h-80 bg-white dark:bg-slate-900 p-2 rounded-lg">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
@@ -449,7 +456,7 @@ export default function AdminCreditRecoveryAnalysis() {
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4 text-primary" />Orderbooker-wise Breakdown</CardTitle></CardHeader>
               <CardContent>
-                <div ref={obChartRef} className="h-64 bg-white p-2 rounded-lg" style={{ backgroundColor: '#FFFFFF' }}>
+                <div ref={obChartRef} className="h-64 bg-white dark:bg-slate-900 p-2 rounded-lg">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.obBreakdown.map((ob) => ({ name: ob.orderbookerName, Credit: ob.totalCredit, Recovery: ob.totalRecovery }))} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
