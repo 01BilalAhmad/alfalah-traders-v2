@@ -68,20 +68,20 @@ function PendingRecoveryBanner({ onNavigate }: { onNavigate: (path: string) => v
   return (
     <button
       onClick={() => onNavigate('/approve-recovery')}
-      className="w-full rounded-lg border border-amber-200 bg-amber-50/50 p-4 flex items-center justify-between hover:bg-amber-50 hover:border-amber-300 transition-all group cursor-pointer animate-fade-in"
+      className="w-full rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 p-4 flex items-center justify-between hover:bg-amber-50 dark:hover:bg-amber-950/30 hover:border-amber-300 dark:hover:border-amber-800 transition-all group cursor-pointer animate-fade-in"
     >
       <div className="flex items-center gap-3">
         <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
         <div className="text-left">
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-semibold text-slate-900 dark:text-white">
             {pendingCount} Pending Recover{pendingCount === 1 ? 'y' : 'ies'}
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Total: {formatPKR(pendingAmount)} — Click to review &amp; approve
           </p>
         </div>
       </div>
-      <ChevronRight className="h-4 w-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
+      <ChevronRight className="h-4 w-4 text-slate-400 dark:text-slate-500 group-hover:translate-x-1 transition-transform" />
     </button>
   );
 }
@@ -118,10 +118,10 @@ function OverdueShopsAlert({ onNavigate }: { onNavigate: (path: string) => void 
 
   if (loading) {
     return (
-      <div className="bg-white border border-slate-200 rounded-lg p-4 animate-fade-in">
+      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-4 animate-fade-in">
         <div className="flex items-center gap-3">
           <Loader2 className="h-4 w-4 animate-spin text-red-500" />
-          <span className="text-sm text-slate-500">Checking overdue shops...</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400">Checking overdue shops...</span>
         </div>
       </div>
     );
@@ -133,32 +133,32 @@ function OverdueShopsAlert({ onNavigate }: { onNavigate: (path: string) => void 
   const criticalCount = overdueShops.filter(s => s.daysSinceCredit >= 30).length;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200">
+    <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 dark:border-[#2E2E2E]">
         <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
-        <span className="text-sm font-semibold text-slate-900">
+        <span className="text-sm font-semibold text-slate-900 dark:text-white">
           {overdueShops.length} shop{overdueShops.length === 1 ? '' : 's'} with credit 14+ days old and no recovery
         </span>
         {criticalCount > 0 && (
-          <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full border bg-red-50 text-red-700 border-red-200">
+          <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full border bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900">
             {criticalCount} Critical · 30+ days
           </span>
         )}
       </div>
-      <div className="px-4 py-3 divide-y divide-slate-100">
+      <div className="px-4 py-3 divide-y divide-slate-100 dark:divide-slate-800">
         {top5.map((shop) => (
           <div key={shop.id} className="flex items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0">
             <div className="flex items-center gap-2.5 min-w-0">
               <span className={`h-2 w-2 rounded-full shrink-0 ${shop.daysSinceCredit >= 30 ? 'bg-red-500' : 'bg-amber-500'}`} />
               <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-900 truncate">{shop.name}</p>
-                <p className="text-[10px] text-slate-500">{shop.area || 'No area'} · {formatPKR(shop.balance)} balance</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{shop.name}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">{shop.area || 'No area'} · {formatPKR(shop.balance)} balance</p>
               </div>
             </div>
             <span className={`text-[10px] font-bold shrink-0 px-1.5 py-0.5 rounded-full border ${
               shop.daysSinceCredit >= 30
-                ? 'bg-red-50 text-red-700 border-red-200'
-                : 'bg-slate-50 text-slate-600 border-slate-200'
+                ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900'
+                : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
             }`}>
               {shop.daysSinceCredit}d
             </span>
@@ -166,9 +166,9 @@ function OverdueShopsAlert({ onNavigate }: { onNavigate: (path: string) => void 
         ))}
       </div>
       {overdueShops.length > 5 && (
-        <div className="border-t border-slate-200 px-4 py-2.5">
+        <div className="border-t border-slate-200 dark:border-[#2E2E2E] px-4 py-2.5">
           <button
-            className="flex items-center gap-1.5 text-xs font-medium text-[#2563EB] hover:text-[#1E40AF] transition-colors"
+            className="flex items-center gap-1.5 text-xs font-medium text-[#2563EB] dark:text-blue-400 hover:text-[#1E40AF] dark:hover:text-blue-300 transition-colors"
             onClick={() => onNavigate('/shops')}
           >
             View All {overdueShops.length} Overdue Shops
@@ -370,7 +370,7 @@ function DashboardSkeleton() {
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white border border-slate-200 rounded-lg p-5">
+          <div key={i} className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-5">
             <div className="flex items-center gap-2 mb-3">
               <Skeleton className="skeleton-shimmer h-2 w-2 rounded-full" />
               <Skeleton className="skeleton-shimmer h-3 w-24" />
@@ -381,11 +381,11 @@ function DashboardSkeleton() {
         ))}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-200">
+        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
             <Skeleton className="skeleton-shimmer h-5 w-36" />
           </div>
-          <div className="px-5 py-3 space-y-3 divide-y divide-slate-100">
+          <div className="px-5 py-3 space-y-3 divide-y divide-slate-100 dark:divide-slate-800">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center justify-between pt-3 first:pt-0">
                 <div className="flex items-center gap-3">
@@ -397,8 +397,8 @@ function DashboardSkeleton() {
             ))}
           </div>
         </div>
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-200">
+        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
             <Skeleton className="skeleton-shimmer h-5 w-36" />
           </div>
           <div className="px-5 py-3 space-y-3">
@@ -658,10 +658,10 @@ export default function AdminDashboard() {
       {/* Welcome Header — minimal */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 tracking-tight">
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
             Welcome back, {user?.name?.split(' ')[0] || 'Admin'}
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             {' · '}
             {data.totalShops} shops across {data.orderbookers.length} orderbookers
@@ -669,22 +669,22 @@ export default function AdminDashboard() {
         </div>
         <div className="hidden sm:flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          <span className="text-xs text-slate-500 font-medium">Live · updated every 60s</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Live · updated every 60s</span>
         </div>
       </div>
 
       {/* KPI Cards — Clean Minimal */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Today's Credit */}
-        <div className="bg-white border border-slate-200 rounded-lg p-5 hover:border-slate-300 transition-colors">
+        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
           <div className="flex items-center gap-2 mb-3">
             <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
-            <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wider">Today&apos;s Credit</span>
+            <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Today&apos;s Credit</span>
           </div>
-          <p className="text-[28px] font-bold text-slate-900 tabular-nums leading-none number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
-          <p className="text-[11px] text-slate-500 mt-2">
+          <p className="text-[28px] font-bold text-slate-900 dark:text-white tabular-nums leading-none number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
             {creditChangePct !== null ? (
-              <span className={creditChangePct >= 0 ? 'text-emerald-600 font-medium' : 'text-red-600 font-medium'}>
+              <span className={creditChangePct >= 0 ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-red-600 dark:text-red-400 font-medium'}>
                 {creditChangePct >= 0 ? '+' : ''}{creditChangePct}% from yesterday
               </span>
             ) : (
@@ -693,15 +693,15 @@ export default function AdminDashboard() {
           </p>
         </div>
         {/* Today's Recovery */}
-        <div className="bg-white border border-slate-200 rounded-lg p-5 hover:border-slate-300 transition-colors">
+        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
           <div className="flex items-center gap-2 mb-3">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wider">Today&apos;s Recovery</span>
+            <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Today&apos;s Recovery</span>
           </div>
-          <p className="text-[28px] font-bold text-slate-900 tabular-nums leading-none number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
-          <p className="text-[11px] text-slate-500 mt-2">
+          <p className="text-[28px] font-bold text-slate-900 dark:text-white tabular-nums leading-none number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
             {recoveryChangePct !== null ? (
-              <span className={recoveryChangePct >= 0 ? 'text-emerald-600 font-medium' : 'text-red-600 font-medium'}>
+              <span className={recoveryChangePct >= 0 ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-red-600 dark:text-red-400 font-medium'}>
                 {recoveryChangePct >= 0 ? '+' : ''}{recoveryChangePct}% from yesterday
               </span>
             ) : (
@@ -710,34 +710,34 @@ export default function AdminDashboard() {
           </p>
         </div>
         {/* Total Outstanding */}
-        <div className="bg-white border border-slate-200 rounded-lg p-5 hover:border-slate-300 transition-colors">
+        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
           <div className="flex items-center gap-2 mb-3">
             <span className="h-2 w-2 rounded-full bg-amber-500" />
-            <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wider">Total Outstanding</span>
+            <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Outstanding</span>
           </div>
-          <p className="text-[28px] font-bold text-slate-900 tabular-nums leading-none number-animate number-display">{formatPKR(animatedOutstanding)}</p>
-          <p className="text-[11px] text-slate-500 mt-2">
+          <p className="text-[28px] font-bold text-slate-900 dark:text-white tabular-nums leading-none number-animate number-display">{formatPKR(animatedOutstanding)}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
             <span>Outstanding across all shops</span>
           </p>
         </div>
         {/* Total Active Shops */}
-        <div className="bg-white border border-slate-200 rounded-lg p-5 hover:border-slate-300 transition-colors">
+        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
           <div className="flex items-center gap-2 mb-3">
             <span className="h-2 w-2 rounded-full bg-cyan-500" />
-            <span className="text-[12px] font-medium text-slate-500 uppercase tracking-wider">Active Shops</span>
+            <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Active Shops</span>
           </div>
-          <p className="text-[28px] font-bold text-slate-900 tabular-nums leading-none number-animate number-display">{animatedTotalShops}</p>
-          <p className="text-[11px] text-slate-500 mt-2">
+          <p className="text-[28px] font-bold text-slate-900 dark:text-white tabular-nums leading-none number-animate number-display">{animatedTotalShops}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
             <span>Across {data.orderbookers.length} orderbookers</span>
           </p>
         </div>
       </div>
 
       {/* Monthly Overview — minimal */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200">
-          <Calendar className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-          <span className="text-sm font-semibold text-slate-900">
+      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+          <Calendar className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+          <span className="text-sm font-semibold text-slate-900 dark:text-white">
             Monthly Overview — {monthSummary?.monthLabel || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </span>
         </div>
@@ -746,55 +746,55 @@ export default function AdminDashboard() {
             {/* Credit */}
             <div className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
-              <span className="text-xs text-slate-500 font-medium">Credit:</span>
-              <span className="text-xs font-bold text-slate-900 tabular-nums">{formatPKR(monthSummary?.totalCredit ?? 0)}</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Credit:</span>
+              <span className="text-xs font-bold text-slate-900 dark:text-white tabular-nums">{formatPKR(monthSummary?.totalCredit ?? 0)}</span>
               {monthSummary && monthSummary.prevTotalCredit > 0 && (
                 <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
                   monthSummary.creditChangePct !== 0
                     ? monthSummary.creditChangePct > 0
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-red-50 text-red-700 border-red-200'
-                    : 'bg-slate-50 text-slate-500 border-slate-200'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'
+                      : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900'
+                    : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                 }`}>
                   {monthSummary.creditChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
                   {Math.abs(monthSummary.creditChangePct)}%
                 </span>
               )}
             </div>
-            <span className="text-slate-200">|</span>
+            <span className="text-slate-200 dark:text-slate-700">|</span>
             {/* Recovery */}
             <div className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span className="text-xs text-slate-500 font-medium">Recovery:</span>
-              <span className="text-xs font-bold text-slate-900 tabular-nums">{formatPKR(monthSummary?.totalRecovery ?? 0)}</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Recovery:</span>
+              <span className="text-xs font-bold text-slate-900 dark:text-white tabular-nums">{formatPKR(monthSummary?.totalRecovery ?? 0)}</span>
               {monthSummary && monthSummary.prevTotalRecovery > 0 && (
                 <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
                   monthSummary.recoveryChangePct !== 0
                     ? monthSummary.recoveryChangePct > 0
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-red-50 text-red-700 border-red-200'
-                    : 'bg-slate-50 text-slate-500 border-slate-200'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'
+                      : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900'
+                    : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                 }`}>
                   {monthSummary.recoveryChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
                   {Math.abs(monthSummary.recoveryChangePct)}%
                 </span>
               )}
             </div>
-            <span className="text-slate-200">|</span>
+            <span className="text-slate-200 dark:text-slate-700">|</span>
             {/* Net */}
             <div className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-              <span className="text-xs text-slate-500 font-medium">Net:</span>
-              <span className={`text-xs font-bold tabular-nums text-slate-900`}>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Net:</span>
+              <span className={`text-xs font-bold tabular-nums text-slate-900 dark:text-white`}>
                 {formatPKR(monthSummary?.netPosition ?? 0)}
               </span>
               {monthSummary && monthSummary.prevNetPosition !== 0 && (
                 <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
                   monthSummary.netChangePct !== 0
                     ? monthSummary.netChangePct > 0
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-red-50 text-red-700 border-red-200'
-                    : 'bg-slate-50 text-slate-500 border-slate-200'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'
+                      : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900'
+                    : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                 }`}>
                   {monthSummary.netChangePct > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
                   {Math.abs(monthSummary.netChangePct)}%
@@ -815,75 +815,75 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <button
           type="button"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-all group"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
           onClick={() => router.push('/credit-posting')}
         >
-          <CreditCard className="h-5 w-5 text-[#2563EB]" />
-          <span className="text-xs font-medium text-slate-700">Post Credit</span>
+          <CreditCard className="h-5 w-5 text-[#2563EB] dark:text-blue-400" />
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Post Credit</span>
         </button>
         <button
           type="button"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-all group"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
           onClick={() => router.push('/recovery')}
         >
-          <TrendingUp className="h-5 w-5 text-emerald-600" />
-          <span className="text-xs font-medium text-slate-700">Recovery Report</span>
+          <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Recovery Report</span>
         </button>
         <button
           type="button"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-all group"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
           onClick={() => router.push('/shops')}
         >
-          <Plus className="h-5 w-5 text-cyan-600" />
-          <span className="text-xs font-medium text-slate-700">Add Shop</span>
+          <Plus className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Add Shop</span>
         </button>
         <button
           type="button"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-all group"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
           onClick={() => router.push('/audit')}
         >
-          <Activity className="h-5 w-5 text-slate-600" />
-          <span className="text-xs font-medium text-slate-700">View Activity</span>
+          <Activity className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-300">View Activity</span>
         </button>
       </div>
 
       {/* Today's Key Metrics Summary Strip — minimal */}
-      <div className="bg-white border border-slate-200 rounded-lg p-4">
+      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-4">
         <div className="overflow-x-auto">
           <div className="flex gap-4 min-w-max snap-x snap-mandatory pb-1 items-center">
             {/* Total Credit Today */}
             <div className="flex items-center gap-2 snap-center">
               <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
               <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider leading-none">Credit Today</span>
-                <span className="text-sm font-bold text-slate-900 tabular-nums leading-tight mt-0.5">{formatPKR(data.todayCredit)}</span>
+                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-none">Credit Today</span>
+                <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums leading-tight mt-0.5">{formatPKR(data.todayCredit)}</span>
               </div>
             </div>
-            <span className="text-slate-200">|</span>
+            <span className="text-slate-200 dark:text-slate-700">|</span>
             {/* Total Recovery Today */}
             <div className="flex items-center gap-2 snap-center">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider leading-none">Recovery Today</span>
-                <span className="text-sm font-bold text-slate-900 tabular-nums leading-tight mt-0.5">{formatPKR(data.todayRecovery)}</span>
+                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-none">Recovery Today</span>
+                <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums leading-tight mt-0.5">{formatPKR(data.todayRecovery)}</span>
               </div>
             </div>
-            <span className="text-slate-200">|</span>
+            <span className="text-slate-200 dark:text-slate-700">|</span>
             {/* Transactions */}
             <div className="flex items-center gap-2 snap-center">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
               <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider leading-none">Transactions</span>
-                <span className="text-sm font-bold text-slate-900 tabular-nums leading-tight mt-0.5">{data.todayTxns.length} entries</span>
+                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-none">Transactions</span>
+                <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums leading-tight mt-0.5">{data.todayTxns.length} entries</span>
               </div>
             </div>
-            <span className="text-slate-200">|</span>
+            <span className="text-slate-200 dark:text-slate-700">|</span>
             {/* Shops Active */}
             <div className="flex items-center gap-2 snap-center">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" />
               <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider leading-none">Shops Active</span>
-                <span className="text-sm font-bold text-slate-900 tabular-nums leading-tight mt-0.5">{data.totalShops}</span>
+                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-none">Shops Active</span>
+                <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums leading-tight mt-0.5">{data.totalShops}</span>
               </div>
             </div>
           </div>
@@ -892,15 +892,15 @@ export default function AdminDashboard() {
 
       {/* SMS Report Card — minimal */}
       {smsReport && smsReport.total > 0 && (
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
-          <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-200">
+        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
+          <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-[#2E2E2E]">
             <div className="flex items-center gap-2">
-              <MessageSquare className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-              <span className="text-sm font-semibold text-slate-900">SMS Report — Today</span>
+              <MessageSquare className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+              <span className="text-sm font-semibold text-slate-900 dark:text-white">SMS Report — Today</span>
             </div>
             <button
               onClick={() => router.push('/sms-tracking')}
-              className="text-xs text-[#2563EB] hover:text-[#1E40AF] font-medium flex items-center gap-1 transition-colors"
+              className="text-xs text-[#2563EB] dark:text-blue-400 hover:text-[#1E40AF] dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors"
             >
               View Details <ChevronRight className="h-3 w-3" />
             </button>
@@ -908,41 +908,41 @@ export default function AdminDashboard() {
           <div className="p-4">
             <div className="grid grid-cols-4 gap-3 mb-4">
               <div className="text-center">
-                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Total</p>
-                <p className="text-lg font-bold text-slate-900 tabular-nums mt-0.5">{smsReport.total}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Total</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white tabular-nums mt-0.5">{smsReport.total}</p>
               </div>
               <div className="text-center">
-                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Sent</p>
-                <p className="text-lg font-bold text-emerald-600 tabular-nums mt-0.5">{smsReport.sent}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Sent</p>
+                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums mt-0.5">{smsReport.sent}</p>
               </div>
               <div className="text-center">
-                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Failed</p>
-                <p className="text-lg font-bold text-red-600 tabular-nums mt-0.5">{smsReport.failed}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Failed</p>
+                <p className="text-lg font-bold text-red-600 dark:text-red-400 tabular-nums mt-0.5">{smsReport.failed}</p>
               </div>
               <div className="text-center">
-                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Skipped</p>
-                <p className="text-lg font-bold text-amber-600 tabular-nums mt-0.5">{smsReport.skipped}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Skipped</p>
+                <p className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums mt-0.5">{smsReport.skipped}</p>
               </div>
             </div>
 
             {smsReport.perOB.length > 0 && (
-              <div className="space-y-1 border-t border-slate-100 pt-2">
+              <div className="space-y-1 border-t border-slate-100 dark:border-slate-800 pt-2">
                 {smsReport.perOB.map((ob) => (
-                  <div key={ob.orderbookerId} className="flex items-center justify-between gap-2 text-xs py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">
-                    <span className="font-medium text-slate-700 truncate">{ob.orderbookerName}</span>
+                  <div key={ob.orderbookerId} className="flex items-center justify-between gap-2 text-xs py-1.5 px-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <span className="font-medium text-slate-700 dark:text-slate-200 truncate">{ob.orderbookerName}</span>
                     <div className="flex items-center gap-3 shrink-0">
-                      <span className="flex items-center gap-1 text-emerald-600" title="Sent">
+                      <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400" title="Sent">
                         <CheckCircle2 className="h-3 w-3" />
                         <span className="font-semibold tabular-nums">{ob.sent}</span>
                       </span>
                       {ob.failed > 0 && (
-                        <span className="flex items-center gap-1 text-red-600" title="Failed">
+                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400" title="Failed">
                           <XCircle className="h-3 w-3" />
                           <span className="font-semibold tabular-nums">{ob.failed}</span>
                         </span>
                       )}
                       {ob.skipped > 0 && (
-                        <span className="flex items-center gap-1 text-amber-600" title="Skipped">
+                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400" title="Skipped">
                           <SkipForward className="h-3 w-3" />
                           <span className="font-semibold tabular-nums">{ob.skipped}</span>
                         </span>
@@ -957,14 +957,14 @@ export default function AdminDashboard() {
       )}
 
       {/* Recent Activity Feed — minimal */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
-          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-            <Clock className="h-4 w-4 text-slate-500" />
+      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400" />
             Recent Activity
           </h3>
           <button
-            className="text-xs text-[#2563EB] hover:text-[#1E40AF] font-medium flex items-center gap-1 transition-colors"
+            className="text-xs text-[#2563EB] dark:text-blue-400 hover:text-[#1E40AF] dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors"
             onClick={() => router.push('/audit')}
           >
             View All
@@ -987,28 +987,28 @@ export default function AdminDashboard() {
             </div>
           ) : recentTxns.length === 0 ? (
             <div className="text-center py-6">
-              <p className="text-sm text-slate-500">No recent transactions</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">No recent transactions</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {recentTxns.map((txn) => (
                 <div
                   key={txn.id}
-                  className="flex items-center justify-between gap-3 py-2.5 px-2 -mx-2 rounded-md hover:bg-slate-50 transition-colors cursor-default"
+                  className="flex items-center justify-between gap-3 py-2.5 px-2 -mx-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-default"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className={`h-2 w-2 rounded-full shrink-0 ${txn.type === 'credit' ? 'bg-[#2563EB]' : txn.type === 'claim' ? 'bg-red-500' : 'bg-emerald-500'}`} />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-900 truncate">{txn.shop.name}</p>
+                      <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{txn.shop.name}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`text-[10px] font-medium px-1.5 py-0 rounded-full border ${txn.type === 'claim' ? 'bg-red-50 text-red-700 border-red-200' : txn.type === 'credit' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                        <span className={`text-[10px] font-medium px-1.5 py-0 rounded-full border ${txn.type === 'claim' ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900' : txn.type === 'credit' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900' : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'}`}>
                           {txn.type === 'credit' ? 'Credit' : txn.type === 'claim' ? 'Claim' : 'Recovery'}
                         </span>
-                        <span className="text-[10px] text-slate-500 tabular-nums">{getTimeAgo(txn.createdAt)}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">{getTimeAgo(txn.createdAt)}</span>
                       </div>
                     </div>
                   </div>
-                  <span className={`text-sm font-bold tabular-nums shrink-0 ${txn.type === 'claim' ? 'text-red-600' : 'text-slate-900'}`}>
+                  <span className={`text-sm font-bold tabular-nums shrink-0 ${txn.type === 'claim' ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
                     {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
                   </span>
                 </div>
@@ -1019,14 +1019,14 @@ export default function AdminDashboard() {
       </div>
 
       {/* Live Recovery Feed — minimal */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
-          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             Live Recovery Feed
           </h3>
           <button
-            className="text-xs text-[#2563EB] hover:text-[#1E40AF] font-medium flex items-center gap-1 transition-colors"
+            className="text-xs text-[#2563EB] dark:text-blue-400 hover:text-[#1E40AF] dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors"
             onClick={() => router.push('/recovery')}
           >
             Full Report
@@ -1052,8 +1052,8 @@ export default function AdminDashboard() {
             if (recoveryTxns.length === 0) {
               return (
                 <div className="text-center py-8">
-                  <p className="text-sm text-slate-500">No recovery entries today</p>
-                  <p className="text-xs text-slate-500 mt-1">Recovery from orderbookers will appear here in real-time</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">No recovery entries today</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">Recovery from orderbookers will appear here in real-time</p>
                 </div>
               );
             }
@@ -1062,28 +1062,28 @@ export default function AdminDashboard() {
               <>
                 <div className="flex items-center gap-2 mb-2 mt-2 px-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Live</span>
-                  <span className="text-sm font-bold text-slate-900 tabular-nums">{formatPKR(totalLiveRecovery)}</span>
-                  <span className="text-[10px] text-slate-500">· across {recoveryTxns.length} entries</span>
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Live</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">{formatPKR(totalLiveRecovery)}</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-500">· across {recoveryTxns.length} entries</span>
                 </div>
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
                   {recoveryTxns.map((txn) => (
                     <div
                       key={txn.id}
-                      className="flex items-center justify-between gap-3 py-2.5 px-2 -mx-2 rounded-md hover:bg-slate-50 transition-colors cursor-default"
+                      className="flex items-center justify-between gap-3 py-2.5 px-2 -mx-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-default"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">{txn.shop.name}</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+                          <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{txn.shop.name}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
                             <span>{txn.creator?.name || 'System'}</span>
                             <span>·</span>
                             <span>{getTimeAgo(txn.createdAt)}</span>
                           </p>
                         </div>
                       </div>
-                      <span className="text-sm font-bold text-slate-900 tabular-nums shrink-0">
+                      <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums shrink-0">
                         -{formatPKR(txn.amount)}
                       </span>
                     </div>
@@ -1096,20 +1096,20 @@ export default function AdminDashboard() {
       </div>
 
       {/* Divider — minimal */}
-      <div className="border-t border-slate-200" />
+      <div className="border-t border-slate-200 dark:border-[#2E2E2E]" />
 
       {/* Charts section — wrapped with Clean Minimal title */}
-      <div className="bg-white border border-slate-200 rounded-lg p-5">
+      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-slate-900">Recovery Trend — Last 7 Days</h3>
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white">Recovery Trend — Last 7 Days</h3>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
-              <span className="text-[11px] text-slate-500 font-medium">Credit</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Credit</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span className="text-[11px] text-slate-500 font-medium">Recovery</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Recovery</span>
             </div>
           </div>
         </div>
@@ -1117,18 +1117,18 @@ export default function AdminDashboard() {
       </div>
 
       {/* OB Performance Summary — minimal */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
-          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-            <Users className="h-4 w-4 text-slate-500" />
+      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <Users className="h-4 w-4 text-slate-500 dark:text-slate-400" />
             OB Performance Summary
           </h3>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-slate-400" />
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-slate-400 dark:text-slate-500" />
               7d Recovery Trend
             </span>
-            <span className="text-[10px] text-slate-600 font-medium bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full">
               {data.orderbookers.length} orderbookers
             </span>
           </div>
@@ -1138,32 +1138,32 @@ export default function AdminDashboard() {
             {data.orderbookers.map((ob) => {
               const maxOutstanding = Math.max(...data.orderbookers.map(o => o.totalOutstanding), 1);
               const pct = (ob.totalOutstanding / maxOutstanding) * 100;
-              const avatarColors = ['bg-blue-50 text-[#1E40AF] border-blue-100', 'bg-amber-50 text-amber-700 border-amber-100', 'bg-emerald-50 text-emerald-700 border-emerald-100', 'bg-cyan-50 text-cyan-700 border-cyan-100', 'bg-violet-50 text-violet-700 border-violet-100', 'bg-rose-50 text-rose-700 border-rose-100'];
+              const avatarColors = ['bg-blue-50 dark:bg-blue-950/40 text-[#1E40AF] dark:text-blue-400 border-blue-100 dark:border-blue-900', 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900', 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900', 'bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-400 border-cyan-100 dark:border-cyan-900', 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 border-violet-100 dark:border-violet-900', 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-900'];
               const avatarIdx = ob.name.charCodeAt(0) % avatarColors.length;
               const spark = sparklineData.find(s => s.orderbookerId === ob.id);
               return (
-                <div key={ob.id} className="border border-slate-200 rounded-lg p-3.5 hover:border-slate-300 transition-colors cursor-default" onClick={() => router.push('/analytics')}>
+                <div key={ob.id} className="border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-3.5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-default" onClick={() => router.push('/analytics')}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className={`h-9 w-9 rounded-full border flex items-center justify-center text-sm font-bold shrink-0 ${avatarColors[avatarIdx]}`}>
                       {ob.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">{ob.name}</p>
-                      <p className="text-[10px] text-slate-500">{ob.totalShops} shops assigned</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{ob.name}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">{ob.totalShops} shops assigned</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">Outstanding</span>
-                    <span className="text-sm font-bold text-slate-900 tabular-nums">{formatPKR(ob.totalOutstanding)}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Outstanding</span>
+                    <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">{formatPKR(ob.totalOutstanding)}</span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mb-2.5">
+                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden mb-2.5">
                     <div
                       className="h-full rounded-full bg-[#2563EB] transition-all duration-500"
                       style={{ width: `${Math.min(pct, 100)}%` }}
                     />
                   </div>
                   {/* Recovery Trend Sparkline */}
-                  <div className="bg-slate-50 border border-slate-100 rounded-md p-2">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-md p-2">
                     {sparklineLoading ? (
                       <div className="flex items-center justify-between">
                         <Skeleton className="skeleton-shimmer h-4 w-20" />
@@ -1173,12 +1173,12 @@ export default function AdminDashboard() {
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <RecoverySparkline data={spark.data} width={80} height={24} />
-                          <span className="text-[9px] text-slate-500 leading-tight">
-                            7d avg: <span className="font-semibold text-slate-900 tabular-nums">{formatPKR(spark.avg)}</span>
+                          <span className="text-[9px] text-slate-500 dark:text-slate-400 leading-tight">
+                            7d avg: <span className="font-semibold text-slate-900 dark:text-white tabular-nums">{formatPKR(spark.avg)}</span>
                           </span>
                         </div>
                         <span className={`text-[10px] font-bold tabular-nums shrink-0 flex items-center gap-0.5 ${
-                          spark.trend === 'up' ? 'text-emerald-600' : spark.trend === 'down' ? 'text-red-500' : 'text-slate-500'
+                          spark.trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : spark.trend === 'down' ? 'text-red-500 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'
                         }`}>
                           {spark.trend === 'up' ? <ArrowUp className="h-3 w-3" /> : spark.trend === 'down' ? <ArrowDown className="h-3 w-3" /> : <span className="text-[8px]">—</span>}
                           {spark.trend !== 'stable' ? (
@@ -1188,8 +1188,8 @@ export default function AdminDashboard() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <div className="h-6 w-16 flex items-center justify-center text-[10px] text-slate-400">No data</div>
-                        <span className="text-[9px] text-slate-500">No recovery in 7 days</span>
+                        <div className="h-6 w-16 flex items-center justify-center text-[10px] text-slate-400 dark:text-slate-500">No data</div>
+                        <span className="text-[9px] text-slate-500 dark:text-slate-400">No recovery in 7 days</span>
                       </div>
                     )}
                   </div>
@@ -1202,37 +1202,37 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Orderbooker Overview — minimal table */}
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-200">
-            <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-              <Users className="h-4 w-4 text-slate-500" />
+        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+            <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+              <Users className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               Orderbooker Overview
             </h3>
           </div>
           <ScrollArea className="max-h-80">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
-                  <TableHead className="text-slate-600 font-semibold text-xs uppercase tracking-wider">Name</TableHead>
-                  <TableHead className="text-slate-600 font-semibold text-xs uppercase tracking-wider text-center">Shops</TableHead>
-                  <TableHead className="text-slate-600 font-semibold text-xs uppercase tracking-wider text-right">Outstanding</TableHead>
+                <TableRow className="bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-200 dark:border-[#2E2E2E]">
+                  <TableHead className="text-slate-600 dark:text-slate-300 font-semibold text-xs uppercase tracking-wider">Name</TableHead>
+                  <TableHead className="text-slate-600 dark:text-slate-300 font-semibold text-xs uppercase tracking-wider text-center">Shops</TableHead>
+                  <TableHead className="text-slate-600 dark:text-slate-300 font-semibold text-xs uppercase tracking-wider text-right">Outstanding</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.orderbookers.map((ob) => (
-                  <TableRow key={ob.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <TableCell className="text-sm font-medium text-slate-900">{ob.name}</TableCell>
+                  <TableRow key={ob.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <TableCell className="text-sm font-medium text-slate-900 dark:text-white">{ob.name}</TableCell>
                     <TableCell className="text-center">
-                      <span className="text-sm font-semibold text-slate-700 tabular-nums">{ob.totalShops}</span>
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 tabular-nums">{ob.totalShops}</span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className="text-sm font-semibold text-slate-900 tabular-nums number-animate">{formatPKR(ob.totalOutstanding)}</span>
+                      <span className="text-sm font-semibold text-slate-900 dark:text-white tabular-nums number-animate">{formatPKR(ob.totalOutstanding)}</span>
                     </TableCell>
                   </TableRow>
                 ))}
                 {data.orderbookers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center py-6 text-sm text-slate-500">No orderbookers</TableCell>
+                    <TableCell colSpan={3} className="text-center py-6 text-sm text-slate-500 dark:text-slate-400">No orderbookers</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -1241,10 +1241,10 @@ export default function AdminDashboard() {
         </div>
 
         {/* Top Debtors — minimal */}
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-200">
-            <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-slate-500" />
+        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+            <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+              <TrendingDown className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               Top 5 Debtors
             </h3>
           </div>
@@ -1257,17 +1257,17 @@ export default function AdminDashboard() {
                     <div key={shop.id} className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="text-[11px] font-bold text-slate-400 tabular-nums shrink-0 w-4">
+                          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 tabular-nums shrink-0 w-4">
                             {idx + 1}
                           </span>
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">{shop.name}</p>
-                            <p className="text-[11px] text-slate-500 truncate">{shop.area || '—'}</p>
+                            <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{shop.name}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{shop.area || '—'}</p>
                           </div>
                         </div>
-                        <span className="text-sm font-bold text-slate-900 tabular-nums shrink-0 ml-2 number-animate">{formatPKR(shop.balance)}</span>
+                        <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums shrink-0 ml-2 number-animate">{formatPKR(shop.balance)}</span>
                       </div>
-                      <div className="h-1 rounded-full bg-slate-100 overflow-hidden">
+                      <div className="h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                         <div
                           className="h-full rounded-full bg-red-500 transition-all duration-500"
                           style={{ width: `${pct}%` }}
@@ -1277,7 +1277,7 @@ export default function AdminDashboard() {
                   );
                 })
               ) : (
-                <div className="text-center py-8 text-sm text-slate-500">
+                <div className="text-center py-8 text-sm text-slate-500 dark:text-slate-400">
                   <TrendingDown className="h-8 w-8 mx-auto mb-2 opacity-30" />
                   <p className="font-medium">No outstanding balances</p>
                   <p className="text-xs mt-1">All shops are settled</p>
@@ -1289,10 +1289,10 @@ export default function AdminDashboard() {
       </div>
 
       {/* Activity Timeline — minimal */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
-        <div className="px-5 py-3.5 border-b border-slate-200">
-          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-            <Activity className="h-4 w-4 text-slate-500" />
+      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
+        <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <Activity className="h-4 w-4 text-slate-500 dark:text-slate-400" />
             Activity Timeline
           </h3>
         </div>
@@ -1313,13 +1313,13 @@ export default function AdminDashboard() {
               </div>
             ) : timelineGroups.length === 0 ? (
               <div className="text-center py-12">
-                <Clock className="h-8 w-8 mx-auto mb-3 text-slate-300" />
-                <p className="font-semibold text-slate-700 text-sm">No recent activity</p>
-                <p className="text-xs text-slate-500 mt-1.5 max-w-xs mx-auto leading-relaxed">
+                <Clock className="h-8 w-8 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+                <p className="font-semibold text-slate-700 dark:text-slate-200 text-sm">No recent activity</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-xs mx-auto leading-relaxed">
                   Post credit or collect recovery to see activity here.
                 </p>
                 <button
-                  className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#EFF6FF] text-[#2563EB] text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-100"
+                  className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#EFF6FF] dark:bg-blue-950/50 text-[#2563EB] dark:text-blue-400 text-xs font-medium hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors border border-blue-100 dark:border-blue-900"
                   onClick={() => router.push('/credit-posting')}
                 >
                   <CreditCard className="h-3.5 w-3.5" />
@@ -1329,43 +1329,43 @@ export default function AdminDashboard() {
             ) : (
               <div className="relative pl-8">
                 {/* Vertical timeline line */}
-                <div className="absolute left-[7px] top-2 bottom-2 w-px bg-slate-200" />
+                <div className="absolute left-[7px] top-2 bottom-2 w-px bg-slate-200 dark:bg-slate-700" />
                 {timelineGroups.map((group) => (
                   <div key={group.key} className="mb-6 last:mb-0">
                     {/* Date Header */}
                     <div className="flex items-center gap-3 mb-3 -ml-8">
-                      <div className="h-3.5 w-3.5 rounded-full bg-[#2563EB] ring-4 ring-white z-10 shrink-0" />
-                      <h3 className="text-sm font-semibold text-slate-900">{group.label}</h3>
+                      <div className="h-3.5 w-3.5 rounded-full bg-[#2563EB] ring-4 ring-white dark:ring-[#1E1E1E] z-10 shrink-0" />
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{group.label}</h3>
                     </div>
                     {/* Entries for this date */}
                     <div>
                       {group.entries.map((entry) => (
                         <div key={entry.id} className="relative pb-4 last:pb-0">
                           {/* Timeline dot */}
-                          <div className={`absolute -left-8 top-1.5 h-3.5 w-3.5 rounded-full ring-4 ring-white z-10 ${
+                          <div className={`absolute -left-8 top-1.5 h-3.5 w-3.5 rounded-full ring-4 ring-white dark:ring-[#1E1E1E] z-10 ${
                             entry.type === 'credit' ? 'bg-[#2563EB]' : entry.type === 'recovery' ? 'bg-emerald-500' : 'bg-slate-400'
                           }`} />
                           {/* Timeline entry */}
-                          <div className="rounded-md border border-slate-200 bg-white p-3 hover:border-slate-300 transition-colors">
+                          <div className="rounded-md border border-slate-200 dark:border-[#2E2E2E] bg-white dark:bg-[#1E1E1E] p-3 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
                                 {/* Time and badge */}
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-[11px] text-slate-500 tabular-nums">{formatTimeFull(entry.createdAt)}</span>
+                                  <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">{formatTimeFull(entry.createdAt)}</span>
                                   <span className={`text-[9px] font-medium px-1.5 py-0 rounded-full border ${
-                                    entry.type === 'credit' ? 'bg-blue-50 text-blue-700 border-blue-200' : entry.type === 'recovery' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200'
+                                    entry.type === 'credit' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900' : entry.type === 'recovery' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                                   }`}>
                                     {entry.type === 'credit' ? 'Credit' : entry.type === 'recovery' ? 'Recovery' : 'Edit'}
                                   </span>
                                 </div>
                                 {/* Shop name and area */}
-                                <p className="text-sm font-medium leading-snug text-slate-900">
+                                <p className="text-sm font-medium leading-snug text-slate-900 dark:text-white">
                                   {entry.type === 'credit' ? 'Posted to' : entry.type === 'recovery' ? 'Collected from' : 'Updated'}{' '}
                                   <span className="font-semibold">{entry.shopName}</span>
-                                  <span className="hidden sm:inline text-slate-500">{entry.shopArea ? ` · ${entry.shopArea}` : ''}</span>
+                                  <span className="hidden sm:inline text-slate-500 dark:text-slate-400">{entry.shopArea ? ` · ${entry.shopArea}` : ''}</span>
                                 </p>
                                 {/* Posted by - hidden on mobile */}
-                                <p className="text-[11px] text-slate-500 mt-0.5 hidden sm:block">
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 hidden sm:block">
                                   by {entry.createdBy}
                                 </p>
                               </div>
@@ -1373,12 +1373,12 @@ export default function AdminDashboard() {
                               <div className="text-right shrink-0">
                                 {entry.amount > 0 && (
                                   <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full border ${
-                                    entry.type === 'credit' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    entry.type === 'credit' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900' : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'
                                   }`}>
                                     {entry.type === 'credit' ? '+' : '-'}{formatPKR(entry.amount)}
                                   </span>
                                 )}
-                                <p className="text-[10px] text-slate-500 mt-1 tabular-nums">
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 tabular-nums">
                                   {entry.balanceAfter > 0 ? `Bal: ${formatPKR(entry.balanceAfter)}` : ''}
                                 </p>
                               </div>
@@ -1395,9 +1395,9 @@ export default function AdminDashboard() {
         </ScrollArea>
         {/* View All Activity Link */}
         {timeline.length > 0 && (
-          <div className="border-t border-slate-200 px-5 py-3">
+          <div className="border-t border-slate-200 dark:border-[#2E2E2E] px-5 py-3">
             <button
-              className="flex items-center gap-1.5 text-xs font-medium text-[#2563EB] hover:text-[#1E40AF] transition-colors group"
+              className="flex items-center gap-1.5 text-xs font-medium text-[#2563EB] dark:text-blue-400 hover:text-[#1E40AF] dark:hover:text-blue-300 transition-colors group"
               onClick={() => router.push('/audit')}
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -1410,36 +1410,36 @@ export default function AdminDashboard() {
 
       {/* Business Summary Widget — minimal */}
       {bizSummary && (
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden animate-fade-in">
-          <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-200">
-            <Activity className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-            <span className="text-sm font-semibold text-slate-900">All-Time Business Summary</span>
+        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
+          <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+            <Activity className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+            <span className="text-sm font-semibold text-slate-900 dark:text-white">All-Time Business Summary</span>
           </div>
           <div className="p-5">
             <div className="grid grid-cols-3 gap-4">
               <div className="text-left">
                 <div className="flex items-center gap-1.5 mb-2">
                   <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
-                  <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Total Volume</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Total Volume</p>
                 </div>
-                <p className="text-lg font-bold text-slate-900 tabular-nums">{formatPKR(bizSummary.totalCredit)}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">All credit posted</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white tabular-nums">{formatPKR(bizSummary.totalCredit)}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-500 mt-0.5">All credit posted</p>
               </div>
               <div className="text-left">
                 <div className="flex items-center gap-1.5 mb-2">
                   <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Total Recovery</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Total Recovery</p>
                 </div>
-                <p className="text-lg font-bold text-slate-900 tabular-nums">{formatPKR(bizSummary.totalRecovery)}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">All recoveries collected</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white tabular-nums">{formatPKR(bizSummary.totalRecovery)}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-500 mt-0.5">All recoveries collected</p>
               </div>
               <div className="text-left">
                 <div className="flex items-center gap-1.5 mb-2">
                   <span className="h-2 w-2 rounded-full bg-amber-500" />
-                  <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Net Outstanding</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Net Outstanding</p>
                 </div>
-                <p className="text-lg font-bold text-slate-900 tabular-nums">{formatPKR(bizSummary.netBalance)}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Currently outstanding</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white tabular-nums">{formatPKR(bizSummary.netBalance)}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-500 mt-0.5">Currently outstanding</p>
               </div>
             </div>
           </div>
