@@ -116,9 +116,9 @@ const adminNavSections: NavSection[] = [
     label: 'Reports',
     icon: <ClipboardList className="h-4 w-4" />,
     items: [
+      { id: 'admin-ob-recovery-report', label: 'OB Recovery Report', icon: <FileText className="h-4 w-4" /> },
       { id: 'admin-monthly-summary', label: 'Monthly Summary', icon: <CalendarDays className="h-4 w-4" /> },
       { id: 'admin-ob-analytics', label: 'OB Analytics', icon: <BarChart3 className="h-4 w-4" /> },
-      { id: 'admin-ob-recovery-report', label: 'OB Recovery Report', icon: <FileText className="h-4 w-4" /> },
       { id: 'admin-balance-report', label: 'Balance Report', icon: <Banknote className="h-4 w-4" /> },
       { id: 'admin-company-report', label: 'Company Report', icon: <FileSpreadsheet className="h-4 w-4" /> },
       { id: 'admin-activity', label: 'Activity', icon: <Activity className="h-4 w-4" /> },
