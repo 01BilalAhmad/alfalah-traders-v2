@@ -15,6 +15,7 @@ export const viewToRoute: Record<string, string> = {
   'admin-shop-detail': '/shops', // actual route is /shops/[id], handled specially
   'admin-orderbookers': '/orderbookers',
   'admin-companies': '/companies',
+  'admin-area-management': '/area-management',
   'admin-reconciliation': '/reconciliation',
   'admin-audit': '/audit',
   'admin-settings': '/settings',
@@ -57,6 +58,7 @@ export const routeToView: Record<string, string> = {
   '/shops': 'admin-shops',
   '/orderbookers': 'admin-orderbookers',
   '/companies': 'admin-companies',
+  '/area-management': 'admin-area-management',
   '/reconciliation': 'admin-reconciliation',
   '/audit': 'admin-audit',
   '/settings': 'admin-settings',

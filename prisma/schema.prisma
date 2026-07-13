@@ -405,3 +405,14 @@ model SmsLog {
   @@index([sentAt])
   @@index([method])
 }
+
+// ── Area Management ──────────────────────────────────────────────
+model Area {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+}

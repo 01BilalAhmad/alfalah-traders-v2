@@ -104,6 +104,7 @@ const adminNavSections: NavSection[] = [
     icon: <UserCog className="h-4 w-4" />,
     items: [
       { id: 'admin-shops', label: 'Manage Shops', icon: <Store className="h-4 w-4" /> },
+      { id: 'admin-area-management', label: 'Area Management', icon: <MapPin className="h-4 w-4" /> },
       { id: 'admin-orderbookers', label: 'Manage Orderbookers', icon: <Users className="h-4 w-4" /> },
       { id: 'admin-companies', label: 'Manage Companies', icon: <Building2 className="h-4 w-4" /> },
       { id: 'admin-daily-targets', label: 'Recovery Targets', icon: <Target className="h-4 w-4" /> },
