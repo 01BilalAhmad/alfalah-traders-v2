@@ -29,11 +29,26 @@ interface Shop {
   name: string;
   area: string | null;
   ownerName: string | null;
+  routeDays: string[];
+  orderbooker?: { id: string; name: string };
+  orderbookerId?: string;
 }
+
+interface Orderbooker {
+  id: string;
+  name: string;
+}
+
+const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const DAY_LABELS: Record<string, string> = {
+  monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday',
+  thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday',
+};
 
 export default function AdminAreaManagement() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
+  const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
   const [loading, setLoading] = useState(true);
   const [newAreaName, setNewAreaName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -46,14 +61,17 @@ export default function AdminAreaManagement() {
   const [selectedShopIds, setSelectedShopIds] = useState<Set<string>>(new Set());
   const [shopSearch, setShopSearch] = useState('');
   const [filterUnassigned, setFilterUnassigned] = useState(false);
+  const [filterDay, setFilterDay] = useState<string>('');
+  const [filterOB, setFilterOB] = useState<string>('');
 
-  // Fetch areas + shops
+  // Fetch areas + shops + orderbookers
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [areaRes, shopRes] = await Promise.all([
+      const [areaRes, shopRes, obRes] = await Promise.all([
         apiFetch('/api/areas'),
         apiFetch('/api/shops?showZeroBalance=true&includeInactive=true'),
+        apiFetch('/api/orderbookers?status=active'),
       ]);
       if (areaRes.ok) {
         const data = await areaRes.json();
@@ -62,6 +80,10 @@ export default function AdminAreaManagement() {
       if (shopRes.ok) {
         const data = await shopRes.json();
         setShops(Array.isArray(data) ? data : []);
+      }
+      if (obRes.ok) {
+        const data = await obRes.json();
+        setOrderbookers(Array.isArray(data) ? data : []);
       }
     } catch (e) {
       console.error('Failed to fetch data:', e);
@@ -189,7 +211,13 @@ export default function AdminAreaManagement() {
 
   // Filtered shops for bulk assign
   const filteredShops = shops.filter(s => {
+    // Unassigned filter
     if (filterUnassigned && s.area) return false;
+    // Day filter
+    if (filterDay && (!s.routeDays || !s.routeDays.includes(filterDay))) return false;
+    // Orderbooker filter
+    if (filterOB && s.orderbookerId !== filterOB && s.orderbooker?.id !== filterOB) return false;
+    // Search
     if (shopSearch.trim()) {
       const q = shopSearch.toLowerCase();
       return s.name.toLowerCase().includes(q) || (s.area || '').toLowerCase().includes(q);
@@ -321,7 +349,7 @@ export default function AdminAreaManagement() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Area selector + search */}
+          {/* Area selector + search + filters */}
           <div className="flex flex-wrap gap-3 items-end">
             <div className="space-y-1">
               <Label className="text-xs">Select Area</Label>
@@ -336,7 +364,33 @@ export default function AdminAreaManagement() {
                 ))}
               </select>
             </div>
-            <div className="space-y-1 flex-1 min-w-[200px]">
+            <div className="space-y-1">
+              <Label className="text-xs">Filter by Day</Label>
+              <select
+                value={filterDay}
+                onChange={e => setFilterDay(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">All Days</option>
+                {DAYS.map(d => (
+                  <option key={d} value={d}>{DAY_LABELS[d]}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Filter by Orderbooker</Label>
+              <select
+                value={filterOB}
+                onChange={e => setFilterOB(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">All Orderbookers</option>
+                {orderbookers.map(ob => (
+                  <option key={ob.id} value={ob.id}>{ob.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1 flex-1 min-w-[180px]">
               <Label className="text-xs">Search Shops</Label>
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -353,7 +407,7 @@ export default function AdminAreaManagement() {
               onClick={() => setFilterUnassigned(!filterUnassigned)}
               className="h-9"
             >
-              {filterUnassigned ? "Showing Unassigned" : "Show Unassigned Only"}
+              {filterUnassigned ? "✓ Unassigned Only" : "Unassigned Only"}
             </Button>
           </div>
 
@@ -393,12 +447,14 @@ export default function AdminAreaManagement() {
                   <TableHead className="w-10 text-xs">✓</TableHead>
                   <TableHead className="text-xs">Shop Name</TableHead>
                   <TableHead className="text-xs">Current Area</TableHead>
+                  <TableHead className="text-xs hidden md:table-cell">OB</TableHead>
+                  <TableHead className="text-xs hidden md:table-cell">Days</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredShops.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center py-8 text-sm text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-8 text-sm text-muted-foreground">
                       No shops found
                     </TableCell>
                   </TableRow>
@@ -425,6 +481,14 @@ export default function AdminAreaManagement() {
                         ) : (
                           <span className="text-xs text-muted-foreground italic">Unassigned</span>
                         )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground hidden md:table-cell">
+                        {shop.orderbooker?.name || '—'}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground hidden md:table-cell">
+                        {shop.routeDays && shop.routeDays.length > 0
+                          ? shop.routeDays.map(d => DAY_LABELS[d]?.slice(0, 3) || d).join(', ')
+                          : '—'}
                       </TableCell>
                     </TableRow>
                   ))
