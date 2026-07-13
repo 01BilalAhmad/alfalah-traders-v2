@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const orderbookerId = searchParams.get('orderbookerId');
     const minBalance = parseFloat(searchParams.get('minBalance') || '0');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 500);
+    
 
     const pool = getPool();
 
@@ -54,10 +54,10 @@ export async function GET(request: NextRequest) {
        LEFT JOIN "Transaction" t ON s.id = t."shopId"
        LEFT JOIN "User" u ON s."orderbookerId" = u.id
        WHERE ${whereClause}
-       GROUP BY s.id, s.name, s.area, s.address, s.address, s.balance, s."orderbookerId", u.name
+       GROUP BY s.id, s.name, s.area, s.address, s.balance, s."orderbookerId", u.name
        ORDER BY s.balance DESC
-       LIMIT $${paramIdx++}`,
-      [...params, limit]
+      `,
+      params
     );
 
     const shops: any[] = [];
