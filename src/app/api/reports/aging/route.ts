@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         `SELECT
            s.id AS "shopId",
            s.name AS "shopName",
-           s.area,
+           s.area, s.address,
            s."orderbookerId",
            u.name AS "orderbookerName",
            scb.balance AS "companyBalance",
@@ -141,6 +141,7 @@ export async function GET(request: NextRequest) {
           shopId: row.shopId,
           shopName: row.shopName,
           area: row.area || 'Unknown',
+          address: row.address || null,
           orderbookerName: row.orderbookerName || 'Unassigned',
           balance: Math.round(balance * 100) / 100,
           ageDays,
@@ -188,7 +189,7 @@ export async function GET(request: NextRequest) {
       `SELECT
          s.id AS "shopId",
          s.name AS "shopName",
-         s.area,
+         s.area, s.address,
          s.balance,
          s."orderbookerId",
          u.name AS "orderbookerName",
@@ -266,6 +267,7 @@ export async function GET(request: NextRequest) {
         shopId: row.shopId,
         shopName: row.shopName,
         area: row.area || 'Unknown',
+          address: row.address || null,
         orderbookerName: row.orderbookerName || 'Unassigned',
         balance: Math.round(balance * 100) / 100,
         ageDays,

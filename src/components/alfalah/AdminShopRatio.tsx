@@ -48,6 +48,7 @@ interface RatioShop {
   shopId: string;
   shopName: string;
   area: string | null;
+  address: string | null;
   orderbookerName: string | null;
   totalCredit: number;
   totalRecovery: number;
@@ -152,7 +153,8 @@ export default function AdminShopRatio() {
       await exportToExcel(
         shops.map((s: any) => ({
         'Shop Name': s.shopName,
-        'Area': s.area,
+        'Area': s.area || '',
+        'Address': s.address || s.area || '',
         'Orderbooker': s.orderbookerName,
         'Total Credit': s.totalCredit,
         'Total Recovery': s.totalRecovery,
@@ -469,7 +471,7 @@ const [loading, setLoading] = useState(true);
                           <div>
                             <p className="text-sm font-medium text-foreground">{shop.shopName}</p>
                             <p className="text-[11px] text-muted-foreground sm:hidden">
-                              {shop.area || '—'}
+                              {shop.address || shop.area || '—'}
                             </p>
                           </div>
                         </TableCell>
@@ -477,7 +479,7 @@ const [loading, setLoading] = useState(true);
                           <div className="flex items-center gap-1.5">
                             <MapPin className="h-3 w-3 text-muted-foreground" />
                             <span className="text-sm text-muted-foreground">
-                              {shop.area || '—'}
+                              {shop.address || shop.area || '—'}
                             </span>
                           </div>
                         </TableCell>

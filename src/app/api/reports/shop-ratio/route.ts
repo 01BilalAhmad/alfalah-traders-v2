@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       `SELECT
          s.id AS "shopId",
          s.name AS "shopName",
-         s.area,
+         s.area, s.address,
          s.balance,
          s."orderbookerId",
          u.name AS "orderbookerName",
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
        LEFT JOIN "Transaction" t ON s.id = t."shopId"
        LEFT JOIN "User" u ON s."orderbookerId" = u.id
        WHERE ${whereClause}
-       GROUP BY s.id, s.name, s.area, s.balance, s."orderbookerId", u.name
+       GROUP BY s.id, s.name, s.area, s.address, s.address, s.balance, s."orderbookerId", u.name
        ORDER BY s.balance DESC
        LIMIT $${paramIdx++}`,
       [...params, limit]
@@ -90,6 +90,7 @@ export async function GET(request: NextRequest) {
         shopId: row.shopId,
         shopName: row.shopName,
         area: row.area || 'Unknown',
+        address: row.address || null,
         orderbookerName: row.orderbookerName || 'Unassigned',
         totalCredit: Math.round(credit * 100) / 100,
         totalRecovery: Math.round(recovery * 100) / 100,
