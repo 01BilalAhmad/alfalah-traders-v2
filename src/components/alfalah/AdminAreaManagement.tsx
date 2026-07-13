@@ -55,6 +55,8 @@ export default function AdminAreaManagement() {
   const [editingName, setEditingName] = useState('');
   const [extracting, setExtracting] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [deletingAreas, setDeletingAreas] = useState(false);
+  const [selectedAreaIds, setSelectedAreaIds] = useState<Set<string>>(new Set());
 
   // Bulk assign state
   const [selectedArea, setSelectedArea] = useState<string>('');
@@ -139,7 +141,7 @@ export default function AdminAreaManagement() {
     }
   };
 
-  // Delete area
+  // Delete area (individual)
   const handleDeleteArea = async (id: string, name: string) => {
     if (!confirm(`Delete "${name}"? Shops assigned to this area will become Unassigned.`)) return;
     try {
@@ -150,6 +152,44 @@ export default function AdminAreaManagement() {
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
+  };
+
+  // Bulk delete areas
+  const handleBulkDeleteAreas = async () => {
+    if (selectedAreaIds.size === 0) return;
+    if (!confirm(`Delete ${selectedAreaIds.size} area(s)? Shops assigned to these areas will become Unassigned.`)) return;
+    setDeletingAreas(true);
+    try {
+      let success = 0;
+      let failed = 0;
+      for (const id of selectedAreaIds) {
+        try {
+          const res = await apiFetch(`/api/areas/${id}`, { method: 'DELETE' });
+          if (res.ok) success++;
+          else failed++;
+        } catch {
+          failed++;
+        }
+      }
+      toast({
+        title: 'Bulk Delete Complete',
+        description: `${success} deleted${failed > 0 ? `, ${failed} failed` : ''}`,
+      });
+      setSelectedAreaIds(new Set());
+      fetchData();
+    } finally {
+      setDeletingAreas(false);
+    }
+  };
+
+  // Toggle area selection
+  const toggleAreaSelection = (areaId: string) => {
+    setSelectedAreaIds(prev => {
+      const next = new Set(prev);
+      if (next.has(areaId)) next.delete(areaId);
+      else next.add(areaId);
+      return next;
+    });
   };
 
   // Auto-extract areas from existing shops
@@ -258,18 +298,36 @@ export default function AdminAreaManagement() {
           <CardTitle className="text-base">Areas ({areas.length})</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Create new area */}
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter area name..."
-              value={newAreaName}
-              onChange={e => setNewAreaName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCreateArea()}
-              className="max-w-xs"
-            />
-            <Button onClick={handleCreateArea} disabled={!newAreaName.trim()}>
-              <Plus className="h-4 w-4 mr-1" /> Add Area
-            </Button>
+          {/* Create new area + Bulk delete */}
+          <div className="flex gap-2 items-center justify-between flex-wrap">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter area name..."
+                value={newAreaName}
+                onChange={e => setNewAreaName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreateArea()}
+                className="max-w-xs"
+              />
+              <Button onClick={handleCreateArea} disabled={!newAreaName.trim()}>
+                <Plus className="h-4 w-4 mr-1" /> Add Area
+              </Button>
+            </div>
+            {selectedAreaIds.size > 0 && (
+              <div className="flex items-center gap-2">
+                <Badge variant="destructive">{selectedAreaIds.size} selected</Badge>
+                <Button
+                  variant="destructive" size="sm"
+                  onClick={handleBulkDeleteAreas}
+                  disabled={deletingAreas}
+                >
+                  {deletingAreas ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
+                  Delete Selected
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedAreaIds(new Set())}>
+                  Clear
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Areas table */}
@@ -282,6 +340,17 @@ export default function AdminAreaManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={selectedAreaIds.size === areas.length && areas.length > 0}
+                      onChange={() => {
+                        if (selectedAreaIds.size === areas.length) setSelectedAreaIds(new Set());
+                        else setSelectedAreaIds(new Set(areas.map(a => a.id)));
+                      }}
+                      className="h-4 w-4 rounded cursor-pointer"
+                    />
+                  </TableHead>
                   <TableHead className="text-xs">Area Name</TableHead>
                   <TableHead className="text-xs text-center">Shops</TableHead>
                   <TableHead className="text-xs text-right">Actions</TableHead>
@@ -289,7 +358,15 @@ export default function AdminAreaManagement() {
               </TableHeader>
               <TableBody>
                 {areas.map(area => (
-                  <TableRow key={area.id}>
+                  <TableRow key={area.id} className={selectedAreaIds.has(area.id) ? 'bg-red-50 dark:bg-red-950/20' : ''}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedAreaIds.has(area.id)}
+                        onChange={() => toggleAreaSelection(area.id)}
+                        className="h-4 w-4 rounded cursor-pointer"
+                      />
+                    </TableCell>
                     <TableCell>
                       {editingId === area.id ? (
                         <div className="flex gap-1">
