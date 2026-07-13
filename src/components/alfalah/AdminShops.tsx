@@ -156,6 +156,7 @@ export default function AdminShops() {
   const [formName, setFormName] = useState('');
   const [formOwner, setFormOwner] = useState('');
   const [formArea, setFormArea] = useState('');
+  const [areas, setAreas] = useState<{id: string; name: string}[]>([]);
   const [formAddress, setFormAddress] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formRouteDays, setFormRouteDays] = useState<string[]>([]);
@@ -283,6 +284,16 @@ export default function AdminShops() {
   useEffect(() => { fetchOrderbookers(); fetchCompanies(); }, [fetchOrderbookers, fetchCompanies]);
   useEffect(() => { fetchShops(); }, [fetchShops]);
   useEffect(() => { fetchAllShopsForCounts(); }, [fetchAllShopsForCounts]);
+
+  // Fetch areas for the dropdown (add/edit shop form)
+  useEffect(() => {
+    apiFetch('/api/areas').then(async res => {
+      if (res.ok) {
+        const data = await res.json();
+        setAreas(data.areas || []);
+      }
+    }).catch(() => {});
+  }, []);
 
   const openAddDialog = () => {
     setEditingShop(null);
@@ -1906,7 +1917,18 @@ export default function AdminShops() {
               </div>
               <div className="space-y-2">
                 <Label>Area</Label>
-                <Input value={formArea} onChange={(e) => setFormArea(e.target.value)} placeholder="e.g., Gulshan-e-Iqbal" className="" />
+                {areas.length > 0 ? (
+                  <select
+                    value={formArea}
+                    onChange={(e) => setFormArea(e.target.value)}
+                    className="h-9 text-sm rounded-md border border-input bg-background px-3 w-full"
+                  >
+                    <option value="">Select area...</option>
+                    {areas.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
+                  </select>
+                ) : (
+                  <Input value={formArea} onChange={(e) => setFormArea(e.target.value)} placeholder="e.g., Gulshan-e-Iqbal" className="" />
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Phone</Label>

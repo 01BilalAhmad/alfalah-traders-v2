@@ -234,10 +234,21 @@ export default function AdminCreditPosting() {
   const [showCreateShop, setShowCreateShop] = useState(false);
   const [newShopName, setNewShopName] = useState('');
   const [newShopArea, setNewShopArea] = useState('');
+  const [areas, setAreas] = useState<{id: string; name: string}[]>([]);
   const [newShopAddress, setNewShopAddress] = useState('');
   const [newShopPhone, setNewShopPhone] = useState('');
   const [newShopRouteDays, setNewShopRouteDays] = useState<string[]>([]);
   const [creatingShop, setCreatingShop] = useState(false);
+
+  // Fetch areas for the dropdown (Quick Post shop creation)
+  useEffect(() => {
+    apiFetch('/api/areas').then(async res => {
+      if (res.ok) {
+        const data = await res.json();
+        setAreas(data.areas || []);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Credit limit warning state
   const [creditLimitWarning, setCreditLimitWarning] = useState<CreditLimitWarning | null>(null);
@@ -1962,12 +1973,23 @@ export default function AdminCreditPosting() {
                         <div className="grid grid-cols-2 gap-2">
                           <div>
                             <Label className="text-xs font-medium">Area</Label>
-                            <Input
-                              value={newShopArea}
-                              onChange={(e) => setNewShopArea(e.target.value)}
-                              placeholder="Area"
-                              className="h-9 text-sm"
-                            />
+                            {areas.length > 0 ? (
+                              <select
+                                value={newShopArea}
+                                onChange={(e) => setNewShopArea(e.target.value)}
+                                className="h-9 text-sm rounded-md border border-input bg-background px-3 w-full"
+                              >
+                                <option value="">Select area...</option>
+                                {areas.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
+                              </select>
+                            ) : (
+                              <Input
+                                value={newShopArea}
+                                onChange={(e) => setNewShopArea(e.target.value)}
+                                placeholder="Area"
+                                className="h-9 text-sm"
+                              />
+                            )}
                           </div>
                           <div>
                             <Label className="text-xs font-medium">Phone</Label>
