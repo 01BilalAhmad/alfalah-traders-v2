@@ -28,6 +28,7 @@ interface Shop {
   id: string;
   name: string;
   area: string | null;
+  address: string | null;
   ownerName: string | null;
   routeDays: string[];
   orderbooker?: { id: string; name: string };
@@ -523,6 +524,7 @@ export default function AdminAreaManagement() {
                 <TableRow>
                   <TableHead className="w-10 text-xs">✓</TableHead>
                   <TableHead className="text-xs">Shop Name</TableHead>
+                  <TableHead className="text-xs hidden lg:table-cell">Address</TableHead>
                   <TableHead className="text-xs">Current Area</TableHead>
                   <TableHead className="text-xs hidden md:table-cell">OB</TableHead>
                   <TableHead className="text-xs hidden md:table-cell">Days</TableHead>
@@ -531,7 +533,7 @@ export default function AdminAreaManagement() {
               <TableBody>
                 {filteredShops.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-sm text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-sm text-muted-foreground">
                       No shops found
                     </TableCell>
                   </TableRow>
@@ -552,6 +554,9 @@ export default function AdminAreaManagement() {
                         />
                       </TableCell>
                       <TableCell className="text-sm font-medium">{shop.name}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground hidden lg:table-cell max-w-[200px] truncate">
+                        {shop.address || '—'}
+                      </TableCell>
                       <TableCell className="text-sm">
                         {shop.area ? (
                           <Badge variant="outline">{shop.area}</Badge>
