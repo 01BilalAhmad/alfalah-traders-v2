@@ -407,42 +407,35 @@ export default function AdminCompanyReport() {
                   >
                     Date
                   </th>
-                  {/* Current Outstanding Balance (bold) above each OB name — matches Balance Report */}
+                  {/* Closing Outstanding Balance (as of end date) above each OB name */}
                   {data.orderbookers.map((ob) => (
                     <th
                       key={`bal-${ob.id}`}
                       className="border-r border-border/50 px-1 py-1 text-center font-extrabold text-slate-800 dark:text-slate-100 text-xs print:text-[10px]"
                       colSpan={2}
                     >
-                      {formatPKR(data.currentBalances?.[ob.id] ?? data.openingBalances[ob.id] ?? 0)}
+                      {formatPKR(data.closingBalances?.[ob.id] ?? data.obTotals[ob.id]?.balance ?? 0)}
                     </th>
                   ))}
-                  {/* Grand total outstanding */}
+                  {/* Grand total closing outstanding */}
                   <th
                     className="border-l-2 border-primary/30 px-1 py-1 text-center font-extrabold text-slate-800 dark:text-slate-100 text-xs print:text-[10px] bg-primary/5"
                     colSpan={2}
                   >
-                    {formatPKR(data.orderbookers.reduce((sum, ob) => sum + (data.currentBalances?.[ob.id] ?? data.openingBalances[ob.id] ?? 0), 0))}
+                    {formatPKR(data.orderbookers.reduce((sum, ob) => sum + (data.closingBalances?.[ob.id] ?? data.obTotals[ob.id]?.balance ?? 0), 0))}
                   </th>
                 </tr>
-                {/* Header Row 2: Orderbooker Names + Closing Credit */}
+                {/* Header Row 2: Orderbooker Names */}
                 <tr className="bg-primary/10 border-b border-primary/20">
-                  {data.orderbookers.map((ob) => {
-                    const closingBalance =
-                      data.closingBalances?.[ob.id] ?? data.obTotals[ob.id]?.balance ?? 0;
-                    return (
+                  {data.orderbookers.map((ob) => (
                       <th
                         key={ob.id}
-                        className="border-r border-border/50 px-1 py-1 text-center font-bold text-foreground align-top"
+                        className="border-r border-border/50 px-1 py-1 text-center font-bold text-foreground"
                         colSpan={2}
                       >
-                        <div className="leading-tight">{ob.name}</div>
-                        <div className="text-[10px] font-medium text-blue-600 dark:text-blue-400 print:text-[9px] mt-0.5">
-                          {formatPKR(closingBalance)}
-                        </div>
+                        {ob.name}
                       </th>
-                    );
-                  })}
+                  ))}
                   <th
                     className="border-l-2 border-primary/30 px-1 py-1 text-center font-bold text-foreground bg-primary/5"
                     colSpan={2}
