@@ -18,11 +18,13 @@ import {
   RefreshCw,
   Loader2,
   FileSpreadsheet,
+  CalendarDays,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
 import { formatAmount, formatPKR } from '@/lib/utils';
 import { handlePrint as sharedHandlePrint } from '@/lib/print-utils';
+import { Input } from '@/components/ui/input';
 
 function formatCurrency(amount: number): string {
   // Used in table cells (no Rs. prefix in template)
@@ -48,14 +50,17 @@ interface DayData {
 
 interface ReportData {
   company: { id: string; name: string };
-  month: string;
+  month: string | null;
   monthLabel: string;
+  rangeStart?: string;
+  rangeEnd?: string;
   days: DayInfo[];
   orderbookers: Orderbooker[];
   data: Record<string, Record<string, DayData>>;
   obTotals: Record<string, { credit: number; recovery: number; balance: number }>;
   openingBalances: Record<string, number>;
   currentBalances: Record<string, number>;
+  closingBalances: Record<string, number>;
   grandTotals: { credit: number; recovery: number; balance: number };
   workingDays: number;
 }
@@ -97,6 +102,16 @@ function ReportSkeleton() {
   );
 }
 
+// Helper: compute first & last day of a YYYY-MM month string as YYYY-MM-DD values
+function getMonthDateRange(monthParam: string): { start: string; end: string } {
+  const [y, m] = monthParam.split('-').map((n) => parseInt(n, 10));
+  const lastDay = new Date(y, m, 0).getDate();
+  return {
+    start: `${monthParam}-01`,
+    end: `${monthParam}-${String(lastDay).padStart(2, '0')}`,
+  };
+}
+
 export default function AdminCompanyReport() {
   const { businessName } = useBusinessName();
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
@@ -104,6 +119,16 @@ export default function AdminCompanyReport() {
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  // Date range state — initialised to the current month's first/last day
+  const [selectedStartDate, setSelectedStartDate] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [selectedEndDate, setSelectedEndDate] = useState<string>(() => {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
   });
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -138,7 +163,13 @@ export default function AdminCompanyReport() {
     try {
       const params = new URLSearchParams();
       params.set('companyId', selectedCompany);
-      params.set('month', selectedMonth);
+      // Prefer explicit date range; fall back to month for backward compatibility
+      if (selectedStartDate && selectedEndDate) {
+        params.set('startDate', selectedStartDate);
+        params.set('endDate', selectedEndDate);
+      } else {
+        params.set('month', selectedMonth);
+      }
 
       const res = await apiFetch(`/api/reports/company-credit-recovery?${params.toString()}`);
       if (res.ok) {
@@ -152,7 +183,15 @@ export default function AdminCompanyReport() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCompany, selectedMonth]);
+  }, [selectedCompany, selectedMonth, selectedStartDate, selectedEndDate]);
+
+  // When the month dropdown changes, auto-fill start/end dates to that month's range
+  const handleMonthChange = useCallback((newMonth: string) => {
+    setSelectedMonth(newMonth);
+    const { start, end } = getMonthDateRange(newMonth);
+    setSelectedStartDate(start);
+    setSelectedEndDate(end);
+  }, []);
 
   useEffect(() => {
     if (selectedCompany) {
@@ -228,7 +267,7 @@ export default function AdminCompanyReport() {
           </Select>
         </div>
 
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+        <Select value={selectedMonth} onValueChange={handleMonthChange}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Select Month" />
           </SelectTrigger>
@@ -238,6 +277,32 @@ export default function AdminCompanyReport() {
             ))}
           </SelectContent>
         </Select>
+
+        {/* Date range selector — overrides month when both dates are set */}
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">From</span>
+            <Input
+              type="date"
+              value={selectedStartDate}
+              onChange={(e) => setSelectedStartDate(e.target.value)}
+              className="h-9 w-[150px] px-2 text-xs"
+              aria-label="Start date"
+            />
+          </div>
+          <span className="text-xs text-muted-foreground">→</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">To</span>
+            <Input
+              type="date"
+              value={selectedEndDate}
+              onChange={(e) => setSelectedEndDate(e.target.value)}
+              className="h-9 w-[150px] px-2 text-xs"
+              aria-label="End date"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -360,17 +425,24 @@ export default function AdminCompanyReport() {
                     {formatPKR(data.orderbookers.reduce((sum, ob) => sum + (data.currentBalances?.[ob.id] ?? data.openingBalances[ob.id] ?? 0), 0))}
                   </th>
                 </tr>
-                {/* Header Row 2: Orderbooker Names */}
+                {/* Header Row 2: Orderbooker Names + Closing Credit */}
                 <tr className="bg-primary/10 border-b border-primary/20">
-                  {data.orderbookers.map((ob) => (
-                    <th
-                      key={ob.id}
-                      className="border-r border-border/50 px-1 py-1 text-center font-bold text-foreground"
-                      colSpan={2}
-                    >
-                      {ob.name}
-                    </th>
-                  ))}
+                  {data.orderbookers.map((ob) => {
+                    const closingBalance =
+                      data.closingBalances?.[ob.id] ?? data.obTotals[ob.id]?.balance ?? 0;
+                    return (
+                      <th
+                        key={ob.id}
+                        className="border-r border-border/50 px-1 py-1 text-center font-bold text-foreground align-top"
+                        colSpan={2}
+                      >
+                        <div className="leading-tight">{ob.name}</div>
+                        <div className="text-[10px] font-medium text-blue-600 dark:text-blue-400 print:text-[9px] mt-0.5">
+                          {formatPKR(closingBalance)}
+                        </div>
+                      </th>
+                    );
+                  })}
                   <th
                     className="border-l-2 border-primary/30 px-1 py-1 text-center font-bold text-foreground bg-primary/5"
                     colSpan={2}

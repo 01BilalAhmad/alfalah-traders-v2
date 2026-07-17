@@ -2,38 +2,124 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg';
 
 // GET /api/reports/company-credit-recovery?companyId=xxx&month=2026-05
-// Returns days-wise credit & recovery grouped by orderbooker for a specific company
+//   OR ?companyId=xxx&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+// Returns days-wise credit & recovery grouped by orderbooker for a specific company.
+// If startDate & endDate are supplied they take priority over `month`.
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
     const monthParam = searchParams.get('month');
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
 
     if (!companyId) {
       return NextResponse.json({ error: 'companyId is required' }, { status: 400 });
     }
 
-    // Parse month (YYYY-MM) or default to current month
+    // Parse date range (YYYY-MM-DD) OR month (YYYY-MM). Date range takes priority.
     const now = new Date();
-    let year: number;
-    let month: number;
+    let startDate: Date;
+    let endDate: Date;
+    let monthLabel: string;
+    let monthResponse: string | null = null;
 
-    if (monthParam) {
-      const parts = monthParam.split('-');
-      year = parseInt(parts[0], 10);
-      month = parseInt(parts[1], 10);
+    if (startDateParam && endDateParam) {
+      // ─── Custom date range mode ───
+      const sp = startDateParam.split('-').map((n) => parseInt(n, 10));
+      const ep = endDateParam.split('-').map((n) => parseInt(n, 10));
+      if (
+        sp.length !== 3 ||
+        ep.length !== 3 ||
+        sp.some((n) => isNaN(n)) ||
+        ep.some((n) => isNaN(n))
+      ) {
+        return NextResponse.json(
+          { error: 'Invalid date format. Use YYYY-MM-DD for startDate and endDate.' },
+          { status: 400 }
+        );
+      }
+      const [sy, sm, sd] = sp;
+      const [ey, em, ed] = ep;
+      const sCheck = new Date(sy, sm - 1, sd);
+      const eCheck = new Date(ey, em - 1, ed);
+      if (isNaN(sCheck.getTime()) || isNaN(eCheck.getTime())) {
+        return NextResponse.json({ error: 'Invalid date values.' }, { status: 400 });
+      }
+      if (sCheck > eCheck) {
+        return NextResponse.json(
+          { error: 'startDate must be on or before endDate.' },
+          { status: 400 }
+        );
+      }
+      // PKT = UTC+5.
+      // start = startDate 00:00:00.000 PKT => previous day 19:00:00.000 UTC
+      startDate = new Date(Date.UTC(sy, sm - 1, sd, -5, 0, 0, 0));
+      // end = endDate 23:59:59.999 PKT => same day 18:59:59.999 UTC
+      endDate = new Date(Date.UTC(ey, em - 1, ed, 18, 59, 59, 999));
+      monthLabel = `${startDateParam} → ${endDateParam}`;
     } else {
-      year = now.getFullYear();
-      month = now.getMonth() + 1;
+      // ─── Month mode (backward compatible) — defaults to current month ───
+      let year: number;
+      let month: number;
+      if (monthParam) {
+        const parts = monthParam.split('-');
+        year = parseInt(parts[0], 10);
+        month = parseInt(parts[1], 10);
+      } else {
+        year = now.getFullYear();
+        month = now.getMonth() + 1;
+      }
+      if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+        return NextResponse.json(
+          { error: 'Invalid month format. Use YYYY-MM' },
+          { status: 400 }
+        );
+      }
+      // Calculate month boundaries in Pakistan timezone (UTC+5)
+      startDate = new Date(Date.UTC(year, month - 1, 1, -5, 0, 0, 0));
+      endDate = new Date(Date.UTC(year, month, 0, 18, 59, 59, 999));
+      monthLabel = new Date(year, month - 1, 1).toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric',
+      });
+      monthResponse = `${year}-${String(month).padStart(2, '0')}`;
     }
 
-    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
-      return NextResponse.json({ error: 'Invalid month format. Use YYYY-MM' }, { status: 400 });
+    // Helper: extract date string (YYYY-MM-DD) from a timestamp in Pakistan timezone
+    function getPakistanDate(createdAt: Date | string): string {
+      const d = createdAt instanceof Date ? createdAt : new Date(createdAt);
+      const pkTime = new Date(d.getTime() + (5 * 60 * 60 * 1000));
+      return `${pkTime.getUTCFullYear()}-${String(pkTime.getUTCMonth() + 1).padStart(2, '0')}-${String(pkTime.getUTCDate()).padStart(2, '0')}`;
     }
 
-    // Calculate month boundaries in Pakistan timezone (UTC+5)
-    const startDate = new Date(Date.UTC(year, month - 1, 1, -5, 0, 0, 0));
-    const endDate = new Date(Date.UTC(year, month, 0, 18, 59, 59, 999));
+    // Build the list of days covering [startDate, endDate] in PKT
+    function buildDays(): { date: string; label: string }[] {
+      const result: { date: string; label: string }[] = [];
+      const startPKT = new Date(startDate.getTime() + (5 * 60 * 60 * 1000));
+      const endPKT = new Date(endDate.getTime() + (5 * 60 * 60 * 1000));
+      let curY = startPKT.getUTCFullYear();
+      let curM = startPKT.getUTCMonth();
+      let curD = startPKT.getUTCDate();
+      const lastY = endPKT.getUTCFullYear();
+      const lastM = endPKT.getUTCMonth();
+      const lastD = endPKT.getUTCDate();
+      let safety = 0;
+      while (safety < 400) {
+        const dateStr = `${curY}-${String(curM + 1).padStart(2, '0')}-${String(curD).padStart(2, '0')}`;
+        const label = `${String(curD).padStart(2, '0')}-${String(curM + 1).padStart(2, '0')}-${String(curY).slice(2)}`;
+        result.push({ date: dateStr, label });
+        if (curY === lastY && curM === lastM && curD === lastD) break;
+        const next = new Date(Date.UTC(curY, curM, curD + 1));
+        curY = next.getUTCFullYear();
+        curM = next.getUTCMonth();
+        curD = next.getUTCDate();
+        safety++;
+      }
+      return result;
+    }
+
+    const days: { date: string; label: string }[] = buildDays();
 
     const pool = getPool();
 
@@ -70,21 +156,18 @@ export async function GET(request: NextRequest) {
     const orderbookerIds = orderbookers.map((ob: { id: string }) => ob.id);
 
     if (orderbookerIds.length === 0) {
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const days: { date: string; label: string }[] = [];
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        days.push({ date: dateStr, label: `${String(d).padStart(2, '0')}-${String(month).padStart(2, '0')}-${String(year).slice(2)}` });
-      }
       return NextResponse.json({
         company: { id: companyId, name: companyName },
-        month: `${year}-${String(month).padStart(2, '0')}`,
-        monthLabel: new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        month: monthResponse,
+        monthLabel,
+        rangeStart: startDate.toISOString(),
+        rangeEnd: endDate.toISOString(),
         days,
         orderbookers: [],
         data: {},
         obTotals: {},
         openingBalances: {},
+        closingBalances: {},
         grandTotals: { credit: 0, recovery: 0, balance: 0 },
         workingDays: 0,
       });
@@ -152,27 +235,13 @@ export async function GET(request: NextRequest) {
     );
 
     // 6. Build the data structure
-    const daysInMonth = new Date(year, month, 0).getDate();
-    const days: { date: string; label: string }[] = [];
-
     // Initialize data map: date -> orderbookerId -> { credit, recovery, balance }
     const dataMap: Record<string, Record<string, { credit: number; recovery: number; balance: number }>> = {};
-
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const label = `${String(d).padStart(2, '0')}-${String(month).padStart(2, '0')}-${String(year).slice(2)}`;
-      days.push({ date: dateStr, label });
-      dataMap[dateStr] = {};
+    for (const day of days) {
+      dataMap[day.date] = {};
       for (const ob of orderbookers) {
-        dataMap[dateStr][ob.id] = { credit: 0, recovery: 0, balance: 0 };
+        dataMap[day.date][ob.id] = { credit: 0, recovery: 0, balance: 0 };
       }
-    }
-
-    // Helper: extract date string from createdAt in Pakistan timezone
-    function getPakistanDate(createdAt: Date | string): string {
-      const d = createdAt instanceof Date ? createdAt : new Date(createdAt);
-      const pkTime = new Date(d.getTime() + (5 * 60 * 60 * 1000));
-      return `${pkTime.getUTCFullYear()}-${String(pkTime.getUTCMonth() + 1).padStart(2, '0')}-${String(pkTime.getUTCDate()).padStart(2, '0')}`;
     }
 
     // Fill credit data
@@ -272,6 +341,14 @@ export async function GET(request: NextRequest) {
       obTotals[ob.id].balance = Math.round(obTotals[ob.id].balance * 100) / 100;
     }
 
+    // Build closing balances (outstanding balance at end of selected range).
+    // closingBalance = openingBalance + totalCredit (in range) - totalRecovery (in range)
+    // which equals obTotals[ob.id].balance (last running balance inside the range).
+    const closingBalances: Record<string, number> = {};
+    for (const ob of orderbookers) {
+      closingBalances[ob.id] = obTotals[ob.id].balance;
+    }
+
     // Grand total balance = sum of all OB closing balances
     const grandBalance = Math.round(
       orderbookers.reduce((sum, ob) => sum + obTotals[ob.id].balance, 0) * 100
@@ -279,14 +356,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       company: { id: companyId, name: companyName },
-      month: `${year}-${String(month).padStart(2, '0')}`,
-      monthLabel: new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      month: monthResponse,
+      monthLabel,
+      rangeStart: startDate.toISOString(),
+      rangeEnd: endDate.toISOString(),
       days,
       orderbookers,
       data: dataMap,
       obTotals,
       openingBalances,
       currentBalances,
+      closingBalances,
       grandTotals: {
         credit: Math.round(grandCredit * 100) / 100,
         recovery: Math.round(grandRecovery * 100) / 100,
