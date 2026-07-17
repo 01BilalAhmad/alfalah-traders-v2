@@ -198,6 +198,36 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 3b. ADJUST currentBalances to the END DATE of the selected range
+    // If end date is in the past, we need to subtract transactions that happened AFTER the end date
+    // This gives us the TRUE balance as of the end date
+    const nowDate = new Date();
+    if (endDate < nowDate) {
+      // Get all credit + recovery transactions AFTER endDate for this company's OBs
+      const afterEndDateRes = await pool.query(
+        `SELECT s."orderbookerId" AS ob_id,
+                COALESCE(SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE 0 END), 0) AS after_credit,
+                COALESCE(SUM(CASE WHEN t.type IN ('recovery', 'supplier_collection') THEN t.amount ELSE 0 END), 0) AS after_recovery
+         FROM "Transaction" t
+         JOIN "Shop" s ON t."shopId" = s.id
+         WHERE t."companyId" = $1
+           AND s."orderbookerId" IN (${orderbookerIds.map((_: string, idx: number) => `$${idx + 3}`).join(', ')})
+           AND t.status = 'approved'
+           AND t."createdAt" > $2
+         GROUP BY s."orderbookerId"`,
+        [companyId, endDate.toISOString(), ...orderbookerIds]
+      );
+      // Adjust: balance_as_of_end_date = current_balance - credits_after + recoveries_after
+      for (const row of afterEndDateRes.rows) {
+        const obId = row.ob_id as string;
+        const afterCredit = Number(row.after_credit) || 0;
+        const afterRecovery = Number(row.after_recovery) || 0;
+        // If credit was added after end date, subtract it (it wasn't there on end date)
+        // If recovery was done after end date, add it back (balance was higher on end date)
+        currentBalances[obId] = Math.round((currentBalances[obId] - afterCredit + afterRecovery) * 100) / 100;
+      }
+    }
+
     // 4. Fetch all CREDIT transactions for this company in the month
     const creditRes = await pool.query(
       `SELECT t."shopId", t."createdBy", t.amount, t."createdAt",
