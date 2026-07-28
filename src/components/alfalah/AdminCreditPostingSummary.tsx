@@ -64,9 +64,6 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true });
-}
 
 function getYesterdayDate(): string {
   const d = new Date();
@@ -134,7 +131,6 @@ export default function AdminCreditPostingSummary() {
     const wb = XLSX.utils.book_new();
     const rows = data.credits.map((c, i) => ({
       '#': i + 1,
-      'Time': formatTime(c.createdAt),
       'Shop Name': c.shopName,
       'Area': c.shopArea || '',
       'Address': c.shopAddress || '',
@@ -176,7 +172,6 @@ export default function AdminCreditPostingSummary() {
         <td style="text-align:right; font-weight:bold; color:#2563EB">${formatPKR(c.amount)}</td>
         <td>${c.companyName || '—'}</td>
         <td>${c.orderbookerName}</td>
-        <td>${formatTime(c.createdAt)}</td>
       </tr>
     `).join('');
 
@@ -227,7 +222,7 @@ export default function AdminCreditPostingSummary() {
       </div>
       <table>
         <thead>
-          <tr><th style="width:25px">#</th><th>Shop Name</th><th>Address</th><th style="text-align:right">Amount</th><th>Company</th><th>Orderbooker</th><th style="text-align:center">Time</th></tr>
+          <tr><th style="width:25px">#</th><th>Shop Name</th><th>Address</th><th style="text-align:right">Amount</th><th>Company</th><th>Orderbooker</th></tr>
         </thead>
         <tbody>
           ${rowsHtml}
@@ -386,7 +381,6 @@ export default function AdminCreditPostingSummary() {
                         <TableHead className="text-xs text-right">Amount</TableHead>
                         <TableHead className="text-xs hidden lg:table-cell">Company</TableHead>
                         <TableHead className="text-xs hidden md:table-cell">OB</TableHead>
-                        <TableHead className="text-xs text-right hidden lg:table-cell">Time</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -398,7 +392,6 @@ export default function AdminCreditPostingSummary() {
                           <TableCell className="text-xs py-2 text-right font-bold text-blue-600 dark:text-blue-400">{formatPKR(c.amount)}</TableCell>
                           <TableCell className="text-xs py-2 hidden lg:table-cell">{c.companyName ? <Badge variant="outline">{c.companyName}</Badge> : '—'}</TableCell>
                           <TableCell className="text-xs py-2 hidden md:table-cell text-muted-foreground">{c.orderbookerName}</TableCell>
-                          <TableCell className="text-xs py-2 text-right hidden lg:table-cell text-muted-foreground">{formatTime(c.createdAt)}</TableCell>
                         </TableRow>
                       ))}
                       <TableRow className="border-t-2 border-blue-300 bg-blue-50 dark:bg-blue-950/30">
