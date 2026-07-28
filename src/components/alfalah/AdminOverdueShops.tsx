@@ -186,7 +186,7 @@ export default function AdminOverdueShops() {
       <tr>
         <td style="text-align:center">${i + 1}</td>
         <td><strong>${s.name}</strong></td>
-        <td>${s.area || '—'}</td>
+        <td>${s.address || s.area || '—'}</td>
         <td style="text-align:right; font-weight:bold; color:#DC2626">${formatPKR(s.balance)}</td>
         <td>${s.orderbookerName}</td>
         <td style="text-align:center">${s.daysSinceRecovery !== null ? s.daysSinceRecovery + ' days' : 'Never'}</td>
@@ -231,7 +231,7 @@ export default function AdminOverdueShops() {
       </div>
       <table>
         <thead>
-          <tr><th style="width:25px">#</th><th>Shop Name</th><th>Area</th><th style="text-align:right">Outstanding</th><th>Orderbooker</th><th style="text-align:center">Last Recovery</th></tr>
+          <tr><th style="width:25px">#</th><th>Shop Name</th><th>Address</th><th style="text-align:right">Outstanding</th><th>Orderbooker</th><th style="text-align:center">Last Recovery</th></tr>
         </thead>
         <tbody>
           ${rowsHtml}
@@ -255,7 +255,7 @@ export default function AdminOverdueShops() {
     const rows = filteredShops.map((s, i) => ({
       '#': i + 1,
       'Shop Name': s.name,
-      'Area': s.area || '',
+      'Address': s.address || s.area || '',
       'Outstanding (Rs.)': s.balance,
       'Orderbooker': s.orderbookerName,
       'Last Recovery': s.lastRecoveryDate ? new Date(s.lastRecoveryDate).toLocaleDateString('en-PK') : 'Never',
@@ -523,7 +523,7 @@ export default function AdminOverdueShops() {
                       <TableCell className="hidden sm:table-cell">
                         <div className="flex items-center gap-1.5">
                           <MapPin className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">{shop.area || '—'}</span>
+                          <span className="text-sm text-muted-foreground">{shop.address || shop.area || '—'}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
