@@ -168,8 +168,9 @@ export default function AdminCreditPostingSummary() {
       <tr>
         <td style="text-align:center">${i + 1}</td>
         <td><strong>${c.shopName}</strong></td>
-        <td>${c.shopAddress || c.shopArea || '—'}</td>
+        <td style="text-align:right">${formatPKR(c.previousBalance)}</td>
         <td style="text-align:right; font-weight:bold; color:#2563EB">${formatPKR(c.amount)}</td>
+        <td style="text-align:right; font-weight:bold">${formatPKR(c.newBalance)}</td>
         <td>${c.companyName || '—'}</td>
         <td>${c.orderbookerName}</td>
       </tr>
@@ -222,12 +223,12 @@ export default function AdminCreditPostingSummary() {
       </div>
       <table>
         <thead>
-          <tr><th style="width:25px">#</th><th>Shop Name</th><th>Address</th><th style="text-align:right">Amount</th><th>Company</th><th>Orderbooker</th></tr>
+          <tr><th style="width:25px">#</th><th>Shop Name</th><th style="text-align:right">Opening</th><th style="text-align:right">Credit</th><th style="text-align:right">Closing</th><th>Company</th><th>Orderbooker</th></tr>
         </thead>
         <tbody>
           ${rowsHtml}
           <tr class="total-row">
-            <td colspan="3" style="text-align:right">TOTAL CREDIT POSTED</td>
+            <td colspan="2" style="text-align:right">TOTAL CREDIT POSTED</td>
             <td style="text-align:right; color:#2563EB; font-size:12px">${formatPKR(data.summary.totalAmount)}</td>
             <td colspan="3">${data.summary.totalShops} shops • ${data.summary.totalTransactions} entries</td>
           </tr>
@@ -377,8 +378,9 @@ export default function AdminCreditPostingSummary() {
                       <TableRow className="bg-blue-50 dark:bg-blue-950/30">
                         <TableHead className="text-xs">#</TableHead>
                         <TableHead className="text-xs">Shop</TableHead>
-                        <TableHead className="text-xs hidden md:table-cell">Address</TableHead>
-                        <TableHead className="text-xs text-right">Amount</TableHead>
+                        <TableHead className="text-xs text-right hidden sm:table-cell">Opening</TableHead>
+                        <TableHead className="text-xs text-right">Credit</TableHead>
+                        <TableHead className="text-xs text-right">Closing</TableHead>
                         <TableHead className="text-xs hidden lg:table-cell">Company</TableHead>
                         <TableHead className="text-xs hidden md:table-cell">OB</TableHead>
                       </TableRow>
@@ -388,8 +390,9 @@ export default function AdminCreditPostingSummary() {
                         <TableRow key={c.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-950/20">
                           <TableCell className="text-xs py-2">{i + 1}</TableCell>
                           <TableCell className="py-2"><p className="text-sm font-medium">{c.shopName}</p><p className="text-[10px] text-muted-foreground">{c.shopArea || '—'}</p></TableCell>
-                          <TableCell className="text-xs py-2 hidden md:table-cell max-w-[200px] truncate">{c.shopAddress || '—'}</TableCell>
+                          <TableCell className="text-xs py-2 text-right hidden sm:table-cell text-muted-foreground">{formatPKR(c.previousBalance)}</TableCell>
                           <TableCell className="text-xs py-2 text-right font-bold text-blue-600 dark:text-blue-400">{formatPKR(c.amount)}</TableCell>
+                          <TableCell className="text-xs py-2 text-right font-semibold">{formatPKR(c.newBalance)}</TableCell>
                           <TableCell className="text-xs py-2 hidden lg:table-cell">{c.companyName ? <Badge variant="outline">{c.companyName}</Badge> : '—'}</TableCell>
                           <TableCell className="text-xs py-2 hidden md:table-cell text-muted-foreground">{c.orderbookerName}</TableCell>
                         </TableRow>
