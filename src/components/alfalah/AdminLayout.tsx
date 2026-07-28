@@ -80,6 +80,7 @@ const adminNavSections: NavSection[] = [
     icon: <Wallet className="h-4 w-4" />,
     items: [
       { id: 'admin-credit', label: 'Credit Posting', icon: <CreditCard className="h-4 w-4" /> },
+      { id: 'admin-credit-posting-summary', label: 'Credit Posting Summary', icon: <FileText className="h-4 w-4" /> },
       { id: 'admin-claims', label: 'Claim Posting', icon: <ShieldAlert className="h-4 w-4" /> },
       { id: 'admin-recovery', label: 'Recovery Report', icon: <TrendingUp className="h-4 w-4" /> },
       { id: 'admin-approve-recovery', label: 'Approve Recovery', icon: <ShieldCheck className="h-4 w-4" /> },

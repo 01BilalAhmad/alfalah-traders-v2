@@ -7,6 +7,7 @@
 export const viewToRoute: Record<string, string> = {
   'admin-dashboard': '/dashboard',
   'admin-credit': '/credit-posting',
+  'admin-credit-posting-summary': '/credit-posting-summary',
   'admin-claims': '/claims',
   'admin-recovery': '/recovery',
   'admin-approve-recovery': '/approve-recovery',
@@ -51,6 +52,7 @@ export const viewToRoute: Record<string, string> = {
 export const routeToView: Record<string, string> = {
   '/dashboard': 'admin-dashboard',
   '/credit-posting': 'admin-credit',
+  '/credit-posting-summary': 'admin-credit-posting-summary',
   '/claims': 'admin-claims',
   '/recovery': 'admin-recovery',
   '/approve-recovery': 'admin-approve-recovery',
