@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,7 +90,7 @@ export default function AdminCreditPostingSummary() {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch companies + OBs on mount
-  useCallback(() => {
+  useEffect(() => {
     (async () => {
       try {
         const [cRes, oRes] = await Promise.all([
