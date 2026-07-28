@@ -164,15 +164,17 @@ export default function AdminCreditPostingSummary() {
     if (!printWin) return;
     const businessName = 'AL-FALAH TRADERS';
     const dateLabel = formatDate(data.date);
+    const companyNameDisplay = filterCompany ? (companies.find(c => c.id === filterCompany)?.name || 'All') : (data.companySummary.length > 0 ? data.companySummary.map(c => c.companyName).join(', ') : 'All');
+    const obNameDisplay = (filterOB && filterOB !== 'all') ? (orderbookers.find(o => o.id === filterOB)?.name || 'All') : 'All';
+
     const rowsHtml = data.credits.map((c, i) => `
       <tr>
         <td style="text-align:center">${i + 1}</td>
         <td><strong>${c.shopName}</strong></td>
+        <td>${c.shopAddress || c.shopArea || '—'}</td>
         <td style="text-align:right">${formatPKR(c.previousBalance)}</td>
         <td style="text-align:right; font-weight:bold; color:#2563EB">${formatPKR(c.amount)}</td>
         <td style="text-align:right; font-weight:bold">${formatPKR(c.newBalance)}</td>
-        <td>${c.companyName || '—'}</td>
-        <td>${c.orderbookerName}</td>
       </tr>
     `).join('');
 
@@ -194,6 +196,7 @@ export default function AdminCreditPostingSummary() {
       .subtitle { font-size: 10px; color: #666; margin-top:2px; }
       .report-title { font-size: 15px; font-weight:bold; margin-top:6px; color:#1E40AF; }
       .date-line { font-size: 11px; font-weight:bold; margin-top:4px; color:#333; }
+      .info-line { font-size: 10px; color: #555; margin-top:4px; text-align:center; }
       .summary-box { display:flex; gap:12px; margin:10px 0; justify-content:center; }
       .summary-card { border:1px solid #BFDBFE; border-radius:6px; padding:8px 16px; text-align:center; background:#EFF6FF; }
       .summary-card .label { font-size:8px; color:#666; text-transform:uppercase; letter-spacing:0.3px; font-weight:600; }
@@ -204,9 +207,6 @@ export default function AdminCreditPostingSummary() {
       tr:nth-child(even) { background:#F8FAFC; }
       .total-row { background:#DBEAFE !important; font-weight:bold; }
       .total-row td { border-top:2px solid #2563EB; padding:6px 4px; font-size:11px; }
-      .company-section { margin-top:12px; }
-      .company-title { font-size:12px; font-weight:bold; color:#2563EB; margin-bottom:4px; }
-      .company-table th { background:#1E40AF; }
       .footer { margin-top:12px; padding-top:6px; border-top:1px solid #ccc; text-align:center; font-size:8px; color:#999; }
       @media print { body { padding:0; } .no-print { display:none; } }
     </style></head><body>
@@ -215,6 +215,7 @@ export default function AdminCreditPostingSummary() {
         <div class="subtitle">Credit & Route Management System</div>
         <div class="report-title">CREDIT POSTING SUMMARY</div>
         <div class="date-line">Date: ${dateLabel}</div>
+        <div class="info-line">Company: ${companyNameDisplay} &nbsp;|&nbsp; Orderbooker: ${obNameDisplay}</div>
       </div>
       <div class="summary-box">
         <div class="summary-card"><div class="label">Total Credit</div><div class="value">${formatPKR(data.summary.totalAmount)}</div></div>
@@ -223,14 +224,14 @@ export default function AdminCreditPostingSummary() {
       </div>
       <table>
         <thead>
-          <tr><th style="width:25px">#</th><th>Shop Name</th><th style="text-align:right">Opening</th><th style="text-align:right">Credit</th><th style="text-align:right">Closing</th><th>Company</th><th>Orderbooker</th></tr>
+          <tr><th style="width:25px">#</th><th>Shop Name</th><th>Address</th><th style="text-align:right">Opening</th><th style="text-align:right">Credit</th><th style="text-align:right">Closing</th></tr>
         </thead>
         <tbody>
           ${rowsHtml}
           <tr class="total-row">
-            <td colspan="2" style="text-align:right">TOTAL CREDIT POSTED</td>
+            <td colspan="4" style="text-align:right">TOTAL CREDIT POSTED</td>
             <td style="text-align:right; color:#2563EB; font-size:12px">${formatPKR(data.summary.totalAmount)}</td>
-            <td colspan="3">${data.summary.totalShops} shops • ${data.summary.totalTransactions} entries</td>
+            <td>${data.summary.totalShops} shops</td>
           </tr>
         </tbody>
       </table>
@@ -355,7 +356,25 @@ export default function AdminCreditPostingSummary() {
             </Button>
           </div>
 
-          {/* Credits Table */}
+          {/* Company + OB info line */}
+          {data && (
+            <div className="flex items-center gap-4 text-sm">
+              {filterCompany && companies.find(c => c.id === filterCompany) && (
+                <span className="font-medium">Company: <span className="text-blue-600 dark:text-blue-400">{companies.find(c => c.id === filterCompany)?.name}</span></span>
+              )}
+              {!filterCompany && data.companySummary.length > 0 && (
+                <span className="font-medium">Company: <span className="text-blue-600 dark:text-blue-400">{data.companySummary.map(c => c.companyName).join(', ')}</span></span>
+              )}
+              {filterOB && filterOB !== 'all' && orderbookers.find(o => o.id === filterOB) && (
+                <span className="font-medium">Orderbooker: <span className="text-blue-600 dark:text-blue-400">{orderbookers.find(o => o.id === filterOB)?.name}</span></span>
+              )}
+              {(!filterOB || filterOB === 'all') && (
+                <span className="font-medium">Orderbooker: <span className="text-blue-600 dark:text-blue-400">All</span></span>
+              )}
+            </div>
+          )}
+
+          {/* Credits Table — only Shop, Address, Opening, Credit, Closing */}
           <Card className="border-blue-200 dark:border-blue-900">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
@@ -378,11 +397,10 @@ export default function AdminCreditPostingSummary() {
                       <TableRow className="bg-blue-50 dark:bg-blue-950/30">
                         <TableHead className="text-xs">#</TableHead>
                         <TableHead className="text-xs">Shop</TableHead>
+                        <TableHead className="text-xs hidden md:table-cell">Address</TableHead>
                         <TableHead className="text-xs text-right hidden sm:table-cell">Opening</TableHead>
                         <TableHead className="text-xs text-right">Credit</TableHead>
                         <TableHead className="text-xs text-right">Closing</TableHead>
-                        <TableHead className="text-xs hidden lg:table-cell">Company</TableHead>
-                        <TableHead className="text-xs hidden md:table-cell">OB</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -390,17 +408,16 @@ export default function AdminCreditPostingSummary() {
                         <TableRow key={c.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-950/20">
                           <TableCell className="text-xs py-2">{i + 1}</TableCell>
                           <TableCell className="py-2"><p className="text-sm font-medium">{c.shopName}</p><p className="text-[10px] text-muted-foreground">{c.shopArea || '—'}</p></TableCell>
+                          <TableCell className="text-xs py-2 hidden md:table-cell max-w-[200px] truncate">{c.shopAddress || c.shopArea || '—'}</TableCell>
                           <TableCell className="text-xs py-2 text-right hidden sm:table-cell text-muted-foreground">{formatPKR(c.previousBalance)}</TableCell>
                           <TableCell className="text-xs py-2 text-right font-bold text-blue-600 dark:text-blue-400">{formatPKR(c.amount)}</TableCell>
                           <TableCell className="text-xs py-2 text-right font-semibold">{formatPKR(c.newBalance)}</TableCell>
-                          <TableCell className="text-xs py-2 hidden lg:table-cell">{c.companyName ? <Badge variant="outline">{c.companyName}</Badge> : '—'}</TableCell>
-                          <TableCell className="text-xs py-2 hidden md:table-cell text-muted-foreground">{c.orderbookerName}</TableCell>
                         </TableRow>
                       ))}
                       <TableRow className="border-t-2 border-blue-300 bg-blue-50 dark:bg-blue-950/30">
-                        <TableCell colSpan={3} className="text-xs py-2 font-bold">TOTAL</TableCell>
+                        <TableCell colSpan={4} className="text-xs py-2 font-bold">TOTAL</TableCell>
                         <TableCell className="text-xs py-2 text-right font-bold text-blue-600 dark:text-blue-400 text-base">{formatPKR(data.summary.totalAmount)}</TableCell>
-                        <TableCell colSpan={3} className="text-xs py-2 text-muted-foreground">{data.summary.totalShops} shops • {data.summary.totalTransactions} entries</TableCell>
+                        <TableCell className="text-xs py-2 text-muted-foreground">{data.summary.totalShops} shops</TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
