@@ -27,7 +27,10 @@ import {
   Search,
   User,
   CheckCircle2,
+  Printer,
+  FileSpreadsheet,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
 import { useRouter } from 'next/navigation';
@@ -166,13 +169,113 @@ export default function AdminOverdueShops() {
   const filteredShops = useMemo(() => {
     if (!searchQuery.trim()) return shops;
     const q = searchQuery.toLowerCase();
-    return shops.filter(
-      s => s.name.toLowerCase().includes(q) ||
-           s.area?.toLowerCase().includes(q) ||
-           s.orderbookerName?.toLowerCase().includes(q) ||
-           s.phone?.includes(q)
+    return shops.filter(s =>
+      s.name.toLowerCase().includes(q) ||
+      (s.area || '').toLowerCase().includes(q) ||
+      s.orderbookerName.toLowerCase().includes(q)
     );
   }, [shops, searchQuery]);
+
+  // Print overdue shops
+  const handlePrint = useCallback(() => {
+    if (shops.length === 0) return;
+    const printWin = window.open('', '_blank');
+    if (!printWin) return;
+    const today = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
+    const rowsHtml = filteredShops.map((s, i) => `
+      <tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td><strong>${s.name}</strong></td>
+        <td>${s.area || '—'}</td>
+        <td style="text-align:right; font-weight:bold; color:#DC2626">${formatPKR(s.balance)}</td>
+        <td>${s.orderbookerName}</td>
+        <td style="text-align:center">${s.daysSinceRecovery !== null ? s.daysSinceRecovery + ' days' : 'Never'}</td>
+      </tr>
+    `).join('');
+    const totalBalance = filteredShops.reduce((sum, s) => sum + s.balance, 0);
+
+    printWin.document.write(`<!DOCTYPE html><html><head><title>Overdue Shops Report</title>
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      @page { size: A4; margin: 10mm; }
+      body { font-family: Arial, sans-serif; color: #1a1a1a; font-size: 11px; }
+      .header { text-align:center; margin-bottom:10px; border-bottom: 3px solid #DC2626; padding-bottom:8px; }
+      .biz-name { font-size: 20px; font-weight: bold; color: #DC2626; letter-spacing:1px; }
+      .subtitle { font-size: 10px; color: #666; margin-top:2px; }
+      .report-title { font-size: 15px; font-weight:bold; margin-top:6px; color:#991B1B; }
+      .date-line { font-size: 11px; font-weight:bold; margin-top:4px; color:#333; }
+      .info-line { font-size: 10px; color: #555; margin-top:4px; text-align:center; }
+      .summary-box { display:flex; gap:12px; margin:10px 0; justify-content:center; }
+      .summary-card { border:1px solid #FECACA; border-radius:6px; padding:8px 16px; text-align:center; background:#FEF2F2; }
+      .summary-card .label { font-size:8px; color:#666; text-transform:uppercase; letter-spacing:0.3px; font-weight:600; }
+      .summary-card .value { font-size:16px; font-weight:bold; color:#DC2626; margin-top:2px; }
+      table { width:100%; border-collapse:collapse; margin-top:6px; font-size:10px; }
+      th { background:#DC2626; color:#fff; padding:6px 4px; text-align:left; font-size:9px; text-transform:uppercase; }
+      td { padding:4px 4px; border-bottom:1px solid #ddd; }
+      tr:nth-child(even) { background:#FEF2F2; }
+      .total-row { background:#FEE2E2 !important; font-weight:bold; }
+      .total-row td { border-top:2px solid #DC2626; padding:6px 4px; font-size:11px; }
+      .footer { margin-top:12px; padding-top:6px; border-top:1px solid #ccc; text-align:center; font-size:8px; color:#999; }
+      @media print { body { padding:0; } }
+    </style></head><body>
+      <div class="header">
+        <div class="biz-name">AL-FALAH TRADERS</div>
+        <div class="subtitle">Credit & Route Management System</div>
+        <div class="report-title">OVERDUE SHOPS REPORT</div>
+        <div class="date-line">Generated: ${today}</div>
+        <div class="info-line">Threshold: ${minDays}+ days since last recovery ${selectedOB !== 'all' ? '| Orderbooker: ' + (orderbookers.find(o => o.id === selectedOB)?.name || 'All') : '| All Orderbookers'}</div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-card"><div class="label">Overdue Shops</div><div class="value">${filteredShops.length}</div></div>
+        <div class="summary-card"><div class="label">Total Outstanding</div><div class="value">${formatPKR(totalBalance)}</div></div>
+      </div>
+      <table>
+        <thead>
+          <tr><th style="width:25px">#</th><th>Shop Name</th><th>Area</th><th style="text-align:right">Outstanding</th><th>Orderbooker</th><th style="text-align:center">Last Recovery</th></tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+          <tr class="total-row">
+            <td colspan="3" style="text-align:right">TOTAL</td>
+            <td style="text-align:right; color:#DC2626; font-size:12px">${formatPKR(totalBalance)}</td>
+            <td colspan="2">${filteredShops.length} shops</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="footer">Generated: ${new Date().toLocaleString('en-PK')} • Overdue Shops Report • AL-FALAH TRADERS</div>
+      <script>window.onload=function(){window.print();}</script>
+    </body></html>`);
+    printWin.document.close();
+  }, [filteredShops, shops, minDays, selectedOB, orderbookers]);
+
+  // Export to Excel
+  const handleExportExcel = useCallback(() => {
+    if (shops.length === 0) return;
+    const wb = XLSX.utils.book_new();
+    const rows = filteredShops.map((s, i) => ({
+      '#': i + 1,
+      'Shop Name': s.name,
+      'Area': s.area || '',
+      'Outstanding (Rs.)': s.balance,
+      'Orderbooker': s.orderbookerName,
+      'Last Recovery': s.lastRecoveryDate ? new Date(s.lastRecoveryDate).toLocaleDateString('en-PK') : 'Never',
+      'Days Since Recovery': s.daysSinceRecovery !== null ? s.daysSinceRecovery : 'Never',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 5 }, { wch: 22 }, { wch: 15 }, { wch: 16 }, { wch: 18 }, { wch: 15 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Overdue Shops');
+    const summary = [
+      { Metric: 'Total Overdue Shops', Value: filteredShops.length },
+      { Metric: 'Total Outstanding', Value: formatPKR(filteredShops.reduce((s, sh) => s + sh.balance, 0)) },
+      { Metric: 'Threshold (days)', Value: minDays },
+      { Metric: 'Generated', Value: new Date().toLocaleString('en-PK') },
+    ];
+    const ws2 = XLSX.utils.json_to_sheet(summary);
+    ws2['!cols'] = [{ wch: 25 }, { wch: 25 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+    XLSX.writeFile(wb, `Overdue_Shops_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast({ title: 'Excel Downloaded' });
+  }, [filteredShops, shops, minDays]);
 
   // Summary KPIs
   const summary = useMemo(() => {
@@ -252,6 +355,14 @@ export default function AdminOverdueShops() {
           <Button type="button" size="sm" variant="outline" className="h-9 gap-1.5" onClick={fetchData}>
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
+          </Button>
+          <Button type="button" size="sm" variant="outline" className="h-9 gap-1.5" onClick={handlePrint} disabled={shops.length === 0}>
+            <Printer className="h-3.5 w-3.5" />
+            Print
+          </Button>
+          <Button type="button" size="sm" variant="outline" className="h-9 gap-1.5" onClick={handleExportExcel} disabled={shops.length === 0}>
+            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+            Excel
           </Button>
         </div>
       </div>
