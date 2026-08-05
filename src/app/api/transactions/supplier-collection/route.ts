@@ -15,7 +15,7 @@ import { recalcShopBalances } from '@/lib/recalc-balances';
 export async function POST(request: NextRequest) {
   try {
     const createdBy = request.headers.get('x-auth-userid');
-    const { shopId, amount, description, companyId } = await request.json();
+    const { shopId, amount, description, companyId, customDate } = await request.json();
 
     if (!shopId || !amount || !createdBy || !companyId) {
       return NextResponse.json(
@@ -29,6 +29,25 @@ export async function POST(request: NextRequest) {
         { error: 'Amount must be greater than 0' },
         { status: 400 }
       );
+    }
+
+    // Validate customDate if provided (allow back-dating but not future dates)
+    let customCreatedAt: Date | null = null;
+    if (customDate) {
+      const parsed = new Date(customDate);
+      if (isNaN(parsed.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid custom date format. Use YYYY-MM-DD or ISO string.' },
+          { status: 400 }
+        );
+      }
+      if (parsed.getTime() > Date.now() + 60 * 1000) {
+        return NextResponse.json(
+          { error: 'Custom date cannot be in the future.' },
+          { status: 400 }
+        );
+      }
+      customCreatedAt = parsed;
     }
 
     const client = await getClient();
@@ -56,9 +75,9 @@ export async function POST(request: NextRequest) {
       const txnId = `txn_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
       const txnRes = await client.query(
         `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "companyId", "createdAt")
-         VALUES ($1, $2, 'supplier_collection', 'approved', $3, $4, $5, $6, $7, $8, NOW())
+         VALUES ($1, $2, 'supplier_collection', 'approved', $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [txnId, shopId, amount, previousBalance, newBalance, description || 'Supplier collection', createdBy, companyId]
+        [txnId, shopId, amount, previousBalance, newBalance, description || 'Supplier collection', createdBy, companyId, customCreatedAt || new Date()]
       );
       const transaction = txnRes.rows[0];
 

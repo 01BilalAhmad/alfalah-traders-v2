@@ -503,7 +503,7 @@ export default function AdminRecoveryReport() {
             description: addDescription.trim() || undefined,
             createdBy: user.id,
             companyId: companyIdToUse || undefined,
-            customDate: addRecoveryType === 'supplier_collection' ? undefined : (addRecoveryDate !== getLocalDateString() ? addRecoveryDate : undefined),
+            customDate: addRecoveryDate !== getLocalDateString() ? addRecoveryDate : undefined,
           }),
         }
       );
