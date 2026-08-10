@@ -39,11 +39,16 @@ import {
   Calendar,
   RefreshCw,
   Equal,
+  BookOpen,
+  Pencil,
+  User,
+  Phone,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { formatPKR, formatLocalDateTime } from '@/lib/utils';
+import type { LedgerData } from '@/lib/pdf-generator';
 
 interface TallyShop {
   id: string;
@@ -113,11 +118,28 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
   const [shopBalanceInput, setShopBalanceInput] = useState('');
   const [notesInput, setNotesInput] = useState('');
 
+  // Ledger dialog state
+  const [ledgerOpen, setLedgerOpen] = useState(false);
+  const [ledgerShop, setLedgerShop] = useState<TallyShop | null>(null);
+  const [ledgerData, setLedgerData] = useState<LedgerData | null>(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+
+  // Edit shop (phone + owner name) dialog state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editShop, setEditShop] = useState<TallyShop | null>(null);
+  const [editPhone, setEditPhone] = useState('');
+  const [editOwner, setEditOwner] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Tellers should NOT see zero-balance shops in the tally list.
+  const shouldExcludeZeroBalance = !roleIsAdmin;
+
   const fetchShops = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (selectedOBId !== 'all') params.set('orderbookerId', selectedOBId);
+      if (shouldExcludeZeroBalance) params.set('excludeZeroBalance', 'true');
       const res = await apiFetch(`/api/tally/shops?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
@@ -258,6 +280,90 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ─── Ledger helpers ────────────────────────────────────────────
+  const openLedger = async (shop: TallyShop) => {
+    setLedgerShop(shop);
+    setLedgerData(null);
+    setLedgerOpen(true);
+    setLedgerLoading(true);
+    try {
+      const res = await apiFetch(`/api/reports/ledger?shopId=${shop.id}`);
+      if (res.ok) {
+        setLedgerData(await res.json());
+      } else {
+        toast({ title: 'Error', description: 'Could not load ledger', variant: 'destructive' });
+        setLedgerOpen(false);
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error loading ledger', variant: 'destructive' });
+      setLedgerOpen(false);
+    } finally {
+      setLedgerLoading(false);
+    }
+  };
+
+  // ─── Edit phone / owner helpers ────────────────────────────────
+  const openEditDialog = (shop: TallyShop) => {
+    setEditShop(shop);
+    setEditPhone(shop.phone || '');
+    setEditOwner(shop.ownerName || '');
+    setEditOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editShop) return;
+    const trimmedPhone = editPhone.trim();
+    const trimmedOwner = editOwner.trim();
+
+    // Validation — phone (if provided) must match the same regex as the API.
+    if (trimmedPhone && !/^[\d+\-\s()]{7,15}$/.test(trimmedPhone)) {
+      toast({ title: 'Invalid Phone', description: 'Use 7–15 digits (spaces, +, -, () allowed).', variant: 'destructive' });
+      return;
+    }
+
+    // Skip if nothing changed.
+    const phoneChanged = trimmedPhone !== (editShop.phone || '');
+    const ownerChanged = trimmedOwner !== (editShop.ownerName || '');
+    if (!phoneChanged && !ownerChanged) {
+      toast({ title: 'Nothing to save', description: 'No changes detected.' });
+      setEditOpen(false);
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const body: Record<string, string> = { shopId: editShop.id };
+      if (phoneChanged) body.phone = trimmedPhone;
+      if (ownerChanged) body.ownerName = trimmedOwner;
+
+      const res = await apiFetch('/api/shops/phone', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: 'Error', description: data.error || 'Failed to update shop', variant: 'destructive' });
+        return;
+      }
+      toast({
+        title: 'Updated',
+        description: `${editShop.name} details saved.`,
+      });
+      setEditOpen(false);
+      // Reflect the change locally + refetch to keep lastTally etc. in sync.
+      setShops((prev) => prev.map((s) =>
+        s.id === editShop.id
+          ? { ...s, phone: trimmedPhone || null, ownerName: trimmedOwner || null }
+          : s,
+      ));
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -402,7 +508,7 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
                     <TableHead className="min-w-[120px]">Orderbooker</TableHead>
                     <TableHead className="min-w-[140px] text-right">System Balance</TableHead>
                     <TableHead className="min-w-[160px]">Last Tally</TableHead>
-                    <TableHead className="text-right min-w-[110px]">Action</TableHead>
+                    <TableHead className="text-right min-w-[200px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -411,11 +517,19 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
                       <TableCell>
                         <div>
                           <p className="font-medium text-sm leading-tight">{shop.name}</p>
-                          {shop.ownerName && (
-                            <p className="text-[10px] text-muted-foreground mt-0.5">{shop.ownerName}</p>
-                          )}
-                          {shop.phone && (
-                            <p className="text-[10px] text-muted-foreground">{shop.phone}</p>
+                          {shop.ownerName ? (
+                            <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                              <User className="h-2.5 w-2.5" /> {shop.ownerName}
+                            </p>
+                          ) : null}
+                          {shop.phone ? (
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                              <Phone className="h-2.5 w-2.5" /> {shop.phone}
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">
+                              No phone — click edit to add
+                            </p>
                           )}
                         </div>
                       </TableCell>
@@ -468,14 +582,36 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          className="bg-primary hover:bg-primary/90 text-white text-xs"
-                          onClick={() => openTallyDialog(shop)}
-                        >
-                          <ClipboardCheck className="h-3.5 w-3.5 mr-1" />
-                          Tally
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-7"
+                            onClick={() => openLedger(shop)}
+                            title="View ledger"
+                          >
+                            <BookOpen className="h-3.5 w-3.5 mr-1" />
+                            Ledger
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-7"
+                            onClick={() => openEditDialog(shop)}
+                            title="Edit phone / owner name"
+                          >
+                            <Pencil className="h-3.5 w-3.5 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-primary hover:bg-primary/90 text-white text-xs h-7"
+                            onClick={() => openTallyDialog(shop)}
+                          >
+                            <ClipboardCheck className="h-3.5 w-3.5 mr-1" />
+                            Tally
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -696,6 +832,182 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
             <Button onClick={handleTallySubmit} disabled={submitting || !shopBalanceInput}>
               {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Save Tally
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Ledger Dialog ─────────────────────────────────────── */}
+      <Dialog open={ledgerOpen} onOpenChange={setLedgerOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              {ledgerShop?.name} — Ledger
+            </DialogTitle>
+            <DialogDescription>
+              {ledgerShop?.area || 'No area'}
+              {ledgerShop?.orderbookerName ? ` • ${ledgerShop.orderbookerName}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          {ledgerLoading ? (
+            <div className="flex-1 flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : ledgerData ? (
+            <>
+              {/* Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-1">
+                <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-2.5 text-center">
+                  <p className="text-[10px] text-muted-foreground">Total Credit</p>
+                  <p className="text-sm font-bold text-foreground">{formatPKR(ledgerData.summary.totalCredit)}</p>
+                </div>
+                <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-2.5 text-center">
+                  <p className="text-[10px] text-muted-foreground">Total Recovery</p>
+                  <p className="text-sm font-bold text-foreground">{formatPKR(ledgerData.summary.totalRecovery)}</p>
+                </div>
+                <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-2.5 text-center">
+                  <p className="text-[10px] text-muted-foreground">Total Claims</p>
+                  <p className="text-sm font-bold text-red-700 dark:text-red-400">{formatPKR(ledgerData.summary.totalClaims || 0)}</p>
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2.5 text-center">
+                  <p className="text-[10px] text-muted-foreground">Balance</p>
+                  <p className="text-sm font-bold text-foreground">{formatPKR(ledgerData.summary.currentBalance)}</p>
+                </div>
+              </div>
+
+              {/* Company balances (if any) */}
+              {(ledgerData.companyBalances || []).length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap px-1">
+                  <span className="text-xs font-medium text-muted-foreground shrink-0">Company balances:</span>
+                  {(ledgerData.companyBalances || []).map((cb) => (
+                    <Badge key={cb.companyId} variant="outline" className="text-[10px]">
+                      {cb.companyName}: {formatPKR(cb.balance)}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {/* Transactions */}
+              <div className="flex-1 overflow-y-auto sidebar-scroll -mx-1 px-1">
+                {ledgerData.transactions.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">No transactions yet</div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {[...ledgerData.transactions].reverse().map((txn) => (
+                      <div key={txn.id} className="py-2.5 hover:bg-muted/20 transition-colors">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge className={`text-[9px] ${txn.type === 'credit' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' : txn.type === 'claim' ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border-red-200 dark:border-red-800' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'}`}>
+                                {txn.type === 'credit' ? 'Credit' : txn.type === 'claim' ? 'Claim' : 'Recovery'}
+                              </Badge>
+                              {txn.company && (
+                                <Badge variant="outline" className="text-[8px] px-1.5 py-0 h-4 border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400">
+                                  {txn.company.name}
+                                </Badge>
+                              )}
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(txn.createdAt).toLocaleString('en-PK', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">{txn.description || '—'}</p>
+                            {txn.creator && (
+                              <p className="text-[10px] text-muted-foreground">by {txn.creator.name}</p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0 ml-2">
+                            <p className={`font-bold text-sm ${txn.type === 'claim' ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>
+                              {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">Bal: {formatPKR(txn.newBalance)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center py-12">
+              <p className="text-sm text-muted-foreground">Failed to load ledger data</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Edit Phone / Owner Dialog ─────────────────────────── */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" />
+              Edit Shop Details
+            </DialogTitle>
+            <DialogDescription>
+              Update phone number and owner name for {editShop?.name}.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editShop && (
+            <div className="space-y-4 py-2">
+              {/* Shop info */}
+              <div className="p-3 rounded-lg bg-muted/50 border border-border/50 space-y-1">
+                <p className="font-semibold text-sm">{editShop.name}</p>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {editShop.area || 'No area'}
+                  </span>
+                  <span>OB: {editShop.orderbookerName || '—'}</span>
+                </div>
+              </div>
+
+              {/* Owner Name */}
+              <div className="space-y-2">
+                <Label htmlFor="editOwner" className="text-xs flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 text-muted-foreground" />
+                  Owner Name {editShop.ownerName ? '(update)' : '(add)'}
+                </Label>
+                <Input
+                  id="editOwner"
+                  value={editOwner}
+                  onChange={(e) => setEditOwner(e.target.value)}
+                  placeholder="Enter owner name"
+                  maxLength={120}
+                />
+              </div>
+
+              {/* Phone */}
+              <div className="space-y-2">
+                <Label htmlFor="editPhone" className="text-xs flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                  Phone Number {editShop.phone ? '(update)' : '(add)'}
+                </Label>
+                <Input
+                  id="editPhone"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="03xx-xxxxxxx"
+                  inputMode="tel"
+                  maxLength={20}
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  7–15 digits. Spaces, +, -, () are allowed.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditSave} disabled={editSaving}>
+              {editSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -20,12 +20,18 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Shop ID is required' }, { status: 400 });
     }
 
-    if (phone === undefined || phone === null) {
-      return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
+    // At least one of phone / ownerName must be provided.
+    const hasPhone = phone !== undefined && phone !== null;
+    const hasOwner = ownerName !== undefined && ownerName !== null;
+    if (!hasPhone && !hasOwner) {
+      return NextResponse.json(
+        { error: 'Either phone or ownerName must be provided' },
+        { status: 400 },
+      );
     }
 
-    // Validate phone format (basic validation)
-    const trimmedPhone = String(phone).trim();
+    // Validate phone format (basic validation) — only if a non-empty phone was sent
+    const trimmedPhone = hasPhone ? String(phone).trim() : undefined;
     if (trimmedPhone && !/^[\d+\-\s()]{7,15}$/.test(trimmedPhone)) {
       return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 });
     }
@@ -40,24 +46,35 @@ export async function PATCH(request: NextRequest) {
 
     const now = new Date().toISOString();
 
-    // Build update query dynamically based on what fields are provided
-    if (ownerName !== undefined && ownerName !== null) {
-      const trimmedOwner = String(ownerName).trim();
-      await pool.query(
-        'UPDATE "Shop" SET phone = $1, "ownerName" = $2, "updatedAt" = $3 WHERE id = $4',
-        [trimmedPhone || null, trimmedOwner || null, now, shopId]
-      );
-    } else {
-      await pool.query(
-        'UPDATE "Shop" SET phone = $1, "updatedAt" = $2 WHERE id = $3',
-        [trimmedPhone || null, now, shopId]
-      );
+    // Build update query dynamically based on what fields are provided.
+    // This allows updating phone alone, ownerName alone, or both together.
+    const setClauses: string[] = [];
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    if (hasPhone) {
+      setClauses.push(`phone = $${paramIdx++}`);
+      params.push(trimmedPhone || null);
     }
+    if (hasOwner) {
+      const trimmedOwner = String(ownerName).trim();
+      setClauses.push(`"ownerName" = $${paramIdx++}`);
+      params.push(trimmedOwner || null);
+    }
+    setClauses.push(`"updatedAt" = $${paramIdx++}`);
+    params.push(now);
+    params.push(shopId);
+
+    await pool.query(
+      `UPDATE "Shop" SET ${setClauses.join(', ')} WHERE id = $${paramIdx}`,
+      params,
+    );
 
     return NextResponse.json({
       success: true,
       shopId,
-      newPhone: trimmedPhone || null,
+      newPhone: hasPhone ? (trimmedPhone || null) : undefined,
+      newOwnerName: hasOwner ? (String(ownerName).trim() || null) : undefined,
     });
   } catch (error) {
     console.error('Error updating shop phone:', error);

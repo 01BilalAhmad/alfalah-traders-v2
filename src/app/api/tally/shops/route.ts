@@ -66,6 +66,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const filterOBId = searchParams.get('orderbookerId');
+    const excludeZeroBalance = searchParams.get('excludeZeroBalance') === 'true';
 
     let obFilterIds: string[] | null = null;
 
@@ -94,6 +95,11 @@ export async function GET(request: NextRequest) {
   if (obFilterIds && obFilterIds.length > 0) {
     shopWhere += ` AND s."orderbookerId" = ANY($1::text[])`;
     shopQueryParams.push(obFilterIds);
+  }
+  if (excludeZeroBalance) {
+    // Hide shops with zero (or effectively-zero) balance from the tally list.
+    // Use ROUND(...,2) <= 0 so that tiny float dust (e.g. 0.001) doesn't sneak through.
+    shopWhere += ` AND ROUND(s.balance::numeric, 2) > 0`;
   }
 
   const shopsRes = await pool.query(
