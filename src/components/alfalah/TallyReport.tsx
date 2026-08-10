@@ -229,7 +229,7 @@ export default function TallyReport() {
     }
     handlePrint({
       extraCSS: `
-        @page { size: A4 landscape; margin: 12mm; }
+        @page { size: A4 landscape; margin: 10mm; }
         html, body { background: #ffffff !important; }
         body * { visibility: hidden !important; }
         .print-root-wrapper,
@@ -241,23 +241,53 @@ export default function TallyReport() {
         }
         .print-only-header { display: block !important; }
         .print-root-wrapper .screen-only { display: none !important; }
-        .tally-print-table { width: 100% !important; border-collapse: collapse !important; font-size: 10px !important; }
+        /* Hide print-hidden elements (Actions column, etc.) */
+        .print-hidden { display: none !important; }
+
+        /* ─── Print-friendly table ─── */
+        .tally-print-table {
+          width: 100% !important;
+          table-layout: fixed !important;
+          border-collapse: collapse !important;
+          font-size: 9px !important;
+        }
+        /* Override min-w-* utility classes that force columns too wide */
+        .tally-print-table th,
+        .tally-print-table td {
+          min-width: 0 !important;
+          max-width: none !important;
+        }
         .tally-print-table thead th {
           background: #2563EB !important; color: #ffffff !important;
-          padding: 6px 8px !important; border: 1px solid #1D4ED8 !important;
-          text-align: left !important; font-weight: 600 !important; font-size: 9px !important;
-          text-transform: uppercase !important; letter-spacing: 0.3px !important;
+          padding: 5px 4px !important; border: 1px solid #1D4ED8 !important;
+          text-align: left !important; font-weight: 600 !important; font-size: 8px !important;
+          text-transform: uppercase !important; letter-spacing: 0.2px !important;
+          word-wrap: break-word !important; overflow-wrap: break-word !important;
           -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
         }
         .tally-print-table tbody td {
-          padding: 4px 8px !important; border: 1px solid #E5E7EB !important;
+          padding: 3px 4px !important; border: 1px solid #E5E7EB !important;
           color: #111827 !important; vertical-align: top !important;
+          word-wrap: break-word !important; overflow-wrap: break-word !important;
         }
         .tally-print-table tbody tr:nth-child(even) td { background: #F9FAFB !important; }
         .tally-print-table tbody tr:nth-child(odd)  td { background: #FFFFFF !important; }
         .tally-print-table .num { text-align: right !important; font-variant-numeric: tabular-nums !important; }
         .tally-print-table thead { display: table-header-group !important; }
         .tally-print-table tbody tr { page-break-inside: avoid !important; }
+
+        /* ─── Explicit column widths for print (12 visible columns) ─── */
+        /* Total: 100% of page width (landscape A4 minus margins ≈ 277mm) */
+        .tally-print-table .print-header-date       { width: 9% !important; }
+        .tally-print-table .print-header-shop       { width: 14% !important; }
+        .tally-print-table .print-header-area       { width: 8% !important; }
+        .tally-print-table .print-header-num        { width: 7% !important; }
+        .tally-print-table .print-header-status     { width: 7% !important; }
+        .tally-print-table .print-header-reason     { width: 13% !important; }
+        .tally-print-table .print-header-resolution { width: 10% !important; }
+        .tally-print-table .print-header-teller     { width: 10% !important; }
+        .tally-print-table .print-header-ob         { width: 10% !important; }
+        .tally-print-table .print-header-gps        { width: 5% !important; }
       `,
     });
   };
@@ -571,19 +601,19 @@ export default function TallyReport() {
                 <Table className="tally-print-table">
                   <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
-                      <TableHead className="min-w-[130px]">Date</TableHead>
-                      <TableHead className="min-w-[150px]">Shop</TableHead>
-                      <TableHead className="min-w-[100px]">Area</TableHead>
-                      <TableHead className="text-right min-w-[100px]">System</TableHead>
-                      <TableHead className="text-right min-w-[100px]">Shop Bal.</TableHead>
-                      <TableHead className="text-right min-w-[100px]">Diff</TableHead>
-                      <TableHead className="min-w-[90px]">Status</TableHead>
-                      <TableHead className="min-w-[140px]">Reason</TableHead>
-                      <TableHead className="min-w-[110px]">Resolution</TableHead>
-                      <TableHead className="min-w-[110px]">Teller</TableHead>
-                      <TableHead className="min-w-[110px]">Orderbooker</TableHead>
-                      <TableHead className="min-w-[80px]">GPS</TableHead>
-                      <TableHead className="text-right min-w-[120px]">Actions</TableHead>
+                      <TableHead className="min-w-[130px] print-header-date">Date</TableHead>
+                      <TableHead className="min-w-[150px] print-header-shop">Shop</TableHead>
+                      <TableHead className="min-w-[100px] print-header-area">Area</TableHead>
+                      <TableHead className="text-right min-w-[100px] print-header-num">System</TableHead>
+                      <TableHead className="text-right min-w-[100px] print-header-num">Shop Bal.</TableHead>
+                      <TableHead className="text-right min-w-[100px] print-header-num">Diff</TableHead>
+                      <TableHead className="min-w-[90px] print-header-status">Status</TableHead>
+                      <TableHead className="min-w-[140px] print-header-reason">Reason</TableHead>
+                      <TableHead className="min-w-[110px] print-header-resolution">Resolution</TableHead>
+                      <TableHead className="min-w-[110px] print-header-teller">Teller</TableHead>
+                      <TableHead className="min-w-[110px] print-header-ob">Orderbooker</TableHead>
+                      <TableHead className="min-w-[80px] print-header-gps">GPS</TableHead>
+                      <TableHead className="text-right min-w-[120px] print-hidden">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -670,7 +700,7 @@ export default function TallyReport() {
                               {r.locationStatus === 'verified' ? 'Yes' : 'No'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right print-hidden">
                             {!isVoided && r.status === 'discrepancy' && r.resolutionStatus !== 'resolved' && (
                               <div className="flex items-center justify-end gap-1">
                                 <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => openResolveDialog(r)}>
