@@ -15,11 +15,14 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
   useEffect(() => {
     // Don't redirect until hydration is complete
     if (!isHydrated) return;
-    
+
     if (!isAuthenticated || !user) {
       router.replace('/');
     } else if (user.role === 'orderbooker') {
       router.replace('/ob');
+    } else if (user.role === 'teller') {
+      // Tellers must NOT see the admin layout — send them to /tally.
+      router.replace('/tally');
     }
   }, [isAuthenticated, user, isHydrated, router]);
 
@@ -32,7 +35,8 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
     return null;
   }
 
-  if (user.role === 'orderbooker') {
+  // Block orderbookers and tellers from the admin area
+  if (user.role === 'orderbooker' || user.role === 'teller') {
     return null;
   }
 

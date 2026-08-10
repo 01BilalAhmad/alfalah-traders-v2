@@ -39,11 +39,17 @@ export const viewToRoute: Record<string, string> = {
   'admin-balance-report': '/balance-report',
   'admin-company-report': '/company-report',
   'admin-route-tracker': '/route-tracker',
+  // Market Tally System (admin views)
+  'admin-teller-management': '/teller-management',
+  'admin-market-tally': '/market-tally',
+  'admin-tally-report': '/tally-report',
   // Orderbooker views
   'orderbooker-dashboard': '/ob',
   'orderbooker-history': '/ob/history',
   'orderbooker-ledger': '/ob/ledger',
   'orderbooker-profile': '/ob/profile',
+  // Teller (minimal layout — no admin sidebar)
+  'tally': '/tally',
   // Login
   'login': '/',
 };
@@ -83,11 +89,17 @@ export const routeToView: Record<string, string> = {
   '/balance-report': 'admin-balance-report',
   '/company-report': 'admin-company-report',
   '/route-tracker': 'admin-route-tracker',
+  // Market Tally System (admin routes)
+  '/teller-management': 'admin-teller-management',
+  '/market-tally': 'admin-market-tally',
+  '/tally-report': 'admin-tally-report',
   // Orderbooker routes
   '/ob': 'orderbooker-dashboard',
   '/ob/history': 'orderbooker-history',
   '/ob/ledger': 'orderbooker-ledger',
   '/ob/profile': 'orderbooker-profile',
+  // Teller route (minimal layout)
+  '/tally': 'tally',
   // Login
   '/': 'login',
 };

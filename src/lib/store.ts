@@ -100,7 +100,7 @@ export const useAppStore = create<AppState>((set) => ({
   creditSessionCount: 0,
   setUser: (user) => {
     saveSession(user);
-    set({ user, isAuthenticated: !!user, currentView: user ? (user.role === 'admin' ? 'admin-dashboard' : 'orderbooker-dashboard') : 'login' });
+    set({ user, isAuthenticated: !!user, currentView: user ? (user.role === 'admin' ? 'admin-dashboard' : user.role === 'teller' ? 'tally' : 'orderbooker-dashboard') : 'login' });
   },
   setToken: (token) => {
     if (typeof window !== 'undefined') {
@@ -120,7 +120,7 @@ export const useAppStore = create<AppState>((set) => ({
       user,
       token,
       isAuthenticated: true,
-      currentView: user.role === 'admin' ? 'admin-dashboard' : 'orderbooker-dashboard',
+      currentView: user.role === 'admin' ? 'admin-dashboard' : user.role === 'teller' ? 'tally' : 'orderbooker-dashboard',
     });
   },
   logout: () => {

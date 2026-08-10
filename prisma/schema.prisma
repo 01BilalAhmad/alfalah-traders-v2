@@ -41,6 +41,11 @@ model User {
   routeShopVisits    RouteShopVisit[]  @relation("RouteShopVisits")
   passwordResetTokens PasswordResetToken[]
 
+  // Market Tally relations
+  tallies            ShopTally[]       @relation("TallyBy")
+  tellerAssignments  TellerAssignment[] @relation("TellerAssignments")
+  tellerOBAssignments TellerAssignment[] @relation("TellerOBAssignments")
+
   @@index([username])
   @@index([role])
   @@index([companyId])
@@ -70,6 +75,9 @@ model Shop {
   companyBalances  ShopCompanyBalance[]
   assignedOrderbookers ShopOrderbooker[]
   routeShopVisits  RouteShopVisit[]
+
+  // Market Tally — back-relation required by Prisma for ShopTally.shop
+  tallies          ShopTally[]
 
   @@index([orderbookerId])
   @@index([routeDays])
@@ -415,4 +423,42 @@ model Area {
   updatedAt   DateTime @updatedAt
 
   @@index([name])
+}
+
+// ── Market Tally System ──────────────────────────────────────────
+model ShopTally {
+  id              String   @id @default(cuid())
+  shopId          String
+  talliedBy       String   // userId of teller or admin
+  tallyDate       DateTime @default(now())
+  systemBalance   Float
+  shopBalance     Float    // what shopkeeper said
+  difference      Float    // auto-calculated: systemBalance - shopBalance
+  status          String   @default("verified") // "verified" or "discrepancy"
+  notes           String?
+  orderbookerId   String?  // OB whose shop was tallied
+  createdAt       DateTime @default(now())
+
+  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  teller          User     @relation("TallyBy", fields: [talliedBy], references: [id])
+
+  @@index([shopId])
+  @@index([talliedBy])
+  @@index([orderbookerId])
+  @@index([tallyDate])
+}
+
+// Teller-OB assignments (which OBs a teller can tally)
+model TellerAssignment {
+  id              String   @id @default(cuid())
+  tellerId        String   // userId with role "teller"
+  orderbookerId   String   // userId with role "orderbooker"
+  createdAt       DateTime @default(now())
+
+  teller          User     @relation("TellerAssignments", fields: [tellerId], references: [id], onDelete: Cascade)
+  orderbooker     User     @relation("TellerOBAssignments", fields: [orderbookerId], references: [id], onDelete: Cascade)
+
+  @@unique([tellerId, orderbookerId])
+  @@index([tellerId])
+  @@index([orderbookerId])
 }

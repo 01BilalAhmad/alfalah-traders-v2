@@ -107,6 +107,7 @@ const adminNavSections: NavSection[] = [
       { id: 'admin-shops', label: 'Manage Shops', icon: <Store className="h-4 w-4" /> },
       { id: 'admin-area-management', label: 'Area Management', icon: <MapPin className="h-4 w-4" /> },
       { id: 'admin-orderbookers', label: 'Manage Orderbookers', icon: <Users className="h-4 w-4" /> },
+      { id: 'admin-teller-management', label: 'Teller Management', icon: <UserCog className="h-4 w-4" /> },
       { id: 'admin-companies', label: 'Manage Companies', icon: <Building2 className="h-4 w-4" /> },
       { id: 'admin-daily-targets', label: 'Recovery Targets', icon: <Target className="h-4 w-4" /> },
       { id: 'admin-credit-targets', label: 'Credit Targets', icon: <TrendingDown className="h-4 w-4" /> },
@@ -130,6 +131,9 @@ const adminNavSections: NavSection[] = [
       // Performance & analytics
       { id: 'admin-ob-analytics', label: 'OB Analytics', icon: <BarChart3 className="h-4 w-4" /> },
       { id: 'admin-area-distribution', label: 'Area Distribution', icon: <MapPin className="h-4 w-4" /> },
+      // Market Tally
+      { id: 'admin-market-tally', label: 'Market Tally', icon: <ClipboardList className="h-4 w-4" /> },
+      { id: 'admin-tally-report', label: 'Tally Report', icon: <FileText className="h-4 w-4" /> },
       // Monitoring & logs
       { id: 'admin-activity', label: 'Activity Log', icon: <Activity className="h-4 w-4" /> },
       { id: 'admin-sms-tracking', label: 'SMS Tracking', icon: <MessageSquare className="h-4 w-4" /> },

@@ -15,10 +15,12 @@ export default function Page() {
   useEffect(() => {
     // Don't redirect until hydration is complete
     if (!isHydrated) return;
-    
+
     if (isAuthenticated && user) {
       if (user.role === 'admin') {
         router.replace('/dashboard');
+      } else if (user.role === 'teller') {
+        router.replace('/tally');
       } else if (user.role === 'orderbooker') {
         router.replace('/ob');
       }
