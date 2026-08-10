@@ -34,6 +34,7 @@ import { apiFetch } from '@/lib/api';
 import { formatPKR, formatLocalDate, getLocalDateString } from '@/lib/utils';
 import { exportToExcel } from '@/lib/excel-export';
 import { handlePrint } from '@/lib/print-utils';
+import { getBusinessName } from '@/lib/business-config';
 
 interface TallyRow {
   id: string;
@@ -198,9 +199,60 @@ export default function TallyReport() {
     }
     handlePrint({
       extraCSS: `
-        @page { size: landscape; margin: 1cm; }
-        body { background: white !important; }
-        .print-root-wrapper { display: block !important; }
+        @page { size: A4 landscape; margin: 12mm; }
+        html, body { background: #ffffff !important; }
+
+        /* ─── Isolate the report: hide everything except .print-root-wrapper ─── */
+        body * { visibility: hidden !important; }
+        .print-root-wrapper,
+        .print-root-wrapper * { visibility: visible !important; }
+
+        /* Position the report at the top-left of the page, full width */
+        .print-root-wrapper {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+          max-width: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          display: block !important;
+        }
+
+        /* Print-only report header — visible only when printing */
+        .print-only-header { display: block !important; }
+
+        /* Hide the screen-only card header / chrome inside the printable area */
+        .print-root-wrapper .screen-only { display: none !important; }
+
+        /* Table: print-friendly */
+        .tally-print-table { width: 100% !important; border-collapse: collapse !important; font-size: 10px !important; }
+        .tally-print-table thead th {
+          background: #2563EB !important;
+          color: #ffffff !important;
+          padding: 6px 8px !important;
+          border: 1px solid #1D4ED8 !important;
+          text-align: left !important;
+          font-weight: 600 !important;
+          font-size: 9px !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.3px !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        .tally-print-table tbody td {
+          padding: 4px 8px !important;
+          border: 1px solid #E5E7EB !important;
+          color: #111827 !important;
+          vertical-align: top !important;
+        }
+        .tally-print-table tbody tr:nth-child(even) td { background: #F9FAFB !important; }
+        .tally-print-table tbody tr:nth-child(odd)  td { background: #FFFFFF !important; }
+        .tally-print-table .num { text-align: right !important; font-variant-numeric: tabular-nums !important; }
+
+        /* Repeat table header on every printed page */
+        .tally-print-table thead { display: table-header-group !important; }
+        .tally-print-table tbody tr { page-break-inside: avoid !important; }
       `,
     });
   };
@@ -225,7 +277,7 @@ export default function TallyReport() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print-hidden">
         <div>
           <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
@@ -248,7 +300,7 @@ export default function TallyReport() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print-hidden">
         <Card>
           <CardContent className="p-4">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total Records</p>
@@ -284,7 +336,7 @@ export default function TallyReport() {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="print-hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Filter className="h-4 w-4 text-primary" />
@@ -366,8 +418,52 @@ export default function TallyReport() {
 
       {/* Report Table (printable) */}
       <div className="print-root-wrapper">
+        {/* ─── Print-only report header (hidden on screen, visible on paper) ─── */}
+        <div className="print-only-header" style={{ display: 'none', textAlign: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #2563EB' }}>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: '#2563EB', letterSpacing: '0.5px' }}>
+            {getBusinessName()}
+          </div>
+          <div style={{ width: '60px', height: '2px', background: '#2563EB', margin: '6px auto' }} />
+          <div style={{ fontSize: '15px', fontWeight: 600, color: '#374151' }}>Market Tally Report</div>
+          <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '2px' }}>
+            {dateFrom || dateTo
+              ? `Period: ${dateFrom || '…'} to ${dateTo || '…'}`
+              : 'Period: All time'}
+            {'  •  '}
+            Generated: {new Date().toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' })}
+          </div>
+          {/* Active filters */}
+          <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '4px' }}>
+            {obFilter !== 'all' && `Orderbooker: ${orderbookers.find(o => o.id === obFilter)?.name || '—'}  •  `}
+            {tellerFilter !== 'all' && `Teller: ${tellers.find(t => t.id === tellerFilter)?.name || '—'}  •  `}
+            {statusFilter !== 'all' && `Status: ${statusFilter}`}
+            {obFilter === 'all' && tellerFilter === 'all' && statusFilter === 'all' && 'No filters applied'}
+          </div>
+          {/* Summary strip */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginTop: '10px', padding: '8px 16px', background: '#EFF6FF', borderRadius: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: '#2563EB' }}>{summary.total}</span>
+              <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#6B7280' }}>Total</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: '#059669' }}>{summary.verified}</span>
+              <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#6B7280' }}>Verified</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: '#D97706' }}>{summary.discrepancy}</span>
+              <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#6B7280' }}>Discrepancies</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>
+                {summary.totalDifference > 0 ? '+' : ''}{formatPKR(summary.totalDifference)}
+              </span>
+              <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#6B7280' }}>Net Diff</span>
+            </div>
+          </div>
+        </div>
+
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 screen-only">
             <CardTitle className="text-sm flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary" />
               Tally Records
@@ -387,7 +483,7 @@ export default function TallyReport() {
               </div>
             ) : (
               <div className="overflow-x-auto max-h-[70vh] overflow-y-auto sidebar-scroll">
-                <Table>
+                <Table className="tally-print-table">
                   <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
                       <TableHead className="min-w-[140px]">Date</TableHead>
@@ -414,13 +510,13 @@ export default function TallyReport() {
                         <TableCell>
                           <span className="text-xs">{r.shopArea || '—'}</span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right num">
                           <span className="text-sm tabular-nums">{formatPKR(r.systemBalance)}</span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right num">
                           <span className="text-sm tabular-nums">{formatPKR(r.shopBalance)}</span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right num">
                           <span className={`text-sm font-semibold tabular-nums ${
                             r.difference === 0
                               ? 'text-emerald-600 dark:text-emerald-400'
