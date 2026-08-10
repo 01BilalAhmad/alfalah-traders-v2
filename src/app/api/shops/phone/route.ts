@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { getPool } from '@/lib/pg';
 import { requireAuth } from '@/lib/auth-guard';
 
 // PATCH /api/shops/phone - Update shop phone number and/or owner name
-// Accessible by any authenticated user (admin or orderbooker).
+// Accessible by any authenticated user (admin, orderbooker, or teller).
 // Orderbookers use this from the mobile app when adding a phone number
-// during recovery submission.
+// during recovery submission. Tellers use it from the tally screen.
+// Every change is recorded in the AuditLog with before/after values.
 export async function PATCH(request: NextRequest) {
-  // Verify the user is authenticated (admin or orderbooker)
+  // Verify the user is authenticated (admin, orderbooker, or teller)
   const auth = await requireAuth(request);
   if (!auth.authorized) {
     return NextResponse.json({ error: auth.error }, { status: 401 });
@@ -38,28 +40,35 @@ export async function PATCH(request: NextRequest) {
 
     const pool = getPool();
 
-    // Check if shop exists
-    const shopRes = await pool.query('SELECT id, name FROM "Shop" WHERE id = $1', [shopId]);
+    // Fetch existing shop (capture old values for audit before mutating)
+    const shopRes = await pool.query(
+      'SELECT id, name, phone, "ownerName" FROM "Shop" WHERE id = $1',
+      [shopId]
+    );
     if (shopRes.rows.length === 0) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
+    const oldRow = shopRes.rows[0];
+    const oldPhone = oldRow.phone ?? null;
+    const oldOwner = oldRow.ownerName ?? null;
 
     const now = new Date().toISOString();
 
     // Build update query dynamically based on what fields are provided.
-    // This allows updating phone alone, ownerName alone, or both together.
     const setClauses: string[] = [];
     const params: any[] = [];
     let paramIdx = 1;
 
+    const newPhoneValue = hasPhone ? (trimmedPhone || null) : oldPhone;
+    const newOwnerValue = hasOwner ? (String(ownerName).trim() || null) : oldOwner;
+
     if (hasPhone) {
       setClauses.push(`phone = $${paramIdx++}`);
-      params.push(trimmedPhone || null);
+      params.push(newPhoneValue);
     }
     if (hasOwner) {
-      const trimmedOwner = String(ownerName).trim();
       setClauses.push(`"ownerName" = $${paramIdx++}`);
-      params.push(trimmedOwner || null);
+      params.push(newOwnerValue);
     }
     setClauses.push(`"updatedAt" = $${paramIdx++}`);
     params.push(now);
@@ -69,6 +78,42 @@ export async function PATCH(request: NextRequest) {
       `UPDATE "Shop" SET ${setClauses.join(', ')} WHERE id = $${paramIdx}`,
       params,
     );
+
+    // ─── Audit log entry (best-effort, non-blocking) ────────────
+    try {
+      const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
+      const changes: Record<string, { from: any; to: any }> = {};
+      if (hasPhone && oldPhone !== newPhoneValue) {
+        changes.phone = { from: oldPhone, to: newPhoneValue };
+      }
+      if (hasOwner && oldOwner !== newOwnerValue) {
+        changes.ownerName = { from: oldOwner, to: newOwnerValue };
+      }
+      const actorName = auth.user?.name || auth.userId;
+      const actorRole = auth.user?.role || 'unknown';
+      await pool.query(
+        `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "performedBy", "oldValue", "newValue", description)
+         VALUES ($1, 'update', 'shop', $2, $3, $4, $5, $6)`,
+        [
+          auditId,
+          shopId,
+          auth.userId,
+          JSON.stringify({ phone: oldPhone, ownerName: oldOwner }),
+          JSON.stringify(changes),
+          `Shop details updated for "${oldRow.name}" by ${actorName} (${actorRole}): ${
+            hasPhone && oldPhone !== newPhoneValue
+              ? `phone ${oldPhone ?? '∅'} → ${newPhoneValue ?? '∅'}`
+              : ''
+          }${hasPhone && hasOwner && oldPhone !== newPhoneValue && oldOwner !== newOwnerValue ? '; ' : ''}${
+            hasOwner && oldOwner !== newOwnerValue
+              ? `owner ${oldOwner ?? '∅'} → ${newOwnerValue ?? '∅'}`
+              : ''
+          }`.trim(),
+        ]
+      );
+    } catch (auditErr) {
+      console.error('[shops/phone] AuditLog insert failed:', auditErr);
+    }
 
     return NextResponse.json({
       success: true,

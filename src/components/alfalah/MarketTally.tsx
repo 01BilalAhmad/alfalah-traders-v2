@@ -96,6 +96,16 @@ interface MarketTallyProps {
   isAdmin?: boolean;
 }
 
+// Reason codes (kept in sync with backend DISCREPANCY_REASON_CODES)
+const REASON_CODE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ob_missed_recovery', label: 'OB missed recovery entry' },
+  { value: 'ob_missed_credit', label: 'OB missed credit entry' },
+  { value: 'shopkeeper_partial_payment', label: 'Shopkeeper claims partial payment' },
+  { value: 'disputed_amount', label: 'Disputed amount' },
+  { value: 'system_error', label: 'System error' },
+  { value: 'other', label: 'Other (explain in notes)' },
+];
+
 export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
   const { user } = useAppStore();
   const roleIsAdmin = isAdmin || user?.role === 'admin';
@@ -131,8 +141,23 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
   const [editOwner, setEditOwner] = useState('');
   const [editSaving, setEditSaving] = useState(false);
 
-  // Tellers should NOT see zero-balance shops in the tally list.
-  const shouldExcludeZeroBalance = !roleIsAdmin;
+  // GPS state
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<'idle' | 'fetching' | 'ok' | 'denied' | 'error'>('idle');
+
+  // Reason code state (mandatory on discrepancy)
+  const [reasonCode, setReasonCode] = useState<string>('');
+
+  // Concurrent tally override (when API returns 409, user can choose to submit anyway)
+  const [forceSubmit, setForceSubmit] = useState(false);
+
+  // Teller session state
+  const [activeSession, setActiveSession] = useState<{ id: string; startTime: string; area: string | null } | null>(null);
+  const [sessionStarting, setSessionStarting] = useState(false);
+  const [sessionEnding, setSessionEnding] = useState(false);
+
+  // Show zero-balance shops with a 'Confirm Zero' action instead of hiding them.
+  const shouldExcludeZeroBalance = false;
 
   const fetchShops = useCallback(async () => {
     setLoading(true);
@@ -153,7 +178,7 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
     } finally {
       setLoading(false);
     }
-  }, [selectedOBId]);
+  }, [selectedOBId, shouldExcludeZeroBalance]);
 
   const fetchTodayTallies = useCallback(async () => {
     setTalliesLoading(true);
@@ -212,9 +237,108 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
     }
   }, [roleIsAdmin]);
 
+  // ─── GPS capture ────────────────────────────────────────────────
+  const requestGps = useCallback(async (): Promise<{ lat: number; lng: number } | null> => {
+    if (!('geolocation' in navigator)) {
+      setGpsStatus('error');
+      return null;
+    }
+    setGpsStatus('fetching');
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setGpsCoords(coords);
+          setGpsStatus('ok');
+          resolve(coords);
+        },
+        (err) => {
+          if (err.code === err.PERMISSION_DENIED) setGpsStatus('denied');
+          else setGpsStatus('error');
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      );
+    });
+  }, []);
+
+  // ─── Teller session management ───────────────────────────────────
+  const fetchActiveSession = useCallback(async () => {
+    if (roleIsAdmin) return; // admin doesn't need sessions
+    try {
+      const res = await apiFetch('/api/teller-sessions?status=active');
+      if (res.ok) {
+        const data = await res.json();
+        const sess = data.sessions?.[0];
+        if (sess) {
+          setActiveSession({ id: sess.id, startTime: sess.startTime, area: sess.area });
+        } else {
+          setActiveSession(null);
+        }
+      }
+    } catch { /* silent */ }
+  }, [roleIsAdmin]);
+
+  const startSession = async () => {
+    setSessionStarting(true);
+    let coords: { lat: number; lng: number } | null = null;
+    try { coords = await requestGps(); } catch { /* ignore */ }
+    try {
+      const body: Record<string, any> = {};
+      if (coords) {
+        body.startGpsLat = coords.lat;
+        body.startGpsLng = coords.lng;
+      }
+      const area = window.prompt('Which area / market are you visiting? (optional)');
+      if (area !== null) body.area = area.trim() || undefined;
+      const res = await apiFetch('/api/teller-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveSession({ id: data.id, startTime: data.startTime, area: data.area });
+        toast({ title: 'Session started', description: 'Your tally session is now active.' });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: 'Error', description: data.error || 'Failed to start session', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setSessionStarting(false);
+    }
+  };
+
+  const endSession = async () => {
+    if (!activeSession) return;
+    if (!window.confirm('End the current tally session?')) return;
+    setSessionEnding(true);
+    try {
+      const res = await apiFetch(`/api/teller-sessions/${activeSession.id}/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        setActiveSession(null);
+        toast({ title: 'Session ended' });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: 'Error', description: data.error || 'Failed to end session', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setSessionEnding(false);
+    }
+  };
+
   useEffect(() => {
     fetchOrderbookers();
-  }, [fetchOrderbookers]);
+    fetchActiveSession();
+  }, [fetchOrderbookers, fetchActiveSession]);
 
   useEffect(() => {
     fetchShops();
@@ -236,29 +360,107 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
     setTallyDialogShop(shop);
     setShopBalanceInput(String(shop.balance || 0));
     setNotesInput('');
+    setReasonCode('');
+    setForceSubmit(false);
+    // Kick off GPS capture in parallel — don't block dialog
+    if (gpsStatus === 'idle' || gpsStatus === 'error') {
+      requestGps();
+    }
   };
 
-  const handleTallySubmit = async () => {
+  const handleTallySubmit = async (opts?: { confirmZero?: boolean }) => {
     if (!tallyDialogShop) return;
-    const balance = parseFloat(shopBalanceInput);
-    if (isNaN(balance)) {
+    const isConfirmZero = opts?.confirmZero === true;
+    const balance = isConfirmZero ? 0 : parseFloat(shopBalanceInput);
+    if (!isConfirmZero && isNaN(balance)) {
       toast({ title: 'Error', description: 'Please enter a valid shop balance', variant: 'destructive' });
       return;
     }
+
+    // Client-side reason code check on discrepancy
+    const systemBalance = tallyDialogShop.balance || 0;
+    const willBeDiscrepancy = Math.round((systemBalance - (isConfirmZero ? 0 : balance)) * 100) / 100 !== 0;
+    if (willBeDiscrepancy && !reasonCode) {
+      toast({ title: 'Reason required', description: 'Please select a reason for the discrepancy.', variant: 'destructive' });
+      return;
+    }
+
     setSubmitting(true);
     try {
+      const payload: Record<string, any> = {
+        shopId: tallyDialogShop.id,
+        shopBalance: isConfirmZero ? 0 : balance,
+        notes: notesInput.trim() || undefined,
+      };
+      if (gpsCoords) {
+        payload.gpsLat = gpsCoords.lat;
+        payload.gpsLng = gpsCoords.lng;
+      }
+      if (willBeDiscrepancy && reasonCode) {
+        payload.reasonCode = reasonCode;
+      }
+      if (isConfirmZero) payload.confirmZero = true;
+      if (activeSession) payload.sessionId = activeSession.id;
+      // If user already saw the concurrent warning and chose to proceed
+      if (forceSubmit) payload.force = true;
+
       const res = await apiFetch('/api/tally', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopId: tallyDialogShop.id,
-          shopBalance: balance,
-          notes: notesInput.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
+
+      // ─── Concurrent tally warning (HTTP 409) ──────────────
+      if (res.status === 409) {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === 'concurrent_tally_warning') {
+          const recent = data.recentTally || {};
+          const minsAgo = recent.tallyDate
+            ? Math.max(1, Math.round((Date.now() - new Date(recent.tallyDate).getTime()) / 60000))
+            : 0;
+          const ok = window.confirm(
+            `⚠️ A tally was recorded for ${tallyDialogShop.name} ${minsAgo} minute(s) ago by ${recent.tellerName || 'another teller'}\n` +
+            `Shop balance recorded: ${formatPKR(recent.shopBalance)} | Status: ${recent.status}\n\n` +
+            `Submit anyway?`
+          );
+          if (ok) {
+            setForceSubmit(true);
+            // Re-send with force=true. Backend will accept because the warning
+            // is only triggered when force flag is absent.
+            payload.force = true;
+            const retry = await apiFetch('/api/tally', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            if (!retry.ok) {
+              const err = await retry.json().catch(() => ({}));
+              toast({ title: 'Error', description: err.error || 'Failed to record tally', variant: 'destructive' });
+              return;
+            }
+            const result = await retry.json();
+            toast({
+              title: result.status === 'verified' ? 'Verified' : 'Discrepancy Recorded',
+              description:
+                result.status === 'verified'
+                  ? `${tallyDialogShop.name} tally matches the system balance.`
+                  : `${tallyDialogShop.name} tally has a difference of ${formatPKR(result.difference)}.`,
+              variant: result.status === 'verified' ? 'default' : 'destructive',
+            });
+            setTallyDialogShop(null);
+            setShopBalanceInput('');
+            setNotesInput('');
+            setReasonCode('');
+            setForceSubmit(false);
+            fetchShops();
+            fetchTodayTallies();
+          }
+          return;
+        }
+      }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast({ title: 'Error', description: data.error || 'Failed to record tally', variant: 'destructive' });
+        toast({ title: 'Error', description: data.error || data.message || 'Failed to record tally', variant: 'destructive' });
         return;
       }
       const result = await res.json();
@@ -273,6 +475,8 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
       setTallyDialogShop(null);
       setShopBalanceInput('');
       setNotesInput('');
+      setReasonCode('');
+      setForceSubmit(false);
       // Refresh lists
       fetchShops();
       fetchTodayTallies();
@@ -394,15 +598,36 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
             Compare system balance with shopkeeper&rsquo;s statement.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => { fetchShops(); fetchTodayTallies(); }}
-          disabled={loading}
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {!roleIsAdmin && (
+            activeSession ? (
+              <>
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800 text-xs">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
+                  Session active{activeSession.area ? ` • ${activeSession.area}` : ''}
+                </Badge>
+                <Button variant="outline" size="sm" onClick={endSession} disabled={sessionEnding}>
+                  {sessionEnding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                  End Session
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" size="sm" onClick={startSession} disabled={sessionStarting}>
+                {sessionStarting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Start Session
+              </Button>
+            )
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { fetchShops(); fetchTodayTallies(); }}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -603,14 +828,32 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
                             <Pencil className="h-3.5 w-3.5 mr-1" />
                             Edit
                           </Button>
-                          <Button
-                            size="sm"
-                            className="bg-primary hover:bg-primary/90 text-white text-xs h-7"
-                            onClick={() => openTallyDialog(shop)}
-                          >
-                            <ClipboardCheck className="h-3.5 w-3.5 mr-1" />
-                            Tally
-                          </Button>
+                          {shop.balance === 0 ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs h-7 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300"
+                              onClick={() => {
+                                if (window.confirm(`Confirm that ${shop.name}'s balance is zero (as per shopkeeper)?`)) {
+                                  setTallyDialogShop(shop);
+                                  handleTallySubmit({ confirmZero: true });
+                                }
+                              }}
+                              title="Confirm zero balance"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                              Confirm 0
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="bg-primary hover:bg-primary/90 text-white text-xs h-7"
+                              onClick={() => openTallyDialog(shop)}
+                            >
+                              <ClipboardCheck className="h-3.5 w-3.5 mr-1" />
+                              Tally
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -743,6 +986,40 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
                 </p>
               </div>
 
+              {/* GPS status indicator */}
+              <div className="flex items-center gap-2 text-xs">
+                <MapPin className={`h-3.5 w-3.5 ${
+                  gpsStatus === 'ok' ? 'text-emerald-600 dark:text-emerald-400'
+                    : gpsStatus === 'fetching' ? 'text-blue-500 animate-pulse'
+                    : gpsStatus === 'denied' ? 'text-amber-500'
+                    : 'text-muted-foreground'
+                }`} />
+                <span className="text-muted-foreground">
+                  {gpsStatus === 'ok' && gpsCoords ? (
+                    <>Location captured (lat {gpsCoords.lat.toFixed(4)}, lng {gpsCoords.lng.toFixed(4)})</>
+                  ) : gpsStatus === 'fetching' ? (
+                    <>Capturing location…</>
+                  ) : gpsStatus === 'denied' ? (
+                    <span className="text-amber-600 dark:text-amber-400">Location permission denied — tally will be marked unverified</span>
+                  ) : gpsStatus === 'error' ? (
+                    <span className="text-amber-600 dark:text-amber-400">Location unavailable — tally will be marked unverified</span>
+                  ) : (
+                    <>Location will be captured when you submit</>
+                  )}
+                </span>
+                {(gpsStatus === 'denied' || gpsStatus === 'error' || gpsStatus === 'idle') && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-[10px] ml-auto"
+                    onClick={() => requestGps()}
+                  >
+                    Retry GPS
+                  </Button>
+                )}
+              </div>
+
               {/* System balance */}
               <div className="space-y-2">
                 <Label className="text-xs flex items-center gap-1.5">
@@ -810,9 +1087,31 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
                 </Badge>
               </div>
 
+              {/* Reason code (mandatory on discrepancy) */}
+              {previewStatus === 'discrepancy' && (
+                <div className="space-y-2">
+                  <Label htmlFor="reasonCode" className="text-xs flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                    Reason for Discrepancy *
+                  </Label>
+                  <Select value={reasonCode} onValueChange={setReasonCode}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a reason…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REASON_CODE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               {/* Notes */}
               <div className="space-y-2">
-                <Label htmlFor="notesInput" className="text-xs">Notes (optional)</Label>
+                <Label htmlFor="notesInput" className="text-xs">Notes {reasonCode === 'other' ? '(required for "Other")' : '(optional)'}</Label>
                 <Textarea
                   id="notesInput"
                   value={notesInput}
@@ -829,7 +1128,7 @@ export default function MarketTally({ isAdmin = false }: MarketTallyProps) {
             <Button variant="outline" onClick={() => setTallyDialogShop(null)} disabled={submitting}>
               Cancel
             </Button>
-            <Button onClick={handleTallySubmit} disabled={submitting || !shopBalanceInput}>
+            <Button onClick={() => handleTallySubmit()} disabled={submitting || !shopBalanceInput}>
               {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Save Tally
             </Button>

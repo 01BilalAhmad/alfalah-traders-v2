@@ -134,6 +134,9 @@ const adminNavSections: NavSection[] = [
       // Market Tally
       { id: 'admin-market-tally', label: 'Market Tally', icon: <ClipboardList className="h-4 w-4" /> },
       { id: 'admin-tally-report', label: 'Tally Report', icon: <FileText className="h-4 w-4" /> },
+      { id: 'admin-discrepancy-analytics', label: 'Discrepancy Analytics', icon: <BarChart3 className="h-4 w-4" /> },
+      { id: 'admin-overdue-tallies', label: 'Overdue Tallies', icon: <Clock className="h-4 w-4" /> },
+      { id: 'admin-teller-sessions', label: 'Teller Sessions', icon: <Activity className="h-4 w-4" /> },
       // Monitoring & logs
       { id: 'admin-activity', label: 'Activity Log', icon: <Activity className="h-4 w-4" /> },
       { id: 'admin-sms-tracking', label: 'SMS Tracking', icon: <MessageSquare className="h-4 w-4" /> },

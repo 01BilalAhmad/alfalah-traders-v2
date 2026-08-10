@@ -88,6 +88,7 @@ import {
   CalendarDays,
   MoreHorizontal,
   ChevronDown,
+  ClipboardCheck,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
@@ -105,6 +106,63 @@ function formatRouteDays(days: string[]): string {
   return days.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ');
 }
 
+// ─── Tally Frequency inline control ─────────────────────────────
+// Lets admin set how often a shop should be tallied (used by Overdue Tallies report).
+function TallyFrequencyControl({ shopId, initial }: { shopId: string; initial: string }) {
+  const [value, setValue] = useState<string>(initial || 'monthly');
+  const [saving, setSaving] = useState(false);
+
+  // Sync when shop changes
+  useEffect(() => { setValue(initial || 'monthly'); }, [shopId, initial]);
+
+  const save = async (next: string) => {
+    setValue(next);
+    setSaving(true);
+    try {
+      const res = await apiFetch(`/api/shops/${shopId}/tally-frequency`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tallyFrequency: next }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: 'Error', description: d.error || 'Failed to update', variant: 'destructive' });
+        setValue(initial);
+        return;
+      }
+      toast({ title: 'Updated', description: `Tally frequency set to ${next}.` });
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+      setValue(initial);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3 bg-muted/40 rounded-lg p-3">
+      <div className="h-9 w-9 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+        <ClipboardCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] text-muted-foreground font-medium uppercase">Tally Frequency</p>
+        <p className="text-xs text-muted-foreground">How often this shop should be tallied</p>
+      </div>
+      <Select value={value} onValueChange={save} disabled={saving}>
+        <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="daily">Daily</SelectItem>
+          <SelectItem value="weekly">Weekly</SelectItem>
+          <SelectItem value="monthly">Monthly</SelectItem>
+          <SelectItem value="quarterly">Quarterly</SelectItem>
+          <SelectItem value="none">None (skip)</SelectItem>
+        </SelectContent>
+      </Select>
+      {saving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+    </div>
+  );
+}
+
 interface Shop {
   id: string;
   name: string;
@@ -116,6 +174,7 @@ interface Shop {
   balance: number;
   creditLimit: number;
   status: string;
+  tallyFrequency?: string;
   orderbooker: { id: string; name: string };
   assignedOrderbookers?: {
     id: string;
@@ -1651,6 +1710,9 @@ export default function AdminShops() {
                     </div>
                   </div>
                 </div>
+
+                {/* Tally Frequency Control */}
+                <TallyFrequencyControl shopId={detailShop.id} initial={detailShop.tallyFrequency || 'monthly'} />
 
                 {/* Balance Info Card */}
                 <Card className="border-0 shadow-sm">

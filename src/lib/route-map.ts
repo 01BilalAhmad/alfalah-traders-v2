@@ -43,6 +43,9 @@ export const viewToRoute: Record<string, string> = {
   'admin-teller-management': '/teller-management',
   'admin-market-tally': '/market-tally',
   'admin-tally-report': '/tally-report',
+  'admin-discrepancy-analytics': '/discrepancy-analytics',
+  'admin-overdue-tallies': '/overdue-tallies',
+  'admin-teller-sessions': '/teller-sessions',
   // Orderbooker views
   'orderbooker-dashboard': '/ob',
   'orderbooker-history': '/ob/history',
@@ -93,6 +96,9 @@ export const routeToView: Record<string, string> = {
   '/teller-management': 'admin-teller-management',
   '/market-tally': 'admin-market-tally',
   '/tally-report': 'admin-tally-report',
+  '/discrepancy-analytics': 'admin-discrepancy-analytics',
+  '/overdue-tallies': 'admin-overdue-tallies',
+  '/teller-sessions': 'admin-teller-sessions',
   // Orderbooker routes
   '/ob': 'orderbooker-dashboard',
   '/ob/history': 'orderbooker-history',
