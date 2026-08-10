@@ -366,6 +366,16 @@ textarea:focus-visible {
 .stat-card-blue { border-left: 2px solid #2563EB; }
 .stat-card-red { border-left: 2px solid #DC3535; }
 
+/* ====== Page Size for Print (always landscape A4) ====== */
+/* This ensures the browser's print dialog defaults to landscape.
+   Placed at top level (not inside @media print) because @page rules
+   are top-level. Dynamically injected @page rules sometimes get ignored
+   by certain browser versions, so we declare it here permanently. */
+@page {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
 /* ====== Print Styles ====== */
 @media print {
   /* Hide elements that should not be printed */

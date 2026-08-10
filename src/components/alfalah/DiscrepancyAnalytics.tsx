@@ -11,7 +11,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  BarChart3, Loader2, Store, Users, User, AlertTriangle, TrendingUp, MapPin, RefreshCw, Repeat,
+  BarChart3, Loader2, Store, Users, User, AlertTriangle, TrendingUp, MapPin, RefreshCw, Repeat, Wallet,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
@@ -149,6 +149,59 @@ export default function DiscrepancyAnalytics() {
                         <TableCell className="text-right tabular-nums">{formatPKR(s.avgDifference)}</TableCell>
                       </TableRow>
                     ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ─── Discrepancy Amount by Orderbooker (prominent) ─── */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-primary" /> Discrepancy Amount by Orderbooker
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Positive amount = system shows <strong>more</strong> than shopkeeper claims (OB likely missed recording recovery).
+                Negative = system shows <strong>less</strong> (OB likely missed recording credit, or over-recovered).
+              </p>
+            </CardHeader>
+            <CardContent className="p-0">
+              {data.orderbookerRates.filter(o => o.totalDifference !== 0).length === 0 ? (
+                <p className="text-center py-6 text-sm text-muted-foreground">No discrepancies in this period — all balances match.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Orderbooker</TableHead>
+                      <TableHead className="text-right">Discrepancies</TableHead>
+                      <TableHead className="text-right">Net Difference</TableHead>
+                      <TableHead className="text-right">Action Needed</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...data.orderbookerRates]
+                      .filter(o => o.totalDifference !== 0)
+                      .sort((a, b) => Math.abs(b.totalDifference) - Math.abs(a.totalDifference))
+                      .map((o) => {
+                        const positive = o.totalDifference > 0;
+                        return (
+                          <TableRow key={o.orderbookerId}>
+                            <TableCell className="font-medium text-sm">{o.orderbookerName}</TableCell>
+                            <TableCell className="text-right tabular-nums text-xs">{o.discrepancies}</TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              <span className={`font-bold text-sm ${positive ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                {positive ? '+' : ''}{formatPKR(o.totalDifference)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge className={`text-[10px] ${positive ? 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/50 dark:text-rose-300 dark:border-rose-800' : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-800'}`}>
+                                {positive ? 'Recovery missing' : 'Credit missing'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                   </TableBody>
                 </Table>
               )}
