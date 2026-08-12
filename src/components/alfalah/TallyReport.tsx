@@ -227,69 +227,139 @@ export default function TallyReport() {
       toast({ title: 'Nothing to print', description: 'No tally records in current filter', variant: 'destructive' });
       return;
     }
-    handlePrint({
-      extraCSS: `
-        @page { size: A4 landscape; margin: 10mm; }
-        html, body { background: #ffffff !important; }
-        body * { visibility: hidden !important; }
-        .print-root-wrapper,
-        .print-root-wrapper * { visibility: visible !important; }
-        .print-root-wrapper {
-          position: absolute !important; left: 0 !important; top: 0 !important;
-          width: 100% !important; max-width: none !important;
-          margin: 0 !important; padding: 0 !important; display: block !important;
-        }
-        .print-only-header { display: block !important; }
-        .print-root-wrapper .screen-only { display: none !important; }
-        /* Hide print-hidden elements (Actions column, etc.) */
-        .print-hidden { display: none !important; }
 
-        /* ─── Print-friendly table ─── */
-        .tally-print-table {
-          width: 100% !important;
-          table-layout: fixed !important;
-          border-collapse: collapse !important;
-          font-size: 9px !important;
-        }
-        /* Override min-w-* utility classes that force columns too wide */
-        .tally-print-table th,
-        .tally-print-table td {
-          min-width: 0 !important;
-          max-width: none !important;
-        }
-        .tally-print-table thead th {
-          background: #2563EB !important; color: #ffffff !important;
-          padding: 5px 4px !important; border: 1px solid #1D4ED8 !important;
-          text-align: left !important; font-weight: 600 !important; font-size: 8px !important;
-          text-transform: uppercase !important; letter-spacing: 0.2px !important;
-          word-wrap: break-word !important; overflow-wrap: break-word !important;
-          -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-        }
-        .tally-print-table tbody td {
-          padding: 3px 4px !important; border: 1px solid #E5E7EB !important;
-          color: #111827 !important; vertical-align: top !important;
-          word-wrap: break-word !important; overflow-wrap: break-word !important;
-        }
-        .tally-print-table tbody tr:nth-child(even) td { background: #F9FAFB !important; }
-        .tally-print-table tbody tr:nth-child(odd)  td { background: #FFFFFF !important; }
-        .tally-print-table .num { text-align: right !important; font-variant-numeric: tabular-nums !important; }
-        .tally-print-table thead { display: table-header-group !important; }
-        .tally-print-table tbody tr { page-break-inside: avoid !important; }
+    // ─── Generate a DEDICATED print window for reliable landscape PDF ───
+    // Opening a new window with explicit @page landscape CSS is more reliable
+    // than injecting styles into the current page (browser "Save as PDF"
+    // often ignores injected @page rules).
+    const printWindow = window.open('', '_blank', 'width=1200,height=800');
+    if (!printWindow) {
+      toast({ title: 'Popup blocked', description: 'Please allow popups to print the report', variant: 'destructive' });
+      return;
+    }
 
-        /* ─── Explicit column widths for print (12 visible columns) ─── */
-        /* Total: 100% of page width (landscape A4 minus margins ≈ 277mm) */
-        .tally-print-table .print-header-date       { width: 9% !important; }
-        .tally-print-table .print-header-shop       { width: 14% !important; }
-        .tally-print-table .print-header-area       { width: 8% !important; }
-        .tally-print-table .print-header-num        { width: 7% !important; }
-        .tally-print-table .print-header-status     { width: 7% !important; }
-        .tally-print-table .print-header-reason     { width: 13% !important; }
-        .tally-print-table .print-header-resolution { width: 10% !important; }
-        .tally-print-table .print-header-teller     { width: 10% !important; }
-        .tally-print-table .print-header-ob         { width: 10% !important; }
-        .tally-print-table .print-header-gps        { width: 5% !important; }
-      `,
-    });
+    const today = new Date().toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' });
+    const periodFrom = dateFrom || '…';
+    const periodTo = dateTo || '…';
+
+    // Build active filters string
+    const filterParts: string[] = [];
+    if (obFilter !== 'all') filterParts.push(`OB: ${orderbookers.find(o => o.id === obFilter)?.name || '—'}`);
+    if (tellerFilter !== 'all') filterParts.push(`Teller: ${tellers.find(t => t.id === tellerFilter)?.name || '—'}`);
+    if (statusFilter !== 'all') filterParts.push(`Status: ${statusFilter}`);
+    if (resolutionFilter !== 'all') filterParts.push(`Resolution: ${resolutionFilter}`);
+    if (reasonFilter !== 'all') filterParts.push(`Reason: ${reasonFilter}`);
+    if (showVoided) filterParts.push('Including voided');
+    const filterStr = filterParts.length > 0 ? filterParts.join(' • ') : 'No filters applied';
+
+    // Build table rows
+    const tableRows = rows.map((r) => {
+      const isVoided = r.voided;
+      return `
+        <tr style="${isVoided ? 'opacity:0.5;' : ''}">
+          <td>${formatLocalDate(new Date(r.tallyDate))}</td>
+          <td style="font-weight:600;">${r.shopName}${isVoided ? ' <span style="color:#DC2626;font-size:7px;">VOIDED</span>' : ''}</td>
+          <td>${r.shopArea || '—'}</td>
+          <td style="text-align:right;">${formatPKR(r.systemBalance)}</td>
+          <td style="text-align:right;">${formatPKR(r.shopBalance)}</td>
+          <td style="text-align:right; font-weight:700; color:${r.difference === 0 ? '#059669' : r.difference > 0 ? '#D97706' : '#DC2626'};">
+            ${r.difference > 0 ? '+' : ''}${formatPKR(r.difference)}
+          </td>
+          <td>${isVoided ? '—' : r.status === 'verified' ? '✓ Verified' : '⚠ Discrepancy'}</td>
+          <td>${r.reasonCode ? r.reasonCode.replace(/_/g, ' ') : '—'}</td>
+          <td>${r.resolutionStatus === 'resolved' ? '✓ Resolved' : r.resolutionStatus === 'open' ? '○ Open' : r.resolutionStatus}</td>
+          <td>${r.tellerName || (r.tellerUsername ? `@${r.tellerUsername}` : '—')}</td>
+          <td>${r.orderbookerName || '—'}</td>
+          <td style="text-align:center;">${r.locationStatus === 'verified' ? '✓' : '—'}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Finexa — Market Tally Report</title>
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  body { color: #0F172A; }
+  .header { text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2563EB; }
+  .header h1 { font-size: 18px; color: #2563EB; margin-bottom: 2px; }
+  .header .meta { font-size: 9px; color: #64748B; }
+  .header .filters { font-size: 8px; color: #94A3B8; margin-top: 2px; }
+  .summary { display: flex; justify-content: center; gap: 30px; margin: 10px 0; padding: 8px; background: #EFF6FF; border-radius: 6px; }
+  .summary-item { text-align: center; }
+  .summary-num { font-size: 16px; font-weight: 800; color: #2563EB; }
+  .summary-label { font-size: 8px; text-transform: uppercase; color: #64748B; letter-spacing: 0.5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 8px; }
+  thead th {
+    background: #2563EB; color: white; padding: 5px 3px;
+    text-align: left; font-size: 7px; text-transform: uppercase;
+    letter-spacing: 0.3px; border: 1px solid #1D4ED8;
+  }
+  tbody td { padding: 3px 3px; border: 1px solid #E5E7EB; word-wrap: break-word; }
+  tbody tr:nth-child(even) { background: #F9FAFB; }
+  .footer { text-align: center; margin-top: 10px; font-size: 8px; color: #94A3B8; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>AL-FALAH TRADERS — Market Tally Report</h1>
+    <div class="meta">Period: ${periodFrom} to ${periodTo} • Generated: ${today}</div>
+    <div class="filters">${filterStr}</div>
+  </div>
+  <div class="summary">
+    <div class="summary-item"><div class="summary-num">${summary.total}</div><div class="summary-label">Total</div></div>
+    <div class="summary-item"><div class="summary-num" style="color:#059669;">${summary.verified}</div><div class="summary-label">Verified</div></div>
+    <div class="summary-item"><div class="summary-num" style="color:#D97706;">${summary.discrepancy}</div><div class="summary-label">Discrepancies</div></div>
+    <div class="summary-item"><div class="summary-num">${summary.totalDifference > 0 ? '+' : ''}${formatPKR(summary.totalDifference)}</div><div class="summary-label">Net Diff</div></div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:8%;">Date</th>
+        <th style="width:14%;">Shop</th>
+        <th style="width:9%;">Area</th>
+        <th style="width:8%; text-align:right;">System</th>
+        <th style="width:8%; text-align:right;">Shop Bal.</th>
+        <th style="width:8%; text-align:right;">Diff</th>
+        <th style="width:7%;">Status</th>
+        <th style="width:11%;">Reason</th>
+        <th style="width:8%;">Resolution</th>
+        <th style="width:9%;">Teller</th>
+        <th style="width:8%;">Orderbooker</th>
+        <th style="width:2%;">GPS</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${tableRows || '<tr><td colspan="12" style="text-align:center;padding:20px;color:#94A3B8;">No records</td></tr>'}
+    </tbody>
+  </table>
+  <div class="footer">Generated by Finexa Teller System • ${today}</div>
+  <script>
+    // Auto-trigger print dialog
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 300);
+    };
+  </script>
+</body>
+</html>`;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   // ─── Resolve handler ──────────────────────────────────────────
