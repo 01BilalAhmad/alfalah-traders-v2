@@ -150,9 +150,13 @@ async function generateReport(
 
       for (const shop of allShops) {
         // Build transaction query with optional companyId filter
+        // EXCLUDE 'Balance Adjustment' entries — these are tally resolution
+        // adjustments, NOT actual recoveries by orderbookers. They should
+        // only appear in Company Report / Ledger, not in OB Recovery Report.
         let txnQuery = `SELECT id, type, amount, "previousBalance", "newBalance", "createdAt", description, "gpsLat", "gpsLng", "companyId"
              FROM "Transaction"
-             WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'approved'`;
+             WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'approved'
+             AND (description IS NULL OR description NOT LIKE '%Balance Adjustment%')`;
         const txnParams: (string | Date)[] = [shop.id, startDate.toISOString(), endDate.toISOString()];
 
         if (companyId) {
