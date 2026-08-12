@@ -6,6 +6,10 @@ import { ensureTallyTables, RESOLUTION_TYPES, type ResolutionType } from '@/lib/
 // POST /api/tally/[id]/resolve
 // Body: { resolutionType, resolutionNote? }
 // Admin-only: marks an open discrepancy tally as resolved.
+//
+// IMPORTANT: Balance adjustment happens for ALL resolution types.
+// The difference amount is automatically subtracted/added to the shop's
+// balance, and a "Balance Adjustment" transaction is created in the ledger.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -32,10 +36,11 @@ export async function POST(
     const pool = getPool();
     await ensureTallyTables();
 
-    // Verify tally exists and is a discrepancy
+    // ─── 1. Fetch tally details ──────────────────────────────────
     const tallyRes = await pool.query(
-      `SELECT st.id, st.status, st."resolutionStatus", st."shopId", st."difference",
-              s.name AS "shopName"
+      `SELECT st.id, st.status, st."resolutionStatus", st."shopId",
+              st."difference", st."systemBalance", st."shopBalance",
+              s.name AS "shopName", s.balance AS "currentShopBalance"
        FROM "ShopTally" st
        LEFT JOIN "Shop" s ON st."shopId" = s.id
        WHERE st.id = $1`,
@@ -50,6 +55,8 @@ export async function POST(
     }
 
     const now = new Date().toISOString();
+
+    // ─── 2. Update tally resolution status ───────────────────────
     await pool.query(
       `UPDATE "ShopTally"
           SET "resolutionStatus" = 'resolved',
@@ -67,59 +74,66 @@ export async function POST(
       ]
     );
 
-    // If adjustment_posted, automatically create an adjustment Transaction
-    // to bring the system balance in line with the shopkeeper's stated balance.
-    if (resolutionType === 'adjustment_posted') {
-      try {
-        const shopFresh = await pool.query(
-          `SELECT id, balance FROM "Shop" WHERE id = $1`,
-          [tally.shopId]
-        );
-        if (shopFresh.rows.length > 0) {
-          const shop = shopFresh.rows[0];
-          const currentBalance = Number(shop.balance) || 0;
-          // We want to align system balance with what shopkeeper said.
-          // Fetch the tally's shopBalance:
-          const tbRes = await pool.query(
-            `SELECT "shopBalance" FROM "ShopTally" WHERE id = $1`,
-            [tallyId]
-          );
-          const targetBalance = Number(tbRes.rows[0]?.shopBalance) || currentBalance;
-          const adjustmentAmount = Math.round((targetBalance - currentBalance) * 100) / 100;
+    // ─── 3. BALANCE ADJUSTMENT (for ALL resolution types) ────────
+    // The difference = systemBalance - shopBalance
+    // If difference > 0: system shows MORE → subtract difference (recovery)
+    // If difference < 0: system shows LESS → add |difference| (credit)
+    // Target: shop's balance should match what shopkeeper claimed (shopBalance)
+    let adjustmentMade = false;
+    let adjustmentAmount = 0;
+    let newBalance = 0;
 
-          if (Math.abs(adjustmentAmount) >= 0.01) {
-            const txnId = `txn_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-            const txnType = adjustmentAmount < 0 ? 'recovery' : 'credit';
-            // NOTE: status='approved' so it shows in ledger immediately.
-            await pool.query(
-              `INSERT INTO "Transaction"
-                (id, "shopId", type, amount, "previousBalance", "newBalance",
-                 description, status, "createdBy", "approvedBy", "approvedAt", "createdAt")
-               VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, $8, NOW(), NOW())`,
-              [
-                txnId,
-                tally.shopId,
-                txnType,
-                Math.abs(adjustmentAmount),
-                currentBalance,
-                targetBalance,
-                `Tally adjustment (tally ${tallyId}) — resolution: adjustment_posted`,
-                auth.userId,
-              ]
-            );
-            await pool.query(
-              `UPDATE "Shop" SET balance = $1, "updatedAt" = NOW() WHERE id = $2`,
-              [targetBalance, tally.shopId]
-            );
-          }
+    try {
+      // Get the CURRENT shop balance (fresh from DB, not the stale tally value)
+      const shopFresh = await pool.query(
+        `SELECT id, balance FROM "Shop" WHERE id = $1`,
+        [tally.shopId]
+      );
+      if (shopFresh.rows.length > 0) {
+        const currentBalance = Number(shopFresh.rows[0].balance) || 0;
+        const targetBalance = Number(tally.shopBalance) || 0;
+        adjustmentAmount = Math.round((targetBalance - currentBalance) * 100) / 100;
+
+        if (Math.abs(adjustmentAmount) >= 0.01) {
+          // Create adjustment transaction
+          const txnId = `txn_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+          // If adjustmentAmount < 0 → system balance needs to DECREASE → type = 'recovery'
+          // If adjustmentAmount > 0 → system balance needs to INCREASE → type = 'credit'
+          const txnType = adjustmentAmount < 0 ? 'recovery' : 'credit';
+          newBalance = targetBalance;
+
+          await pool.query(
+            `INSERT INTO "Transaction"
+              (id, "shopId", type, amount, "previousBalance", "newBalance",
+               description, status, "createdBy", "approvedBy", "approvedAt", "createdAt")
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, $8, NOW(), NOW())`,
+            [
+              txnId,
+              tally.shopId,
+              txnType,
+              Math.abs(adjustmentAmount),
+              currentBalance,
+              targetBalance,
+              `Balance Adjustment — Tally Resolution (${resolutionType})`,
+              auth.userId,
+            ]
+          );
+
+          // Update shop balance
+          await pool.query(
+            `UPDATE "Shop" SET balance = $1, "updatedAt" = NOW() WHERE id = $2`,
+            [targetBalance, tally.shopId]
+          );
+
+          adjustmentMade = true;
         }
-      } catch (err) {
-        console.error('[Tally resolve] adjustment transaction failed:', err);
-        // Not blocking — the resolution itself succeeded.
       }
+    } catch (err) {
+      console.error('[Tally resolve] Balance adjustment failed:', err);
+      // Don't block — resolution itself still succeeded, but log the error
     }
 
-    // Audit log
+    // ─── 4. Audit log ────────────────────────────────────────────
     try {
       const crypto = await import('crypto');
       const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
@@ -129,8 +143,16 @@ export async function POST(
         [
           auditId,
           tallyId,
-          JSON.stringify({ resolutionType, resolutionNote, resolvedBy: auth.userId }),
-          `Tally ${tallyId} for ${tally.shopName} resolved as ${resolutionType}`,
+          JSON.stringify({
+            resolutionType,
+            resolutionNote,
+            resolvedBy: auth.userId,
+            balanceAdjusted: adjustmentMade,
+            adjustmentAmount,
+            newBalance,
+          }),
+          `Tally ${tallyId} for ${tally.shopName} resolved as ${resolutionType}` +
+          (adjustmentMade ? ` — Balance adjusted by ${adjustmentAmount > 0 ? '+' : ''}${adjustmentAmount}` : ' — No adjustment needed'),
         ]
       );
     } catch { /* non-blocking */ }
@@ -141,6 +163,9 @@ export async function POST(
       resolutionStatus: 'resolved',
       resolutionType,
       resolvedAt: now,
+      balanceAdjusted: adjustmentMade,
+      adjustmentAmount,
+      newBalance,
     });
   } catch (error) {
     console.error('[Tally Resolve API] error:', error);
