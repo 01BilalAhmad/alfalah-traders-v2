@@ -52,6 +52,24 @@ export async function PATCH(request: NextRequest) {
     const oldPhone = oldRow.phone ?? null;
     const oldOwner = oldRow.ownerName ?? null;
 
+    // ─── FIX #2: Tellers can only ADD phone/owner, not EDIT existing ───
+    // If phone already exists and teller tries to change it → block
+    // If owner already exists and teller tries to change it → block
+    // Admins can edit freely
+    const isTellerRole = auth.user?.role === 'teller';
+    if (isTellerRole) {
+      if (hasPhone && oldPhone && oldPhone.trim() !== '' && trimmedPhone !== oldPhone) {
+        return NextResponse.json({
+          error: 'Phone number can only be updated by admin. Please contact your administrator.',
+        }, { status: 403 });
+      }
+      if (hasOwner && oldOwner && oldOwner.trim() !== '' && String(ownerName).trim() !== oldOwner) {
+        return NextResponse.json({
+          error: 'Owner name can only be updated by admin. Please contact your administrator.',
+        }, { status: 403 });
+      }
+    }
+
     const now = new Date().toISOString();
 
     // Build update query dynamically based on what fields are provided.

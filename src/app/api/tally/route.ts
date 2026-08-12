@@ -278,25 +278,54 @@ export async function POST(request: NextRequest) {
       normalizedReasonCode = reasonCode;
     }
 
-    // Validate GPS
+    // ─── FIX #1: GPS distance verification ───────────────────────
+    // If teller's GPS is provided AND shop has GPS coordinates (from OB visits),
+    // calculate distance. If > 500m, mark as 'far_from_shop' (suspicious).
+    // If <= 500m, mark as 'verified' (teller was actually at the shop).
     let normalizedGpsLat: number | null = null;
     let normalizedGpsLng: number | null = null;
     let locationStatus = 'unverified';
+
     if (gpsLat != null && gpsLng != null && !isNaN(Number(gpsLat)) && !isNaN(Number(gpsLng))) {
       normalizedGpsLat = Number(gpsLat);
       normalizedGpsLng = Number(gpsLng);
-      locationStatus = 'verified';
+
+      // Check distance to shop's known GPS location
+      const shopLat = shop.lat ? Number(shop.lat) : null;
+      const shopLng = shop.lng ? Number(shop.lng) : null;
+
+      if (shopLat != null && shopLng != null) {
+        // Haversine distance calculation (meters)
+        const R = 6371000; // Earth radius in meters
+        const toRad = (deg: number) => (deg * Math.PI) / 180;
+        const dLat = toRad(shopLat - normalizedGpsLat);
+        const dLng = toRad(shopLng - normalizedGpsLng);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRad(normalizedGpsLat)) * Math.cos(toRad(shopLat)) *
+          Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = Math.round(R * c);
+
+        if (distance <= 500) {
+          locationStatus = 'verified'; // Teller is within 500m of shop
+        } else {
+          locationStatus = 'far_from_shop'; // Teller is > 500m away — suspicious
+        }
+      } else {
+        // Shop has no GPS coords (never visited by OB) — can't verify distance
+        locationStatus = 'verified'; // GPS captured, just can't compare to shop
+      }
     } else if (confirmZero) {
-      // confirmZero allows recording tally without explicit GPS, marked as unverified
       locationStatus = 'unverified';
     }
 
     const pool = getPool();
     await ensureTallyTables();
 
-    // Fetch shop
+    // Fetch shop — include lat/lng for GPS distance verification
     const shopRes = await pool.query(
-      `SELECT id, name, area, balance, "orderbookerId", status FROM "Shop" WHERE id = $1`,
+      `SELECT id, name, area, balance, "orderbookerId", status, lat, lng FROM "Shop" WHERE id = $1`,
       [shopId]
     );
     if (shopRes.rows.length === 0) {
@@ -314,6 +343,36 @@ export async function POST(request: NextRequest) {
       );
       if (assignedRes.rows.length === 0) {
         return NextResponse.json({ error: 'You are not assigned to this shop\'s orderbooker' }, { status: 403 });
+      }
+    }
+
+    // ─── FIX #3: Session mandatory for tellers ──────────────────
+    // Tellers MUST have an active session to submit a tally.
+    // Admins can bypass (they don't use sessions).
+    if (isTeller) {
+      let activeSessionId: string | null = null;
+      if (sessionId) {
+        // Verify the provided session belongs to this teller and is active
+        const sessRes = await pool.query(
+          `SELECT id, "tellerId", status FROM "TellerSession" WHERE id = $1`,
+          [sessionId]
+        );
+        if (sessRes.rows.length > 0 && sessRes.rows[0].tellerId === auth.userId && sessRes.rows[0].status === 'active') {
+          activeSessionId = sessionId;
+        }
+      }
+      if (!activeSessionId) {
+        // Check if teller has ANY active session
+        const activeSessRes = await pool.query(
+          `SELECT id FROM "TellerSession" WHERE "tellerId" = $1 AND status = 'active' LIMIT 1`,
+          [auth.userId]
+        );
+        if (activeSessRes.rows.length === 0) {
+          return NextResponse.json({
+            error: 'session_required',
+            message: 'Please start a work session before recording tallies. Go to Dashboard → Start Session.',
+          }, { status: 400 });
+        }
       }
     }
 

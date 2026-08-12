@@ -208,7 +208,7 @@ export default function TallyReport() {
         'Resolution': r.resolutionStatus === 'resolved'
           ? `Resolved (${r.resolutionType || ''})`
           : r.resolutionStatus,
-        'GPS': r.locationStatus === 'verified' ? 'Verified' : 'Unverified',
+        'GPS': r.locationStatus === 'verified' ? 'Verified' : r.locationStatus === 'far_from_shop' ? 'Far from shop' : 'Unverified',
         'Notes': r.notes || '',
       }));
       const filename = `tally-report_${dateFrom || 'all'}_to_${dateTo || 'all'}`;
@@ -270,7 +270,7 @@ export default function TallyReport() {
           <td>${r.resolutionStatus === 'resolved' ? '✓ Resolved' : r.resolutionStatus === 'open' ? '○ Open' : r.resolutionStatus}</td>
           <td>${r.tellerName || (r.tellerUsername ? `@${r.tellerUsername}` : '—')}</td>
           <td>${r.orderbookerName || '—'}</td>
-          <td style="text-align:center;">${r.locationStatus === 'verified' ? '✓' : '—'}</td>
+          <td style="text-align:center;">${r.locationStatus === 'verified' ? '✓' : r.locationStatus === 'far_from_shop' ? '⚠' : '—'}</td>
         </tr>
       `;
     }).join('');
@@ -764,10 +764,12 @@ export default function TallyReport() {
                             <Badge variant="outline" className={`text-[10px] ${
                               r.locationStatus === 'verified'
                                 ? 'border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-300'
-                                : 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-300'
+                                : r.locationStatus === 'far_from_shop'
+                                  ? 'border-rose-300 text-rose-700 dark:border-rose-700 dark:text-rose-300'
+                                  : 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-300'
                             }`}>
                               <MapPin className="h-2.5 w-2.5 mr-1" />
-                              {r.locationStatus === 'verified' ? 'Yes' : 'No'}
+                              {r.locationStatus === 'verified' ? 'Yes' : r.locationStatus === 'far_from_shop' ? 'Far' : 'No'}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right print-hidden">
