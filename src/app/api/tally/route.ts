@@ -193,7 +193,8 @@ export async function GET(request: NextRequest) {
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const queryText = `
-      SELECT st.id, st."shopId", s.name AS "shopName", s.area AS "shopArea",
+      SELECT DISTINCT ON (st."shopId", DATE(st."tallyDate"))
+             st.id, st."shopId", s.name AS "shopName", s.area AS "shopArea",
              st."talliedBy", st."tallyDate", st."systemBalance", st."shopBalance",
              st."difference", st.status, st.notes, st."orderbookerId",
              ob.name AS "orderbookerName",
@@ -209,7 +210,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN "User" ob ON st."orderbookerId" = ob.id
       LEFT JOIN "User" tu ON st."talliedBy" = tu.id
       ${whereClause}
-      ORDER BY st."tallyDate" DESC, st."createdAt" DESC
+      ORDER BY st."shopId", DATE(st."tallyDate") DESC, st."tallyDate" DESC, st."createdAt" DESC
       LIMIT 500
     `;
 
