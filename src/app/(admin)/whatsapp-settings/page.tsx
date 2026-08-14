@@ -107,7 +107,11 @@ export default function WhatsAppSettingsPage() {
     if (!confirm('Send overdue reminder SMS to all eligible shops?')) return;
     setSendingOverdue(true);
     try {
-      const res = await apiFetch('/api/whatsapp/send-overdue', { method: 'POST' });
+      const res = await apiFetch('/api/whatsapp/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send-overdue' }),
+      });
       const data = await res.json();
       if (res.ok) {
         toast({
