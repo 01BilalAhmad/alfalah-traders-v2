@@ -278,10 +278,8 @@ export async function POST(request: NextRequest) {
       normalizedReasonCode = reasonCode;
     }
 
-    // ─── FIX #1: GPS distance verification ───────────────────────
-    // If teller's GPS is provided AND shop has GPS coordinates (from OB visits),
-    // calculate distance. If > 500m, mark as 'far_from_shop' (suspicious).
-    // If <= 500m, mark as 'verified' (teller was actually at the shop).
+    // ─── GPS coordinate parsing (basic validation only) ──────────
+    // Distance check happens AFTER shop is fetched (needs shop.lat/lng)
     let normalizedGpsLat: number | null = null;
     let normalizedGpsLng: number | null = null;
     let locationStatus = 'unverified';
@@ -289,33 +287,7 @@ export async function POST(request: NextRequest) {
     if (gpsLat != null && gpsLng != null && !isNaN(Number(gpsLat)) && !isNaN(Number(gpsLng))) {
       normalizedGpsLat = Number(gpsLat);
       normalizedGpsLng = Number(gpsLng);
-
-      // Check distance to shop's known GPS location
-      const shopLat = shop.lat ? Number(shop.lat) : null;
-      const shopLng = shop.lng ? Number(shop.lng) : null;
-
-      if (shopLat != null && shopLng != null) {
-        // Haversine distance calculation (meters)
-        const R = 6371000; // Earth radius in meters
-        const toRad = (deg: number) => (deg * Math.PI) / 180;
-        const dLat = toRad(shopLat - normalizedGpsLat);
-        const dLng = toRad(shopLng - normalizedGpsLng);
-        const a =
-          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-          Math.cos(toRad(normalizedGpsLat)) * Math.cos(toRad(shopLat)) *
-          Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const distance = Math.round(R * c);
-
-        if (distance <= 500) {
-          locationStatus = 'verified'; // Teller is within 500m of shop
-        } else {
-          locationStatus = 'far_from_shop'; // Teller is > 500m away — suspicious
-        }
-      } else {
-        // Shop has no GPS coords (never visited by OB) — can't verify distance
-        locationStatus = 'verified'; // GPS captured, just can't compare to shop
-      }
+      locationStatus = 'verified'; // Will be updated after distance check
     } else if (confirmZero) {
       locationStatus = 'unverified';
     }
@@ -332,6 +304,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
     const shop = shopRes.rows[0];
+
+    // ─── GPS distance verification (AFTER shop is fetched) ───────
+    // Now we have shop.lat/lng — calculate haversine distance
+    if (normalizedGpsLat != null && normalizedGpsLng != null) {
+      const shopLat = shop.lat ? Number(shop.lat) : null;
+      const shopLng = shop.lng ? Number(shop.lng) : null;
+
+      if (shopLat != null && shopLng != null) {
+        const R = 6371000; // Earth radius in meters
+        const toRad = (deg: number) => (deg * Math.PI) / 180;
+        const dLat = toRad(shopLat - normalizedGpsLat);
+        const dLng = toRad(shopLng - normalizedGpsLng);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRad(normalizedGpsLat)) * Math.cos(toRad(shopLat)) *
+          Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = Math.round(R * c);
+
+        if (distance > 500) {
+          locationStatus = 'far_from_shop'; // Teller is > 500m away — suspicious
+        }
+        // else keep 'verified' (within 500m)
+      }
+      // else: shop has no GPS coords — keep 'verified' (can't compare)
+    }
 
     // Teller authorization
     if (isTeller) {
