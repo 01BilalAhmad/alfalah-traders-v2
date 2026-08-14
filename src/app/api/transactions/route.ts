@@ -555,6 +555,7 @@ export async function POST(request: NextRequest) {
               orderbookerId: shop.orderbookerId || null,
               transactionId: transaction.id,
               amount: amount,
+              previousBalance: previousBalance,
               newBalance: Math.round(newBalance * 100) / 100,
               companyName,
             }).catch(() => {});

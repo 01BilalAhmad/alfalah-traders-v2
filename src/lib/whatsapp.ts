@@ -615,6 +615,7 @@ export async function sendCreditSms(opts: {
   orderbookerId: string | null;
   transactionId: string;
   amount: number;
+  previousBalance?: number;
   newBalance: number;
   companyName?: string;
 }): Promise<{ success: boolean; error?: string }> {
@@ -623,9 +624,40 @@ export async function sendCreditSms(opts: {
 
   if (!opts.shopPhone) return { success: false, error: 'No phone' };
 
-  const businessName = await getConfig('whatsapp_business_name') || 'AL-FALAH TRADERS';
-  const date = new Date().toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' });
-  const msg = `📦 Credit Posted\n\n🏪 Shop: ${opts.shopName}\n💰 Amount: Rs ${opts.amount.toLocaleString('en-PK')}\n✅ New Balance: Rs ${opts.newBalance.toLocaleString('en-PK')}\n${opts.companyName ? `🏢 Company: ${opts.companyName}\n` : ''}📅 ${date}\n\n— ${businessName}`;
+  const businessName = await getConfig('whatsapp_business_name') || 'AL-FALAH TRADERS KHANPUR';
+  const businessPhone = await getConfig('whatsapp_business_phone') || '0319-2538526';
+  // Date format: 10-Jul-2026 (DD-Mon-YYYY) in Asia/Karachi timezone
+  const date = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Asia/Karachi',
+  });
+
+  // previousBalance: caller se pass ho to use karo, warna fallback calculate karo
+  // (newBalance = previousBalance + amount → previousBalance = newBalance - amount)
+  const prevBal = opts.previousBalance !== undefined
+    ? opts.previousBalance
+    : Math.round((opts.newBalance - opts.amount) * 100) / 100;
+
+  // Build message — formal receipt format matching recovery SMS style
+  const msg = [
+    `${businessName}.`,
+    '',
+    `Dear ${opts.shopName},`,
+    'Your account has been updated with new Invoice/credit:',
+    '',
+    `Previous Balance: Rs. ${prevBal.toLocaleString('en-PK')}`,
+    `New Invoice Amount: Rs. ${opts.amount.toLocaleString('en-PK')}`,
+    `Total Balance: Rs. ${opts.newBalance.toLocaleString('en-PK')}`,
+    '',
+    `Date: ${date}`,
+    '',
+    '(اگر آپ کو بیلنس میں کسی بھی قسم کا کوئی فرق محسوس ہو تو برائے مہربانی دیے گئے نمبر پر لازمی رابطہ کریں تاکہ آپ کے اور ہمارے کاروبار میں کوئی نقصان نہ ہو۔ شکریہ!)',
+    `Distributor No: ${businessPhone}`,
+    '',
+    'Thank you for doing business with us!',
+  ].join('\n');
 
   // Generate credit receipt image
   let result;
