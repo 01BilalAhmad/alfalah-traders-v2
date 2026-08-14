@@ -86,7 +86,7 @@ export default function WhatsAppSettingsPage() {
     }
     setTesting(true);
     try {
-      const res = await apiFetch('/api/whatsapp/test', {
+      const res = await apiFetch('/api/whatsapp/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: testPhone.trim() }),
