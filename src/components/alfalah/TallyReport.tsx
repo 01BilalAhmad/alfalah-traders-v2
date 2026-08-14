@@ -126,6 +126,10 @@ export default function TallyReport() {
   const [resolveType, setResolveType] = useState<ResolutionType | ''>('');
   const [resolveNote, setResolveNote] = useState('');
   const [resolving, setResolving] = useState(false);
+  // Company selector for resolve — fetches shop's company balances
+  const [resolveCompanies, setResolveCompanies] = useState<{ companyId: string; companyName: string; balance: number }[]>([]);
+  const [resolveCompanyId, setResolveCompanyId] = useState<string>('');
+  const [resolveCompaniesLoading, setResolveCompaniesLoading] = useState(false);
 
   const [voidOpen, setVoidOpen] = useState(false);
   const [voidRow, setVoidRow] = useState<TallyRow | null>(null);
@@ -363,15 +367,41 @@ export default function TallyReport() {
   };
 
   // ─── Resolve handler ──────────────────────────────────────────
-  const openResolveDialog = (row: TallyRow) => {
+  const openResolveDialog = async (row: TallyRow) => {
     setResolveRow(row);
     setResolveType('');
     setResolveNote('');
+    setResolveCompanyId('');
+    setResolveCompanies([]);
     setResolveOpen(true);
+    // Fetch shop's company balances for the company selector
+    setResolveCompaniesLoading(true);
+    try {
+      const res = await apiFetch(`/api/reports/ledger?shopId=${row.shopId}&limit=1`);
+      if (res.ok) {
+        const data = await res.json();
+        const companies = (data.companyBalances || []).map((cb: any) => ({
+          companyId: cb.companyId,
+          companyName: cb.companyName,
+          balance: Number(cb.balance) || 0,
+        }));
+        setResolveCompanies(companies);
+        // Auto-select if only 1 company
+        if (companies.length === 1) {
+          setResolveCompanyId(companies[0].companyId);
+        }
+      }
+    } catch { /* silent */ }
+    setResolveCompaniesLoading(false);
   };
   const handleResolveSubmit = async () => {
     if (!resolveRow || !resolveType) {
       toast({ title: 'Error', description: 'Please select a resolution type', variant: 'destructive' });
+      return;
+    }
+    // Company is required if shop has multiple companies
+    if (resolveCompanies.length > 1 && !resolveCompanyId) {
+      toast({ title: 'Company required', description: 'Please select which company balance to adjust.', variant: 'destructive' });
       return;
     }
     setResolving(true);
@@ -379,7 +409,11 @@ export default function TallyReport() {
       const res = await apiFetch(`/api/tally/${resolveRow.id}/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resolutionType: resolveType, resolutionNote: resolveNote.trim() || undefined }),
+        body: JSON.stringify({
+          resolutionType: resolveType,
+          resolutionNote: resolveNote.trim() || undefined,
+          companyId: resolveCompanyId || undefined,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -810,6 +844,36 @@ export default function TallyReport() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Company selector — mandatory if shop has multiple companies */}
+            {resolveCompanies.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs">
+                  Company to adjust {resolveCompanies.length > 1 ? '*' : '(auto-selected)'}
+                </Label>
+                {resolveCompaniesLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading companies...
+                  </div>
+                ) : (
+                  <Select value={resolveCompanyId} onValueChange={setResolveCompanyId}>
+                    <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+                    <SelectContent>
+                      {resolveCompanies.map((c) => (
+                        <SelectItem key={c.companyId} value={c.companyId}>
+                          {c.companyName} (Bal: {formatPKR(c.balance)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {resolveCompanies.length > 1 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Difference will be adjusted against this company&rsquo;s balance.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label className="text-xs">Resolution Type *</Label>
               <Select value={resolveType} onValueChange={(v) => setResolveType(v as ResolutionType)}>
@@ -820,7 +884,8 @@ export default function TallyReport() {
               </Select>
               {resolveType === 'adjustment_posted' && (
                 <p className="text-[10px] text-amber-600 dark:text-amber-400">
-                  ⚠️ An adjustment Transaction will be auto-created to align the system balance with the shopkeeper&rsquo;s stated balance.
+                  ⚠️ Balance will be auto-adjusted to match shopkeeper&rsquo;s stated balance.
+                  {resolveCompanyId && ' Selected company will be updated.'}
                 </p>
               )}
             </div>

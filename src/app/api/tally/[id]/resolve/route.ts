@@ -30,7 +30,7 @@ export async function POST(
 
     const { id: tallyId } = await params;
     const body = await request.json();
-    const { resolutionType, resolutionNote } = body;
+    const { resolutionType, resolutionNote, companyId } = body;
 
     if (!resolutionType || !RESOLUTION_TYPES.includes(resolutionType as ResolutionType)) {
       return NextResponse.json({
@@ -101,12 +101,12 @@ export async function POST(
         try {
           await client.query('BEGIN');
 
-          // 3a. Create adjustment Transaction
+          // 3a. Create adjustment Transaction (with companyId if provided)
           await client.query(
             `INSERT INTO "Transaction"
               (id, "shopId", type, amount, "previousBalance", "newBalance",
-               description, status, "createdBy", "approvedBy", "approvedAt", "createdAt")
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, $8, NOW(), NOW())`,
+               description, status, "createdBy", "approvedBy", "approvedAt", "createdAt", "companyId")
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, $8, NOW(), NOW(), $9)`,
             [
               txnId,
               tally.shopId,
@@ -116,6 +116,7 @@ export async function POST(
               targetBalance,
               `Balance Adjustment — Tally Resolution (${resolutionType})`,
               auth.userId,
+              companyId || null,
             ]
           );
 
@@ -125,43 +126,54 @@ export async function POST(
             [targetBalance, tally.shopId]
           );
 
-          // 3c. ─── DIRECTLY update ALL ShopCompanyBalance rows for this shop ───
-          // recalcShopBalances only updates companies that have transactions with
-          // companyId set. But our adjustment transaction has companyId=NULL.
-          // So we ALSO directly adjust each ShopCompanyBalance by the same ratio.
-          //
-          // Strategy: If shop has multiple companies, split the adjustment
-          // proportionally. If shop has 1 company, apply full adjustment.
-          // If shop has 0 companies (ShopCompanyBalance), just update Shop.balance
-          // (already done in 3b).
-
-          const scbRes = await client.query(
-            `SELECT "companyId", balance FROM "ShopCompanyBalance" WHERE "shopId" = $1`,
-            [tally.shopId]
-          );
-
-          if (scbRes.rows.length === 1) {
-            // Single company — apply full adjustment
-            const oldScbBalance = Number(scbRes.rows[0].balance) || 0;
-            const newScbBalance = Math.round((oldScbBalance + adjustmentAmount) * 100) / 100;
-            await client.query(
-              `UPDATE "ShopCompanyBalance"
-                  SET balance = $1, "updatedAt" = NOW()
-                WHERE "shopId" = $2 AND "companyId" = $3`,
-              [newScbBalance, tally.shopId, scbRes.rows[0].companyId]
+          // 3c. ─── Update ShopCompanyBalance for the selected company ───
+          // If admin selected a specific company, adjust THAT company's balance.
+          // If no company selected (shop has no companies), skip ShopCompanyBalance.
+          if (companyId) {
+            const scbRes = await client.query(
+              `SELECT id, balance FROM "ShopCompanyBalance"
+               WHERE "shopId" = $1 AND "companyId" = $2`,
+              [tally.shopId, companyId]
             );
-          } else if (scbRes.rows.length > 1) {
-            // Multiple companies — apply adjustment to the LARGEST balance company
-            // (most likely the one with the discrepancy)
-            const sorted = scbRes.rows.sort((a, b) => Number(b.balance) - Number(a.balance));
-            const oldScbBalance = Number(sorted[0].balance) || 0;
-            const newScbBalance = Math.round((oldScbBalance + adjustmentAmount) * 100) / 100;
-            await client.query(
-              `UPDATE "ShopCompanyBalance"
-                  SET balance = $1, "updatedAt" = NOW()
-                WHERE "shopId" = $2 AND "companyId" = $3`,
-              [newScbBalance, tally.shopId, sorted[0].companyId]
+
+            if (scbRes.rows.length > 0) {
+              // Update existing ShopCompanyBalance
+              const oldScbBalance = Number(scbRes.rows[0].balance) || 0;
+              const newScbBalance = Math.round((oldScbBalance + adjustmentAmount) * 100) / 100;
+              await client.query(
+                `UPDATE "ShopCompanyBalance"
+                    SET balance = $1, "updatedAt" = NOW()
+                  WHERE "shopId" = $2 AND "companyId" = $3`,
+                [newScbBalance, tally.shopId, companyId]
+              );
+            } else {
+              // Create new ShopCompanyBalance entry
+              await client.query(
+                `INSERT INTO "ShopCompanyBalance" (id, "shopId", "companyId", balance, "creditLimit", "createdAt", "updatedAt")
+                 VALUES (gen_random_uuid()::text, $1, $2, $3, 0, NOW(), NOW())`,
+                [tally.shopId, companyId, targetBalance]
+              );
+            }
+          } else {
+            // No companyId provided — try to find single company and adjust
+            const scbRes = await client.query(
+              `SELECT "companyId", balance FROM "ShopCompanyBalance" WHERE "shopId" = $1`,
+              [tally.shopId]
             );
+
+            if (scbRes.rows.length === 1) {
+              // Single company — apply full adjustment
+              const oldScbBalance = Number(scbRes.rows[0].balance) || 0;
+              const newScbBalance = Math.round((oldScbBalance + adjustmentAmount) * 100) / 100;
+              await client.query(
+                `UPDATE "ShopCompanyBalance"
+                    SET balance = $1, "updatedAt" = NOW()
+                  WHERE "shopId" = $2 AND "companyId" = $3`,
+                [newScbBalance, tally.shopId, scbRes.rows[0].companyId]
+              );
+            }
+            // If multiple companies and no companyId selected, don't guess —
+            // recalcShopBalances will handle it based on transaction companyId
           }
 
           // 3d. Run recalcShopBalances to fix running balances on transactions
