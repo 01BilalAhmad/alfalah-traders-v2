@@ -534,6 +534,36 @@ export async function POST(request: NextRequest) {
 
       await client.query('COMMIT');
 
+      // ═══ WHATSAPP SMS: Send credit SMS after posting (non-blocking) ═══
+      if (type === 'credit' && txnStatus === 'approved') {
+        try {
+          const { sendCreditSms, isSmsEnabled } = await import('@/lib/whatsapp');
+          const smsEnabled = await isSmsEnabled('credit');
+          if (smsEnabled && shop.phone) {
+            let companyName: string | undefined;
+            if (effectiveCompanyId) {
+              try {
+                const compRes = await pool.query('SELECT name FROM "Company" WHERE id = $1', [effectiveCompanyId]);
+                companyName = compRes.rows[0]?.name;
+              } catch { /* silent */ }
+            }
+            // Don't await — non-blocking, fire and forget
+            sendCreditSms({
+              shopId: shopId,
+              shopName: shop.name,
+              shopPhone: shop.phone,
+              orderbookerId: shop.orderbookerId || null,
+              transactionId: transaction.id,
+              amount: amount,
+              newBalance: Math.round(newBalance * 100) / 100,
+              companyName,
+            }).catch(() => {});
+          }
+        } catch (smsErr) {
+          console.error('[Credit post] WhatsApp SMS failed:', smsErr);
+        }
+      }
+
       // Fetch shop and creator info for response
       const shopInfoRes = await client.query('SELECT id, name FROM "Shop" WHERE id = $1', [shopId]);
       const creatorInfoRes = await client.query('SELECT id, name FROM "User" WHERE id = $1', [createdBy]);

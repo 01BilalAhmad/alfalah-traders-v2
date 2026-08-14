@@ -149,7 +149,6 @@ export async function sendImageMessage(
       },
       body: JSON.stringify({
         to: waPhone,
-        type: 'image',
         image: { url: imageUrl },
         caption: caption || '',
       }),
@@ -187,7 +186,6 @@ export async function sendDocumentMessage(
       },
       body: JSON.stringify({
         to: waPhone,
-        type: 'document',
         document: { url: documentUrl, filename: fileName },
         caption: caption || '',
       }),

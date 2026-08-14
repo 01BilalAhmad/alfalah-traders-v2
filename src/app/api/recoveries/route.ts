@@ -306,6 +306,47 @@ export async function POST(request: NextRequest) {
 
       await client.query('COMMIT');
 
+      // ═══ WHATSAPP SMS: Send recovery SMS after approval (non-blocking) ═══
+      if (action === 'approve') {
+        try {
+          const { sendRecoverySms, isSmsEnabled } = await import('@/lib/whatsapp');
+          const smsEnabled = await isSmsEnabled('recovery');
+          if (smsEnabled) {
+            // Fetch OB name for SMS
+            const obRes = await pool.query(
+              `SELECT u.name FROM "User" u
+               JOIN "Transaction" t ON t."createdBy" = u.id
+               WHERE t.id = $1 LIMIT 1`,
+              [transactionIds[0]]
+            );
+            const obName = obRes.rows[0]?.name || '';
+
+            for (const result of results) {
+              if (result.action === 'approved') {
+                // Find the txn details
+                const txnDetail = pendingRes.rows.find((r: any) => r.id === result.id);
+                if (txnDetail && txnDetail.shop_phone) {
+                  await sendRecoverySms({
+                    shopId: txnDetail.shopId,
+                    shopName: txnDetail.shop_name,
+                    shopPhone: txnDetail.shop_phone,
+                    orderbookerId: txnDetail.orderbookerId,
+                    transactionId: result.id,
+                    amount: Number(txnDetail.amount),
+                    previousBalance: Number(txnDetail.shop_balance),
+                    newBalance: result.newBalance,
+                    orderbookerName: obName,
+                  });
+                }
+              }
+            }
+          }
+        } catch (smsErr) {
+          console.error('[Recovery approve] WhatsApp SMS failed:', smsErr);
+          // Non-blocking — approval already succeeded
+        }
+      }
+
       return NextResponse.json({
         success: true,
         processed: results.length,
