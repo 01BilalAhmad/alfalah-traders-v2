@@ -38,7 +38,26 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
 
-  // ─── Action: Send Overdue Reminders ───
+  // ─── Action: Send single overdue SMS to one shop ───
+  if (body.action === 'send-single-overdue') {
+    const { shopId, shopName, shopPhone, balance, daysOverdue } = body;
+    if (!shopPhone) {
+      return NextResponse.json({ success: false, error: 'No phone number' }, { status: 400 });
+    }
+    const result = await sendOverdueSms({
+      shopId,
+      shopName,
+      shopPhone,
+      balance: Number(balance) || 0,
+      daysOverdue: Number(daysOverdue) || 0,
+    });
+    if (result.success) {
+      return NextResponse.json({ success: true, message: `Reminder sent to ${shopName}` });
+    }
+    return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+  }
+
+  // ─── Action: Send Overdue Reminders (bulk) ───
   if (body.action === 'send-overdue') {
     const enabled = await isSmsEnabled('overdue');
     if (!enabled) {

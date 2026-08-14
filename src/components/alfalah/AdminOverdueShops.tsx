@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   Printer,
   FileSpreadsheet,
+  MessageSquare,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from '@/hooks/use-toast';
@@ -134,6 +135,39 @@ export default function AdminOverdueShops() {
   const [minDays, setMinDays] = useState('14');
   const [selectedOB, setSelectedOB] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sendingSms, setSendingSms] = useState<string | null>(null); // shopId being sent SMS
+
+  const sendReminderSms = async (shop: OverdueShop) => {
+    if (!shop.phone) {
+      toast({ title: 'No phone', description: `${shop.name} has no phone number`, variant: 'destructive' });
+      return;
+    }
+    setSendingSms(shop.id);
+    try {
+      const res = await apiFetch('/api/whatsapp/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send-single-overdue',
+          shopId: shop.id,
+          shopName: shop.name,
+          shopPhone: shop.phone,
+          balance: shop.balance,
+          daysOverdue: shop.daysSinceRecovery || shop.daysSinceCredit || 0,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast({ title: 'SMS Sent', description: `Reminder sent to ${shop.name}` });
+      } else {
+        toast({ title: 'SMS Failed', description: data.error || 'Failed to send', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setSendingSms(null);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -485,12 +519,13 @@ export default function AdminOverdueShops() {
                   <TableHead className="text-white font-semibold text-xs text-center">Days Overdue</TableHead>
                   <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Orderbooker</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center hidden lg:table-cell">Phone</TableHead>
+                  <TableHead className="text-white font-semibold text-xs text-center">SMS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredShops.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8}>
+                    <TableCell colSpan={9}>
                       <div className="text-center py-10">
                         <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-slate-400/40" />
                         <p className="font-medium text-muted-foreground text-sm">No overdue shops found</p>
@@ -559,6 +594,23 @@ export default function AdminOverdueShops() {
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            sendReminderSms(shop);
+                          }}
+                          disabled={!shop.phone || sendingSms === shop.id}
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          title={shop.phone ? 'Send WhatsApp reminder' : 'No phone number'}
+                        >
+                          {sendingSms === shop.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <MessageSquare className="h-4 w-4" />
+                          )}
+                        </button>
                       </TableCell>
                     </TableRow>
                   ))
