@@ -121,6 +121,7 @@ export async function POST(request: NextRequest) {
     }
 
     const client = await getClient();
+    const pool = getPool(); // Used by SMS block after COMMIT (client is released)
     try {
       await client.query('BEGIN');
 
