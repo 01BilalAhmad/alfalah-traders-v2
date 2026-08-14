@@ -114,8 +114,7 @@ export async function sendTextMessage(
       },
       body: JSON.stringify({
         to: waPhone,
-        type: 'text',
-        text: { body: message },
+        text: message,
       }),
     });
 
