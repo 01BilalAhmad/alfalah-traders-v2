@@ -147,6 +147,7 @@ const adminNavSections: NavSection[] = [
       // Monitoring & logs
       { id: 'admin-activity', label: 'Activity Log', icon: <Activity className="h-4 w-4" /> },
       { id: 'admin-sms-tracking', label: 'SMS Tracking', icon: <MessageSquare className="h-4 w-4" /> },
+      { id: 'admin-whatsapp-settings', label: 'WhatsApp Settings', icon: <MessageSquare className="h-4 w-4" /> },
       // Export
       { id: 'admin-export-data', label: 'Export & Backup', icon: <FileDown className="h-4 w-4" /> },
     ],
