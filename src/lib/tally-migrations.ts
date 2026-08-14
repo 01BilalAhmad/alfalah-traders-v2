@@ -65,6 +65,8 @@ export async function ensureTallyTables() {
   await pool.query(`ALTER TABLE "ShopTally" ADD COLUMN IF NOT EXISTS "voidedAt" TIMESTAMP(3)`);
   // Session link
   await pool.query(`ALTER TABLE "ShopTally" ADD COLUMN IF NOT EXISTS "sessionId" TEXT`);
+  // Company link — which company this tally is for (for multi-company shops)
+  await pool.query(`ALTER TABLE "ShopTally" ADD COLUMN IF NOT EXISTS "companyId" TEXT`);
 
   // Indexes
   try {

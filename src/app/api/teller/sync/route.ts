@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
         orderbookerUsername: s.orderbookerUsername,
         routeDays: Array.isArray(s.routeDays) ? s.routeDays : [],
         status: s.status,
+        companyBalances: [], // Will be filled below
         lastTally: s.lastTallyDate ? {
           tallyDate: s.lastTallyDate instanceof Date ? s.lastTallyDate.toISOString() : s.lastTallyDate,
           status: s.lastTallyStatus,
@@ -98,6 +99,30 @@ export async function GET(request: NextRequest) {
           talliedByName: s.lastTallyTellerName || null,
         } : null,
       }));
+
+      // Fetch company balances for all shops in one query
+      if (shops.length > 0) {
+        const shopIds = shops.map(s => s.id);
+        const scbRes = await pool.query(
+          `SELECT scb."shopId", scb."companyId", c.name AS "companyName", scb.balance
+           FROM "ShopCompanyBalance" scb
+           LEFT JOIN "Company" c ON scb."companyId" = c.id
+           WHERE scb."shopId" = ANY($1::text[])`,
+          [shopIds]
+        );
+        const scbMap = new Map<string, any[]>();
+        for (const row of scbRes.rows) {
+          if (!scbMap.has(row.shopId)) scbMap.set(row.shopId, []);
+          scbMap.get(row.shopId)!.push({
+            companyId: row.companyId,
+            companyName: row.companyName || row.companyId,
+            balance: Number(row.balance) || 0,
+          });
+        }
+        for (const shop of shops) {
+          shop.companyBalances = scbMap.get(shop.id) || [];
+        }
+      }
     }
 
     // ─── 3. Get today's tallies by this teller ────────────────────

@@ -260,6 +260,7 @@ export async function POST(request: NextRequest) {
       sessionId,
       confirmZero,
       force,
+      companyId,
     } = body;
 
     if (!shopId) {
@@ -448,8 +449,8 @@ export async function POST(request: NextRequest) {
         (id, "shopId", "talliedBy", "tallyDate", "systemBalance", "shopBalance",
          "difference", "status", "notes", "orderbookerId", "createdAt",
          "gpsLat", "gpsLng", "gpsAddress", "locationStatus",
-         "reasonCode", "resolutionStatus", "sessionId")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+         "reasonCode", "resolutionStatus", "sessionId", "companyId")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
        RETURNING *`,
       [
         id,
@@ -470,6 +471,7 @@ export async function POST(request: NextRequest) {
         normalizedReasonCode,
         status === 'verified' ? 'resolved' : 'open',
         validSessionId,
+        companyId || null,
       ]
     );
 
