@@ -102,28 +102,48 @@ export async function POST(
           const txnType = adjustmentAmount < 0 ? 'recovery' : 'credit';
           newBalance = targetBalance;
 
-          await pool.query(
-            `INSERT INTO "Transaction"
-              (id, "shopId", type, amount, "previousBalance", "newBalance",
-               description, status, "createdBy", "approvedBy", "approvedAt", "createdAt")
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, $8, NOW(), NOW())`,
-            [
-              txnId,
-              tally.shopId,
-              txnType,
-              Math.abs(adjustmentAmount),
-              currentBalance,
-              targetBalance,
-              `Balance Adjustment — Tally Resolution (${resolutionType})`,
-              auth.userId,
-            ]
-          );
+          // Use a transaction so Shop + ShopCompanyBalance + Transaction
+          // all update atomically (no partial updates)
+          const client = await pool.connect();
+          try {
+            await client.query('BEGIN');
 
-          // Update shop balance
-          await pool.query(
-            `UPDATE "Shop" SET balance = $1, "updatedAt" = NOW() WHERE id = $2`,
-            [targetBalance, tally.shopId]
-          );
+            await client.query(
+              `INSERT INTO "Transaction"
+                (id, "shopId", type, amount, "previousBalance", "newBalance",
+                 description, status, "createdBy", "approvedBy", "approvedAt", "createdAt")
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, $8, NOW(), NOW())`,
+              [
+                txnId,
+                tally.shopId,
+                txnType,
+                Math.abs(adjustmentAmount),
+                currentBalance,
+                targetBalance,
+                `Balance Adjustment — Tally Resolution (${resolutionType})`,
+                auth.userId,
+              ]
+            );
+
+            // Update Shop.balance
+            await client.query(
+              `UPDATE "Shop" SET balance = $1, "updatedAt" = NOW() WHERE id = $2`,
+              [targetBalance, tally.shopId]
+            );
+
+            // ─── CRITICAL: Recalculate ShopCompanyBalance ───────────
+            // This is what Balance Sheet and OB app use to show balances.
+            // Without this, Balance Sheet shows OLD balance even after resolve.
+            const { recalcShopBalances } = await import('@/lib/recalc-balances');
+            await recalcShopBalances(client, tally.shopId);
+
+            await client.query('COMMIT');
+          } catch (txnErr) {
+            await client.query('ROLLBACK');
+            throw txnErr;
+          } finally {
+            client.release();
+          }
 
           adjustmentMade = true;
         }
