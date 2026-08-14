@@ -475,9 +475,32 @@ export async function sendRecoverySms(opts: {
     return { success: false, error: 'Shop has no phone number' };
   }
 
-  const businessName = await getConfig('whatsapp_business_name') || 'AL-FALAH TRADERS';
-  const date = new Date().toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' });
-  const msg = `✅ Recovery Receipt\n\n🏪 Shop: ${opts.shopName}\n💰 Amount: Rs ${opts.amount.toLocaleString('en-PK')}\n📋 Previous Balance: Rs ${opts.previousBalance.toLocaleString('en-PK')}\n✅ New Balance: Rs ${opts.newBalance.toLocaleString('en-PK')}\n👤 OB: ${opts.orderbookerName || '—'}\n📅 ${date}\n\nThank you! 🙏\n— ${businessName}`;
+  const businessName = await getConfig('whatsapp_business_name') || 'AL-FALAH TRADERS KHANPUR';
+  const businessPhone = await getConfig('whatsapp_business_phone') || '0319-2538526';
+  // Date format: 10-Jul-2026 (DD-Mon-YYYY)
+  const date = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Asia/Karachi',
+  });
+
+  // Build message — formal receipt format with Urdu note
+  const msg = [
+    `${businessName}.`,
+    '',
+    `Dear ${opts.shopName},`,
+    'Your account has been updated:',
+    `Opening Balance: Rs. ${opts.previousBalance.toLocaleString('en-PK')}`,
+    `Recovery Received: Rs. ${opts.amount.toLocaleString('en-PK')}`,
+    `Remaining Balance: Rs. ${opts.newBalance.toLocaleString('en-PK')}`,
+    `Date: ${date}`,
+    '',
+    '(اگر آپ کو بیلنس میں کسی بھی قسم کا کوئی فرق محسوس ہو تو برائے مہربانی دیے گئے نمبر پر لازمی رابطہ کریں تاکہ آپ کے اور ہمارے کاروبار میں کوئی نقصان نہ ہو۔ شکریہ!)',
+    '',
+    `Distributor No: ${businessPhone}`,
+    'Thank you for your payment!',
+  ].join('\n');
 
   // Generate receipt image
   let result;
