@@ -26,9 +26,14 @@ export async function GET(request: NextRequest) {
 
     // Find overdue shops: balance > 0, last recovery > 14 days (or never)
     const overdueRes = await pool.query(
-      `SELECT s.id, s.name, s.phone, s.balance,
+      `SELECT s.id, s.name, s.phone, s.balance, s.area, s.address,
               (SELECT MAX(t."createdAt") FROM "Transaction" t
-               WHERE t."shopId" = s.id AND t.type = 'recovery' AND t.status = 'approved') AS "lastRecoveryDate"
+               WHERE t."shopId" = s.id AND t.type = 'recovery' AND t.status = 'approved') AS "lastRecoveryDate",
+              (SELECT string_agg(DISTINCT c.name, ', ')
+               FROM "ShopCompanyBalance" scb
+               JOIN "Company" c ON c.id = scb."companyId"
+               WHERE scb."shopId" = s.id AND scb.balance > 0
+               LIMIT 1) AS "companyName"
        FROM "Shop" s
        WHERE s.status = 'active' AND s.balance > 0 AND s.phone IS NOT NULL AND s.phone != ''
        ORDER BY s.balance DESC
@@ -66,6 +71,9 @@ export async function GET(request: NextRequest) {
         shopId: shop.id,
         shopName: shop.name,
         shopPhone: shop.phone,
+        shopArea: shop.area,
+        shopAddress: shop.address,
+        companyName: shop.companyName,
         balance: Number(shop.balance) || 0,
         daysOverdue: daysSince,
       });

@@ -25,10 +25,15 @@ export async function GET(request: NextRequest) {
 
     // Get shops with both their last credit date AND last recovery date
     const shopsRes = await pool.query(
-      `SELECT s.id, s.name, s.area, s.balance, s."orderbookerId", s.phone,
+      `SELECT s.id, s.name, s.area, s.address, s.balance, s."orderbookerId", s.phone,
               u.name AS "orderbookerName",
               lc.last_credit_date,
-              lr.last_recovery_date
+              lr.last_recovery_date,
+              (SELECT string_agg(DISTINCT c.name, ', ')
+               FROM "ShopCompanyBalance" scb
+               JOIN "Company" c ON c.id = scb."companyId"
+               WHERE scb."shopId" = s.id AND scb.balance > 0
+               LIMIT 1) AS "companyName"
        FROM "Shop" s
        LEFT JOIN "User" u ON s."orderbookerId" = u.id
        LEFT JOIN (
@@ -74,6 +79,8 @@ export async function GET(request: NextRequest) {
         id: s.id,
         name: s.name,
         area: s.area,
+        address: s.address,
+        companyName: s.companyName,
         balance: Number(s.balance),
         phone: s.phone,
         orderbookerId: s.orderbookerId,

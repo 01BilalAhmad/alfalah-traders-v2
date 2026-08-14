@@ -514,14 +514,48 @@ export async function sendOverdueSms(opts: {
   shopId: string;
   shopName: string;
   shopPhone: string | null;
+  shopArea?: string | null;
+  shopAddress?: string | null;
+  companyName?: string | null;
   balance: number;
   daysOverdue: number;
 }): Promise<{ success: boolean; error?: string }> {
   if (!opts.shopPhone) return { success: false, error: 'No phone' };
 
-  const businessName = await getConfig('whatsapp_business_name') || 'AL-FALAH TRADERS';
-  const businessPhone = await getConfig('whatsapp_business_phone') || '';
-  const msg = `⚠️ Payment Reminder\n\n🏪 ${opts.shopName}\n💰 Outstanding: Rs ${opts.balance.toLocaleString('en-PK')}\n📅 Overdue: ${opts.daysOverdue} days\n\nPlease make payment at your earliest convenience.\nContact: ${businessPhone}\n— ${businessName}`;
+  const businessName = await getConfig('whatsapp_business_name') || 'AL-FALAH TRADERS KHANPUR';
+  const businessPhone = await getConfig('whatsapp_business_phone') || '0319-2538526';
+
+  // Build message — lines only included if data is available
+  const lines: string[] = ['⚠️ Payment Reminder'];
+
+  // 🏬 Company (if known)
+  if (opts.companyName && opts.companyName.trim()) {
+    lines.push(`🏬 ${opts.companyName.trim()}.`);
+  }
+
+  // 🏪 Shop name (always)
+  lines.push(`🏪 ${opts.shopName}`);
+
+  // 📍 Area / Address (prefer area, fallback to address)
+  const location = opts.shopArea?.trim() || opts.shopAddress?.trim();
+  if (location) {
+    lines.push(`📍 ${location}`);
+  }
+
+  // 💰 Outstanding + 📅 Overdue
+  lines.push(`💰 Outstanding: Rs ${opts.balance.toLocaleString('en-PK')}`);
+  lines.push(`📅 Overdue: ${opts.daysOverdue} days`);
+
+  // English + Urdu request
+  lines.push('');
+  lines.push('Please make payment at your earliest convenience.');
+  lines.push('');
+  lines.push('براہِ کرم اپنی بقایا رقم جلد از جلد کلیئر کریں۔ اگر آپ ادائیگی کر چکے ہیں اور اپ ڈیٹ نہیں ہوئی، تو برائے مہربانی دیے گئے نمبر پر رابطہ کریں۔');
+  lines.push('');
+  lines.push(`Contact: ${businessPhone}`);
+  lines.push(`— ${businessName}.`);
+
+  const msg = lines.join('\n');
 
   // Generate overdue reminder image
   let result;

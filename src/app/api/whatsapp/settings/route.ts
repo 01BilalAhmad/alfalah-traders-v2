@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   // ─── Action: Send single overdue SMS to one shop ───
   if (body.action === 'send-single-overdue') {
-    const { shopId, shopName, shopPhone, balance, daysOverdue } = body;
+    const { shopId, shopName, shopPhone, shopArea, shopAddress, companyName, balance, daysOverdue } = body;
     if (!shopPhone) {
       return NextResponse.json({ success: false, error: 'No phone number' }, { status: 400 });
     }
@@ -48,6 +48,9 @@ export async function POST(request: NextRequest) {
       shopId,
       shopName,
       shopPhone,
+      shopArea,
+      shopAddress,
+      companyName,
       balance: Number(balance) || 0,
       daysOverdue: Number(daysOverdue) || 0,
     });
@@ -99,9 +102,14 @@ export async function POST(request: NextRequest) {
 
     const pool = getPool();
     const overdueRes = await pool.query(
-      `SELECT s.id, s.name, s.phone, s.balance,
+      `SELECT s.id, s.name, s.phone, s.balance, s.area, s.address,
               (SELECT MAX(t."createdAt") FROM "Transaction" t
-               WHERE t."shopId" = s.id AND t.type = 'recovery' AND t.status = 'approved') AS "lastRecoveryDate"
+               WHERE t."shopId" = s.id AND t.type = 'recovery' AND t.status = 'approved') AS "lastRecoveryDate",
+              (SELECT string_agg(DISTINCT c.name, ', ')
+               FROM "ShopCompanyBalance" scb
+               JOIN "Company" c ON c.id = scb."companyId"
+               WHERE scb."shopId" = s.id AND scb.balance > 0
+               LIMIT 1) AS "companyName"
        FROM "Shop" s
        WHERE s.status = 'active' AND s.balance > 0 AND s.phone IS NOT NULL AND s.phone != ''
        ORDER BY s.balance DESC
@@ -140,6 +148,9 @@ export async function POST(request: NextRequest) {
         shopId: shop.id,
         shopName: shop.name,
         shopPhone: shop.phone,
+        shopArea: shop.area,
+        shopAddress: shop.address,
+        companyName: shop.companyName,
         balance: Number(shop.balance) || 0,
         daysOverdue: daysSince,
       });

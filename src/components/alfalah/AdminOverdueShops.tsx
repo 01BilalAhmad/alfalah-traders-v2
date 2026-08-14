@@ -41,7 +41,9 @@ import { formatPKR } from '@/lib/utils';
 interface OverdueShop {
   id: string;
   name: string;
-  area: string;
+  area: string | null;
+  address: string | null;
+  companyName?: string | null;
   balance: number;
   phone: string | null;
   orderbookerId: string;
@@ -241,6 +243,9 @@ export default function AdminOverdueShops() {
           shopId: shop.id,
           shopName: shop.name,
           shopPhone: shop.phone,
+          shopArea: shop.area,
+          shopAddress: shop.address,
+          companyName: shop.companyName,
           balance: shop.balance,
           daysOverdue: shop.daysSinceRecovery || shop.daysSinceCredit || 0,
         }),
