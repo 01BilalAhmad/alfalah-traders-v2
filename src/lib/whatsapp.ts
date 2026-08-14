@@ -156,17 +156,11 @@ export async function sendTextMessage(
   const waPhone = convertToWhatsAppPhone(to);
   if (!waPhone) return { success: false, error: `Invalid phone number: ${to}` };
 
-  // Pre-check: verify number exists on WhatsApp (unless skipped)
-  if (!opts.skipPreCheck) {
-    const check = await checkOnWhatsAppDetailed(to);
-    if (!check.exists) {
-      const reason = check.error || 'Number not registered on WhatsApp';
-      // If pre-check failed due to rate-limit, skip pre-check and let send attempt
-      if (!isRateLimitError(reason)) {
-        return { success: false, error: translateWaError(reason) };
-      }
-    }
-  }
+  // NOTE: Pre-check is DISABLED by default because WasenderAPI's /on-whatsapp/
+  // endpoint is unreliable on free trial (returns false for valid WhatsApp numbers).
+  // We rely on the send endpoint's response + translateWaError() instead.
+  // Pre-check can be explicitly enabled via opts.skipPreCheck === false AND
+  // a separate explicit "trustPreCheck" flag (not currently used in production).
 
   const maxRetries = opts.maxRetries ?? 2; // initial + 2 retries on rate-limit
   let lastError = '';
@@ -200,7 +194,7 @@ export async function sendTextMessage(
         continue;
       }
 
-      // Non-retryable error
+      // Non-retryable error — translate to user-friendly message
       return { success: false, error: translateWaError(errMsg) };
     } catch (err: any) {
       lastError = err?.message || 'Network error';
@@ -393,7 +387,7 @@ async function uploadMedia(imageBuffer: Buffer, filename: string): Promise<strin
   }
 }
 
-// ─── Send image with caption (uploads then sends, with pre-check + retry) ──
+// ─── Send image with caption (uploads then sends, with retry) ──
 export async function sendImageWithReceipt(
   to: string,
   imageBuffer: Buffer,
@@ -406,16 +400,7 @@ export async function sendImageWithReceipt(
   const waPhone = convertToWhatsAppPhone(to);
   if (!waPhone) return { success: false, error: `Invalid phone number: ${to}` };
 
-  // Pre-check: verify number exists on WhatsApp
-  if (!opts.skipPreCheck) {
-    const check = await checkOnWhatsAppDetailed(to);
-    if (!check.exists) {
-      const reason = check.error || 'Number not registered on WhatsApp';
-      if (!isRateLimitError(reason)) {
-        return { success: false, error: translateWaError(reason) };
-      }
-    }
-  }
+  // NOTE: Pre-check DISABLED — see sendTextMessage for explanation.
 
   // Step 1: Upload image to WasenderAPI
   const imageUrl = await uploadMedia(imageBuffer, `receipt_${Date.now()}.png`);
