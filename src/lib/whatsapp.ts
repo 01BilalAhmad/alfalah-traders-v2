@@ -275,7 +275,85 @@ export async function logSms(
   }
 }
 
-// ─── Send recovery SMS ──────────────────────────────────────────
+// ─── Upload media to WasenderAPI ────────────────────────────────
+async function uploadMedia(imageBuffer: Buffer, filename: string): Promise<string | null> {
+  const apiKey = await getApiKey();
+  if (!apiKey) return null;
+
+  try {
+    // Convert buffer to base64
+    const base64 = imageBuffer.toString('base64');
+    const res = await fetch(`${WASENDER_BASE}/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        file: base64,
+        filename: filename,
+        mimeType: 'image/png',
+      }),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.url) {
+      return data.url;
+    }
+    console.error('[WhatsApp] Upload media failed:', data);
+    return null;
+  } catch (err) {
+    console.error('[WhatsApp] Upload media error:', err);
+    return null;
+  }
+}
+
+// ─── Send image with caption (uploads then sends) ──────────────
+export async function sendImageWithReceipt(
+  to: string,
+  imageBuffer: Buffer,
+  caption: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const apiKey = await getApiKey();
+  if (!apiKey) return { success: false, error: 'WhatsApp API key not configured' };
+
+  const waPhone = convertToWhatsAppPhone(to);
+  if (!waPhone) return { success: false, error: `Invalid phone number: ${to}` };
+
+  // Step 1: Upload image to WasenderAPI
+  const imageUrl = await uploadMedia(imageBuffer, `receipt_${Date.now()}.png`);
+  if (!imageUrl) {
+    // Fallback: send text only if image upload fails
+    console.warn('[WhatsApp] Image upload failed, sending text only');
+    return sendTextMessage(to, caption);
+  }
+
+  // Step 2: Send image message with caption
+  try {
+    const res = await fetch(`${WASENDER_BASE}/send-message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        to: waPhone,
+        image: { url: imageUrl },
+        caption: caption,
+      }),
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      return { success: true, messageId: data?.key?.id || data?.messageId };
+    }
+    return { success: false, error: data?.message || data?.error || `HTTP ${res.status}` };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error' };
+  }
+}
+
+// ─── Send recovery SMS with receipt image ───────────────────────
 export async function sendRecoverySms(opts: {
   shopId: string;
   shopName: string;
@@ -286,7 +364,6 @@ export async function sendRecoverySms(opts: {
   previousBalance: number;
   newBalance: number;
   orderbookerName?: string;
-  imageUrl?: string; // optional receipt image URL
 }): Promise<{ success: boolean; error?: string }> {
   const enabled = await isSmsEnabled('recovery');
   if (!enabled) return { success: false, error: 'Recovery SMS is disabled' };
@@ -296,14 +373,24 @@ export async function sendRecoverySms(opts: {
   }
 
   const businessName = await getConfig('whatsapp_business_name') || 'AL-FALAH TRADERS';
-  const msg = `✅ Recovery Receipt\n\n🏪 Shop: ${opts.shopName}\n💰 Amount: Rs ${opts.amount.toLocaleString('en-PK')}\n📋 Previous Balance: Rs ${opts.previousBalance.toLocaleString('en-PK')}\n✅ New Balance: Rs ${opts.newBalance.toLocaleString('en-PK')}\n👤 OB: ${opts.orderbookerName || '—'}\n\nThank you! 🙏\n— ${businessName}`;
+  const date = new Date().toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' });
+  const msg = `✅ Recovery Receipt\n\n🏪 Shop: ${opts.shopName}\n💰 Amount: Rs ${opts.amount.toLocaleString('en-PK')}\n📋 Previous Balance: Rs ${opts.previousBalance.toLocaleString('en-PK')}\n✅ New Balance: Rs ${opts.newBalance.toLocaleString('en-PK')}\n👤 OB: ${opts.orderbookerName || '—'}\n📅 ${date}\n\nThank you! 🙏\n— ${businessName}`;
 
+  // Generate receipt image
   let result;
-  if (opts.imageUrl) {
-    // Send image + caption
-    result = await sendImageMessage(opts.shopPhone, opts.imageUrl, msg);
-  } else {
-    // Send text only
+  try {
+    const { generateRecoveryReceipt } = await import('@/lib/whatsapp-receipts');
+    const imageBuffer = await generateRecoveryReceipt({
+      shopName: opts.shopName,
+      amount: opts.amount,
+      previousBalance: opts.previousBalance,
+      newBalance: opts.newBalance,
+      orderbookerName: opts.orderbookerName,
+      date,
+    });
+    result = await sendImageWithReceipt(opts.shopPhone, imageBuffer as unknown as Buffer, msg);
+  } catch (imgErr) {
+    console.error('[WhatsApp] Receipt image failed, sending text only:', imgErr);
     result = await sendTextMessage(opts.shopPhone, msg);
   }
 
@@ -319,7 +406,7 @@ export async function sendRecoverySms(opts: {
   return result;
 }
 
-// ─── Send overdue reminder SMS ──────────────────────────────────
+// ─── Send overdue reminder SMS with image ──────────────────────
 export async function sendOverdueSms(opts: {
   shopId: string;
   shopName: string;
@@ -333,7 +420,20 @@ export async function sendOverdueSms(opts: {
   const businessPhone = await getConfig('whatsapp_business_phone') || '';
   const msg = `⚠️ Payment Reminder\n\n🏪 ${opts.shopName}\n💰 Outstanding: Rs ${opts.balance.toLocaleString('en-PK')}\n📅 Overdue: ${opts.daysOverdue} days\n\nPlease make payment at your earliest convenience.\nContact: ${businessPhone}\n— ${businessName}`;
 
-  const result = await sendTextMessage(opts.shopPhone, msg);
+  // Generate overdue reminder image
+  let result;
+  try {
+    const { generateOverdueImage } = await import('@/lib/whatsapp-receipts');
+    const imageBuffer = await generateOverdueImage({
+      shopName: opts.shopName,
+      balance: opts.balance,
+      daysOverdue: opts.daysOverdue,
+    });
+    result = await sendImageWithReceipt(opts.shopPhone, imageBuffer as unknown as Buffer, msg);
+  } catch (imgErr) {
+    console.error('[WhatsApp] Overdue image failed, sending text only:', imgErr);
+    result = await sendTextMessage(opts.shopPhone, msg);
+  }
 
   await logSms(
     opts.shopId, opts.shopName, opts.shopPhone, null, null,
@@ -344,7 +444,7 @@ export async function sendOverdueSms(opts: {
   return result;
 }
 
-// ─── Send credit SMS ────────────────────────────────────────────
+// ─── Send credit SMS with receipt image ────────────────────────
 export async function sendCreditSms(opts: {
   shopId: string;
   shopName: string;
@@ -361,9 +461,25 @@ export async function sendCreditSms(opts: {
   if (!opts.shopPhone) return { success: false, error: 'No phone' };
 
   const businessName = await getConfig('whatsapp_business_name') || 'AL-FALAH TRADERS';
-  const msg = `📦 Credit Posted\n\n🏪 Shop: ${opts.shopName}\n💰 Amount: Rs ${opts.amount.toLocaleString('en-PK')}\n✅ New Balance: Rs ${opts.newBalance.toLocaleString('en-PK')}\n${opts.companyName ? `🏢 Company: ${opts.companyName}\n` : ''}\n— ${businessName}`;
+  const date = new Date().toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' });
+  const msg = `📦 Credit Posted\n\n🏪 Shop: ${opts.shopName}\n💰 Amount: Rs ${opts.amount.toLocaleString('en-PK')}\n✅ New Balance: Rs ${opts.newBalance.toLocaleString('en-PK')}\n${opts.companyName ? `🏢 Company: ${opts.companyName}\n` : ''}📅 ${date}\n\n— ${businessName}`;
 
-  const result = await sendTextMessage(opts.shopPhone, msg);
+  // Generate credit receipt image
+  let result;
+  try {
+    const { generateCreditReceipt } = await import('@/lib/whatsapp-receipts');
+    const imageBuffer = await generateCreditReceipt({
+      shopName: opts.shopName,
+      amount: opts.amount,
+      newBalance: opts.newBalance,
+      companyName: opts.companyName,
+      date,
+    });
+    result = await sendImageWithReceipt(opts.shopPhone, imageBuffer as unknown as Buffer, msg);
+  } catch (imgErr) {
+    console.error('[WhatsApp] Credit image failed, sending text only:', imgErr);
+    result = await sendTextMessage(opts.shopPhone, msg);
+  }
 
   await logSms(
     opts.shopId, opts.shopName, opts.shopPhone, opts.orderbookerId,
