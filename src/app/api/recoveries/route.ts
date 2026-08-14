@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
       // Fetch all pending transactions with shop info
       const placeholders = transactionIds.map((_: unknown, idx: number) => `$${idx + 1}`).join(', ');
       const pendingRes = await client.query(
-        `SELECT t.*, s.id AS "shop_db_id", s.name AS "shop_name", s.balance AS "shop_balance"
+        `SELECT t.*, s.id AS "shop_db_id", s.name AS "shop_name", s.balance AS "shop_balance", s.phone AS "shop_phone", s.area AS "shop_area", s.address AS "shop_address"
          FROM "Transaction" t
          LEFT JOIN "Shop" s ON t."shopId" = s.id
          WHERE t.id IN (${placeholders}) AND t.status = 'pending'`,
