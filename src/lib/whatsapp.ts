@@ -298,6 +298,7 @@ export async function getWhatsAppSettings(): Promise<Record<string, string>> {
     'whatsapp_overdue_sms',
     'whatsapp_credit_sms',
     'whatsapp_business_name',
+    'whatsapp_business_phone',
   ];
   const result: Record<string, string> = {};
   for (const key of keys) {
@@ -307,7 +308,8 @@ export async function getWhatsAppSettings(): Promise<Record<string, string>> {
   if (!result['whatsapp_recovery_sms']) result['whatsapp_recovery_sms'] = 'false';
   if (!result['whatsapp_overdue_sms']) result['whatsapp_overdue_sms'] = 'false';
   if (!result['whatsapp_credit_sms']) result['whatsapp_credit_sms'] = 'false';
-  if (!result['whatsapp_business_name']) result['whatsapp_business_name'] = 'AL-FALAH TRADERS';
+  if (!result['whatsapp_business_name']) result['whatsapp_business_name'] = 'AL-FALAH TRADERS KHANPUR';
+  if (!result['whatsapp_business_phone']) result['whatsapp_business_phone'] = '0319-2538526';
   return result;
 }
 
@@ -319,6 +321,7 @@ export async function updateWhatsAppSettings(settings: Record<string, string>): 
     'whatsapp_overdue_sms',
     'whatsapp_credit_sms',
     'whatsapp_business_name',
+    'whatsapp_business_phone',
   ];
   for (const key of allowed) {
     if (settings[key] !== undefined) {
