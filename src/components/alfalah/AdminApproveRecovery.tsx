@@ -175,9 +175,36 @@ export default function AdminApproveRecovery() {
 
       if (res.ok) {
         const data = await res.json();
+        // Build SMS summary toast
+        const sms = data.smsSummary;
+        let smsDesc = `${data.processed} transaction(s) approved — shop balances updated`;
+        if (sms && sms.total > 0) {
+          const parts: string[] = [];
+          if (sms.sent > 0) parts.push(`${sms.sent} SMS sent ✅`);
+          if (sms.failed > 0) parts.push(`${sms.failed} failed ❌`);
+          if (sms.skipped > 0) parts.push(`${sms.skipped} skipped ⏭️`);
+          smsDesc += `\n📱 WhatsApp SMS: ${parts.join(' | ')}`;
+
+          // If any failed/skipped, show a follow-up toast with details
+          if (sms.failed > 0 || sms.skipped > 0) {
+            const failedList = sms.details
+              .filter((d: any) => d.status === 'failed' || d.status === 'skipped')
+              .map((d: any) => `${d.shopName} (${d.shopPhone || 'no phone'}): ${d.error || d.status}`)
+              .join('\n');
+            setTimeout(() => {
+              toast({
+                title: `📱 SMS Details (${sms.failed + sms.skipped} issues)`,
+                description: failedList,
+                variant: sms.failed > 0 ? 'destructive' : 'default',
+              });
+            }, 1500);
+          }
+        } else if (sms && sms.total === 0) {
+          smsDesc += '\n📱 No SMS sent (recovery SMS may be disabled)';
+        }
         toast({
           title: '✅ Approved!',
-          description: `${data.processed} transaction(s) approved — shop balances updated`,
+          description: smsDesc,
         });
         setSelectedIds(new Set());
         fetchPending();

@@ -108,8 +108,8 @@ export async function POST(request: NextRequest) {
           // Recovery transactions need admin approval — don't change balance yet
           const txRes = await client.query(
             `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance",
-              description, "createdBy", "companyId", "idempotencyKey", "gpsLat", "gpsLng", "createdAt", "updatedAt")
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+              description, "createdBy", "companyId", "idempotencyKey", "gpsLat", "gpsLng", "createdAt")
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
              RETURNING id`,
             [
               txId,
@@ -125,7 +125,6 @@ export async function POST(request: NextRequest) {
               recovery.localId ? `mobile_${recovery.localId}` : null,
               recovery.latitude || null,
               recovery.longitude || null,
-              now,
               now,
             ],
           );

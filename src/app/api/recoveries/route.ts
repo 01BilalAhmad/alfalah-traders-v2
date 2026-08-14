@@ -306,43 +306,134 @@ export async function POST(request: NextRequest) {
 
       await client.query('COMMIT');
 
-      // ═══ WHATSAPP SMS: Send recovery SMS after approval (non-blocking) ═══
+      // ═══ WHATSAPP SMS: Send recovery SMS after approval ═══
+      // Builds a summary of SMS results so admin can see how many sent/failed.
+      let smsSummary: {
+        total: number;
+        sent: number;
+        failed: number;
+        skipped: number;
+        details: Array<{
+          shopName: string;
+          shopPhone: string | null;
+          status: 'sent' | 'failed' | 'skipped';
+          error?: string;
+        }>;
+      } = { total: 0, sent: 0, failed: 0, skipped: 0, details: [] };
+
       if (action === 'approve') {
         try {
           const { sendRecoverySms, isSmsEnabled } = await import('@/lib/whatsapp');
           const smsEnabled = await isSmsEnabled('recovery');
-          if (smsEnabled) {
-            // Fetch OB name for SMS
+
+          if (!smsEnabled) {
+            // Recovery SMS disabled — mark all as skipped
+            for (const result of results) {
+              if (result.action === 'approved') {
+                const txnDetail = pendingRes.rows.find((r: any) => r.id === result.id);
+                smsSummary.total++;
+                smsSummary.skipped++;
+                smsSummary.details.push({
+                  shopName: txnDetail?.shop_name || 'Unknown',
+                  shopPhone: txnDetail?.shop_phone || null,
+                  status: 'skipped',
+                  error: 'Recovery SMS disabled in settings',
+                });
+              }
+            }
+          } else {
+            // Fetch OB name for SMS (one query, used for all recoveries from same OB)
             const obRes = await pool.query(
-              `SELECT u.name FROM "User" u
+              `SELECT u.name, t.id AS "txnId"
+               FROM "User" u
                JOIN "Transaction" t ON t."createdBy" = u.id
-               WHERE t.id = $1 LIMIT 1`,
-              [transactionIds[0]]
+               WHERE t.id = ANY($1::text[])
+               LIMIT 1`,
+              [transactionIds]
             );
             const obName = obRes.rows[0]?.name || '';
 
             for (const result of results) {
               if (result.action === 'approved') {
-                // Find the txn details
                 const txnDetail = pendingRes.rows.find((r: any) => r.id === result.id);
-                if (txnDetail && txnDetail.shop_phone) {
-                  await sendRecoverySms({
+                smsSummary.total++;
+
+                if (!txnDetail) {
+                  smsSummary.skipped++;
+                  smsSummary.details.push({
+                    shopName: 'Unknown',
+                    shopPhone: null,
+                    status: 'skipped',
+                    error: 'Transaction details not found',
+                  });
+                  continue;
+                }
+
+                if (!txnDetail.shop_phone) {
+                  smsSummary.skipped++;
+                  smsSummary.details.push({
+                    shopName: txnDetail.shop_name,
+                    shopPhone: null,
+                    status: 'skipped',
+                    error: 'Shop has no phone number',
+                  });
+                  continue;
+                }
+
+                // Calculate correct previousBalance: balance AFTER recovery = result.newBalance
+                // So previousBalance = newBalance + amount
+                const correctPrevBalance = Number(result.newBalance) + Number(txnDetail.amount);
+
+                try {
+                  const smsResult = await sendRecoverySms({
                     shopId: txnDetail.shopId,
                     shopName: txnDetail.shop_name,
                     shopPhone: txnDetail.shop_phone,
-                    orderbookerId: txnDetail.orderbookerId,
+                    orderbookerId: txnDetail.createdBy, // ← FIXED: was undefined orderbookerId
                     transactionId: result.id,
                     amount: Number(txnDetail.amount),
-                    previousBalance: Number(txnDetail.shop_balance),
-                    newBalance: result.newBalance,
+                    previousBalance: correctPrevBalance, // ← FIXED: was stale shop_balance
+                    newBalance: Number(result.newBalance),
                     orderbookerName: obName,
                   });
+
+                  if (smsResult.success) {
+                    smsSummary.sent++;
+                    smsSummary.details.push({
+                      shopName: txnDetail.shop_name,
+                      shopPhone: txnDetail.shop_phone,
+                      status: 'sent',
+                    });
+                  } else {
+                    smsSummary.failed++;
+                    smsSummary.details.push({
+                      shopName: txnDetail.shop_name,
+                      shopPhone: txnDetail.shop_phone,
+                      status: 'failed',
+                      error: smsResult.error || 'Unknown error',
+                    });
+                  }
+                } catch (smsErr: any) {
+                  smsSummary.failed++;
+                  smsSummary.details.push({
+                    shopName: txnDetail.shop_name,
+                    shopPhone: txnDetail.shop_phone,
+                    status: 'failed',
+                    error: smsErr?.message || 'SMS send threw exception',
+                  });
+                }
+
+                // Rate-limit pacing: WasenderAPI free trial allows 1 msg/min.
+                // Wait 65s between sends if there are more recoveries to process.
+                const isLast = result.id === results[results.length - 1]?.id;
+                if (!isLast) {
+                  await new Promise(r => setTimeout(r, 65_000));
                 }
               }
             }
           }
         } catch (smsErr) {
-          console.error('[Recovery approve] WhatsApp SMS failed:', smsErr);
+          console.error('[Recovery approve] WhatsApp SMS batch failed:', smsErr);
           // Non-blocking — approval already succeeded
         }
       }
@@ -352,6 +443,7 @@ export async function POST(request: NextRequest) {
         processed: results.length,
         action,
         results,
+        smsSummary,
       });
     } catch (error) {
       await client.query('ROLLBACK').catch(() => {});

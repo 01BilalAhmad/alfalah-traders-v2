@@ -446,8 +446,8 @@ export async function POST(request: NextRequest) {
           // Recovery: don't change balance yet (pending approval)
 
           const txRes = await client.query(
-            `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "companyId", "idempotencyKey", "gpsLat", "gpsLng", "gpsAddress", "createdAt", "updatedAt")
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            `INSERT INTO "Transaction" (id, "shopId", type, status, amount, "previousBalance", "newBalance", description, "createdBy", "companyId", "idempotencyKey", "gpsLat", "gpsLng", "gpsAddress", "createdAt")
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
              RETURNING *`,
             [
               txId,
@@ -464,7 +464,6 @@ export async function POST(request: NextRequest) {
               tx.gpsLat ?? null,
               tx.gpsLng ?? null,
               tx.gpsAddress ?? null,
-              now,
               now,
             ]
           );
