@@ -75,29 +75,80 @@ async function getApiKey(): Promise<string | null> {
   return getConfig('whatsapp_api_key');
 }
 
+// ─── Translate raw WasenderAPI errors to user-friendly Urdu/English ───
+export function translateWaError(rawError: string): string {
+  if (!rawError) return 'Unknown error';
+  const e = rawError.toLowerCase();
+
+  // JID doesn't exist → number not on WhatsApp
+  if (e.includes('jid does not exist') || e.includes('not on whatsapp') || e.includes('not exists')) {
+    return 'Is number par WhatsApp nahi hai. Shop keeper ke WhatsApp wala number update karein.';
+  }
+  // Rate limit / free trial
+  if (e.includes('free trial') || e.includes('rate limit') || e.includes('every 1 minute')) {
+    return 'WasenderAPI free trial par hai (1 msg/min). Paid plan upgrade karein ya 60s wait karein.';
+  }
+  // Invalid number
+  if (e.includes('invalid phone') || e.includes('invalid number')) {
+    return `Number galat hai ya format theek nahi: ${rawError}`;
+  }
+  // API key issues
+  if (e.includes('unauthorized') || e.includes('api key') || e.includes('token')) {
+    return 'WasenderAPI key galat ya expire ho chuki hai. Admin settings mein check karein.';
+  }
+  // Session issues
+  if (e.includes('session') || e.includes('disconnected') || e.includes('not connected')) {
+    return 'WasenderAPI session disconnect hai. Dashboard par login karke session reconnect karein.';
+  }
+  return rawError;
+}
+
 // ─── Check if a phone is on WhatsApp ────────────────────────────
-export async function checkOnWhatsApp(phone: string): Promise<boolean> {
+// Returns { exists, error } so caller knows why check failed
+export async function checkOnWhatsAppDetailed(phone: string): Promise<{ exists: boolean; error?: string; raw?: any }> {
   const apiKey = await getApiKey();
-  if (!apiKey) return false;
+  if (!apiKey) return { exists: false, error: 'WhatsApp API key not configured' };
   const waPhone = convertToWhatsAppPhone(phone);
-  if (!waPhone) return false;
+  if (!waPhone) return { exists: false, error: `Invalid phone number: ${phone}` };
 
   try {
     const res = await fetch(`${WASENDER_BASE}/on-whatsapp/${waPhone}`, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
+    const data = await res.json();
     if (res.ok) {
-      const data = await res.json();
-      return data.exists === true || data.onWhatsApp === true;
+      const exists = data.exists === true || data.onWhatsApp === true || data.status === 'online';
+      return { exists, raw: data };
     }
-  } catch { /* silent */ }
-  return false;
+    return { exists: false, error: data?.message || data?.error || `HTTP ${res.status}`, raw: data };
+  } catch (err: any) {
+    return { exists: false, error: err?.message || 'Network error' };
+  }
 }
 
-// ─── Send text message ──────────────────────────────────────────
+// ─── Backward-compatible wrapper ───
+export async function checkOnWhatsApp(phone: string): Promise<boolean> {
+  const result = await checkOnWhatsAppDetailed(phone);
+  return result.exists;
+}
+
+// ─── Detect rate-limit error ───
+function isRateLimitError(error: string): boolean {
+  if (!error) return false;
+  const e = error.toLowerCase();
+  return e.includes('free trial') || e.includes('rate limit') || e.includes('every 1 minute') || e.includes('too many');
+}
+
+// ─── Sleep helper ───
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ─── Send text message (with rate-limit retry + auto pre-check) ──
 export async function sendTextMessage(
   to: string,
-  message: string
+  message: string,
+  opts: { skipPreCheck?: boolean; maxRetries?: number } = {}
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const apiKey = await getApiKey();
   if (!apiKey) return { success: false, error: 'WhatsApp API key not configured' };
@@ -105,27 +156,63 @@ export async function sendTextMessage(
   const waPhone = convertToWhatsAppPhone(to);
   if (!waPhone) return { success: false, error: `Invalid phone number: ${to}` };
 
-  try {
-    const res = await fetch(`${WASENDER_BASE}/send-message`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        to: waPhone,
-        text: message,
-      }),
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-      return { success: true, messageId: data?.key?.id || data?.messageId };
+  // Pre-check: verify number exists on WhatsApp (unless skipped)
+  if (!opts.skipPreCheck) {
+    const check = await checkOnWhatsAppDetailed(to);
+    if (!check.exists) {
+      const reason = check.error || 'Number not registered on WhatsApp';
+      // If pre-check failed due to rate-limit, skip pre-check and let send attempt
+      if (!isRateLimitError(reason)) {
+        return { success: false, error: translateWaError(reason) };
+      }
     }
-    return { success: false, error: data?.message || data?.error || `HTTP ${res.status}` };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Network error' };
   }
+
+  const maxRetries = opts.maxRetries ?? 2; // initial + 2 retries on rate-limit
+  let lastError = '';
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(`${WASENDER_BASE}/send-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          to: waPhone,
+          text: message,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        return { success: true, messageId: data?.key?.id || data?.messageId };
+      }
+
+      const errMsg = data?.message || data?.error || `HTTP ${res.status}`;
+      lastError = errMsg;
+
+      // If rate-limit error and we have retries left → wait 65s and retry
+      if (isRateLimitError(errMsg) && attempt < maxRetries) {
+        console.warn(`[WhatsApp] Rate-limited on attempt ${attempt + 1}, waiting 65s...`);
+        await sleep(65_000);
+        continue;
+      }
+
+      // Non-retryable error
+      return { success: false, error: translateWaError(errMsg) };
+    } catch (err: any) {
+      lastError = err?.message || 'Network error';
+      if (attempt < maxRetries) {
+        await sleep(2000);
+        continue;
+      }
+      return { success: false, error: translateWaError(lastError) };
+    }
+  }
+
+  return { success: false, error: translateWaError(lastError) };
 }
 
 // ─── Send image message (with caption) ──────────────────────────
@@ -306,11 +393,12 @@ async function uploadMedia(imageBuffer: Buffer, filename: string): Promise<strin
   }
 }
 
-// ─── Send image with caption (uploads then sends) ──────────────
+// ─── Send image with caption (uploads then sends, with pre-check + retry) ──
 export async function sendImageWithReceipt(
   to: string,
   imageBuffer: Buffer,
-  caption: string
+  caption: string,
+  opts: { skipPreCheck?: boolean; maxRetries?: number } = {}
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const apiKey = await getApiKey();
   if (!apiKey) return { success: false, error: 'WhatsApp API key not configured' };
@@ -318,37 +406,69 @@ export async function sendImageWithReceipt(
   const waPhone = convertToWhatsAppPhone(to);
   if (!waPhone) return { success: false, error: `Invalid phone number: ${to}` };
 
+  // Pre-check: verify number exists on WhatsApp
+  if (!opts.skipPreCheck) {
+    const check = await checkOnWhatsAppDetailed(to);
+    if (!check.exists) {
+      const reason = check.error || 'Number not registered on WhatsApp';
+      if (!isRateLimitError(reason)) {
+        return { success: false, error: translateWaError(reason) };
+      }
+    }
+  }
+
   // Step 1: Upload image to WasenderAPI
   const imageUrl = await uploadMedia(imageBuffer, `receipt_${Date.now()}.png`);
   if (!imageUrl) {
     // Fallback: send text only if image upload fails
     console.warn('[WhatsApp] Image upload failed, sending text only');
-    return sendTextMessage(to, caption);
+    return sendTextMessage(to, caption, opts);
   }
 
-  // Step 2: Send image message with caption
-  try {
-    const res = await fetch(`${WASENDER_BASE}/send-message`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        to: waPhone,
-        image: { url: imageUrl },
-        caption: caption,
-      }),
-    });
+  const maxRetries = opts.maxRetries ?? 2;
+  let lastError = '';
 
-    const data = await res.json();
-    if (res.ok) {
-      return { success: true, messageId: data?.key?.id || data?.messageId };
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(`${WASENDER_BASE}/send-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          to: waPhone,
+          image: { url: imageUrl },
+          caption: caption,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        return { success: true, messageId: data?.key?.id || data?.messageId };
+      }
+
+      const errMsg = data?.message || data?.error || `HTTP ${res.status}`;
+      lastError = errMsg;
+
+      if (isRateLimitError(errMsg) && attempt < maxRetries) {
+        console.warn(`[WhatsApp] Image send rate-limited on attempt ${attempt + 1}, waiting 65s...`);
+        await sleep(65_000);
+        continue;
+      }
+
+      return { success: false, error: translateWaError(errMsg) };
+    } catch (err: any) {
+      lastError = err?.message || 'Network error';
+      if (attempt < maxRetries) {
+        await sleep(2000);
+        continue;
+      }
+      return { success: false, error: translateWaError(lastError) };
     }
-    return { success: false, error: data?.message || data?.error || `HTTP ${res.status}` };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Network error' };
   }
+
+  return { success: false, error: translateWaError(lastError) };
 }
 
 // ─── Send recovery SMS with receipt image ───────────────────────

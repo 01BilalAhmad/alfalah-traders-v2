@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { getPool } from '@/lib/pg';
-import { getWhatsAppSettings, updateWhatsAppSettings, sendTextMessage, isSmsEnabled, sendOverdueSms } from '@/lib/whatsapp';
+import { getWhatsAppSettings, updateWhatsAppSettings, sendTextMessage, isSmsEnabled, sendOverdueSms, sendImageWithReceipt } from '@/lib/whatsapp';
 
 // GET /api/whatsapp/settings — get all WhatsApp settings
 export async function GET(request: NextRequest) {
@@ -55,6 +55,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: `Reminder sent to ${shopName}` });
     }
     return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+  }
+
+  // ─── Action: Check if a single number is on WhatsApp ───
+  if (body.action === 'check-number') {
+    const { phone } = body;
+    if (!phone) {
+      return NextResponse.json({ success: false, error: 'Phone required' }, { status: 400 });
+    }
+    const { checkOnWhatsAppDetailed } = await import('@/lib/whatsapp');
+    const check = await checkOnWhatsAppDetailed(phone);
+    return NextResponse.json({
+      success: true,
+      exists: check.exists,
+      waPhone: check.raw,
+      error: check.error,
+    });
+  }
+
+  // ─── Action: Bulk check multiple numbers ───
+  if (body.action === 'check-numbers') {
+    const { phones } = body as { phones: string[] };
+    if (!Array.isArray(phones) || phones.length === 0) {
+      return NextResponse.json({ success: false, error: 'phones array required' }, { status: 400 });
+    }
+    const { checkOnWhatsAppDetailed } = await import('@/lib/whatsapp');
+    const results: Array<{ phone: string; exists: boolean; error?: string }> = [];
+    for (const phone of phones.slice(0, 100)) {
+      const check = await checkOnWhatsAppDetailed(phone);
+      results.push({ phone, exists: check.exists, error: check.error });
+      // Small delay to avoid hitting rate limit on check API
+      await new Promise(r => setTimeout(r, 200));
+    }
+    return NextResponse.json({ success: true, results });
   }
 
   // ─── Action: Send Overdue Reminders (bulk) ───
@@ -126,8 +159,15 @@ export async function POST(request: NextRequest) {
         error: result.error,
       });
 
-      // Rate limit: 500ms between messages
-      await new Promise(r => setTimeout(r, 500));
+      // Smart rate-limit pacing: WasenderAPI free trial allows 1 msg/min.
+      // Wait 65s between sends to avoid rate-limit. Paid plans can reduce this.
+      // Detect if previous send was rate-limited → extend delay.
+      if (result.error && result.error.toLowerCase().includes('free trial')) {
+        // Already retried inside sendOverdueSms; if still failing, wait longer.
+        await new Promise(r => setTimeout(r, 70_000));
+      } else {
+        await new Promise(r => setTimeout(r, 65_000)); // 1 min spacing for free trial
+      }
     }
 
     return NextResponse.json({
@@ -144,6 +184,10 @@ export async function POST(request: NextRequest) {
 
   const testMsg = '🧪 Test Message\n\nWhatsApp API is working!\n— AL-FALAH TRADERS';
 
+  // Test SMS skips pre-check (user wants to verify API is working, not the number)
+  // and uses maxRetries=1 to keep response time reasonable.
+  const sendOpts = { skipPreCheck: true, maxRetries: 1 };
+
   // Try to send with receipt image
   let result;
   try {
@@ -156,10 +200,10 @@ export async function POST(request: NextRequest) {
       orderbookerName: 'Test OB',
       date: new Date().toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' }),
     });
-    result = await sendImageWithReceipt(phone, imageBuffer as unknown as Buffer, testMsg);
+    result = await sendImageWithReceipt(phone, imageBuffer as unknown as Buffer, testMsg, sendOpts);
   } catch (imgErr) {
     console.error('[WhatsApp test] Image failed, sending text:', imgErr);
-    result = await sendTextMessage(phone, testMsg);
+    result = await sendTextMessage(phone, testMsg, sendOpts);
   }
 
   if (result.success) {

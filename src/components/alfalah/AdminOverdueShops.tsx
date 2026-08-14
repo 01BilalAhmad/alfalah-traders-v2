@@ -52,6 +52,9 @@ interface OverdueShop {
   daysSinceRecovery: number | null;
 }
 
+// WhatsApp status per shop: 'unknown' | 'exists' | 'not_exists' | 'checking'
+type WaStatus = 'unknown' | 'exists' | 'not_exists' | 'checking';
+
 interface Orderbooker {
   id: string;
   name: string;
@@ -136,10 +139,96 @@ export default function AdminOverdueShops() {
   const [selectedOB, setSelectedOB] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sendingSms, setSendingSms] = useState<string | null>(null); // shopId being sent SMS
+  const [waStatus, setWaStatus] = useState<Record<string, WaStatus>>({}); // shopId → status
+  const [bulkChecking, setBulkChecking] = useState(false);
+
+  // Check a single shop's phone on WhatsApp
+  const checkShopWhatsApp = async (shop: OverdueShop) => {
+    if (!shop.phone) return;
+    setWaStatus(prev => ({ ...prev, [shop.id]: 'checking' }));
+    try {
+      const res = await apiFetch('/api/whatsapp/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check-number', phone: shop.phone }),
+      });
+      const data = await res.json();
+      setWaStatus(prev => ({ ...prev, [shop.id]: data.exists ? 'exists' : 'not_exists' }));
+      if (!data.exists) {
+        toast({
+          title: 'WhatsApp not registered',
+          description: `${shop.name}: ${shop.phone} is not on WhatsApp.`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Verified', description: `${shop.name}: WhatsApp ✅`, variant: 'default' });
+      }
+    } catch {
+      setWaStatus(prev => ({ ...prev, [shop.id]: 'unknown' }));
+      toast({ title: 'Check failed', description: 'Network error', variant: 'destructive' });
+    }
+  };
+
+  // Bulk check all visible shops (with rate-limit pacing on backend)
+  const checkAllWhatsApp = async () => {
+    const shopsToCheck = shops.filter(s => s.phone && waStatus[s.id] !== 'exists' && waStatus[s.id] !== 'checking');
+    if (shopsToCheck.length === 0) {
+      toast({ title: 'Nothing to check', description: 'All shops already verified or no phones available.' });
+      return;
+    }
+    setBulkChecking(true);
+    // Process in chunks of 10 to avoid timeouts on Vercel serverless (10s/60s limit)
+    const CHUNK_SIZE = 10;
+    for (let i = 0; i < shopsToCheck.length; i += CHUNK_SIZE) {
+      const chunk = shopsToCheck.slice(i, i + CHUNK_SIZE);
+      // Mark all as checking
+      setWaStatus(prev => {
+        const next = { ...prev };
+        chunk.forEach(s => { next[s.id] = 'checking'; });
+        return next;
+      });
+      try {
+        const res = await apiFetch('/api/whatsapp/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'check-numbers', phones: chunk.map(s => s.phone) }),
+        });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.results)) {
+          setWaStatus(prev => {
+            const next = { ...prev };
+            chunk.forEach((s, idx) => {
+              const r = data.results[idx];
+              next[s.id] = r?.exists ? 'exists' : 'not_exists';
+            });
+            return next;
+          });
+        }
+      } catch {
+        // Mark chunk as unknown on failure
+        setWaStatus(prev => {
+          const next = { ...prev };
+          chunk.forEach(s => { next[s.id] = 'unknown'; });
+          return next;
+        });
+      }
+    }
+    setBulkChecking(false);
+    toast({ title: 'Verification complete', description: `${shopsToCheck.length} numbers checked.` });
+  };
 
   const sendReminderSms = async (shop: OverdueShop) => {
     if (!shop.phone) {
       toast({ title: 'No phone', description: `${shop.name} has no phone number`, variant: 'destructive' });
+      return;
+    }
+    // Pre-warn if we already know number is not on WhatsApp
+    if (waStatus[shop.id] === 'not_exists') {
+      toast({
+        title: 'WhatsApp not registered',
+        description: `${shop.phone} is not on WhatsApp. SMS will fail. Update shop's WhatsApp number first.`,
+        variant: 'destructive',
+      });
       return;
     }
     setSendingSms(shop.id);
@@ -159,8 +248,14 @@ export default function AdminOverdueShops() {
       const data = await res.json();
       if (res.ok && data.success) {
         toast({ title: 'SMS Sent', description: `Reminder sent to ${shop.name}` });
+        setWaStatus(prev => ({ ...prev, [shop.id]: 'exists' })); // confirmed exists
       } else {
-        toast({ title: 'SMS Failed', description: data.error || 'Failed to send', variant: 'destructive' });
+        const errMsg = data.error || 'Failed to send';
+        // If error is about JID/non-existent, mark as not_exists
+        if (errMsg.toLowerCase().includes('not on whatsapp') || errMsg.toLowerCase().includes('jid')) {
+          setWaStatus(prev => ({ ...prev, [shop.id]: 'not_exists' }));
+        }
+        toast({ title: 'SMS Failed', description: errMsg, variant: 'destructive' });
       }
     } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
@@ -398,6 +493,18 @@ export default function AdminOverdueShops() {
             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
             Excel
           </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-9 gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300"
+            onClick={checkAllWhatsApp}
+            disabled={bulkChecking || shops.length === 0}
+            title="Check which shop phone numbers have WhatsApp installed"
+          >
+            {bulkChecking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
+            Verify WhatsApp
+          </Button>
         </div>
       </div>
 
@@ -518,7 +625,7 @@ export default function AdminOverdueShops() {
                   <TableHead className="text-white font-semibold text-xs text-center">Last Credit</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center">Days Overdue</TableHead>
                   <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Orderbooker</TableHead>
-                  <TableHead className="text-white font-semibold text-xs text-center hidden lg:table-cell">Phone</TableHead>
+                  <TableHead className="text-white font-semibold text-xs text-center hidden lg:table-cell">Phone / WhatsApp</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center">SMS</TableHead>
                 </TableRow>
               </TableHeader>
@@ -583,14 +690,41 @@ export default function AdminOverdueShops() {
                       </TableCell>
                       <TableCell className="text-center hidden lg:table-cell">
                         {shop.phone ? (
-                          <a
-                            href={`tel:${shop.phone}`}
-                            className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Phone className="h-3 w-3" />
-                            {shop.phone}
-                          </a>
+                          <div className="flex flex-col items-center gap-1">
+                            <a
+                              href={`tel:${shop.phone}`}
+                              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Phone className="h-3 w-3" />
+                              {shop.phone}
+                            </a>
+                            {/* WhatsApp status badge */}
+                            {waStatus[shop.id] === 'checking' ? (
+                              <Badge className="text-[9px] bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 font-medium gap-1">
+                                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                Checking
+                              </Badge>
+                            ) : waStatus[shop.id] === 'exists' ? (
+                              <Badge className="text-[9px] bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 font-medium gap-1">
+                                <CheckCircle2 className="h-2.5 w-2.5" />
+                                WhatsApp ✅
+                              </Badge>
+                            ) : waStatus[shop.id] === 'not_exists' ? (
+                              <Badge className="text-[9px] bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800 font-medium gap-1" title="Number not registered on WhatsApp">
+                                <AlertCircle className="h-2.5 w-2.5" />
+                                No WhatsApp
+                              </Badge>
+                            ) : (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); checkShopWhatsApp(shop); }}
+                                className="text-[9px] text-muted-foreground hover:text-primary underline"
+                                title="Check if this number is on WhatsApp"
+                              >
+                                Verify
+                              </button>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
@@ -601,9 +735,23 @@ export default function AdminOverdueShops() {
                             e.stopPropagation();
                             sendReminderSms(shop);
                           }}
-                          disabled={!shop.phone || sendingSms === shop.id}
-                          className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                          title={shop.phone ? 'Send WhatsApp reminder' : 'No phone number'}
+                          disabled={!shop.phone || sendingSms === shop.id || waStatus[shop.id] === 'not_exists'}
+                          className={`inline-flex items-center justify-center h-8 w-8 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                            waStatus[shop.id] === 'not_exists'
+                              ? 'border-red-300 text-red-400 dark:border-red-700 dark:text-red-600'
+                              : waStatus[shop.id] === 'exists'
+                              ? 'border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300'
+                              : 'border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300'
+                          }`}
+                          title={
+                            !shop.phone
+                              ? 'No phone number'
+                              : waStatus[shop.id] === 'not_exists'
+                              ? 'WhatsApp not registered on this number'
+                              : waStatus[shop.id] === 'exists'
+                              ? 'Send WhatsApp reminder'
+                              : 'Send WhatsApp reminder (number not yet verified)'
+                          }
                         >
                           {sendingSms === shop.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
