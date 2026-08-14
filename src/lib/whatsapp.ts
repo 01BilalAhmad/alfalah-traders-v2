@@ -281,8 +281,8 @@ async function uploadMedia(imageBuffer: Buffer, filename: string): Promise<strin
   if (!apiKey) return null;
 
   try {
-    // Convert buffer to base64
-    const base64 = imageBuffer.toString('base64');
+    // WasenderAPI expects: { base64: "data:image/png;base64,..." }
+    const base64 = `data:image/png;base64,${imageBuffer.toString('base64')}`;
     const res = await fetch(`${WASENDER_BASE}/upload`, {
       method: 'POST',
       headers: {
@@ -290,9 +290,7 @@ async function uploadMedia(imageBuffer: Buffer, filename: string): Promise<strin
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        file: base64,
-        filename: filename,
-        mimeType: 'image/png',
+        base64: base64,
       }),
     });
 
@@ -300,7 +298,7 @@ async function uploadMedia(imageBuffer: Buffer, filename: string): Promise<strin
     if (res.ok && data.url) {
       return data.url;
     }
-    console.error('[WhatsApp] Upload media failed:', data);
+    console.error('[WhatsApp] Upload media response:', JSON.stringify(data));
     return null;
   } catch (err) {
     console.error('[WhatsApp] Upload media error:', err);

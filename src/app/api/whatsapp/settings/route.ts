@@ -138,17 +138,32 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // ─── Default: Test SMS ───
+  // ─── Default: Test SMS with image ───
   const { phone } = body;
   if (!phone) return NextResponse.json({ error: 'Phone required' }, { status: 400 });
 
-  const result = await sendTextMessage(
-    phone,
-    '🧪 Test Message\n\nWhatsApp API is working!\n— AL-FALAH TRADERS'
-  );
+  const testMsg = '🧪 Test Message\n\nWhatsApp API is working!\n— AL-FALAH TRADERS';
+
+  // Try to send with receipt image
+  let result;
+  try {
+    const { generateRecoveryReceipt } = await import('@/lib/whatsapp-receipts');
+    const imageBuffer = await generateRecoveryReceipt({
+      shopName: 'TEST SHOP',
+      amount: 1000,
+      previousBalance: 5000,
+      newBalance: 4000,
+      orderbookerName: 'Test OB',
+      date: new Date().toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' }),
+    });
+    result = await sendImageWithReceipt(phone, imageBuffer as unknown as Buffer, testMsg);
+  } catch (imgErr) {
+    console.error('[WhatsApp test] Image failed, sending text:', imgErr);
+    result = await sendTextMessage(phone, testMsg);
+  }
 
   if (result.success) {
-    return NextResponse.json({ success: true, message: 'Test SMS sent!' });
+    return NextResponse.json({ success: true, message: 'Test SMS with image sent!' });
   }
   return NextResponse.json({ success: false, error: result.error }, { status: 400 });
 }
