@@ -564,6 +564,39 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // ═══ WHATSAPP SMS: Send recovery SMS when recovery is auto-approved ═══
+      // (admin entering recovery directly → auto-approved → SMS should fire)
+      // For pending recoveries from OB app, SMS is sent when admin approves via /api/recoveries
+      if (type === 'recovery' && txnStatus === 'approved') {
+        try {
+          const { sendRecoverySms, isSmsEnabled } = await import('@/lib/whatsapp');
+          const smsEnabled = await isSmsEnabled('recovery');
+          if (smsEnabled && shop.phone) {
+            // Fetch OB name for SMS
+            let obName: string | undefined;
+            try {
+              const obRes = await pool.query('SELECT name FROM "User" WHERE id = $1', [createdBy]);
+              obName = obRes.rows[0]?.name;
+            } catch { /* silent */ }
+
+            // Don't await — non-blocking, fire and forget
+            sendRecoverySms({
+              shopId: shopId,
+              shopName: shop.name,
+              shopPhone: shop.phone,
+              orderbookerId: createdBy,
+              transactionId: transaction.id,
+              amount: amount,
+              previousBalance: previousBalance,
+              newBalance: Math.round(newBalance * 100) / 100,
+              orderbookerName: obName,
+            }).catch(() => {});
+          }
+        } catch (smsErr) {
+          console.error('[Recovery post] WhatsApp SMS failed:', smsErr);
+        }
+      }
+
       // Fetch shop and creator info for response
       const shopInfoRes = await client.query('SELECT id, name FROM "Shop" WHERE id = $1', [shopId]);
       const creatorInfoRes = await client.query('SELECT id, name FROM "User" WHERE id = $1', [createdBy]);
