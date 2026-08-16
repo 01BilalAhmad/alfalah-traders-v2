@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -74,6 +75,7 @@ function getTimeAgo(dateStr: string): string {
 
 export default function AdminApproveRecovery() {
   const { user } = useAppStore();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [allTransactions, setAllTransactions] = useState<PendingRecovery[]>([]);
@@ -88,6 +90,22 @@ export default function AdminApproveRecovery() {
   const [rejectReason, setRejectReason] = useState('');
   const [lastError, setLastError] = useState<string | null>(null);
   const [lastFetched, setLastFetched] = useState<string | null>(null);
+  const [smsModalOpen, setSmsModalOpen] = useState(false);
+  const [smsModalData, setSmsModalData] = useState<{
+    processed: number;
+    smsSummary: {
+      total: number;
+      sent: number;
+      failed: number;
+      skipped: number;
+      details: Array<{
+        shopName: string;
+        shopPhone: string | null;
+        status: 'sent' | 'failed' | 'skipped';
+        error?: string;
+      }>;
+    } | null;
+  } | null>(null);
 
   const fetchPending = useCallback(async () => {
     setLoading(true);
@@ -175,37 +193,12 @@ export default function AdminApproveRecovery() {
 
       if (res.ok) {
         const data = await res.json();
-        // Build SMS summary toast
-        const sms = data.smsSummary;
-        let smsDesc = `${data.processed} transaction(s) approved — shop balances updated`;
-        if (sms && sms.total > 0) {
-          const parts: string[] = [];
-          if (sms.sent > 0) parts.push(`${sms.sent} SMS sent ✅`);
-          if (sms.failed > 0) parts.push(`${sms.failed} failed ❌`);
-          if (sms.skipped > 0) parts.push(`${sms.skipped} skipped ⏭️`);
-          smsDesc += `\n📱 WhatsApp SMS: ${parts.join(' | ')}`;
-
-          // If any failed/skipped, show a follow-up toast with details
-          if (sms.failed > 0 || sms.skipped > 0) {
-            const failedList = sms.details
-              .filter((d: any) => d.status === 'failed' || d.status === 'skipped')
-              .map((d: any) => `${d.shopName} (${d.shopPhone || 'no phone'}): ${d.error || d.status}`)
-              .join('\n');
-            setTimeout(() => {
-              toast({
-                title: `📱 SMS Details (${sms.failed + sms.skipped} issues)`,
-                description: failedList,
-                variant: sms.failed > 0 ? 'destructive' : 'default',
-              });
-            }, 1500);
-          }
-        } else if (sms && sms.total === 0) {
-          smsDesc += '\n📱 No SMS sent (recovery SMS may be disabled)';
-        }
-        toast({
-          title: '✅ Approved!',
-          description: smsDesc,
+        // Save SMS summary data and open modal
+        setSmsModalData({
+          processed: data.processed,
+          smsSummary: data.smsSummary || null,
         });
+        setSmsModalOpen(true);
         setSelectedIds(new Set());
         fetchPending();
       } else {
@@ -677,6 +670,210 @@ export default function AdminApproveRecovery() {
                 <XCircle className="h-4 w-4 mr-1" />
               )}
               Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ SMS Summary Modal — Clean popup showing SMS send results ═══ */}
+      <Dialog open={smsModalOpen} onOpenChange={setSmsModalOpen}>
+        <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border bg-gradient-to-br from-emerald-50/50 to-transparent dark:from-emerald-950/20">
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <div className="h-9 w-9 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              Recovery Approved Successfully
+            </DialogTitle>
+            <DialogDescription className="text-sm mt-1">
+              {smsModalData?.processed || 0} transaction(s) processed — shop balances updated
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {(() => {
+              if (!smsModalData) return null;
+              const sms = smsModalData.smsSummary;
+
+              // Case 1: No SMS data (smsSummary null/undefined)
+              if (!sms) {
+                return (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                        SMS summary unavailable
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                        Could not retrieve SMS send details. Check SMS Tracking page for full logs.
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Case 2: SMS feature disabled
+              if (sms.total === 0 && sms.skipped === smsModalData.processed) {
+                return (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                        Recovery SMS is disabled
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                        Enable WhatsApp → Recovery SMS toggle in Settings to send receipts automatically.
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
+              const successRate = sms.total > 0 ? Math.round((sms.sent / sms.total) * 100) : 0;
+
+              return (
+                <>
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                    {/* Total */}
+                    <div className="rounded-lg border border-border bg-card p-3 text-center">
+                      <div className="text-xs text-muted-foreground font-medium mb-1">Total</div>
+                      <div className="text-xl font-bold text-foreground tabular-nums">{sms.total}</div>
+                    </div>
+                    {/* Sent */}
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 p-3 text-center">
+                      <div className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-1 flex items-center justify-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Sent
+                      </div>
+                      <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">{sms.sent}</div>
+                    </div>
+                    {/* Failed */}
+                    <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30 p-3 text-center">
+                      <div className="text-xs text-red-700 dark:text-red-400 font-medium mb-1 flex items-center justify-center gap-1">
+                        <XCircle className="h-3 w-3" /> Failed
+                      </div>
+                      <div className="text-xl font-bold text-red-700 dark:text-red-400 tabular-nums">{sms.failed}</div>
+                    </div>
+                    {/* Skipped */}
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 text-center">
+                      <div className="text-xs text-amber-700 dark:text-amber-400 font-medium mb-1 flex items-center justify-center gap-1">
+                        <Ban className="h-3 w-3" /> Skipped
+                      </div>
+                      <div className="text-xl font-bold text-amber-700 dark:text-amber-400 tabular-nums">{sms.skipped}</div>
+                    </div>
+                  </div>
+
+                  {/* Success Rate Bar */}
+                  {sms.total > 0 && (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between text-xs mb-1.5">
+                        <span className="text-muted-foreground font-medium">Success Rate</span>
+                        <span className={`font-bold tabular-nums ${successRate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : successRate >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {successRate}%
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${successRate >= 80 ? 'bg-emerald-500' : successRate >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                          style={{ width: `${successRate}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Details List */}
+                  {sms.details && sms.details.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-semibold text-foreground">Shop-wise Details</h4>
+                        <Badge variant="secondary" className="text-[10px]">{sms.details.length} shops</Badge>
+                      </div>
+                      <div className="rounded-lg border border-border overflow-hidden max-h-[280px] overflow-y-auto">
+                        {sms.details.map((d, idx) => {
+                          const isError = d.status === 'failed' || d.status === 'skipped';
+                          const statusConfig = {
+                            sent: {
+                              icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />,
+                              bg: 'bg-emerald-50/50 dark:bg-emerald-950/20',
+                              label: 'Sent',
+                              labelColor: 'text-emerald-700 dark:text-emerald-400',
+                            },
+                            failed: {
+                              icon: <XCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />,
+                              bg: 'bg-red-50/50 dark:bg-red-950/20',
+                              label: 'Failed',
+                              labelColor: 'text-red-700 dark:text-red-400',
+                            },
+                            skipped: {
+                              icon: <Ban className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />,
+                              bg: 'bg-amber-50/50 dark:bg-amber-950/20',
+                              label: 'Skipped',
+                              labelColor: 'text-amber-700 dark:text-amber-400',
+                            },
+                          };
+                          const cfg = statusConfig[d.status];
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex items-start gap-3 px-3 py-2.5 border-b border-border last:border-b-0 ${cfg.bg}`}
+                            >
+                              <div className="flex-shrink-0 mt-0.5">{cfg.icon}</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-sm font-medium text-foreground truncate">{d.shopName}</p>
+                                  <span className={`text-[10px] font-semibold uppercase tracking-wide ${cfg.labelColor} flex-shrink-0`}>
+                                    {cfg.label}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {d.shopPhone ? (
+                                    <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                      <Smartphone className="h-2.5 w-2.5" />
+                                      {d.shopPhone}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] text-muted-foreground/70 italic">no phone</span>
+                                  )}
+                                </div>
+                                {isError && d.error && (
+                                  <p className="text-[11px] text-red-600 dark:text-red-400 mt-1 leading-relaxed">
+                                    {d.error}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t border-border bg-muted/30 gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSmsModalOpen(false);
+                router.push('/sms-tracking');
+              }}
+              className="gap-1.5"
+            >
+              <Smartphone className="h-3.5 w-3.5" />
+              View SMS Tracking
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setSmsModalOpen(false)}
+              className="gap-1.5"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>
