@@ -534,36 +534,11 @@ export async function POST(request: NextRequest) {
 
       await client.query('COMMIT');
 
-      // ═══ WHATSAPP SMS: Send credit SMS after posting (non-blocking) ═══
-      if (type === 'credit' && txnStatus === 'approved') {
-        try {
-          const { sendCreditSms, isSmsEnabled } = await import('@/lib/whatsapp');
-          const smsEnabled = await isSmsEnabled('credit');
-          if (smsEnabled && shop.phone) {
-            let companyName: string | undefined;
-            if (effectiveCompanyId) {
-              try {
-                const compRes = await pool.query('SELECT name FROM "Company" WHERE id = $1', [effectiveCompanyId]);
-                companyName = compRes.rows[0]?.name;
-              } catch { /* silent */ }
-            }
-            // Don't await — non-blocking, fire and forget
-            sendCreditSms({
-              shopId: shopId,
-              shopName: shop.name,
-              shopPhone: shop.phone,
-              orderbookerId: shop.orderbookerId || null,
-              transactionId: transaction.id,
-              amount: amount,
-              previousBalance: previousBalance,
-              newBalance: Math.round(newBalance * 100) / 100,
-              companyName,
-            }).catch(() => {});
-          }
-        } catch (smsErr) {
-          console.error('[Credit post] WhatsApp SMS failed:', smsErr);
-        }
-      }
+      // ═══ WHATSAPP SMS: Credit SMS is NO LONGER auto-sent on posting ═══
+      // Credit SMS can be wrongly sent if admin enters credit on wrong shop by mistake.
+      // Now admin must verify credits in 'Credit Posting Summary' page and manually
+      // trigger SMS via /api/whatsapp/send-credit-sms endpoint (bulk send button).
+      // Recovery SMS below is still auto-sent (recoveries require explicit approval).
 
       // ═══ WHATSAPP SMS: Send recovery SMS when recovery is auto-approved ═══
       // (admin entering recovery directly → auto-approved → SMS should fire)
