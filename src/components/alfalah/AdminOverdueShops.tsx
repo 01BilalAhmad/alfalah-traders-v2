@@ -44,6 +44,7 @@ interface OverdueShop {
   area: string | null;
   address: string | null;
   companyName?: string | null;
+  companyBalances?: Array<{ companyId: string; companyName: string; balance: number }>;
   balance: number;
   phone: string | null;
   orderbookerId: string;
@@ -136,9 +137,11 @@ export default function AdminOverdueShops() {
   const router = useRouter();
   const [shops, setShops] = useState<OverdueShop[]>([]);
   const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [minDays, setMinDays] = useState('14');
   const [selectedOB, setSelectedOB] = useState('all');
+  const [selectedCompany, setSelectedCompany] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sendingSms, setSendingSms] = useState<string | null>(null); // shopId being sent SMS
   const [waStatus, setWaStatus] = useState<Record<string, WaStatus>>({}); // shopId → status
@@ -275,9 +278,15 @@ export default function AdminOverdueShops() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [overdueRes, obRes] = await Promise.all([
-        apiFetch(`/api/shops/needing-recovery?minDays=${minDays}${selectedOB !== 'all' ? `&orderbookerId=${selectedOB}` : ''}`),
+      const queryParams = new URLSearchParams();
+      queryParams.set('minDays', minDays);
+      if (selectedOB !== 'all') queryParams.set('orderbookerId', selectedOB);
+      if (selectedCompany !== 'all') queryParams.set('companyId', selectedCompany);
+
+      const [overdueRes, obRes, compRes] = await Promise.all([
+        apiFetch(`/api/shops/needing-recovery?${queryParams.toString()}`),
         apiFetch('/api/orderbookers'),
+        companies.length === 0 ? apiFetch('/api/companies?status=active') : Promise.resolve(null),
       ]);
 
       if (overdueRes.ok) {
@@ -291,12 +300,17 @@ export default function AdminOverdueShops() {
         const obs = await obRes.json();
         setOrderbookers(Array.isArray(obs) ? obs.filter((o: Orderbooker) => o.status === 'active') : []);
       }
+
+      if (compRes && compRes.ok) {
+        const cd = await compRes.json();
+        setCompanies(cd.companies || []);
+      }
     } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  }, [minDays, selectedOB]);
+  }, [minDays, selectedOB, selectedCompany, companies.length]);
 
   useEffect(() => {
     fetchData();
@@ -486,6 +500,17 @@ export default function AdminOverdueShops() {
               <SelectItem value="all">All Orderbookers</SelectItem>
               {orderbookers.map(ob => (
                 <SelectItem key={ob.id} value={ob.id}>{ob.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+            <SelectTrigger className="w-[160px] h-9 text-sm">
+              <SelectValue placeholder="All Companies" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Companies</SelectItem>
+              {companies.map(c => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>

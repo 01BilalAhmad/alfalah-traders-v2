@@ -562,24 +562,33 @@ export async function sendOverdueSms(opts: {
   });
 
   // Build message — clean professional format with WhatsApp bold (*) and quote (>)
-  const msg = [
+  const lines: string[] = [
     `Dear *${opts.shopName}*,`,
     '',
-    'Your account payment is overdue:',
-    '',
-    `Outstanding Balance: Rs. *${opts.balance.toLocaleString('en-PK')}*`,
-    `Overdue Days: *${opts.daysOverdue}* Days`,
-    '',
-    `Date: *${date}*`,
-    '',
-    '(براہِ کرم اپنی بقایا رقم جلد از جلد کلیئر فرمائیں۔ اگر آپ ادائیگی کر چکے ہیں یا بیلنس میں کسی بھی قسم کا کوئی فرق محسوس ہو تو برائے مہربانی دیے گئے نمبر پر لازمی رابطہ کریں۔ شکریہ!)',
-    '',
-    `Distributor No: *${businessPhone}*`,
-    '',
-    'Thank you for your cooperation!',
-    '',
-    `> ${businessName}.`,
-  ].join('\n');
+  ];
+
+  // Show company name line if known (helps when shop has multiple companies)
+  if (opts.companyName && opts.companyName.trim()) {
+    lines.push(`Company: *${opts.companyName.trim()}*`);
+    lines.push('');
+  }
+
+  lines.push('Your account payment is overdue:');
+  lines.push('');
+  lines.push(`Outstanding Balance: Rs. *${opts.balance.toLocaleString('en-PK')}*`);
+  lines.push(`Overdue Days: *${opts.daysOverdue}* Days`);
+  lines.push('');
+  lines.push(`Date: *${date}*`);
+  lines.push('');
+  lines.push('(براہِ کرم اپنی بقایا رقم جلد از جلد کلیئر فرمائیں۔ اگر آپ ادائیگی کر چکے ہیں یا بیلنس میں کسی بھی قسم کا کوئی فرق محسوس ہو تو برائے مہربانی دیے گئے نمبر پر لازمی رابطہ کریں۔ شکریہ!)');
+  lines.push('');
+  lines.push(`Distributor No: *${businessPhone}*`);
+  lines.push('');
+  lines.push('Thank you for your cooperation!');
+  lines.push('');
+  lines.push(`> ${businessName}.`);
+
+  const msg = lines.join('\n');
 
   // Generate overdue reminder image
   let result;
