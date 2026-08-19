@@ -125,12 +125,14 @@ export async function POST(request: NextRequest) {
     try {
       await client.query('BEGIN');
 
-      // Fetch all pending transactions with shop info
+      // Fetch all pending transactions with shop info + company name
       const placeholders = transactionIds.map((_: unknown, idx: number) => `$${idx + 1}`).join(', ');
       const pendingRes = await client.query(
-        `SELECT t.*, s.id AS "shop_db_id", s.name AS "shop_name", s.balance AS "shop_balance", s.phone AS "shop_phone", s.area AS "shop_area", s.address AS "shop_address"
+        `SELECT t.*, s.id AS "shop_db_id", s.name AS "shop_name", s.balance AS "shop_balance", s.phone AS "shop_phone", s.area AS "shop_area", s.address AS "shop_address",
+                c.name AS "company_name"
          FROM "Transaction" t
          LEFT JOIN "Shop" s ON t."shopId" = s.id
+         LEFT JOIN "Company" c ON t."companyId" = c.id
          WHERE t.id IN (${placeholders}) AND t.status = 'pending'`,
         transactionIds
       );
@@ -396,6 +398,7 @@ export async function POST(request: NextRequest) {
                     previousBalance: correctPrevBalance, // ← FIXED: was stale shop_balance
                     newBalance: Number(result.newBalance),
                     orderbookerName: obName,
+                    companyName: txnDetail.company_name, // ← ADDED: for company line in SMS
                   });
 
                   if (smsResult.success) {

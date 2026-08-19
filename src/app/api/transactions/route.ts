@@ -555,6 +555,15 @@ export async function POST(request: NextRequest) {
               obName = obRes.rows[0]?.name;
             } catch { /* silent */ }
 
+            // Fetch company name if effectiveCompanyId is available
+            let companyName: string | undefined;
+            if (effectiveCompanyId) {
+              try {
+                const compRes = await pool.query('SELECT name FROM "Company" WHERE id = $1', [effectiveCompanyId]);
+                companyName = compRes.rows[0]?.name;
+              } catch { /* silent */ }
+            }
+
             // Don't await — non-blocking, fire and forget
             sendRecoverySms({
               shopId: shopId,
@@ -566,6 +575,7 @@ export async function POST(request: NextRequest) {
               previousBalance: previousBalance,
               newBalance: Math.round(newBalance * 100) / 100,
               orderbookerName: obName,
+              companyName,
             }).catch(() => {});
           }
         } catch (smsErr) {

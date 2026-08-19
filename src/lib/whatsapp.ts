@@ -470,6 +470,7 @@ export async function sendRecoverySms(opts: {
   previousBalance: number;
   newBalance: number;
   orderbookerName?: string;
+  companyName?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
   const enabled = await isSmsEnabled('recovery');
   if (!enabled) return { success: false, error: 'Recovery SMS is disabled' };
@@ -489,24 +490,34 @@ export async function sendRecoverySms(opts: {
   });
 
   // Build message — formal receipt format with WhatsApp bold (*) and quote (>)
-  const msg = [
+  const lines: string[] = [
     `Dear *${opts.shopName}*,`,
     '',
-    'Your account has been updated:',
-    '',
-    `Opening Balance: Rs. *${opts.previousBalance.toLocaleString('en-PK')}*`,
-    `Recovery Received: Rs. *${opts.amount.toLocaleString('en-PK')}*`,
-    `Remaining Balance: Rs. *${opts.newBalance.toLocaleString('en-PK')}*`,
-    '',
-    `Date: *${date}*`,
-    '',
-    '(اگر آپ کو بیلنس میں کسی بھی قسم کا کوئی فرق محسوس ہو تو برائے مہربانی دیے گئے نمبر پر لازمی رابطہ کریں تاکہ آپ کے اور ہمارے کاروبار میں کوئی نقصان نہ ہو۔ شکریہ!)',
-    '',
-    `Distributor No: *${businessPhone}*`,
-    'Thank you for your payment!',
-    '',
-    `> ${businessName}`,
-  ].join('\n');
+  ];
+
+  // Show company name line if known (helps when shop has multiple companies)
+  if (opts.companyName && opts.companyName.trim()) {
+    lines.push(`Company: *${opts.companyName.trim()}*`);
+    lines.push('');
+  }
+
+  lines.push('Your account has been updated:');
+  lines.push('');
+  lines.push(`Opening Balance: Rs. *${opts.previousBalance.toLocaleString('en-PK')}*`);
+  lines.push(`Recovery Received: Rs. *${opts.amount.toLocaleString('en-PK')}*`);
+  lines.push(`Remaining Balance: Rs. *${opts.newBalance.toLocaleString('en-PK')}*`);
+  lines.push('');
+  lines.push(`Date: *${date}*`);
+  lines.push('');
+  lines.push('(اگر آپ کو بیلنس میں کسی بھی قسم کا کوئی فرق محسوس ہو تو برائے مہربانی دیے گئے نمبر پر لازمی رابطہ کریں تاکہ آپ کے اور ہمارے کاروبار میں کوئی نقصان نہ ہو۔ شکریہ!)');
+  lines.push('');
+  lines.push(`Distributor No: *${businessPhone}*`);
+  lines.push('');
+  lines.push('Thank you for your payment!');
+  lines.push('');
+  lines.push(`> ${businessName}`);
+
+  const msg = lines.join('\n');
 
   // Generate receipt image
   let result;
@@ -648,25 +659,34 @@ export async function sendCreditSms(opts: {
     : Math.round((opts.newBalance - opts.amount) * 100) / 100;
 
   // Build message — formal receipt format with WhatsApp bold (*) and quote (>)
-  const msg = [
+  const lines: string[] = [
     `Dear *${opts.shopName}*,`,
     '',
-    'Your account has been updated with new Invoice/credit:',
-    '',
-    `Previous Balance: Rs. *${prevBal.toLocaleString('en-PK')}*`,
-    `New Invoice Amount: Rs. *${opts.amount.toLocaleString('en-PK')}*`,
-    `Total Balance: Rs. *${opts.newBalance.toLocaleString('en-PK')}*`,
-    '',
-    `Date: *${date}*`,
-    '',
-    '(اگر آپ کو بیلنس میں کسی بھی قسم کا کوئی فرق محسوس ہو تو برائے مہربانی دیے گئے نمبر پر لازمی رابطہ کریں تاکہ آپ کے اور ہمارے کاروبار میں کوئی نقصان نہ ہو۔ شکریہ!)',
-    '',
-    `Distributor No: *${businessPhone}*`,
-    '',
-    'Thank you for doing business with us!',
-    '',
-    `> ${businessName}`,
-  ].join('\n');
+  ];
+
+  // Show company name line if known (helps when shop has multiple companies)
+  if (opts.companyName && opts.companyName.trim()) {
+    lines.push(`Company: *${opts.companyName.trim()}*`);
+    lines.push('');
+  }
+
+  lines.push('Your account has been updated with new Invoice/credit:');
+  lines.push('');
+  lines.push(`Previous Balance: Rs. *${prevBal.toLocaleString('en-PK')}*`);
+  lines.push(`New Invoice Amount: Rs. *${opts.amount.toLocaleString('en-PK')}*`);
+  lines.push(`Total Balance: Rs. *${opts.newBalance.toLocaleString('en-PK')}*`);
+  lines.push('');
+  lines.push(`Date: *${date}*`);
+  lines.push('');
+  lines.push('(اگر آپ کو بیلنس میں کسی بھی قسم کا کوئی فرق محسوس ہو تو برائے مہربانی دیے گئے نمبر پر لازمی رابطہ کریں تاکہ آپ کے اور ہمارے کاروبار میں کوئی نقصان نہ ہو۔ شکریہ!)');
+  lines.push('');
+  lines.push(`Distributor No: *${businessPhone}*`);
+  lines.push('');
+  lines.push('Thank you for doing business with us!');
+  lines.push('');
+  lines.push(`> ${businessName}`);
+
+  const msg = lines.join('\n');
 
   // Generate credit receipt image
   let result;
