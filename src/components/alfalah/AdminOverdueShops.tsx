@@ -247,7 +247,10 @@ export default function AdminOverdueShops() {
           shopAddress: shop.address,
           companyName: shop.companyName,
           balance: shop.balance,
-          daysOverdue: shop.daysSinceRecovery || shop.daysSinceCredit || 0,
+          // Use the SAME days value as displayed in the UI (daysSinceCredit)
+          // — previously used 'daysSinceRecovery || daysSinceCredit' which
+          // caused mismatch: UI showed 97 days (credit) but SMS said 30 days (recovery)
+          daysOverdue: shop.daysSinceCredit || shop.daysSinceRecovery || 0,
         }),
       });
       const data = await res.json();

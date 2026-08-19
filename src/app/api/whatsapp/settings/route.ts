@@ -105,6 +105,8 @@ export async function POST(request: NextRequest) {
       `SELECT s.id, s.name, s.phone, s.balance, s.area, s.address,
               (SELECT MAX(t."createdAt") FROM "Transaction" t
                WHERE t."shopId" = s.id AND t.type = 'recovery' AND t.status = 'approved') AS "lastRecoveryDate",
+              (SELECT MAX(t."createdAt") FROM "Transaction" t
+               WHERE t."shopId" = s.id AND t.type = 'credit' AND t.status = 'approved') AS "lastCreditDate",
               (SELECT string_agg(DISTINCT c.name, ', ')
                FROM "ShopCompanyBalance" scb
                JOIN "Company" c ON c.id = scb."companyId"
@@ -124,9 +126,18 @@ export async function POST(request: NextRequest) {
 
     for (const shop of overdueRes.rows) {
       const lastRecovery = shop.lastRecoveryDate ? new Date(shop.lastRecoveryDate).getTime() : 0;
-      const daysSince = Math.floor((now - lastRecovery) / (1000 * 60 * 60 * 24));
+      const lastCredit = shop.lastCreditDate ? new Date(shop.lastCreditDate).getTime() : 0;
+      // Use daysSinceCredit (matches UI display) — fallback to daysSinceRecovery if no credit
+      // This must match AdminOverdueShops.tsx which displays daysSinceCredit
+      const daysSinceCredit = lastCredit > 0 ? Math.floor((now - lastCredit) / (1000 * 60 * 60 * 24)) : 0;
+      const daysSinceRecovery = lastRecovery > 0 ? Math.floor((now - lastRecovery) / (1000 * 60 * 60 * 24)) : 0;
+      // Days shown in UI = daysSinceCredit (or daysSinceRecovery if no credit)
+      const daysSince = daysSinceCredit || daysSinceRecovery || 0;
 
-      if (daysSince < 14 && lastRecovery > 0) {
+      // Skip filter: only send if overdue by 14+ days
+      // (use daysSinceCredit as primary, since UI shows that)
+      const effectiveDays = daysSinceCredit > 0 ? daysSinceCredit : daysSinceRecovery;
+      if (effectiveDays > 0 && effectiveDays < 14) {
         skipped++;
         continue;
       }
