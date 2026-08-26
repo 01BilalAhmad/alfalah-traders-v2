@@ -5,7 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, LogIn, Loader2, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck, Mail, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Loader2, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck, Mail, AlertCircle, TrendingUp, Route, Zap } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
@@ -171,13 +171,78 @@ export default function LoginView() {
   }, []);
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/30 px-4">
-      <div className="w-full max-w-[380px]">
+    <div className="min-h-dvh flex">
+      {/* ═══════ Left Brand Panel — desktop only, dark aurora showcase ═══════ */}
+      <div className="hidden lg:flex flex-col justify-between w-[44%] xl:w-[46%] relative overflow-hidden bg-[#0B0D1C] p-10 xl:p-14 text-white">
+        {/* Aurora glow blobs */}
+        <div aria-hidden className="aurora-blob absolute -top-32 -left-24 h-96 w-96 rounded-full bg-indigo-600/30 blur-3xl pointer-events-none" />
+        <div aria-hidden className="aurora-blob absolute bottom-[-8rem] left-1/4 h-[26rem] w-[26rem] rounded-full bg-violet-600/25 blur-3xl pointer-events-none" style={{ animationDelay: '-5s' }} />
+        <div aria-hidden className="aurora-blob absolute top-1/3 -right-24 h-80 w-80 rounded-full bg-fuchsia-600/15 blur-3xl pointer-events-none" style={{ animationDelay: '-9s' }} />
+        {/* Subtle grid texture */}
+        <div aria-hidden className="absolute inset-0 opacity-[0.35] pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)', backgroundSize: '26px 26px' }} />
+
+        {/* Top: brand */}
+        <div className="relative flex items-center gap-3">
+          <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 flex items-center justify-center font-black text-xl shadow-xl shadow-indigo-500/40">F</div>
+          <div>
+            <p className="text-xl font-bold tracking-tight leading-none">Finexa<span className="text-violet-300">AFE</span></p>
+            <p className="text-[11px] text-slate-400 mt-1">Al-Falah Traders</p>
+          </div>
+        </div>
+
+        {/* Middle: headline + feature bullets */}
+        <div className="relative max-w-md">
+          <h1 className="text-4xl xl:text-[42px] font-black leading-[1.12] tracking-tight">
+            Credit &amp; recovery intelligence,
+            <span className="block mt-1 bg-gradient-to-r from-indigo-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">beautifully orchestrated.</span>
+          </h1>
+          <p className="mt-5 text-[15px] text-slate-300/80 leading-relaxed">
+            Track credits, recoveries, shop routes and teller tallies in real time — your entire ledger, one portal.
+          </p>
+          <ul className="mt-8 space-y-4">
+            <li className="flex items-center gap-3.5">
+              <span className="h-9 w-9 rounded-lg bg-white/[0.07] border border-white/10 flex items-center justify-center shrink-0">
+                <TrendingUp className="h-4 w-4 text-emerald-400" />
+              </span>
+              <span className="text-sm text-slate-200">Live recovery dashboard — refreshed every 60 seconds</span>
+            </li>
+            <li className="flex items-center gap-3.5">
+              <span className="h-9 w-9 rounded-lg bg-white/[0.07] border border-white/10 flex items-center justify-center shrink-0">
+                <Route className="h-4 w-4 text-violet-300" />
+              </span>
+              <span className="text-sm text-slate-200">Route planning &amp; visit tracking with live map view</span>
+            </li>
+            <li className="flex items-center gap-3.5">
+              <span className="h-9 w-9 rounded-lg bg-white/[0.07] border border-white/10 flex items-center justify-center shrink-0">
+                <ShieldCheck className="h-4 w-4 text-indigo-300" />
+              </span>
+              <span className="text-sm text-slate-200">Role-based access with a complete audit trail</span>
+            </li>
+          </ul>
+        </div>
+
+        {/* Bottom: capability chips */}
+        <div className="relative flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-[11px] font-medium text-slate-300">
+            <Zap className="h-3 w-3 text-amber-300" /> Real-time ledger
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-[11px] font-medium text-slate-300">
+            Multi-company
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-[11px] font-medium text-slate-300">
+            SMS + WhatsApp
+          </span>
+        </div>
+      </div>
+
+      {/* ═══════ Right Form Panel ═══════ */}
+      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/40 px-4">
+      <div className="w-full max-w-[400px]">
         {/* LOGIN VIEW */}
         {viewMode === 'login' && (
           <div className="login-card animate-fade-in">
-            {/* Brand — gradient tile + wordmark (theme-aware) */}
-            <div className="login-brand mb-4">
+            {/* Brand — gradient tile + wordmark (mobile only; desktop shows left panel brand) */}
+            <div className="login-brand mb-4 lg:hidden">
               <div className="login-brand-tile">F</div>
               <div className="login-brand-word">Finexa<span>AFE</span></div>
             </div>
@@ -433,6 +498,7 @@ export default function LoginView() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

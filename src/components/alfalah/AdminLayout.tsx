@@ -210,19 +210,19 @@ function SidebarContent({
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }));
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-[#1A1A1A]">
+    <div className="flex flex-col h-full bg-[#0B0D1C]">
       {/* Business Name Header */}
       <div className={`px-3 pt-4 pb-3 ${collapsed ? 'px-2' : ''}`}>
         <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-2.5 px-2'}`}>
-          <div className="h-7 w-7 rounded-md bg-[#2563EB] flex items-center justify-center shrink-0">
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/30">
             <Building2 className="h-4 w-4 text-white" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-tight tracking-tight">
+              <p className="text-[13px] font-bold text-white leading-tight tracking-tight">
                 AL-FALAH TRADERS
               </p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-500 leading-tight mt-0.5">
+              <p className="text-[10px] text-indigo-300/60 leading-tight mt-0.5">
                 Management Portal
               </p>
             </div>
@@ -230,18 +230,18 @@ function SidebarContent({
         </div>
       </div>
 
-      {!collapsed && <div className="mx-4 border-t border-slate-200 dark:border-[#2E2E2E]" />}
+      {!collapsed && <div className="mx-4 border-t border-white/[0.07]" />}
 
       {/* Optional search row inside sidebar (only when expanded) */}
       {!collapsed && (
         <div className="px-3 pt-3">
           <button
             onClick={triggerSearch}
-            className="w-full flex items-center gap-2 h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 text-xs transition-colors"
+            className="w-full flex items-center gap-2 h-8 px-3 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 text-xs transition-colors"
           >
             <Search className="h-3.5 w-3.5" />
             <span>Search...</span>
-            <kbd className="ml-auto h-4 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-1 font-mono text-[10px] leading-none text-slate-400 dark:text-slate-500">
+            <kbd className="ml-auto h-4 rounded border border-white/10 bg-white/5 px-1 font-mono text-[10px] leading-none text-slate-500">
               ⌘K
             </kbd>
           </button>
@@ -258,11 +258,11 @@ function SidebarContent({
             collapsed ? 'justify-center' : ''
           } ${
             isNavActive(dashboardItem.id, pathname)
-              ? 'bg-[#EFF6FF] dark:bg-blue-950/50 text-[#2563EB] dark:text-blue-400 font-medium'
-              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50 font-normal'
+              ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-medium shadow-lg shadow-indigo-950/50'
+              : 'text-slate-400 hover:text-white hover:bg-white/[0.06] font-normal'
           }`}
         >
-          <span className={`shrink-0 ${isNavActive(dashboardItem.id, pathname) ? 'text-[#2563EB] dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`}>
+          <span className={`shrink-0 ${isNavActive(dashboardItem.id, pathname) ? 'text-white' : 'text-slate-500'}`}>
             {dashboardItem.icon}
           </span>
           {!collapsed && <span className="flex-1 text-left">{dashboardItem.label}</span>}
@@ -279,16 +279,16 @@ function SidebarContent({
               {!collapsed ? (
                 <button
                   onClick={() => setCollapsedSections((prev) => ({ ...prev, [section.id]: prev[section.id] === false }))}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 mt-3 rounded-md text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-1.5 mt-3 rounded-md text-[10px] font-semibold uppercase tracking-wider text-indigo-200/50 hover:text-indigo-200/90 transition-colors"
                 >
-                  <span className="shrink-0 text-slate-400 dark:text-slate-500">{section.icon}</span>
+                  <span className="shrink-0 text-indigo-200/50">{section.icon}</span>
                   <span className="flex-1 text-left">{section.label}</span>
                   <ChevronDown
                     className={`h-3 w-3 transition-transform duration-150 ${effectivelyCollapsed ? '-rotate-90' : ''}`}
                   />
                 </button>
               ) : (
-                <div className="my-2 mx-2 border-t border-slate-100 dark:border-slate-800" />
+                <div className="my-2 mx-2 border-t border-white/[0.07]" />
               )}
               <div
                 className={`space-y-0.5 overflow-hidden transition-all duration-150 ${
@@ -306,16 +306,16 @@ function SidebarContent({
                         collapsed ? 'justify-center' : ''
                       } ${
                         isActive
-                          ? 'bg-[#EFF6FF] dark:bg-blue-950/50 text-[#2563EB] dark:text-blue-400 font-medium'
-                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50 font-normal'
+                          ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-medium shadow-lg shadow-indigo-950/50'
+                          : 'text-slate-400 hover:text-white hover:bg-white/[0.06] font-normal'
                       }`}
                     >
-                      <span className={`shrink-0 ${isActive ? 'text-[#2563EB] dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                      <span className={`shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`}>
                         {item.icon}
                       </span>
                       {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
                       {!collapsed && item.id === 'admin-approve-recovery' && pendingApprovals > 0 && (
-                        <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900 tabular-nums">
+                        <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 border border-amber-300 tabular-nums shadow-sm">
                           {pendingApprovals}
                         </span>
                       )}
@@ -331,30 +331,30 @@ function SidebarContent({
       {/* Mini Stats at Bottom (expanded only) */}
       {!collapsed && (
         <div className="px-3 pb-2">
-          <div className="border-t border-slate-200 dark:border-[#2E2E2E] pt-3 px-2 mb-2">
+          <div className="border-t border-white/[0.07] pt-3 px-2 mb-2">
             <div className="flex items-center gap-1.5 mb-1">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] text-slate-500 dark:text-slate-500 font-semibold uppercase tracking-wider">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-indigo-200/50 font-semibold uppercase tracking-wider">
                 Today&apos;s Recovery
               </span>
             </div>
-            <p className="text-base font-bold text-slate-900 dark:text-white tabular-nums">
+            <p className="text-base font-bold text-white tabular-nums">
               Rs. {todayRecovery.toLocaleString('en-PK', { maximumFractionDigits: 0 })}
             </p>
           </div>
           {statsLoading ? (
             <div className="flex items-center justify-center py-2">
-              <Loader2 className="h-4 w-4 animate-spin text-slate-400 dark:text-slate-500" />
+              <Loader2 className="h-4 w-4 animate-spin text-indigo-300/60" />
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-1 px-2 mb-2">
               <div className="px-2 py-1">
-                <span className="text-[10px] text-slate-500 dark:text-slate-500 font-medium uppercase tracking-wider">Shops</span>
-                <p className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">{miniStats.totalShops}</p>
+                <span className="text-[10px] text-indigo-200/50 font-medium uppercase tracking-wider">Shops</span>
+                <p className="text-sm font-bold text-white tabular-nums">{miniStats.totalShops}</p>
               </div>
               <div className="px-2 py-1">
-                <span className="text-[10px] text-slate-500 dark:text-slate-500 font-medium uppercase tracking-wider">OBs</span>
-                <p className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">{miniStats.totalOBs}</p>
+                <span className="text-[10px] text-indigo-200/50 font-medium uppercase tracking-wider">OBs</span>
+                <p className="text-sm font-bold text-white tabular-nums">{miniStats.totalOBs}</p>
               </div>
             </div>
           )}
@@ -362,7 +362,7 @@ function SidebarContent({
       )}
 
       {/* User profile at bottom — minimal, no card wrapper */}
-      <div className={`border-t border-slate-200 dark:border-[#2E2E2E] ${collapsed ? 'p-2' : 'p-3'}`}>
+      <div className={`border-t border-white/[0.07] ${collapsed ? 'p-2' : 'p-3'}`}>
         <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-2.5 px-2 py-1.5'}`}>
           <button
             onClick={() => handleNavClick('admin-settings')}
@@ -370,15 +370,15 @@ function SidebarContent({
             className="flex items-center gap-2.5 min-w-0"
             aria-label="Open settings"
           >
-            <div className="h-7 w-7 rounded-full bg-[#EFF6FF] dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900 flex items-center justify-center text-xs font-bold text-[#1E40AF] dark:text-blue-400 shrink-0">
+            <div className="h-7 w-7 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-xs font-bold text-white shrink-0">
               {businessName.charAt(0).toUpperCase()}
             </div>
             {!collapsed && (
               <div className="text-left min-w-0 flex-1">
-                <p className="text-xs font-medium text-slate-900 dark:text-white leading-tight truncate">
+                <p className="text-xs font-medium text-white leading-tight truncate">
                   {businessName || user?.name || 'Admin'}
                 </p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-500 leading-tight truncate">
+                <p className="text-[10px] text-slate-400 leading-tight truncate">
                   {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : (businessPhone || 'Admin')}
                 </p>
               </div>
@@ -387,7 +387,7 @@ function SidebarContent({
           {!collapsed && (
             <button
               onClick={onLogout}
-              className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shrink-0"
+              className="h-7 w-7 rounded-md flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10 transition-colors shrink-0"
               title="Logout"
               aria-label="Logout"
             >
@@ -398,7 +398,7 @@ function SidebarContent({
             <button
               onClick={onLogout}
               title="Logout"
-              className="mt-2 h-7 w-7 rounded-md flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors mx-auto"
+              className="mt-2 h-7 w-7 rounded-md flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10 transition-colors mx-auto"
               aria-label="Logout"
             >
               <LogOut className="h-3.5 w-3.5" />
@@ -514,21 +514,25 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const pageTitle = getPageTitle(pathname);
 
   return (
-    <div className="min-h-dvh flex flex-col bg-white dark:bg-[#121212]">
+    <div className="min-h-dvh flex flex-col bg-[#F7F7FB] dark:bg-[#101116]">
+      {/* Brand gradient strip — signature accent line across the top */}
+      <div className="h-[3px] bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 shrink-0 print:hidden" />
+
       {/* Top Header — Clean Minimal */}
-      <header className="sticky top-0 z-50 h-14 flex items-center justify-between px-4 lg:px-6 bg-white dark:bg-[#1E1E1E] border-b border-slate-200 dark:border-[#2E2E2E] print:hidden">
+      <header className="sticky top-0 z-50 h-14 flex items-center justify-between px-4 lg:px-6 bg-white/85 dark:bg-[#1A1B24]/85 backdrop-blur-md border-b border-slate-200 dark:border-[#262733] print:hidden">
         {/* Left: mobile menu toggle + page title */}
         <div className="flex items-center gap-3 min-w-0">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="lg:hidden h-9 w-9 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+            className="lg:hidden h-9 w-9 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
           >
             {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
+          <span className="hidden sm:block h-6 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-violet-600 shrink-0" aria-hidden />
           <h1 className="text-lg font-semibold text-slate-900 dark:text-white truncate">{pageTitle}</h1>
         </div>
 
@@ -582,7 +586,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {/* User Avatar (32px) — navigates to settings */}
           <button
             onClick={() => router.push('/settings')}
-            className="h-8 w-8 rounded-full bg-[#EFF6FF] dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900 flex items-center justify-center text-xs font-bold text-[#1E40AF] dark:text-blue-400 hover:ring-2 hover:ring-blue-100 dark:hover:ring-blue-900 transition-all"
+            className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 border border-indigo-300/40 dark:border-indigo-800/60 flex items-center justify-center text-xs font-bold text-white hover:ring-2 hover:ring-indigo-200 dark:hover:ring-indigo-900 transition-all"
             aria-label="Open settings"
             title={businessName}
           >
@@ -613,7 +617,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           />
         )}
         {sidebarOpen && (
-          <aside className="fixed inset-y-0 left-0 z-40 w-60 bg-white dark:bg-[#1A1A1A] border-r border-slate-200 dark:border-[#2E2E2E] pt-14 print:hidden overflow-hidden lg:hidden">
+          <aside className="fixed inset-y-0 left-0 z-40 w-60 bg-[#0B0D1C] border-r border-white/[0.07] pt-14 print:hidden overflow-hidden lg:hidden">
             <ScrollArea className="h-[calc(100dvh-3.5rem)] sidebar-scroll">
               <SidebarContent {...sidebarProps} />
             </ScrollArea>
@@ -624,7 +628,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <aside
           className={`hidden lg:flex ${
             sidebarCollapsed ? 'w-16' : 'w-60'
-          } bg-white dark:bg-[#1A1A1A] border-r border-slate-200 dark:border-[#2E2E2E] print:hidden shrink-0 flex-col relative transition-all duration-200`}
+          } bg-[#0B0D1C] border-r border-white/[0.07] print:hidden shrink-0 flex-col relative transition-all duration-200 shadow-[4px_0_24px_-12px_rgba(11,13,28,0.35)] dark:shadow-none`}
         >
           <ScrollArea className="flex-1 sidebar-scroll">
             <SidebarContent {...sidebarProps} collapsed={sidebarCollapsed} />
@@ -633,7 +637,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {/* Collapse / expand toggle — minimal icon button at bottom */}
           <button
             onClick={() => setSidebarCollapsed((c) => !c)}
-            className="absolute -right-3 top-20 h-6 w-6 rounded-full bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] shadow-sm flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 transition-colors z-10"
+            className="absolute -right-3 top-20 h-6 w-6 rounded-full bg-[#161A2E] border border-white/15 shadow-lg flex items-center justify-center text-slate-400 hover:text-white hover:border-white/30 transition-colors z-10"
             aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
