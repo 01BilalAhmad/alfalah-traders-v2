@@ -144,7 +144,7 @@ function OverdueShopsAlert({ onNavigate }: { onNavigate: (path: string) => void 
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-4 animate-fade-in">
+      <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl p-4 animate-fade-in">
         <div className="flex items-center gap-3">
           <Loader2 className="h-4 w-4 animate-spin text-red-500" />
           <span className="text-sm text-slate-500 dark:text-slate-400">Checking overdue shops...</span>
@@ -159,8 +159,8 @@ function OverdueShopsAlert({ onNavigate }: { onNavigate: (path: string) => void 
   const criticalCount = overdueShops.filter(s => s.daysSinceCredit >= 30).length;
 
   return (
-    <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 dark:border-[#2E2E2E]">
+    <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl overflow-hidden animate-fade-in">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 dark:border-[#262733]">
         <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
         <span className="text-sm font-semibold text-slate-900 dark:text-white">
           {overdueShops.length} shop{overdueShops.length === 1 ? '' : 's'} with credit 14+ days old and no recovery
@@ -192,9 +192,9 @@ function OverdueShopsAlert({ onNavigate }: { onNavigate: (path: string) => void 
         ))}
       </div>
       {overdueShops.length > 5 && (
-        <div className="border-t border-slate-200 dark:border-[#2E2E2E] px-4 py-2.5">
+        <div className="border-t border-slate-200 dark:border-[#262733] px-4 py-2.5">
           <button
-            className="flex items-center gap-1.5 text-xs font-medium text-[#2563EB] dark:text-blue-400 hover:text-[#1E40AF] dark:hover:text-blue-300 transition-colors"
+            className="flex items-center gap-1.5 text-xs font-medium text-[#4F46E5] dark:text-indigo-400 hover:text-[#4338CA] dark:hover:text-indigo-300 transition-colors"
             onClick={() => onNavigate('/shops')}
           >
             View All {overdueShops.length} Overdue Shops
@@ -293,7 +293,7 @@ interface SparklineData {
 }
 
 const ROUTE_DAYS = [...WORKING_DAYS];
-const ROUTE_COLORS = ['#3B82F6', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4'];
+const ROUTE_COLORS = ['#6366F1', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 function RecoverySparkline({ data, width = 100, height = 28 }: { data: number[]; width?: number; height?: number }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
@@ -396,7 +396,7 @@ function DashboardSkeleton() {
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-5">
+          <div key={i} className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-3">
               <Skeleton className="skeleton-shimmer h-2 w-2 rounded-full" />
               <Skeleton className="skeleton-shimmer h-3 w-24" />
@@ -407,8 +407,8 @@ function DashboardSkeleton() {
         ))}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+        <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#262733]">
             <Skeleton className="skeleton-shimmer h-5 w-36" />
           </div>
           <div className="px-5 py-3 space-y-3 divide-y divide-slate-100 dark:divide-slate-800">
@@ -423,8 +423,8 @@ function DashboardSkeleton() {
             ))}
           </div>
         </div>
-        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+        <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#262733]">
             <Skeleton className="skeleton-shimmer h-5 w-36" />
           </div>
           <div className="px-5 py-3 space-y-3">
@@ -681,11 +681,11 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6 page-transition">
-      {/* Welcome Header — minimal */}
+      {/* Welcome Header — premium */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
-            Welcome back, {user?.name?.split(' ')[0] || 'Admin'}
+            Welcome back, <span className="text-gradient-brand">{user?.name?.split(' ')[0] || 'Admin'}</span>
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
@@ -693,24 +693,27 @@ export default function AdminDashboard() {
             {data.totalShops} shops across {data.orderbookers.length} orderbookers
           </p>
         </div>
-        <div className="hidden sm:flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Live · updated every 60s</span>
+        <div className="hidden sm:flex">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-400 text-[11px] font-semibold">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-live-pulse" />
+            Live · updated every 60s
+          </span>
         </div>
       </div>
 
-      {/* KPI Cards — Refined Finexa (semantic colors + delta chips + sparklines) */}
+      {/* KPI Cards — Modern Premium (gradient icon tiles + delta chips + sparklines) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Today's Credit — blue */}
-        <div className="relative overflow-hidden bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-xl p-5 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md transition-all">
-          <div className="flex items-center justify-between mb-3">
+        {/* Today's Credit — indigo/violet */}
+        <div className="relative overflow-hidden bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl p-5 hover:border-indigo-300 dark:hover:border-indigo-800/70 hover:shadow-lg hover:shadow-indigo-500/[0.07] transition-all">
+          <div aria-hidden className="absolute -right-10 -top-12 h-28 w-28 rounded-full bg-gradient-to-br from-indigo-500/15 to-violet-500/5 blur-2xl pointer-events-none" />
+          <div className="flex items-center justify-between mb-3 relative">
             <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Today&apos;s Credit</span>
-            <span className="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[#2563EB] dark:text-blue-400 flex items-center justify-center shrink-0">
+            <span className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/30">
               <CreditCard className="h-4 w-4" />
             </span>
           </div>
-          <p className="text-[28px] font-bold text-[#2563EB] dark:text-blue-400 tabular-nums leading-none number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1 flex-wrap">
+          <p className="text-[28px] font-bold text-[#4F46E5] dark:text-indigo-400 tabular-nums leading-none number-animate number-display relative">{formatPKR(animatedTodayCredit)}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1 flex-wrap relative">
             {creditChangePct !== null ? (
               <>
                 <span className={`inline-flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full border text-[10px] ${
@@ -729,20 +732,21 @@ export default function AdminDashboard() {
           </p>
           <Sparkline
             data={trends.slice(-7).map((t) => t.credit)}
-            color="#2563EB"
+            color="#6366F1"
             className="absolute bottom-0 right-0 h-7 w-20 opacity-50 pointer-events-none"
           />
         </div>
-        {/* Today's Recovery — green */}
-        <div className="relative overflow-hidden bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-xl p-5 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md transition-all">
-          <div className="flex items-center justify-between mb-3">
+        {/* Today's Recovery — emerald/teal */}
+        <div className="relative overflow-hidden bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl p-5 hover:border-emerald-300 dark:hover:border-emerald-800/70 hover:shadow-lg hover:shadow-emerald-500/[0.07] transition-all">
+          <div aria-hidden className="absolute -right-10 -top-12 h-28 w-28 rounded-full bg-gradient-to-br from-emerald-500/15 to-teal-500/5 blur-2xl pointer-events-none" />
+          <div className="flex items-center justify-between mb-3 relative">
             <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Today&apos;s Recovery</span>
-            <span className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <span className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/30">
               <TrendingUp className="h-4 w-4" />
             </span>
           </div>
-          <p className="text-[28px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1 flex-wrap">
+          <p className="text-[28px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none number-animate number-display relative">{formatPKR(animatedTodayRecovery)}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1 flex-wrap relative">
             {recoveryChangePct !== null ? (
               <>
                 <span className={`inline-flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full border text-[10px] ${
@@ -765,37 +769,39 @@ export default function AdminDashboard() {
             className="absolute bottom-0 right-0 h-7 w-20 opacity-50 pointer-events-none"
           />
         </div>
-        {/* Total Outstanding — amber */}
-        <div className="relative overflow-hidden bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-xl p-5 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md transition-all">
-          <div className="flex items-center justify-between mb-3">
+        {/* Total Outstanding — amber/orange */}
+        <div className="relative overflow-hidden bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl p-5 hover:border-amber-300 dark:hover:border-amber-800/70 hover:shadow-lg hover:shadow-amber-500/[0.07] transition-all">
+          <div aria-hidden className="absolute -right-10 -top-12 h-28 w-28 rounded-full bg-gradient-to-br from-amber-400/15 to-orange-500/5 blur-2xl pointer-events-none" />
+          <div className="flex items-center justify-between mb-3 relative">
             <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Outstanding</span>
-            <span className="h-8 w-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <span className="h-9 w-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/30">
               <Wallet className="h-4 w-4" />
             </span>
           </div>
-          <p className="text-[28px] font-bold text-amber-600 dark:text-amber-400 tabular-nums leading-none number-animate number-display">{formatPKR(animatedOutstanding)}</p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+          <p className="text-[28px] font-bold text-amber-600 dark:text-amber-400 tabular-nums leading-none number-animate number-display relative">{formatPKR(animatedOutstanding)}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 relative">
             <span>Outstanding across all shops</span>
           </p>
         </div>
-        {/* Total Active Shops — cyan */}
-        <div className="relative overflow-hidden bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-xl p-5 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md transition-all">
-          <div className="flex items-center justify-between mb-3">
+        {/* Total Active Shops — sky/indigo */}
+        <div className="relative overflow-hidden bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl p-5 hover:border-sky-300 dark:hover:border-sky-800/70 hover:shadow-lg hover:shadow-sky-500/[0.07] transition-all">
+          <div aria-hidden className="absolute -right-10 -top-12 h-28 w-28 rounded-full bg-gradient-to-br from-sky-500/15 to-indigo-500/5 blur-2xl pointer-events-none" />
+          <div className="flex items-center justify-between mb-3 relative">
             <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Active Shops</span>
-            <span className="h-8 w-8 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
+            <span className="h-9 w-9 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-sky-500/25">
               <Store className="h-4 w-4" />
             </span>
           </div>
-          <p className="text-[28px] font-bold text-slate-900 dark:text-white tabular-nums leading-none number-animate number-display">{animatedTotalShops}</p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+          <p className="text-[28px] font-bold text-slate-900 dark:text-white tabular-nums leading-none number-animate number-display relative">{animatedTotalShops}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 relative">
             <span>Across {data.orderbookers.length} orderbookers</span>
           </p>
         </div>
       </div>
 
       {/* Monthly Overview — minimal */}
-      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+      <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-[#262733]">
           <Calendar className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
           <span className="text-sm font-semibold text-slate-900 dark:text-white">
             Monthly Overview — {monthSummary?.monthLabel || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -805,7 +811,7 @@ export default function AdminDashboard() {
           <div className="flex gap-3 px-4 py-3 min-w-max items-center">
             {/* Credit */}
             <div className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-[#4F46E5]" />
               <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Credit:</span>
               <span className="text-xs font-bold text-slate-900 dark:text-white tabular-nums">{formatPKR(monthSummary?.totalCredit ?? 0)}</span>
               {monthSummary && monthSummary.prevTotalCredit > 0 && (
@@ -875,15 +881,15 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <button
           type="button"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
           onClick={() => router.push('/credit-posting')}
         >
-          <CreditCard className="h-5 w-5 text-[#2563EB] dark:text-blue-400" />
+          <CreditCard className="h-5 w-5 text-[#4F46E5] dark:text-indigo-400" />
           <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Post Credit</span>
         </button>
         <button
           type="button"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
           onClick={() => router.push('/recovery')}
         >
           <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -891,7 +897,7 @@ export default function AdminDashboard() {
         </button>
         <button
           type="button"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
           onClick={() => router.push('/shops')}
         >
           <Plus className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
@@ -899,7 +905,7 @@ export default function AdminDashboard() {
         </button>
         <button
           type="button"
-          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+          className="h-auto py-4 px-4 flex flex-col items-center gap-2.5 bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
           onClick={() => router.push('/audit')}
         >
           <Activity className="h-5 w-5 text-slate-600 dark:text-slate-400" />
@@ -908,12 +914,12 @@ export default function AdminDashboard() {
       </div>
 
       {/* Today's Key Metrics Summary Strip — minimal */}
-      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-4">
+      <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl p-4">
         <div className="overflow-x-auto">
           <div className="flex gap-4 min-w-max snap-x snap-mandatory pb-1 items-center">
             {/* Total Credit Today */}
             <div className="flex items-center gap-2 snap-center">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-[#4F46E5]" />
               <div className="flex flex-col">
                 <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-none">Credit Today</span>
                 <span className="text-sm font-bold text-slate-900 dark:text-white tabular-nums leading-tight mt-0.5">{formatPKR(data.todayCredit)}</span>
@@ -952,15 +958,15 @@ export default function AdminDashboard() {
 
       {/* SMS Report Card — minimal */}
       {smsReport && smsReport.total > 0 && (
-        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
-          <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+        <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl overflow-hidden animate-fade-in">
+          <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-[#262733]">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
               <span className="text-sm font-semibold text-slate-900 dark:text-white">SMS Report — Today</span>
             </div>
             <button
               onClick={() => router.push('/sms-tracking')}
-              className="text-xs text-[#2563EB] dark:text-blue-400 hover:text-[#1E40AF] dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors"
+              className="text-xs text-[#4F46E5] dark:text-indigo-400 hover:text-[#4338CA] dark:hover:text-indigo-300 font-medium flex items-center gap-1 transition-colors"
             >
               View Details <ChevronRight className="h-3 w-3" />
             </button>
@@ -1017,14 +1023,14 @@ export default function AdminDashboard() {
       )}
 
       {/* Recent Activity Feed — minimal */}
-      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+      <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl overflow-hidden animate-fade-in">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-[#262733]">
           <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
             <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400" />
             Recent Activity
           </h3>
           <button
-            className="text-xs text-[#2563EB] dark:text-blue-400 hover:text-[#1E40AF] dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors"
+            className="text-xs text-[#4F46E5] dark:text-indigo-400 hover:text-[#4338CA] dark:hover:text-indigo-300 font-medium flex items-center gap-1 transition-colors"
             onClick={() => router.push('/audit')}
           >
             View All
@@ -1057,11 +1063,11 @@ export default function AdminDashboard() {
                   className="flex items-center justify-between gap-3 py-2.5 px-2 -mx-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-default"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <span className={`h-2 w-2 rounded-full shrink-0 ${txn.type === 'credit' ? 'bg-[#2563EB]' : txn.type === 'claim' ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                    <span className={`h-2 w-2 rounded-full shrink-0 ${txn.type === 'credit' ? 'bg-[#4F46E5]' : txn.type === 'claim' ? 'bg-red-500' : 'bg-emerald-500'}`} />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{txn.shop.name}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`text-[10px] font-medium px-1.5 py-0 rounded-full border ${txn.type === 'claim' ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900' : txn.type === 'credit' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900' : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'}`}>
+                        <span className={`text-[10px] font-medium px-1.5 py-0 rounded-full border ${txn.type === 'claim' ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900' : txn.type === 'credit' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900' : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'}`}>
                           {txn.type === 'credit' ? 'Credit' : txn.type === 'claim' ? 'Claim' : 'Recovery'}
                         </span>
                         <span className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">{getTimeAgo(txn.createdAt)}</span>
@@ -1079,14 +1085,14 @@ export default function AdminDashboard() {
       </div>
 
       {/* Live Recovery Feed — minimal */}
-      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+      <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl overflow-hidden animate-fade-in">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-[#262733]">
           <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             Live Recovery Feed
           </h3>
           <button
-            className="text-xs text-[#2563EB] dark:text-blue-400 hover:text-[#1E40AF] dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors"
+            className="text-xs text-[#4F46E5] dark:text-indigo-400 hover:text-[#4338CA] dark:hover:text-indigo-300 font-medium flex items-center gap-1 transition-colors"
             onClick={() => router.push('/recovery')}
           >
             Full Report
@@ -1156,15 +1162,15 @@ export default function AdminDashboard() {
       </div>
 
       {/* Divider — minimal */}
-      <div className="border-t border-slate-200 dark:border-[#2E2E2E]" />
+      <div className="border-t border-slate-200 dark:border-[#262733]" />
 
       {/* Charts section — wrapped with Clean Minimal title */}
-      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-5">
+      <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-slate-900 dark:text-white">Recovery Trend — Last 7 Days</h3>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
+              <span className="h-2 w-2 rounded-full bg-[#4F46E5]" />
               <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Credit</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -1177,8 +1183,8 @@ export default function AdminDashboard() {
       </div>
 
       {/* OB Performance Summary — minimal */}
-      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+      <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl overflow-hidden animate-fade-in">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-[#262733]">
           <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
             <Users className="h-4 w-4 text-slate-500 dark:text-slate-400" />
             OB Performance Summary
@@ -1198,11 +1204,11 @@ export default function AdminDashboard() {
             {data.orderbookers.map((ob) => {
               const maxOutstanding = Math.max(...data.orderbookers.map(o => o.totalOutstanding), 1);
               const pct = (ob.totalOutstanding / maxOutstanding) * 100;
-              const avatarColors = ['bg-blue-50 dark:bg-blue-950/40 text-[#1E40AF] dark:text-blue-400 border-blue-100 dark:border-blue-900', 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900', 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900', 'bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-400 border-cyan-100 dark:border-cyan-900', 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 border-violet-100 dark:border-violet-900', 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-900'];
+              const avatarColors = ['bg-indigo-50 dark:bg-indigo-950/40 text-[#4338CA] dark:text-indigo-400 border-indigo-100 dark:border-indigo-900', 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900', 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900', 'bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-400 border-cyan-100 dark:border-cyan-900', 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 border-violet-100 dark:border-violet-900', 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-900'];
               const avatarIdx = ob.name.charCodeAt(0) % avatarColors.length;
               const spark = sparklineData.find(s => s.orderbookerId === ob.id);
               return (
-                <div key={ob.id} className="border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-3.5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-default" onClick={() => router.push('/analytics')}>
+                <div key={ob.id} className="border border-slate-200 dark:border-[#262733] rounded-2xl p-3.5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-default" onClick={() => router.push('/analytics')}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className={`h-9 w-9 rounded-full border flex items-center justify-center text-sm font-bold shrink-0 ${avatarColors[avatarIdx]}`}>
                       {ob.name.charAt(0)}
@@ -1218,7 +1224,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden mb-2.5">
                     <div
-                      className="h-full rounded-full bg-[#2563EB] transition-all duration-500"
+                      className="h-full rounded-full bg-[#4F46E5] transition-all duration-500"
                       style={{ width: `${Math.min(pct, 100)}%` }}
                     />
                   </div>
@@ -1262,8 +1268,8 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Orderbooker Overview — minimal table */}
-        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+        <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#262733]">
             <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
               <Users className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               Orderbooker Overview
@@ -1272,7 +1278,7 @@ export default function AdminDashboard() {
           <ScrollArea className="max-h-80">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-200 dark:border-[#2E2E2E]">
+                <TableRow className="bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-200 dark:border-[#262733]">
                   <TableHead className="text-slate-600 dark:text-slate-300 font-semibold text-xs uppercase tracking-wider">Name</TableHead>
                   <TableHead className="text-slate-600 dark:text-slate-300 font-semibold text-xs uppercase tracking-wider text-center">Shops</TableHead>
                   <TableHead className="text-slate-600 dark:text-slate-300 font-semibold text-xs uppercase tracking-wider text-right">Outstanding</TableHead>
@@ -1301,8 +1307,8 @@ export default function AdminDashboard() {
         </div>
 
         {/* Top Debtors — minimal */}
-        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+        <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#262733]">
             <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
               <TrendingDown className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               Top 5 Debtors
@@ -1349,8 +1355,8 @@ export default function AdminDashboard() {
       </div>
 
       {/* Activity Timeline — minimal */}
-      <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
-        <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+      <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl overflow-hidden animate-fade-in">
+        <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#262733]">
           <h3 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
             <Activity className="h-4 w-4 text-slate-500 dark:text-slate-400" />
             Activity Timeline
@@ -1379,7 +1385,7 @@ export default function AdminDashboard() {
                   Post credit or collect recovery to see activity here.
                 </p>
                 <button
-                  className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#EFF6FF] dark:bg-blue-950/50 text-[#2563EB] dark:text-blue-400 text-xs font-medium hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors border border-blue-100 dark:border-blue-900"
+                  className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#EEF2FF] dark:bg-indigo-950/50 text-[#4F46E5] dark:text-indigo-400 text-xs font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors border border-indigo-100 dark:border-indigo-900"
                   onClick={() => router.push('/credit-posting')}
                 >
                   <CreditCard className="h-3.5 w-3.5" />
@@ -1394,7 +1400,7 @@ export default function AdminDashboard() {
                   <div key={group.key} className="mb-6 last:mb-0">
                     {/* Date Header */}
                     <div className="flex items-center gap-3 mb-3 -ml-8">
-                      <div className="h-3.5 w-3.5 rounded-full bg-[#2563EB] ring-4 ring-white dark:ring-[#1E1E1E] z-10 shrink-0" />
+                      <div className="h-3.5 w-3.5 rounded-full bg-[#4F46E5] ring-4 ring-white dark:ring-[#1E1E1E] z-10 shrink-0" />
                       <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{group.label}</h3>
                     </div>
                     {/* Entries for this date */}
@@ -1403,17 +1409,17 @@ export default function AdminDashboard() {
                         <div key={entry.id} className="relative pb-4 last:pb-0">
                           {/* Timeline dot */}
                           <div className={`absolute -left-8 top-1.5 h-3.5 w-3.5 rounded-full ring-4 ring-white dark:ring-[#1E1E1E] z-10 ${
-                            entry.type === 'credit' ? 'bg-[#2563EB]' : entry.type === 'recovery' ? 'bg-emerald-500' : 'bg-slate-400'
+                            entry.type === 'credit' ? 'bg-[#4F46E5]' : entry.type === 'recovery' ? 'bg-emerald-500' : 'bg-slate-400'
                           }`} />
                           {/* Timeline entry */}
-                          <div className="rounded-md border border-slate-200 dark:border-[#2E2E2E] bg-white dark:bg-[#1E1E1E] p-3 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+                          <div className="rounded-md border border-slate-200 dark:border-[#262733] bg-white dark:bg-[#1A1B24] p-3 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
                                 {/* Time and badge */}
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">{formatTimeFull(entry.createdAt)}</span>
                                   <span className={`text-[9px] font-medium px-1.5 py-0 rounded-full border ${
-                                    entry.type === 'credit' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900' : entry.type === 'recovery' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                                    entry.type === 'credit' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900' : entry.type === 'recovery' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                                   }`}>
                                     {entry.type === 'credit' ? 'Credit' : entry.type === 'recovery' ? 'Recovery' : 'Edit'}
                                   </span>
@@ -1433,7 +1439,7 @@ export default function AdminDashboard() {
                               <div className="text-right shrink-0">
                                 {entry.amount > 0 && (
                                   <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full border ${
-                                    entry.type === 'credit' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900' : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'
+                                    entry.type === 'credit' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900' : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'
                                   }`}>
                                     {entry.type === 'credit' ? '+' : '-'}{formatPKR(entry.amount)}
                                   </span>
@@ -1455,9 +1461,9 @@ export default function AdminDashboard() {
         </ScrollArea>
         {/* View All Activity Link */}
         {timeline.length > 0 && (
-          <div className="border-t border-slate-200 dark:border-[#2E2E2E] px-5 py-3">
+          <div className="border-t border-slate-200 dark:border-[#262733] px-5 py-3">
             <button
-              className="flex items-center gap-1.5 text-xs font-medium text-[#2563EB] dark:text-blue-400 hover:text-[#1E40AF] dark:hover:text-blue-300 transition-colors group"
+              className="flex items-center gap-1.5 text-xs font-medium text-[#4F46E5] dark:text-indigo-400 hover:text-[#4338CA] dark:hover:text-indigo-300 transition-colors group"
               onClick={() => router.push('/audit')}
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -1470,8 +1476,8 @@ export default function AdminDashboard() {
 
       {/* Business Summary Widget — minimal */}
       {bizSummary && (
-        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg overflow-hidden animate-fade-in">
-          <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-200 dark:border-[#2E2E2E]">
+        <div className="bg-white dark:bg-[#1A1B24] border border-slate-200 dark:border-[#262733] rounded-2xl overflow-hidden animate-fade-in">
+          <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-200 dark:border-[#262733]">
             <Activity className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
             <span className="text-sm font-semibold text-slate-900 dark:text-white">All-Time Business Summary</span>
           </div>
@@ -1479,7 +1485,7 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-3 gap-4">
               <div className="text-left">
                 <div className="flex items-center gap-1.5 mb-2">
-                  <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
+                  <span className="h-2 w-2 rounded-full bg-[#4F46E5]" />
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Total Volume</p>
                 </div>
                 <p className="text-lg font-bold text-slate-900 dark:text-white tabular-nums">{formatPKR(bizSummary.totalCredit)}</p>
