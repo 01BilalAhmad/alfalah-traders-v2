@@ -366,6 +366,50 @@ export async function POST(request: NextRequest) {
       const isAdmin = creatorRole === 'admin' || creatorRole === 'super_admin';
       const txnStatus = type === 'recovery' ? (isAdmin ? 'approved' : 'pending') : 'approved';
 
+      // ─── Multi-company authorization check (NEW) ──────────────────
+      // If a companyId was supplied in the body (mobile app sends the
+      // user's primary company from the login response), verify the
+      // creator is actually assigned to that company via UserCompany.
+      //
+      // WHY: previously the companyId was validated for existence in the
+      // Company table, but NOT for assignment to the creator. An OB
+      // who has companies [A, B] could submit a transaction tagged with
+      // companyId=C (which exists but isn't theirs), and it would be
+      // accepted — polluting company C's ledger with their activity.
+      //
+      // Admins bypass: they sometimes need to post on behalf of any
+      // company for operational reasons (e.g., back-dated corrections
+      // during customer onboarding).
+      //
+      // Backward compat: if the UserCompany table doesn't exist yet
+      // (very old DBs before multi-company feature), the try/catch
+      // silently falls through and the txn is accepted — preserving
+      // prior behavior for legacy installs.
+      if (companyId && !isAdmin) {
+        try {
+          const userCompanyRes = await client.query(
+            `SELECT 1 FROM "UserCompany"
+              WHERE "userId" = $1 AND "companyId" = $2
+              LIMIT 1`,
+            [createdBy, companyId]
+          );
+          if (userCompanyRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return NextResponse.json(
+              {
+                error: 'You are not assigned to this company. Please select a company that is assigned to your account, or contact an admin.',
+                code: 'COMPANY_NOT_ASSIGNED',
+              },
+              { status: 403 }
+            );
+          }
+        } catch (userCompanyErr) {
+          // UserCompany table may not exist on very old DBs — log and proceed.
+          console.error('[Transactions] UserCompany check failed (table may not exist):', userCompanyErr);
+        }
+      }
+      // ─── End multi-company authorization check ────────────────────
+
       // If recovery and no companyId, infer from ShopCompanyBalance (highest balance first) or shop's orderbooker
       let effectiveCompanyId = companyId || null;
       if (type === 'recovery' && !effectiveCompanyId) {
