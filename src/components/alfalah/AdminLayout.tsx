@@ -185,6 +185,7 @@ function SidebarContent({
   todayRecovery,
   miniStats,
   statsLoading,
+  pendingApprovals = 0,
   collapsed = false,
   businessName,
   businessPhone,
@@ -198,6 +199,7 @@ function SidebarContent({
   todayRecovery: number;
   miniStats: { totalShops: number; totalOBs: number };
   statsLoading: boolean;
+  pendingApprovals?: number;
   collapsed?: boolean;
   businessName: string;
   businessPhone: string;
@@ -312,6 +314,11 @@ function SidebarContent({
                         {item.icon}
                       </span>
                       {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
+                      {!collapsed && item.id === 'admin-approve-recovery' && pendingApprovals > 0 && (
+                        <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900 tabular-nums">
+                          {pendingApprovals}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -416,6 +423,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [miniStats, setMiniStats] = useState<{ totalShops: number; totalOBs: number }>({ totalShops: 0, totalOBs: 0 });
   const [todayRecovery, setTodayRecovery] = useState<number>(0);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
 
   const loadStats = useRef(async () => {
     try {
@@ -449,6 +457,27 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     };
   }, []);
 
+  // Pending approvals count — sidebar badge on "Approve Recovery" (visual aid only)
+  useEffect(() => {
+    let cancelled = false;
+    const loadPending = async () => {
+      try {
+        const res = await apiFetch('/api/transactions/pending-summary');
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setPendingApprovals(data.count || 0);
+        }
+      } catch { /* silent */ }
+    };
+    const timer = setTimeout(loadPending, 2500);
+    const interval = setInterval(loadPending, 60000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, []);
+
   // Scroll to top when pathname changes
   useEffect(() => {
     const el = document.getElementById('main-scroll-container');
@@ -475,6 +504,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     todayRecovery,
     miniStats,
     statsLoading,
+    pendingApprovals,
     businessName,
     businessPhone,
     onLogout: handleLogout,

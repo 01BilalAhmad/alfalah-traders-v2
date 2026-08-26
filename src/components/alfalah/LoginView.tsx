@@ -5,7 +5,6 @@ import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import Image from 'next/image';
 import { Eye, EyeOff, LogIn, Loader2, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck, Mail, AlertCircle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -179,13 +178,17 @@ export default function LoginView() {
         {/* LOGIN VIEW */}
         {viewMode === 'login' && (
           <div className="login-card animate-fade-in">
-            {/* Logo */}
-            <div className="login-logo-wrap mb-5">
-              <Image src="/finexa-wordmark-v2.png" alt="Finexa" width={140} height={140} priority />
+            {/* Brand — gradient tile + wordmark (theme-aware) */}
+            <div className="login-brand mb-4">
+              <div className="login-brand-tile">F</div>
+              <div className="login-brand-word">Finexa<span>AFE</span></div>
             </div>
+            <p className="text-center text-[12px] text-slate-500 dark:text-slate-400 mb-4">
+              Al-Falah Traders · Recovery &amp; Ledger System
+            </p>
 
             {/* Heading */}
-            <h2 className="text-center text-[28px] font-black text-primary tracking-tight">Sign In</h2>
+            <h2 className="text-center text-[26px] font-black text-primary tracking-tight">Sign In</h2>
 
             {/* Error */}
             {loginError && (
@@ -271,7 +274,7 @@ export default function LoginView() {
             </form>
 
             {/* Footer */}
-            <p className="mt-5 text-center text-[10px] text-gray-400 dark:text-gray-400">
+            <p className="mt-5 text-center text-[11px] text-gray-400 dark:text-gray-400 leading-relaxed">
               &copy; 2026 Finexa. All rights reserved. Unauthorized copying, reverse engineering, modification, or distribution of this software is strictly prohibited and punishable under Copyright Ordinance 1962 &amp; PECA 2016.
             </p>
           </div>

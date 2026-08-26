@@ -812,7 +812,7 @@ export default function AdminTransactions() {
                       <TableCell>
                         <div>
                           <p className="text-sm font-medium">{txn.shop?.name || 'Unknown'}</p>
-                          <p className="text-[10px] text-muted-foreground sm:hidden">
+                          <p className="text-[11px] text-muted-foreground sm:hidden">
                             {txn.shop?.area || ''} &bull; {txn.creator?.name || ''}
                           </p>
                         </div>
@@ -820,48 +820,56 @@ export default function AdminTransactions() {
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           {txn.type === 'credit' ? (
-                            <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-[10px] w-fit">
+                            <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 text-[11px] w-fit">
                               <ArrowDownLeft className="h-3 w-3 mr-0.5" />
                               Credit
                             </Badge>
                           ) : txn.type === 'claim' ? (
-                            <Badge className="bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border-red-200 dark:border-red-800 text-[10px] w-fit">
+                            <Badge className="bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border-red-200 dark:border-red-800 text-[11px] w-fit">
                               <ShieldAlert className="h-3 w-3 mr-0.5" />
                               Claim
                             </Badge>
                           ) : txn.type === 'supplier_collection' ? (
-                            <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300 border-orange-200 dark:border-orange-800 text-[10px] w-fit">
+                            <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300 border-orange-200 dark:border-orange-800 text-[11px] w-fit">
                               <TrendingUp className="h-3 w-3 mr-0.5" />
                               Supp. Coll.
                             </Badge>
                           ) : (
-                            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[10px] w-fit">
+                            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[11px] w-fit">
                               <TrendingUp className="h-3 w-3 mr-0.5" />
                               Recovery
                             </Badge>
                           )}
                           {txn.status === 'pending' && (
-                            <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 text-[9px] w-fit">
+                            <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 text-[10px] w-fit">
                               Pending
                             </Badge>
                           )}
                           {txn.status === 'rejected' && (
-                            <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 text-[9px] w-fit">
+                            <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 text-[10px] w-fit">
                               Rejected
                             </Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={`text-sm font-semibold ${txn.type === 'claim' ? 'text-red-600 dark:text-red-400' : txn.type === 'credit' ? 'text-foreground' : 'text-foreground'}`}>
+                        <span className={`text-sm font-semibold tabular-nums ${
+                          txn.type === 'claim'
+                            ? 'text-red-600 dark:text-red-400'
+                            : txn.type === 'recovery'
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : txn.type === 'supplier_collection'
+                                ? 'text-orange-600 dark:text-orange-400'
+                                : 'text-foreground'
+                        }`}>
                           {txn.type === 'credit' ? '+' : '-'}{formatPKR(txn.amount)}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right text-sm text-muted-foreground hidden md:table-cell">
+                      <TableCell className="text-right text-sm text-muted-foreground tabular-nums hidden md:table-cell">
                         {formatPKR(txn.previousBalance)}
                       </TableCell>
                       <TableCell className="text-right hidden md:table-cell">
-                        <span className={`text-sm font-medium ${txn.newBalance > txn.previousBalance ? 'text-foreground' : txn.newBalance < txn.previousBalance ? 'text-foreground' : ''}`}>
+                        <span className={`text-sm font-medium tabular-nums ${txn.newBalance > txn.previousBalance ? 'text-foreground' : txn.newBalance < txn.previousBalance ? 'text-foreground' : ''}`}>
                           {formatPKR(txn.newBalance)}
                         </span>
                       </TableCell>

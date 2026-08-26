@@ -39,7 +39,33 @@ import {
   CheckCircle2,
   XCircle,
   SkipForward,
+  Store,
+  Wallet,
 } from 'lucide-react';
+
+/** Tiny inline sparkline for KPI cards — pure SVG, no deps */
+function Sparkline({ data, color, className = '' }: { data: number[]; color: string; className?: string }) {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const pts = data
+    .map((v, i) => `${(i / (data.length - 1)) * 100},${26 - ((v - min) / range) * 22}`)
+    .join(' ');
+  return (
+    <svg viewBox="0 0 100 28" preserveAspectRatio="none" className={className} aria-hidden="true">
+      <polyline
+        points={pts}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+}
 
 function PendingRecoveryBanner({ onNavigate }: { onNavigate: (path: string) => void }) {
   const [pendingCount, setPendingCount] = useState(0);
@@ -673,58 +699,92 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* KPI Cards — Clean Minimal */}
+      {/* KPI Cards — Refined Finexa (semantic colors + delta chips + sparklines) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Today's Credit */}
-        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
+        {/* Today's Credit — blue */}
+        <div className="relative overflow-hidden bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-xl p-5 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md transition-all">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Today&apos;s Credit</span>
+            <span className="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[#2563EB] dark:text-blue-400 flex items-center justify-center shrink-0">
+              <CreditCard className="h-4 w-4" />
+            </span>
           </div>
-          <p className="text-[28px] font-bold text-slate-900 dark:text-white tabular-nums leading-none number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+          <p className="text-[28px] font-bold text-[#2563EB] dark:text-blue-400 tabular-nums leading-none number-animate number-display">{formatPKR(animatedTodayCredit)}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1 flex-wrap">
             {creditChangePct !== null ? (
-              <span className={creditChangePct >= 0 ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-red-600 dark:text-red-400 font-medium'}>
-                {creditChangePct >= 0 ? '+' : ''}{creditChangePct}% from yesterday
-              </span>
+              <>
+                <span className={`inline-flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full border text-[10px] ${
+                  creditChangePct >= 0
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'
+                    : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900'
+                }`}>
+                  {creditChangePct >= 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
+                  {Math.abs(creditChangePct)}%
+                </span>
+                <span>vs yesterday</span>
+              </>
             ) : (
               <span>Total credits posted today</span>
             )}
           </p>
+          <Sparkline
+            data={trends.slice(-7).map((t) => t.credit)}
+            color="#2563EB"
+            className="absolute bottom-0 right-0 h-7 w-20 opacity-50 pointer-events-none"
+          />
         </div>
-        {/* Today's Recovery */}
-        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+        {/* Today's Recovery — green */}
+        <div className="relative overflow-hidden bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-xl p-5 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md transition-all">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Today&apos;s Recovery</span>
+            <span className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <TrendingUp className="h-4 w-4" />
+            </span>
           </div>
-          <p className="text-[28px] font-bold text-slate-900 dark:text-white tabular-nums leading-none number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+          <p className="text-[28px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums leading-none number-animate number-display">{formatPKR(animatedTodayRecovery)}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1 flex-wrap">
             {recoveryChangePct !== null ? (
-              <span className={recoveryChangePct >= 0 ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-red-600 dark:text-red-400 font-medium'}>
-                {recoveryChangePct >= 0 ? '+' : ''}{recoveryChangePct}% from yesterday
-              </span>
+              <>
+                <span className={`inline-flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full border text-[10px] ${
+                  recoveryChangePct >= 0
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900'
+                    : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900'
+                }`}>
+                  {recoveryChangePct >= 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
+                  {Math.abs(recoveryChangePct)}%
+                </span>
+                <span>vs yesterday</span>
+              </>
             ) : (
               <span>Total recoveries collected today</span>
             )}
           </p>
+          <Sparkline
+            data={trends.slice(-7).map((t) => t.recovery)}
+            color="#059669"
+            className="absolute bottom-0 right-0 h-7 w-20 opacity-50 pointer-events-none"
+          />
         </div>
-        {/* Total Outstanding */}
-        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="h-2 w-2 rounded-full bg-amber-500" />
+        {/* Total Outstanding — amber */}
+        <div className="relative overflow-hidden bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-xl p-5 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md transition-all">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Outstanding</span>
+            <span className="h-8 w-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <Wallet className="h-4 w-4" />
+            </span>
           </div>
-          <p className="text-[28px] font-bold text-slate-900 dark:text-white tabular-nums leading-none number-animate number-display">{formatPKR(animatedOutstanding)}</p>
+          <p className="text-[28px] font-bold text-amber-600 dark:text-amber-400 tabular-nums leading-none number-animate number-display">{formatPKR(animatedOutstanding)}</p>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
             <span>Outstanding across all shops</span>
           </p>
         </div>
-        {/* Total Active Shops */}
-        <div className="bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-lg p-5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="h-2 w-2 rounded-full bg-cyan-500" />
+        {/* Total Active Shops — cyan */}
+        <div className="relative overflow-hidden bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#2E2E2E] rounded-xl p-5 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md transition-all">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Active Shops</span>
+            <span className="h-8 w-8 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
+              <Store className="h-4 w-4" />
+            </span>
           </div>
           <p className="text-[28px] font-bold text-slate-900 dark:text-white tabular-nums leading-none number-animate number-display">{animatedTotalShops}</p>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
