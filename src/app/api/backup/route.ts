@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getPool } from '@/lib/pg';
 import { requireAdmin } from '@/lib/auth-guard';
 import bcrypt from 'bcryptjs';
 
@@ -104,12 +105,31 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // ─── Tally system tables (raw SQL — captures ALL columns including
+    //     GPS/void/resolution fields added by tally-migrations, which the
+    //     Prisma models don't cover) ─────────────────────────────────
+    //     These were MISSING from backups before v2.1 — tally data was
+    //     never backed up, so any DB restore lost it permanently.
+    const pool = getPool();
+    const [
+      shopTalliesRes, tellerSessionsRes, tellerAssignmentsRes, notificationsRes,
+    ] = await Promise.all([
+      pool.query(`SELECT * FROM "ShopTally" ORDER BY "tallyDate" ASC LIMIT 50000`).catch(() => ({ rows: [] as any[] })),
+      pool.query(`SELECT * FROM "TellerSession" ORDER BY "startTime" ASC LIMIT 50000`).catch(() => ({ rows: [] as any[] })),
+      pool.query(`SELECT * FROM "TellerAssignment" ORDER BY "createdAt" ASC LIMIT 50000`).catch(() => ({ rows: [] as any[] })),
+      pool.query(`SELECT * FROM "Notification" ORDER BY "createdAt" ASC LIMIT 50000`).catch(() => ({ rows: [] as any[] })),
+    ]);
+    const shopTallies = shopTalliesRes.rows;
+    const tellerSessions = tellerSessionsRes.rows;
+    const tellerAssignments = tellerAssignmentsRes.rows;
+    const notifications = notificationsRes.rows;
+
     // routeDays is returned as native array from PostgreSQL
     const shops = shopsRaw;
     const shopOrderbookers = shopOrderbookersRaw;
 
     const backup = {
-      version: '2.0',
+      version: '2.1',
       exportedAt: new Date().toISOString(),
       metadata: {
         application: 'Finexa - Smart Credit Management',
@@ -120,12 +140,15 @@ export async function GET(request: NextRequest) {
           userCompanies: userCompanies.length, shopOrderbookers: shopOrderbookers.length,
           dailyTargets: dailyTargets.length, shopNotes: shopNotes.length,
           shopVisits: shopVisits.length,
+          shopTallies: shopTallies.length, tellerSessions: tellerSessions.length,
+          tellerAssignments: tellerAssignments.length, notifications: notifications.length,
         },
       },
       data: {
         users, shops, transactions, auditLogs, companies,
         shopCompanyBalances, userCompanies, shopOrderbookers,
         dailyTargets, shopNotes, shopVisits,
+        shopTallies, tellerSessions, tellerAssignments, notifications,
       },
     };
 
@@ -218,6 +241,7 @@ export async function POST(request: NextRequest) {
       companies: 0, users: 0, shops: 0, transactions: 0,
       shopCompanyBalances: 0, userCompanies: 0, shopOrderbookers: 0,
       dailyTargets: 0, shopNotes: 0, shopVisits: 0, auditLogs: 0,
+      shopTallies: 0, tellerSessions: 0, tellerAssignments: 0, notifications: 0,
     };
 
     // ══════════════════════════════════════════════════════════
@@ -904,6 +928,88 @@ export async function POST(request: NextRequest) {
       console.log(`[BACKUP-IMPORT] Merge import complete:`, counts, `skipped: ${shopsSkipped} shops, ${transactionsSkipped} transactions`);
     }
 
+    // ════════════════════════════════════════════════════════
+    // TALLY SYSTEM TABLES (v2.1+ backups) — ShopTally,
+    // TellerSession, TellerAssignment, Notification.
+    //
+    // Old v2.0 backups have no tally keys → import is skipped AND
+    // existing tally data is PRESERVED (never wiped by a restore).
+    // This closes the gap that permanently lost tally history when
+    // restoring from backups that never contained it.
+    // ════════════════════════════════════════════════════════
+    const shopTalliesIn = (data.shopTallies || []) as Record<string, unknown>[];
+    const tellerSessionsIn = (data.tellerSessions || []) as Record<string, unknown>[];
+    const tellerAssignmentsIn = (data.tellerAssignments || []) as Record<string, unknown>[];
+    const notificationsIn = (data.notifications || []) as Record<string, unknown>[];
+    const hasTallyData =
+      shopTalliesIn.length > 0 || tellerSessionsIn.length > 0 ||
+      tellerAssignmentsIn.length > 0 || notificationsIn.length > 0;
+
+    if (hasTallyData) {
+      const pool = getPool();
+
+      // In replace mode, clear tally tables ONLY when the backup itself
+      // contains tally data (true replace). v2.0 backups leave them intact.
+      if (mode === 'replace') {
+        console.log('[BACKUP-IMPORT] Replace mode: clearing tally tables (backup contains tally data)');
+        await pool.query('DELETE FROM "ShopTally"');
+        await pool.query('DELETE FROM "TellerSession"');
+        await pool.query('DELETE FROM "TellerAssignment"');
+        await pool.query('DELETE FROM "Notification"');
+      }
+
+      // FK remapping — user/shop ids may have been remapped above
+      const remapUser = (id: unknown): unknown =>
+        id != null && userIdMap.has(String(id)) ? userIdMap.get(String(id)) : id;
+      const remapShop = (id: unknown): unknown =>
+        id != null && shopIdMap.has(String(id)) ? shopIdMap.get(String(id)) : id;
+
+      const USER_FKS = new Set(['talliedBy', 'orderbookerId', 'resolvedBy', 'voidedBy', 'tellerId', 'userId']);
+      const SHOP_FKS = new Set(['shopId']);
+
+      const insertRaw = async (table: string, rows: Record<string, unknown>[]): Promise<number> => {
+        let importedCount = 0;
+        for (const row of rows) {
+          const cols = Object.keys(row).filter((c) => row[c] !== undefined);
+          if (!cols.includes('id')) continue;
+          const remapped: Record<string, unknown> = { ...row };
+          for (const c of cols) {
+            if (USER_FKS.has(c)) remapped[c] = remapUser(row[c]);
+            else if (SHOP_FKS.has(c)) remapped[c] = remapShop(row[c]);
+          }
+          const colSql = cols.map((c) => `"${c}"`).join(', ');
+          const valSql = cols.map((_, i) => `$${i + 1}`).join(', ');
+          try {
+            const res = await pool.query(
+              `INSERT INTO "${table}" (${colSql}) VALUES (${valSql}) ON CONFLICT ("id") DO NOTHING`,
+              cols.map((c) => remapped[c])
+            );
+            importedCount += res.rowCount ?? 0;
+          } catch (e) {
+            // Row-level failures (e.g. unique constraint on TellerAssignment
+            // (tellerId, orderbookerId)) are skipped — non-fatal.
+            console.warn(`[BACKUP-IMPORT] ${table} row skipped:`, e instanceof Error ? e.message : String(e));
+          }
+        }
+        return importedCount;
+      };
+
+      // Import order: assignments → sessions → tallies → notifications
+      counts.tellerAssignments = await insertRaw('TellerAssignment', tellerAssignmentsIn);
+      counts.tellerSessions = await insertRaw('TellerSession', tellerSessionsIn);
+      counts.shopTallies = await insertRaw('ShopTally', shopTalliesIn);
+      counts.notifications = await insertRaw('Notification', notificationsIn);
+
+      console.log('[BACKUP-IMPORT] Tally tables imported:', {
+        shopTallies: counts.shopTallies,
+        tellerSessions: counts.tellerSessions,
+        tellerAssignments: counts.tellerAssignments,
+        notifications: counts.notifications,
+      });
+    } else {
+      console.log('[BACKUP-IMPORT] Backup has no tally data (v2.0 format) — existing tally data preserved');
+    }
+
     return NextResponse.json({
       success: true,
       mode,
@@ -945,6 +1051,19 @@ export async function DELETE(request: NextRequest) {
       db.shopOrderbooker.count(), db.dailyTarget.count(), db.shopNote.count(), db.shopVisit.count(),
     ]);
 
+    // Tally system table counts (raw SQL — tables created via tally-migrations)
+    const pool = getPool();
+    const tallyCounts = await Promise.all([
+      pool.query(`SELECT COUNT(*)::int AS c FROM "ShopTally"`).catch(() => ({ rows: [{ c: 0 }] })),
+      pool.query(`SELECT COUNT(*)::int AS c FROM "TellerSession"`).catch(() => ({ rows: [{ c: 0 }] })),
+      pool.query(`SELECT COUNT(*)::int AS c FROM "TellerAssignment"`).catch(() => ({ rows: [{ c: 0 }] })),
+      pool.query(`SELECT COUNT(*)::int AS c FROM "Notification"`).catch(() => ({ rows: [{ c: 0 }] })),
+    ]);
+    const shopTallyCount = tallyCounts[0].rows[0]?.c ?? 0;
+    const tellerSessionCount = tallyCounts[1].rows[0]?.c ?? 0;
+    const tellerAssignmentCount = tallyCounts[2].rows[0]?.c ?? 0;
+    const notificationCount = tallyCounts[3].rows[0]?.c ?? 0;
+
     return NextResponse.json({
       tables: {
         users: { count: userCount, description: 'Admin and orderbooker accounts' },
@@ -958,8 +1077,12 @@ export async function DELETE(request: NextRequest) {
         dailyTargets: { count: dailyTargetCount, description: 'Monthly recovery targets' },
         shopNotes: { count: shopNoteCount, description: 'Shop notes' },
         shopVisits: { count: shopVisitCount, description: 'GPS shop visits' },
+        shopTallies: { count: shopTallyCount, description: 'Market tally records (ShopTally)' },
+        tellerSessions: { count: tellerSessionCount, description: 'Teller work sessions' },
+        tellerAssignments: { count: tellerAssignmentCount, description: 'Teller-to-orderbooker assignments' },
+        notifications: { count: notificationCount, description: 'In-app notifications' },
       },
-      summary: { totalRecords: userCount + shopCount + transactionCount + auditLogCount + companyCount + shopCompanyBalanceCount + userCompanyCount + shopOrderbookerCount + dailyTargetCount + shopNoteCount + shopVisitCount, totalTables: 11 },
+      summary: { totalRecords: userCount + shopCount + transactionCount + auditLogCount + companyCount + shopCompanyBalanceCount + userCompanyCount + shopOrderbookerCount + dailyTargetCount + shopNoteCount + shopVisitCount + shopTallyCount + tellerSessionCount + tellerAssignmentCount + notificationCount, totalTables: 15 },
     });
   } catch (error) {
     console.error('Error fetching backup info:', error);

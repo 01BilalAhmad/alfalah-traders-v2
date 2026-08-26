@@ -92,10 +92,14 @@ export async function GET(request: NextRequest) {
       const pool = getPool();
 
       // Backup key tables
+      // NOTE: ShopTally/TellerSession/TellerAssignment/Notification added
+      // after tally history was permanently lost in a DB incident — the
+      // weekly backup never contained tally data before this fix.
       const tables = [
         'Shop', 'User', 'Company', 'Transaction', 'ShopCompanyBalance',
         'ShopOrderbooker', 'UserCompany', 'DailyTarget', 'SmsLog',
         'RouteSession', 'RouteShopVisit', 'ShopVisit', 'ShopNote',
+        'ShopTally', 'TellerSession', 'TellerAssignment', 'Notification',
       ];
 
       const dbBackup: Record<string, any[]> = {};
