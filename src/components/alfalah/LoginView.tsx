@@ -187,8 +187,8 @@ export default function LoginView() {
         <div className="relative flex items-center gap-3">
           <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 flex items-center justify-center font-black text-xl shadow-xl shadow-indigo-500/40">F</div>
           <div>
-            <p className="text-xl font-bold tracking-tight leading-none">Finexa<span className="text-violet-300">AFE</span></p>
-            <p className="text-[11px] text-slate-400 mt-1">Al-Falah Traders</p>
+            <p className="text-xl font-bold tracking-tight leading-none">Finexa</p>
+            <p className="text-[11px] text-slate-400 mt-1">Smart Credit Management</p>
           </div>
         </div>
 
@@ -246,10 +246,10 @@ export default function LoginView() {
             {/* Brand — gradient tile + wordmark (mobile only; desktop shows left panel brand) */}
             <div className="login-brand mb-4 lg:hidden">
               <div className="login-brand-tile">F</div>
-              <div className="login-brand-word">Finexa<span>AFE</span></div>
+              <div className="login-brand-word">Finexa</div>
             </div>
             <p className="text-center text-[12px] text-slate-500 dark:text-slate-400 mb-4">
-              Al-Falah Traders · Recovery &amp; Ledger System
+              Recovery &amp; Ledger System
             </p>
 
             {/* Heading */}
