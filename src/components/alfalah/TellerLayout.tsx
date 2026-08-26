@@ -37,7 +37,7 @@ export default function TellerLayout({ children }: TellerLayoutProps) {
           </div>
           <div className="min-w-0">
             <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-tight tracking-tight truncate">
-              AL-FALAH TRADERS
+              Finexa
             </p>
             <p className="text-[10px] text-slate-500 dark:text-slate-500 leading-tight mt-0.5 flex items-center gap-1">
               <ClipboardCheck className="h-2.5 w-2.5" />

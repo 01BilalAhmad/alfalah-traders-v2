@@ -220,7 +220,7 @@ function SidebarContent({
           {!collapsed && (
             <div className="min-w-0">
               <p className="text-[13px] font-bold text-white leading-tight tracking-tight">
-                AL-FALAH TRADERS
+                Finexa
               </p>
               <p className="text-[10px] text-indigo-300/60 leading-tight mt-0.5">
                 Management Portal
