@@ -111,14 +111,42 @@ function isLoginRateLimited(ip: string): boolean {
 // Now: returns null for unrecognized origins, and the caller skips setting
 // the Access-Control-Allow-Origin header in that case (browsers will block
 // the cross-origin read).
+//
+// AUDIT NOTE (Tier A fix #10):
+// React Native (the Finexa mobile app) does NOT enforce CORS — its fetch
+// implementation isn't a browser, so the Origin header isn't sent in
+// production. This means the mobile app's API calls bypass this allowlist
+// entirely, which is the intended behavior (mobile uses Bearer JWT auth,
+// not cookies).
+//
+// The allowlist below is therefore only relevant for:
+//   1. The web admin frontend (alfalah-traders.vercel.app)
+//   2. Vercel preview deployments (regex match below)
+//   3. Local web dev (http://localhost:3000)
+//   4. Legacy Capacitor builds (capacitor://localhost) — kept for safety
+//   5. Expo dev server (http://localhost:8081) — for the React Native
+//      WebView on map.tsx (the inline HTML loads OpenStreetMap tiles
+//      from https://tile.openstreetmap.org, but no API calls to backend)
+//
+// If you add a new frontend domain, add it here too.
 const ALLOWED_ORIGINS = [
+  // Production web frontends
   'https://alfalah-traders.vercel.app',
   'https://finexa-cms.vercel.app',
   'https://finexa-cms-s-projects.vercel.app',
+  // Local web dev
   'http://localhost:3000',
+  // Legacy Capacitor (old Android APK builds — no longer maintained,
+  // but kept for safety in case some users still have old APKs installed)
   'capacitor://localhost',
   'http://localhost',
   'https://localhost',
+  // Expo / React Native dev server (the mobile app in development)
+  // Production RN apps don't send an Origin header at all, so these are
+  // only relevant for `expo start` + WebView testing.
+  'http://localhost:8081',
+  'http://localhost:8082',
+  'expo://localhost',
 ];
 
 function getAllowedOrigin(request: NextRequest): string | null {
@@ -404,15 +432,34 @@ export async function proxy(request: NextRequest) {
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
 
-  // ─── Security Headers ───────────────────────────────────────
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('X-XSS-Protection', '1; mode=block');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set(
-    'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=(self)'
-  );
+  // ─── Security Headers — DEFERRED to next.config.ts ───────────
+  // Previously, proxy.ts set the following headers HERE on every API
+  // response:
+  //   X-Content-Type-Options: nosniff
+  //   X-Frame-Options: DENY
+  //   X-XSS-Protection: 1; mode=block  ← DEPRECATED by modern browsers
+  //   Referrer-Policy: strict-origin-when-cross-origin
+  //   Permissions-Policy: camera=(), microphone=(), geolocation=(self)
+  //
+  // These were DUPLICATES of headers already set globally in
+  // next.config.ts → headers() → source '/(.*)' — which applies to
+  // ALL routes including /api/*.
+  //
+  // Worse, the proxy.ts version of Permissions-Policy was LESS
+  // restrictive than next.config.ts (missing payment=(), usb=(),
+  // magnetometer=(), gyroscope=(), accelerometer=()). When both
+  // versions are emitted, the more-restrictive one wins — but if
+  // the order changed in future Next.js releases, we'd silently
+  // regress to the weaker policy.
+  //
+  // Fix: rely on next.config.ts as the single source of truth.
+  // That config also sets Strict-Transport-Security, Content-Security-Policy,
+  // X-DNS-Prefetch-Control, and X-Permitted-Cross-Domain-Policies,
+  // which were missing from proxy.ts entirely.
+  //
+  // If you need to add a route-specific security header override,
+  // add it to next.config.ts → headers() with a more specific `source`
+  // pattern, NOT here in proxy.ts.
 
   return response;
 }
