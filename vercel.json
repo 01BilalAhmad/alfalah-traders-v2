@@ -9,7 +9,7 @@
       "schedule": "0 19 * * *"
     },
     {
-      "path": "/api/cron/auto-backup?token=finexa-backup-2026",
+      "path": "/api/cron/auto-backup",
       "schedule": "0 22 * * 0"
     },
     {
