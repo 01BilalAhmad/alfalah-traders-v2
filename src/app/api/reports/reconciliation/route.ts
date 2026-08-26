@@ -1,12 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg';
 
-// Helper: Convert a date string (YYYY-MM-DD) to UTC day boundaries
-function getDayRange(dateStr: string): { start: Date; end: Date } {
+// ─── Pakistan Standard Time (PKT) helpers ──────────────────────────
+// BUG FIX (previously): getDayRange() used Date.UTC(year, month-1, day, ...)
+// which made the report filter by UTC midnight → UTC midnight.
+// Pakistan is UTC+5 and has NOT observed DST since 2009, so PKT 00:00
+// is consistently UTC 19:00 (previous day). The old code therefore:
+//   - MISSED transactions made between PKT 00:00–04:59 (still in UTC yesterday)
+//   - INCLUDED transactions made between PKT 00:00–04:59 of the NEXT day
+//   Net effect: every reconciliation report was off by ~5 hours.
+//
+// Fix: compute the day's boundaries in PKT, then convert to UTC ms
+// timestamps before sending to Postgres. Postgres stores timestamps in
+// UTC, so a BETWEEN '2024-08-01T19:00:00.000Z' AND '2024-08-02T18:59:59.999Z'
+// is exactly "PKT 1st August 00:00 → 23:59:59.999".
+
+const PKT_OFFSET_MS = 5 * 60 * 60 * 1000; // PKT = UTC+5 (no DST since 2009)
+
+function getPktDayRangeUtc(dateStr: string): { start: Date; end: Date; displayDate: string } {
   const [year, month, day] = dateStr.split('-').map(Number);
-  const start = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-  const end = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
-  return { start, end };
+  // PKT 00:00:00.000 = UTC midnight minus 5 hours
+  const start = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - PKT_OFFSET_MS);
+  // PKT 23:59:59.999 = UTC 23:59:59 minus 5 hours
+  const end = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999) - PKT_OFFSET_MS);
+  return { start, end, displayDate: dateStr };
+}
+
+function getTodayPktString(): string {
+  // Intl with en-CA gives ISO-like "YYYY-MM-DD" format, which is what
+  // our dateStr parser expects. timeZone: 'Asia/Karachi' makes the
+  // calendar day be the PKT day, not the UTC day.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
 }
 
 // GET /api/reports/reconciliation?date=xxx
@@ -15,24 +44,30 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get('date');
 
-    // Use Pakistan timezone
     let startDate: Date;
     let endDate: Date;
     let displayDate: string;
 
     if (dateStr) {
-      const range = getDayRange(dateStr);
+      // Validate format: must be YYYY-MM-DD
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return NextResponse.json(
+          { error: 'Invalid date format. Use YYYY-MM-DD.' },
+          { status: 400 }
+        );
+      }
+      const range = getPktDayRangeUtc(dateStr);
       startDate = range.start;
       endDate = range.end;
-      displayDate = dateStr;
+      displayDate = range.displayDate;
     } else {
-      const today = new Date();
-      const y = today.getUTCFullYear();
-      const m = today.getUTCMonth();
-      const d = today.getUTCDate();
-      startDate = new Date(Date.UTC(y, m, d, 0, 0, 0, 0));
-      endDate = new Date(Date.UTC(y, m, d, 23, 59, 59, 999));
-      displayDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      // Default to "today" in PKT, not UTC. Previously this used today.getUTCDate()
+      // which was wrong by 5 hours for PKT-based reports.
+      const todayPkt = getTodayPktString();
+      const range = getPktDayRangeUtc(todayPkt);
+      startDate = range.start;
+      endDate = range.end;
+      displayDate = range.displayDate;
     }
 
     const pool = getPool();
