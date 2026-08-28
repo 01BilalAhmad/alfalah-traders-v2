@@ -216,12 +216,39 @@ export async function generateCreditReceipt(opts: {
 }
 
 // ─── Generate Overdue Reminder Image ────────────────────────────
+//
+// v2 — FIFO-based, 3-tier transparency (Aug 2026)
+// ====================================================================
+// Shows three clearly labeled numbers on the receipt image so shopkeeper
+// can match them with what the orderbooker tells them:
+//   1. Total Balance    (red, large)   — full outstanding
+//   2. Overdue Amount   (red, large)   — portion 14+ days old (FIFO)
+//   3. Overdue Days     (red, large)   — since OLDEST unpaid credit
+// Plus optional top 3 oldest unpaid bills listed as a detail table.
+//
+// Backward compat: if overdueAmount is not provided (legacy callers),
+// only "Outstanding Balance" is shown (old behavior).
 export async function generateOverdueImage(opts: {
   shopName: string;
-  balance: number;
+  balance?: number;              // legacy — kept for backward compat callers
+  totalBalance?: number;         // v2 — preferred (full outstanding)
+  overdueAmount?: number;        // v2 — portion 14+ days old (FIFO)
   daysOverdue: number;
+  detailBills?: Array<{
+    date: string;
+    amount: number;
+    daysOld: number;
+  }>;
 }): Promise<Buffer> {
   const config = await getBusinessConfig();
+
+  // Resolve which "balance" to display
+  const totalDisplay = opts.totalBalance ?? opts.balance ?? 0;
+  const hasV2Fields = opts.overdueAmount !== undefined && opts.totalBalance !== undefined;
+
+  // Compute dynamic height — base 600, +90px per detail bill (up to 3)
+  const detailBills = (opts.detailBills || []).slice(0, 3);
+  const height = 600 + detailBills.length * 90;
 
   return new ImageResponse(
     (
@@ -249,18 +276,82 @@ export async function generateOverdueImage(opts: {
             <span style={STYLES.label}>🏪 Shop</span>
             <span style={STYLES.value}>{opts.shopName}</span>
           </div>
-          <div style={STYLES.row}>
-            <span style={STYLES.label}>💰 Outstanding Balance</span>
-            <span style={{ ...STYLES.amountValue, color: '#DC2626' }}>
-              Rs {opts.balance.toLocaleString('en-PK')}
-            </span>
-          </div>
-          <div style={STYLES.row}>
-            <span style={STYLES.label}>📅 Overdue</span>
-            <span style={{ ...STYLES.amountValue, color: '#DC2626' }}>
-              {opts.daysOverdue} Days
-            </span>
-          </div>
+
+          {hasV2Fields ? (
+            <>
+              {/* v2 — three labeled numbers for full transparency */}
+              <div style={STYLES.row}>
+                <span style={STYLES.label}>📊 Total Balance</span>
+                <span style={{ ...STYLES.amountValue, color: '#0F172A' }}>
+                  Rs {totalDisplay.toLocaleString('en-PK')}
+                </span>
+              </div>
+              <div style={STYLES.row}>
+                <span style={{ ...STYLES.label, color: '#DC2626', fontWeight: 700 }}>
+                  🔥 Overdue Amount
+                </span>
+                <span style={{ ...STYLES.amountValue, color: '#DC2626' }}>
+                  Rs {(opts.overdueAmount ?? 0).toLocaleString('en-PK')}
+                </span>
+              </div>
+              <div style={STYLES.row}>
+                <span style={{ ...STYLES.label, color: '#DC2626', fontWeight: 700 }}>
+                  📅 Overdue Days
+                </span>
+                <span style={{ ...STYLES.amountValue, color: '#DC2626' }}>
+                  {opts.daysOverdue} Days
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* legacy — single number */}
+              <div style={STYLES.row}>
+                <span style={STYLES.label}>💰 Outstanding Balance</span>
+                <span style={{ ...STYLES.amountValue, color: '#DC2626' }}>
+                  Rs {totalDisplay.toLocaleString('en-PK')}
+                </span>
+              </div>
+              <div style={STYLES.row}>
+                <span style={STYLES.label}>📅 Overdue</span>
+                <span style={{ ...STYLES.amountValue, color: '#DC2626' }}>
+                  {opts.daysOverdue} Days
+                </span>
+              </div>
+            </>
+          )}
+
+          {/* Detail section — top 3 oldest unpaid bills (FIFO) */}
+          {detailBills.length > 0 && (
+            <div style={{
+              marginTop: '8px',
+              padding: '10px 0',
+              borderTop: '1px solid #FECACA',
+            }}>
+              <p style={{
+                fontSize: '14px',
+                fontWeight: 700,
+                color: '#7F1D1D',
+                margin: '0 0 8px 0',
+              }}>
+                ⚠️ Purane bills (urgent):
+              </p>
+              {detailBills.map((bill, i) => (
+                <div key={i} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '4px 0',
+                  fontSize: '13px',
+                  color: '#422006',
+                }}>
+                  <span>• {bill.date} ({bill.daysOld}d)</span>
+                  <span style={{ fontWeight: 600 }}>
+                    Rs {bill.amount.toLocaleString('en-PK')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div style={STYLES.footer}>
           <p style={{ fontSize: '16px', fontWeight: 600, color: '#DC2626' }}>
@@ -270,6 +361,6 @@ export async function generateOverdueImage(opts: {
         </div>
       </div>
     ),
-    { width: 600, height: 600 }
+    { width: 600, height }
   ) as unknown as Buffer;
 }

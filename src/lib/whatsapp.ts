@@ -550,6 +550,28 @@ export async function sendRecoverySms(opts: {
 }
 
 // ─── Send overdue reminder SMS with image ──────────────────────
+//
+// v2 — FIFO-based, 3-tier transparency (Aug 2026)
+// ====================================================================
+// PROBLEM (before v2):
+//   Old SMS just said "Outstanding: X, Days: Y" where X = Shop.balance
+//   and Y = days since LATEST credit. When a fresh small bill was made,
+//   Y reset to small value even though older bills were unpaid. Shopkeeper
+//   saw "4 days overdue" on Rs 15,000 — looked wrong, lost trust.
+//
+// SOLUTION (v2):
+//   Three separate numbers, clearly labeled:
+//     1. Total Balance — full outstanding (matches what orderbooker says)
+//     2. Overdue Amount — portion of outstanding that is 14+ days old
+//     3. Days Overdue — since OLDEST unpaid credit (FIFO, not latest)
+//   Plus a "Detail" section listing the top 3 oldest unpaid bills with
+//   their dates and remaining amounts — so shopkeeper can see EXACTLY
+//   which bills need urgent attention.
+//
+// FALLBACK:
+//   If detailBills is not provided (older callers, edge cases), falls back
+//   to the simple "Outstanding + Days" format using overdueAmount as the
+//   "balance" — this is the old-style behavior for backward compat.
 export async function sendOverdueSms(opts: {
   shopId: string;
   shopName: string;
@@ -557,14 +579,22 @@ export async function sendOverdueSms(opts: {
   shopArea?: string | null;
   shopAddress?: string | null;
   companyName?: string | null;
-  balance: number;
-  daysOverdue: number;
+  // ── v2 FIFO fields (preferred) ──
+  totalBalance?: number;            // Shop.balance — what OB tells shopkeeper
+  overdueAmount?: number;            // sum of unpaid portions of credits 14+ days old
+  daysOverdue: number;                // since OLDEST unpaid credit (FIFO)
+  detailBills?: Array<{              // top 3 oldest unpaid bills (FIFO)
+    date: string;
+    amount: number;
+    daysOld: number;
+  }>;
+  // ── legacy fields (used as fallback when v2 fields absent) ──
+  balance?: number;                   // deprecated — use totalBalance
 }): Promise<{ success: boolean; error?: string }> {
   if (!opts.shopPhone) return { success: false, error: 'No phone' };
 
   const businessName = await getConfig('whatsapp_business_name') || 'AL-FALAH TRADERS KHANPUR';
   const businessPhone = await getConfig('whatsapp_business_phone') || '0319-2538526';
-  // Date format: 14 Aug 2026 (DD Mon YYYY) in Asia/Karachi timezone
   const date = new Date().toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -572,23 +602,50 @@ export async function sendOverdueSms(opts: {
     timeZone: 'Asia/Karachi',
   });
 
-  // Build message — clean professional format with WhatsApp bold (*) and quote (>)
+  // Decide: v2 (FIFO 3-tier) or legacy (single number)?
+  const hasV2Fields = opts.totalBalance !== undefined && opts.overdueAmount !== undefined;
+  const displayTotal = opts.totalBalance ?? opts.balance ?? 0;
+  const displayOverdue = opts.overdueAmount ?? opts.balance ?? 0;
+
   const lines: string[] = [
     `Dear *${opts.shopName}*,`,
     '',
   ];
 
-  // Show company name line if known (helps when shop has multiple companies)
   if (opts.companyName && opts.companyName.trim()) {
     lines.push(`Company: *${opts.companyName.trim()}*`);
     lines.push('');
   }
 
-  lines.push('Your account payment is overdue:');
-  lines.push('');
-  lines.push(`Outstanding Balance: Rs. *${opts.balance.toLocaleString('en-PK')}*`);
-  lines.push(`Overdue Days: *${opts.daysOverdue}* Days`);
-  lines.push('');
+  if (hasV2Fields) {
+    // ── v2: 3-tier transparency ──
+    lines.push('⚠️ Aap ki payment overdue hai:');
+    lines.push('');
+    lines.push(`📊 Total Balance: Rs. *${displayTotal.toLocaleString('en-PK')}*`);
+    lines.push(`🔥 Overdue Amount: Rs. *${displayOverdue.toLocaleString('en-PK')}*`);
+    lines.push(`📅 Overdue Days: *${opts.daysOverdue}* Days`);
+    lines.push('');
+
+    // Detail section — top 3 oldest unpaid bills
+    if (opts.detailBills && opts.detailBills.length > 0) {
+      lines.push('Detail (purane bills):');
+      for (const bill of opts.detailBills) {
+        lines.push(
+          `• ${bill.date} — Rs. ${bill.amount.toLocaleString('en-PK')} (${bill.daysOld} din)`
+        );
+      }
+      // If there are more unpaid bills than shown, mention total count
+      lines.push('');
+    }
+  } else {
+    // ── legacy fallback (single number, like before) ──
+    lines.push('Your account payment is overdue:');
+    lines.push('');
+    lines.push(`Outstanding Balance: Rs. *${displayTotal.toLocaleString('en-PK')}*`);
+    lines.push(`Overdue Days: *${opts.daysOverdue}* Days`);
+    lines.push('');
+  }
+
   lines.push(`Date: *${date}*`);
   lines.push('');
   lines.push('(براہِ کرم اپنی بقایا رقم جلد از جلد کلیئر فرمائیں۔ اگر آپ ادائیگی کر چکے ہیں یا بیلنس میں کسی بھی قسم کا کوئی فرق محسوس ہو تو برائے مہربانی دیے گئے نمبر پر لازمی رابطہ کریں۔ شکریہ!)');
@@ -607,8 +664,11 @@ export async function sendOverdueSms(opts: {
     const { generateOverdueImage } = await import('@/lib/whatsapp-receipts');
     const imageBuffer = await generateOverdueImage({
       shopName: opts.shopName,
-      balance: opts.balance,
+      // Pass v2 fields if available, fall back to balance for legacy callers
+      totalBalance: displayTotal,
+      overdueAmount: hasV2Fields ? displayOverdue : undefined,
       daysOverdue: opts.daysOverdue,
+      detailBills: opts.detailBills,
     });
     result = await sendImageWithReceipt(opts.shopPhone, imageBuffer as unknown as Buffer, msg);
   } catch (imgErr) {

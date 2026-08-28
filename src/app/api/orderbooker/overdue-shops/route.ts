@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPool } from '@/lib/pg';
+import { getOverdueShops, OVERDUE_THRESHOLD_DAYS } from '@/lib/overdue';
 
 // GET /api/orderbooker/overdue-shops?orderbookerId=xxx
-// Returns list of overdue shops based on ACTUAL DB transaction data.
+// Returns list of overdue shops for an orderbooker's mobile app.
 //
-// A shop is "overdue" if:
-//   1. Balance > 0 (has outstanding amount)
-//   2. Last approved recovery was 14+ days ago (or never recovered)
+// v2 (Aug 2026) — uses FIFO-based aging from src/lib/overdue.ts:
+//   - daysOverdue = days since OLDEST unpaid credit (not latest)
+//   - overdueAmount = sum of unpaid portions of credits 14+ days old
+//   - totalBalance = Shop.balance (what OB tells shopkeeper)
+//   - unpaidBills = top 5 oldest unpaid bills (FIFO breakdown)
 //
-// This uses the SAME logic as the Aging Report — queries actual Transaction
-// table for last recovery date. Works regardless of who posted the recovery.
-
-const OVERDUE_THRESHOLD_DAYS = 14;
+// Legacy fields (lastRecoveryDate, lastCreditDate) are kept for backward
+// compat with the existing mobile app build — these still use the
+// "latest transaction date" semantics. The mobile app should migrate to
+// reading totalBalance / overdueAmount / daysOverdue / unpaidBills for
+// the new 3-tier display.
+//
+// NO BREAKING CHANGES — old fields stay, new fields added alongside.
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,91 +27,75 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'orderbookerId is required' }, { status: 400 });
     }
 
+    // Fetch overdue shops using FIFO helper
+    const fifoShops = await getOverdueShops({
+      orderbookerId,
+      includeNonOverdue: false,
+      minDays: OVERDUE_THRESHOLD_DAYS,
+      limit: 500,
+    });
+
+    // Also fetch the latest credit/recovery dates for backward compat
+    // (mobile app's existing UI uses these fields)
+    const { getPool } = await import('@/lib/pg');
     const pool = getPool();
 
-    // Get all active shops for this OB with balance > 0
-    // PLUS their last recovery date from Transaction table (same as Aging Report)
-    const res = await pool.query(
-      `SELECT
-         s.id AS "shopId",
-         s.name AS "shopName",
-         s.area AS "shopArea",
-         s.address AS "shopAddress",
-         s.balance,
-         -- Last recovery date (approved) — same logic as Aging Report
-         (
-           SELECT MAX(t."createdAt")
-           FROM "Transaction" t
-           WHERE t."shopId" = s.id
-             AND t.type = 'recovery'
-             AND t.status = 'approved'
-         ) AS "lastRecoveryDate",
-         -- Last credit date (approved) — for reference
-         (
-           SELECT MAX(t."createdAt")
-           FROM "Transaction" t
-           WHERE t."shopId" = s.id
-             AND t.type = 'credit'
-             AND t.status = 'approved'
-         ) AS "lastCreditDate"
-       FROM "Shop" s
-       WHERE s."orderbookerId" = $1
-         AND s.status = 'active'
-         AND s.balance > 0`,
-      [orderbookerId]
-    );
-
-    const now = new Date();
-    const overdueShops = [];
-
-    for (const row of res.rows) {
-      const balance = Number(row.balance || 0);
-      if (balance <= 0) continue;
-
-      const lastRecovery = row.lastRecoveryDate ? new Date(row.lastRecoveryDate) : null;
-      let isOverdue = false;
-      let daysOverdue = 0;
-
-      if (!lastRecovery) {
-        // Never recovered — check if last credit was 14+ days ago
-        const lastCredit = row.lastCreditDate ? new Date(row.lastCreditDate) : null;
-        if (lastCredit) {
-          const diffMs = now.getTime() - lastCredit.getTime();
-          daysOverdue = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-          isOverdue = daysOverdue >= OVERDUE_THRESHOLD_DAYS;
-        } else {
-          // No transactions at all but has balance — overdue
-          isOverdue = true;
-          daysOverdue = 999;
-        }
-      } else {
-        // Has recovery — check if it was 14+ days ago
-        const diffMs = now.getTime() - lastRecovery.getTime();
-        daysOverdue = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-        isOverdue = daysOverdue >= OVERDUE_THRESHOLD_DAYS;
-      }
-
-      if (isOverdue) {
-        overdueShops.push({
-          shopId: row.shopId,
-          shopName: row.shopName,
-          shopArea: row.shopArea || null,
-          shopAddress: row.shopAddress || null,
-          balance,
-          lastRecoveryDate: lastRecovery ? lastRecovery.toISOString() : null,
-          lastCreditDate: row.lastCreditDate ? new Date(row.lastCreditDate).toISOString() : null,
-          daysOverdue,
-        });
+    const shopIds = fifoShops.map((s) => s.shopId);
+    let legacyDates: Record<string, { lastCredit: string | null; lastRecovery: string | null }> = {};
+    if (shopIds.length > 0) {
+      const datesRes = await pool.query(
+        `SELECT
+           t."shopId",
+           MAX(CASE WHEN t.type = 'credit' THEN t."createdAt" END) AS "lastCredit",
+           MAX(CASE WHEN t.type = 'recovery' THEN t."createdAt" END) AS "lastRecovery"
+         FROM "Transaction" t
+         WHERE t."shopId" = ANY($1::text[]) AND t.status = 'approved'
+         GROUP BY t."shopId"`,
+        [shopIds]
+      );
+      for (const row of datesRes.rows) {
+        legacyDates[row.shopId] = {
+          lastCredit: row.lastCredit ? new Date(row.lastCredit).toISOString() : null,
+          lastRecovery: row.lastRecovery ? new Date(row.lastRecovery).toISOString() : null,
+        };
       }
     }
 
-    // Sort: most overdue first (999 = never recovered, then by days descending)
+    // Build response — old fields + new FIFO fields
+    const overdueShops = fifoShops.map((s) => {
+      const legacy = legacyDates[s.shopId] || { lastCredit: null, lastRecovery: null };
+      return {
+        // ── Old fields (kept for mobile app backward compat) ──
+        shopId: s.shopId,
+        shopName: s.shopName,
+        shopArea: s.shopArea,
+        shopAddress: s.shopAddress,
+        balance: s.totalBalance,                              // mobile app's existing "balance" field
+        lastRecoveryDate: legacy.lastRecovery,
+        lastCreditDate: legacy.lastCredit,
+        daysOverdue: s.daysOverdue,
+
+        // ── New v2 FIFO fields (mobile app should migrate to these) ──
+        totalBalance: s.totalBalance,                          // = Shop.balance (authoritative)
+        overdueAmount: s.overdueAmount,                       // sum of unpaid portions 14+ days old
+        oldestUnpaidCreditDate: s.oldestUnpaidCreditDate,
+        unpaidBills: s.unpaidBills,                           // top 5 oldest unpaid bills (FIFO)
+        companyName: s.companyName,
+        // Sanity flag — if false, FIFO computation diverged from Shop.balance.
+        // Mobile app should display "needs review" warning for these.
+        fifoMatchesShopBalance: s.fifoMatchesShopBalance,
+      };
+    });
+
+    // Sort: most overdue first
     overdueShops.sort((a, b) => b.daysOverdue - a.daysOverdue);
 
     return NextResponse.json({
       overdueShops,
       count: overdueShops.length,
       threshold: OVERDUE_THRESHOLD_DAYS,
+      // v2 indicator — mobile app can check this to enable new UI
+      v2: true,
     });
   } catch (error) {
     console.error('[Overdue Shops API] Error:', error);
@@ -115,6 +104,7 @@ export async function GET(request: NextRequest) {
       overdueShops: [],
       count: 0,
       threshold: OVERDUE_THRESHOLD_DAYS,
+      v2: true,
     });
   }
 }
