@@ -125,14 +125,16 @@ export async function POST(request: NextRequest) {
     try {
       await client.query('BEGIN');
 
-      // Fetch all pending transactions with shop info + company name
+      // Fetch all pending transactions with shop info + company name + orderbooker name
       const placeholders = transactionIds.map((_: unknown, idx: number) => `$${idx + 1}`).join(', ');
       const pendingRes = await client.query(
         `SELECT t.*, s.id AS "shop_db_id", s.name AS "shop_name", s.balance AS "shop_balance", s.phone AS "shop_phone", s.area AS "shop_area", s.address AS "shop_address",
-                c.name AS "company_name"
+                c.name AS "company_name",
+                u.name AS "creator_name"
          FROM "Transaction" t
          LEFT JOIN "Shop" s ON t."shopId" = s.id
          LEFT JOIN "Company" c ON t."companyId" = c.id
+         LEFT JOIN "User" u ON t."createdBy" = u.id
          WHERE t.id IN (${placeholders}) AND t.status = 'pending'`,
         transactionIds
       );
@@ -288,6 +290,23 @@ export async function POST(request: NextRequest) {
       // ═══ FIX C6: Audit log INSIDE the transaction (before COMMIT) ═══
       const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
       const totalAmount = pendingRes.rows.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
+
+      // ═══ FIX: Include shop names + IDs + txn type in audit log so admin can
+      // see WHICH shop's recovery was approved/rejected (not just a count).
+      // Without this, the audit description only says "Rejected 3 transaction(s)"
+      // and admin cannot tell which shop(s) were affected. ═══
+      const shopNames: string[] = Array.from(new Set(
+        pendingRes.rows.map((t: any) => t.shop_name).filter(Boolean)
+      ));
+      const shopIds: string[] = Array.from(new Set(
+        pendingRes.rows.map((t: any) => t.shop_db_id).filter(Boolean)
+      ));
+      const txnType: string = pendingRes.rows[0]?.type || 'recovery';
+      const orderbookerName: string = pendingRes.rows[0]?.creator_name || '';
+      const shopNamesDisplay = shopNames.length > 0
+        ? shopNames.join(', ')
+        : 'Unknown shop';
+
       await client.query(
         `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "performedBy", "newValue", description)
          VALUES ($1, $2, 'transaction', $3, $4, $5, $6)`,
@@ -302,8 +321,12 @@ export async function POST(request: NextRequest) {
             count: pendingRes.rows.length,
             totalAmount,
             rejectReason: rejectReason || null,
+            shopIds,           // NEW: which shop(s) were affected
+            shopNames,         // NEW: human-readable shop names
+            txnType,           // NEW: 'recovery' vs 'credit' (legacy pending credits)
+            orderbookerName,   // NEW: which orderbooker created the recovery
           }),
-          `${action === 'approve' ? 'Approved' : 'Rejected'} ${pendingRes.rows.length} transaction(s) totaling Rs. ${Math.round(totalAmount)}`,
+          `${action === 'approve' ? 'Approved' : 'Rejected'} ${pendingRes.rows.length} ${txnType}(s) for shop(s): ${shopNamesDisplay} totaling Rs. ${Math.round(totalAmount)}`,
         ]
       );
 
