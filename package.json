@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "db:seed": "npx tsx prisma/seed.ts",
+    "db:backfill-audit-shopnames": "npx tsx prisma/backfill-audit-shopnames.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
