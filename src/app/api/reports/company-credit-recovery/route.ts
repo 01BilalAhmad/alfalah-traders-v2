@@ -177,19 +177,40 @@ export async function GET(request: NextRequest) {
     // This is the sum of ShopCompanyBalance for ACTIVE shops belonging to each OB
     // NOTE: This is the CURRENT balance (includes all transactions up to now)
     // We will calculate the TRUE opening balance later by subtracting this month's transactions
+    //
+    // FIX (secondary orderbooker): company-scoped attribution — if a shop has a
+    // ShopOrderbooker junction row for THIS company, its balance belongs to the
+    // junction OB(s); otherwise to the shop's primary OB. Union with anti-join
+    // ensures each (shop, company) balance row is counted exactly once.
     const openingBalRes = await pool.query(
-      `SELECT s."orderbookerId", COALESCE(SUM(scb.balance), 0) AS "currentBalance"
-       FROM "ShopCompanyBalance" scb
-       JOIN "Shop" s ON s.id = scb."shopId"
-       WHERE scb."companyId" = $1
-         AND s."orderbookerId" IN (${orderbookerIds.map((_: string, idx: number) => `$${idx + 2}`).join(', ')})
-         AND s.status = 'active'
-       GROUP BY s."orderbookerId"`,
+      `SELECT x.ob_id, COALESCE(SUM(x.balance), 0) AS "currentBalance"
+       FROM (
+         SELECT s."orderbookerId" AS ob_id, scb.balance
+         FROM "ShopCompanyBalance" scb
+         JOIN "Shop" s ON s.id = scb."shopId"
+         WHERE scb."companyId" = $1
+           AND s."orderbookerId" IN (${orderbookerIds.map((_: string, idx: number) => `$${idx + 2}`).join(', ')})
+           AND s.status = 'active'
+           AND NOT EXISTS (
+             SELECT 1 FROM "ShopOrderbooker" so
+             WHERE so."shopId" = scb."shopId" AND so."companyId" = scb."companyId"
+           )
+         UNION ALL
+         SELECT so."orderbookerId" AS ob_id, scb.balance
+         FROM "ShopOrderbooker" so
+         JOIN "ShopCompanyBalance" scb
+           ON scb."shopId" = so."shopId" AND scb."companyId" = so."companyId"
+         JOIN "Shop" s ON s.id = so."shopId"
+         WHERE so."companyId" = $1
+           AND so."orderbookerId" IN (${orderbookerIds.map((_: string, idx: number) => `$${idx + 2}`).join(', ')})
+           AND s.status = 'active'
+       ) x
+       GROUP BY x.ob_id`,
       [companyId, ...orderbookerIds]
     );
     const currentBalances: Record<string, number> = {};
     for (const row of openingBalRes.rows) {
-      currentBalances[row.orderbookerId] = Math.round(Number(row.currentBalance) * 100) / 100;
+      currentBalances[row.ob_id] = Math.round(Number(row.currentBalance) * 100) / 100;
     }
     // Initialize OBs with no ShopCompanyBalance entries
     for (const ob of orderbookers) {
@@ -201,20 +222,41 @@ export async function GET(request: NextRequest) {
     // 3b. ADJUST currentBalances to the END DATE of the selected range
     // If end date is in the past, we need to subtract transactions that happened AFTER the end date
     // This gives us the TRUE balance as of the end date
+    //
+    // FIX (secondary orderbooker): same company-scoped attribution as step 3 —
+    // transactions on shops with a junction row for this company adjust the
+    // JUNCTION OB's balance; others adjust the shop's primary OB.
     const nowDate = new Date();
     if (endDate < nowDate) {
       // Get all credit + recovery transactions AFTER endDate for this company's OBs
       const afterEndDateRes = await pool.query(
-        `SELECT s."orderbookerId" AS ob_id,
-                COALESCE(SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE 0 END), 0) AS after_credit,
-                COALESCE(SUM(CASE WHEN t.type IN ('recovery', 'supplier_collection') THEN t.amount ELSE 0 END), 0) AS after_recovery
-         FROM "Transaction" t
-         JOIN "Shop" s ON t."shopId" = s.id
-         WHERE t."companyId" = $1
-           AND s."orderbookerId" IN (${orderbookerIds.map((_: string, idx: number) => `$${idx + 3}`).join(', ')})
-           AND t.status = 'approved'
-           AND t."createdAt" > $2
-         GROUP BY s."orderbookerId"`,
+        `SELECT x.ob_id,
+                COALESCE(SUM(CASE WHEN x.type = 'credit' THEN x.amount ELSE 0 END), 0) AS after_credit,
+                COALESCE(SUM(CASE WHEN x.type IN ('recovery', 'supplier_collection') THEN x.amount ELSE 0 END), 0) AS after_recovery
+         FROM (
+           SELECT s."orderbookerId" AS ob_id, t.type, t.amount
+           FROM "Transaction" t
+           JOIN "Shop" s ON t."shopId" = s.id
+           WHERE t."companyId" = $1
+             AND s."orderbookerId" IN (${orderbookerIds.map((_: string, idx: number) => `$${idx + 3}`).join(', ')})
+             AND t.status = 'approved'
+             AND t."createdAt" > $2
+             AND NOT EXISTS (
+               SELECT 1 FROM "ShopOrderbooker" so
+               WHERE so."shopId" = t."shopId" AND so."companyId" = t."companyId"
+             )
+           UNION ALL
+           SELECT so."orderbookerId" AS ob_id, t.type, t.amount
+           FROM "Transaction" t
+           JOIN "ShopOrderbooker" so
+             ON so."shopId" = t."shopId" AND so."companyId" = t."companyId"
+           JOIN "Shop" s ON s.id = t."shopId"
+           WHERE t."companyId" = $1
+             AND so."orderbookerId" IN (${orderbookerIds.map((_: string, idx: number) => `$${idx + 3}`).join(', ')})
+             AND t.status = 'approved'
+             AND t."createdAt" > $2
+         ) x
+         GROUP BY x.ob_id`,
         [companyId, endDate.toISOString(), ...orderbookerIds]
       );
       // Adjust: balance_as_of_end_date = current_balance - credits_after + recoveries_after
@@ -243,26 +285,54 @@ export async function GET(request: NextRequest) {
       [companyId, startDate.toISOString(), endDate.toISOString()]
     );
 
-    // 5. Fetch all RECOVERY transactions for this company's orderbookers in the month
+    // 5. Fetch all RECOVERY transactions for this company in the month
     // IMPORTANT: Filter by companyId so recovery from OTHER companies is NOT included
-    // FIX: Join with Shop table and filter by shop's orderbookerId instead of transaction's createdBy
-    // This ensures admin-posted recoveries (where createdBy = admin) are also included,
-    // attributed to the correct orderbooker based on the shop's assignment
-    const obPlaceholders = orderbookerIds.map((_: string, idx: number) => `$${idx + 4}`).join(', ');
+    // FIX (secondary orderbooker): no primary-only shop filter — attribution is
+    // now company-scoped (junction OBs of the shop's company rows), so the
+    // query fetches ALL company recoveries and the fill loop below attributes
+    // them (admin-posted recoveries included, attributed via assignment)
     const recoveryRes = await pool.query(
       `SELECT t."shopId", t."createdBy", t.amount, t."createdAt",
               s."orderbookerId" AS "shop_orderbookerId"
        FROM "Transaction" t
        LEFT JOIN "Shop" s ON t."shopId" = s.id
        WHERE t."companyId" = $3
-         AND s."orderbookerId" IN (${obPlaceholders})
          AND t.type IN ('recovery', 'supplier_collection')
          AND t.status = 'approved'
          AND t."createdAt" >= $1
          AND t."createdAt" <= $2
        ORDER BY t."createdAt" ASC`,
-      [startDate.toISOString(), endDate.toISOString(), companyId, ...orderbookerIds]
+      [startDate.toISOString(), endDate.toISOString(), companyId]
     );
+
+    // 5b. FIX (secondary orderbooker): fetch company-scoped junction assignments
+    // shopId → [orderbookerIds] serving that shop FOR THIS COMPANY
+    const junctionRes = await pool.query(
+      `SELECT so."shopId", so."orderbookerId"
+       FROM "ShopOrderbooker" so
+       WHERE so."companyId" = $1`,
+      [companyId]
+    );
+    const obIdSet = new Set(orderbookerIds);
+    const junctionObsByShop = new Map<string, string[]>();
+    for (const row of junctionRes.rows) {
+      const arr = junctionObsByShop.get(row.shopId) || [];
+      arr.push(row.orderbookerId);
+      junctionObsByShop.set(row.shopId, arr);
+    }
+
+    // Company-scoped attribution rule (mirrors steps 3 / 3b):
+    // junction OBs for (shop, this company) if any exist, else shop's primary
+    // OB, else transaction creator (fallback for deleted shops).
+    const getAttributionTargets = (shopId: string | null, primaryOb: string | null, createdBy: string | null): string[] => {
+      const junctionObs = shopId ? (junctionObsByShop.get(shopId) || []) : [];
+      if (junctionObs.length > 0) {
+        return junctionObs.filter((id: string) => obIdSet.has(id));
+      }
+      if (primaryOb && obIdSet.has(primaryOb)) return [primaryOb];
+      if (createdBy && obIdSet.has(createdBy)) return [createdBy];
+      return [];
+    };
 
     // 6. Build the data structure
     // Initialize data map: date -> orderbookerId -> { credit, recovery, balance }
@@ -275,22 +345,28 @@ export async function GET(request: NextRequest) {
     }
 
     // Fill credit data
+    // FIX (secondary orderbooker): company-scoped attribution — junction OB(s)
+    // of the shop for this company, else the shop's primary OB
     for (const row of creditRes.rows) {
       const dateStr = getPakistanDate(row.createdAt);
-      const obId = row.shop_orderbookerId || row.createdBy;
-      if (dataMap[dateStr] && dataMap[dateStr][obId] !== undefined) {
-        dataMap[dateStr][obId].credit += Number(row.amount);
+      const targets = getAttributionTargets(row.shopId, row.shop_orderbookerId, row.createdBy);
+      for (const obId of targets) {
+        if (dataMap[dateStr] && dataMap[dateStr][obId] !== undefined) {
+          dataMap[dateStr][obId].credit += Number(row.amount);
+        }
       }
     }
 
     // Fill recovery data
-    // FIX: Use shop's orderbookerId for attribution instead of createdBy
+    // FIX: company-scoped attribution (junction OBs, else primary, else creator)
     // This way admin-posted recoveries are attributed to the correct orderbooker
     for (const row of recoveryRes.rows) {
       const dateStr = getPakistanDate(row.createdAt);
-      const obId = row.shop_orderbookerId || row.createdBy;
-      if (dataMap[dateStr] && dataMap[dateStr][obId] !== undefined) {
-        dataMap[dateStr][obId].recovery += Number(row.amount);
+      const targets = getAttributionTargets(row.shopId, row.shop_orderbookerId, row.createdBy);
+      for (const obId of targets) {
+        if (dataMap[dateStr] && dataMap[dateStr][obId] !== undefined) {
+          dataMap[dateStr][obId].recovery += Number(row.amount);
+        }
       }
     }
 

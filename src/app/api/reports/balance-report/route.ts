@@ -6,6 +6,13 @@ const DAYS_ORDER = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'fri
 // GET /api/reports/balance-report?orderbookerId=xxx&companyId=xxx&routeDay=xxx
 // Returns shops with remaining balance > 0, grouped by orderbooker and company
 // routeDay filter: when provided, only shows shops that have that route day
+//
+// FIX (secondary orderbooker support): for a given company, a shop belongs to
+// its SECONDARY orderbooker(s) if any ShopOrderbooker junction row exists for
+// (shop, company) — otherwise to the shop's primary OB (Shop.orderbookerId).
+// This mirrors "market handover" semantics: creating a secondary assignment
+// moves that company's balance/rows to the secondary OB; removing it moves
+// them back to the primary. Junction rows also carry their own routeDays.
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -22,7 +29,9 @@ export async function GET(request: NextRequest) {
     let paramIdx = 1;
 
     if (orderbookerId) {
-      whereConditions.push(`s."orderbookerId" = $${paramIdx}`);
+      // FIX: effective OB = junction OB (company-specific) if assigned,
+      // else the shop's primary orderbooker
+      whereConditions.push(`COALESCE(so."orderbookerId", s."orderbookerId") = $${paramIdx}`);
       params.push(orderbookerId);
       paramIdx++;
     }
@@ -48,7 +57,11 @@ export async function GET(request: NextRequest) {
 
     const whereClause = whereConditions.join(' AND ');
 
-    // Fetch shop balances grouped by orderbooker and company
+    // Fetch shop balances grouped by orderbooker and company.
+    // FIX: LEFT JOIN the company-scoped junction — effective OB is the junction
+    // OB when a secondary assignment exists for (shop, company), else primary.
+    // Fan-out is intentional: multiple secondary OBs on the same (shop, company)
+    // each get the row (shared-shop workload view).
     const balanceRes = await pool.query(
       `SELECT
         s.id as "shopId",
@@ -57,7 +70,7 @@ export async function GET(request: NextRequest) {
         s.address as "shopAddress",
         s.phone as "shopPhone",
         s."routeDays",
-        s."orderbookerId",
+        COALESCE(so."orderbookerId", s."orderbookerId") as "orderbookerId",
         ob.name as "orderbookerName",
         ob.phone as "orderbookerPhone",
         scb."companyId",
@@ -66,7 +79,9 @@ export async function GET(request: NextRequest) {
         scb."creditLimit"
       FROM "ShopCompanyBalance" scb
       JOIN "Shop" s ON s.id = scb."shopId"
-      JOIN "User" ob ON ob.id = s."orderbookerId"
+      LEFT JOIN "ShopOrderbooker" so
+        ON so."shopId" = s.id AND so."companyId" = scb."companyId"
+      JOIN "User" ob ON ob.id = COALESCE(so."orderbookerId", s."orderbookerId")
       JOIN "Company" c ON c.id = scb."companyId"
       WHERE ${whereClause}
       ORDER BY ob.name ASC, c.name ASC, s.name ASC`,
