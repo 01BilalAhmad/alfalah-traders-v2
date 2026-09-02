@@ -28,6 +28,8 @@ import {
   AlertTriangle,
   CircleCheck,
   Ban,
+  Calendar,
+  CalendarClock,
   ChevronDown,
   ChevronUp,
   Warehouse,
@@ -88,6 +90,7 @@ export default function AdminApproveRecovery() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [bulkDate, setBulkDate] = useState('');
   const [lastError, setLastError] = useState<string | null>(null);
   const [lastFetched, setLastFetched] = useState<string | null>(null);
   const [smsModalOpen, setSmsModalOpen] = useState(false);
@@ -239,6 +242,45 @@ export default function AdminApproveRecovery() {
       }
     } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // PKT "today" for the date input's max attribute (PKT = UTC+5)
+  const pktToday = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  // Bulk re-date selected PENDING entries BEFORE approving them —
+  // moves them to the day the recovery actually happened (past dates only)
+  const handleBulkDateChange = async () => {
+    if (!user || !bulkDate) return;
+    setActionLoading('bulk-date');
+    try {
+      const res = await apiFetch('/api/recoveries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update-date',
+          transactionIds: Array.from(selectedIds),
+          newDate: bulkDate,
+          updatedBy: user.id,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        toast({
+          title: '📅 Date Updated',
+          description: `${data.processed} entry(ies) moved to ${bulkDate} — approve them now`,
+        });
+        setBulkDate('');
+        fetchPending();
+      } else {
+        const err = await res.json();
+        toast({ title: '❌ Error', description: err.error || 'Failed to change date', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: '❌ Error', description: 'Network error', variant: 'destructive' });
     } finally {
       setActionLoading(null);
     }
@@ -399,7 +441,34 @@ export default function AdminApproveRecovery() {
             <span className="font-bold">{selectedIds.size}</span> selected —{' '}
             <span className="font-bold">{formatPKR(selectedTotal)}</span>
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Bulk date change — move selected entries to their actual day */}
+            <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2 py-1.5">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <input
+                type="date"
+                value={bulkDate}
+                max={pktToday}
+                onChange={e => setBulkDate(e.target.value)}
+                className="text-xs bg-transparent text-foreground outline-none w-[115px] cursor-pointer"
+                title="Move selected entries to this date (before approving)"
+              />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-xs"
+              disabled={!bulkDate || actionLoading !== null}
+              onClick={handleBulkDateChange}
+            >
+              {actionLoading === 'bulk-date' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+              ) : (
+                <CalendarClock className="h-3.5 w-3.5 mr-1" />
+              )}
+              Set Date
+            </Button>
             <Button
             type="button"
               size="sm"
@@ -566,6 +635,9 @@ export default function AdminApproveRecovery() {
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                                   <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                                     <Timer className="h-2.5 w-2.5" />{getTimeAgo(txn.createdAt)}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground font-medium">
+                                    {new Date(txn.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                                   </span>
                                   {hasGPS ? (
                                     <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-0.5">
