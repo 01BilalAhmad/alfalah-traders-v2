@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 
 const ShopCharts = dynamic(() => import('./ShopCharts'), { ssr: false, loading: () => <div className="h-28 animate-pulse bg-muted/20 rounded-lg" /> });
@@ -95,6 +95,7 @@ import { downloadLedgerPDF, type LedgerData } from '@/lib/pdf-generator';
 import { exportToCSV } from '@/lib/csv-export';
 import { WORKING_DAYS, getTodayRouteDay, formatPKR } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
+import { useApiCache, invalidateApiCache } from '@/lib/api-cache';
 import AdminBulkImport from './AdminBulkImport';
 
 const ROUTE_DAYS = [...WORKING_DAYS];
@@ -195,18 +196,25 @@ interface Orderbooker {
   totalOutstanding?: number;
 }
 
+interface ShopStats {
+  counts: Record<string, number>;
+  totalActive: number;
+  totalInactive: number;
+  totalOutstanding: number;
+  averageBalance: number;
+  highestBalanceShop: { name: string; balance: number } | null;
+  topArea: { name: string; count: number } | null;
+}
+
 export default function AdminShops() {
   const { setSelectedShopId, setSelectedShopName, user } = useAppStore();
   const router = useRouter();
-  const [shops, setShops] = useState<Shop[]>([]);
-  const [allShops, setAllShops] = useState<Shop[]>([]);
-  const [orderbookers, setOrderbookers] = useState<Orderbooker[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedDay, setSelectedDay] = useState<string>('');
 
   const todayDay = getTodayRouteDay();
   const [selectedOBFilter, setSelectedOBFilter] = useState<string>('');
-  const [loading, setLoading] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
 
   // Dialog state
@@ -215,7 +223,6 @@ export default function AdminShops() {
   const [formName, setFormName] = useState('');
   const [formOwner, setFormOwner] = useState('');
   const [formArea, setFormArea] = useState('');
-  const [areas, setAreas] = useState<{id: string; name: string}[]>([]);
   const [formAddress, setFormAddress] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formRouteDays, setFormRouteDays] = useState<string[]>([]);
@@ -233,8 +240,7 @@ export default function AdminShops() {
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const [ledgerCompanyFilter, setLedgerCompanyFilter] = useState<string>('all');
 
-  // Day counts
-  const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
+  // Day counts + summary analytics come from /api/shops/stats (Option B)
 
   // Shop detail dialog state
   const [detailOpen, setDetailOpen] = useState(false);
@@ -258,7 +264,6 @@ export default function AdminShops() {
 
   // Bulk import dialog state
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
-  const [companies, setCompanies] = useState<{ id: string; name: string; status: string }[]>([]);
 
   // Shop notes dialog state
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
@@ -276,25 +281,39 @@ export default function AdminShops() {
   const [assignRouteDays, setAssignRouteDays] = useState<string[]>([]);
   const [assignLoading, setAssignLoading] = useState(false);
 
-  const fetchOrderbookers = useCallback(async () => {
-    try {
-      const res = await apiFetch('/api/orderbookers');
-      if (res.ok) {
-        const data = await res.json();
-        setOrderbookers(data);
-      }
-    } catch { /* silent */ }
-  }, []);
+  // ── Option A: cached data loading (stale-while-revalidate) ────────────────
+  // Debounce search: ONE API call 400ms after typing stops — not on every
+  // keystroke (previously each keystroke re-fetched the full 700+ shop list)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
-  const fetchCompanies = useCallback(async () => {
-    try {
-      const res = await apiFetch('/api/companies');
-      if (res.ok) {
-        const data = await res.json();
-        setCompanies(data.companies || []);
-      }
-    } catch { /* silent */ }
-  }, []);
+  // Cache key = URL + active filters
+  const shopsCacheUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+    if (selectedDay) params.set('routeDay', selectedDay);
+    if (showInactive) params.set('includeInactive', 'true');
+    const qs = params.toString();
+    return qs ? `/api/shops?${qs}` : '/api/shops';
+  }, [debouncedSearch, selectedDay, showInactive]);
+
+  // Within TTL: served from cache — ZERO network calls. After TTL: instant
+  // cache render + silent background refresh. First ever load: loading=true.
+  const shopsCache = useApiCache<Shop[]>(shopsCacheUrl, { ttl: 60_000 });
+  const statsCache = useApiCache<ShopStats>('/api/shops/stats', { ttl: 60_000 });
+  const orderbookersCache = useApiCache<Orderbooker[]>('/api/orderbookers', { ttl: 10 * 60_000 });
+  const companiesCache = useApiCache<{ companies: { id: string; name: string; status: string }[] }>('/api/companies', { ttl: 10 * 60_000 });
+  const areasCache = useApiCache<{ areas: { id: string; name: string }[] }>('/api/areas', { ttl: 30 * 60_000 });
+
+  const shops = shopsCache.data ?? [];
+  const loading = shopsCache.loading;
+  const orderbookers = orderbookersCache.data ?? [];
+  const companies = companiesCache.data?.companies ?? [];
+  const areas = areasCache.data?.areas ?? [];
+  const stats = statsCache.data;
+  const dayCounts = stats?.counts ?? {};
 
   const fetchShopAssignments = useCallback(async (shopId: string) => {
     try {
@@ -306,53 +325,13 @@ export default function AdminShops() {
     } catch { /* silent */ }
   }, []);
 
-  const fetchShops = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (searchQuery.trim()) params.set('search', searchQuery.trim());
-      if (selectedDay) params.set('routeDay', selectedDay);
-      if (showInactive) params.set('includeInactive', 'true');
-      const res = await apiFetch(`/api/shops?${params.toString()}`);
-      if (res.ok) setShops(await res.json());
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  }, [searchQuery, selectedDay, showInactive]);
-
-  const fetchAllShopsForCounts = useCallback(async () => {
-    try {
-      const res = await apiFetch('/api/shops');
-      if (res.ok) {
-        const data: Shop[] = await res.json();
-        setAllShops(data);
-        const counts: Record<string, number> = {};
-        ROUTE_DAYS.forEach((d) => { counts[d] = 0; });
-        data.forEach((s) => {
-          // Count all days, including non-working days like 'friday'
-          // A shop can belong to multiple days, so count it for each day it's in
-          for (const day of s.routeDays) {
-            if (!counts[day]) counts[day] = 0;
-            counts[day]++;
-          }
-        });
-        setDayCounts(counts);
-      }
-    } catch { /* silent */ }
-  }, []);
-
-  useEffect(() => { fetchOrderbookers(); fetchCompanies(); }, [fetchOrderbookers, fetchCompanies]);
-  useEffect(() => { fetchShops(); }, [fetchShops]);
-  useEffect(() => { fetchAllShopsForCounts(); }, [fetchAllShopsForCounts]);
-
-  // Fetch areas for the dropdown (add/edit shop form)
-  useEffect(() => {
-    apiFetch('/api/areas').then(async res => {
-      if (res.ok) {
-        const data = await res.json();
-        setAreas(data.areas || []);
-      }
-    }).catch(() => {});
-  }, []);
+  // After any shop mutation: drop all /api/shops* caches (every filter variant
+  // + stats) and force fresh fetches so the page reflects changes immediately
+  const refreshShopData = useCallback(() => {
+    invalidateApiCache('/api/shops');
+    shopsCache.refresh();
+    statsCache.refresh();
+  }, [shopsCache, statsCache]);
 
   const openAddDialog = () => {
     setEditingShop(null);
@@ -410,8 +389,7 @@ export default function AdminShops() {
       }
       toast({ title: editingShop ? 'Shop Updated' : 'Shop Created', description: `${formName} has been ${editingShop ? 'updated' : 'created'}` });
       setDialogOpen(false);
-      fetchShops();
-      fetchAllShopsForCounts();
+      refreshShopData();
     } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     } finally {
@@ -430,8 +408,7 @@ export default function AdminShops() {
       if (res.ok) {
         toast({ title: 'Deactivated', description: `${confirmDeactivate.name} has been deactivated` });
         setConfirmDeactivate(null);
-        fetchShops();
-        fetchAllShopsForCounts();
+        refreshShopData();
       }
     } catch { /* silent */ }
   };
@@ -696,8 +673,7 @@ export default function AdminShops() {
           setBulkDialogOpen(false);
           setBulkAction(null);
           clearSelection();
-          fetchShops();
-          fetchAllShopsForCounts();
+          refreshShopData();
         } else {
           const data = await res.json();
           toast({ title: 'Bulk Assign Failed', description: data.error || 'Unknown error. Please try again.', variant: 'destructive' });
@@ -712,8 +688,7 @@ export default function AdminShops() {
           toast({ title: 'Bulk Deactivate Complete', description: `${ids.length} shops deactivated` });
           setBulkDialogOpen(false);
           clearSelection();
-          fetchShops();
-          fetchAllShopsForCounts();
+          refreshShopData();
         } else {
           const data = await res.json();
           toast({ title: 'Error', description: data.error, variant: 'destructive' });
@@ -728,8 +703,7 @@ export default function AdminShops() {
           toast({ title: 'Bulk Reactivate Complete', description: `${ids.length} shops reactivated` });
           setBulkDialogOpen(false);
           clearSelection();
-          fetchShops();
-          fetchAllShopsForCounts();
+          refreshShopData();
         } else {
           const data = await res.json();
           toast({ title: 'Error', description: data.error, variant: 'destructive' });
@@ -751,8 +725,7 @@ export default function AdminShops() {
           setBulkDialogOpen(false);
           setBulkAction(null);
           clearSelection();
-          fetchShops();
-          fetchAllShopsForCounts();
+          refreshShopData();
         } else {
           const data = await res.json();
           toast({ title: 'Error', description: data.error, variant: 'destructive' });
@@ -790,7 +763,7 @@ export default function AdminShops() {
         setSecondaryCompanyId('');
         setSecondaryRouteDays([]);
         clearSelection();
-        fetchShops();
+        refreshShopData();
       } else {
         toast({ title: 'Error', description: data.error || 'Failed to assign secondary orderbooker', variant: 'destructive' });
       }
@@ -801,22 +774,12 @@ export default function AdminShops() {
     }
   };
 
-  // Analytics computation from allShops
-  const activeShops = allShops.filter((s) => s.status === 'active');
-  const inactiveShops = allShops.filter((s) => s.status === 'inactive');
-  const totalOutstanding = allShops.reduce((sum, s) => sum + s.balance, 0);
-  const averageBalance = allShops.length > 0 ? totalOutstanding / allShops.length : 0;
-  const highestBalanceShop = allShops.length > 0
-    ? allShops.reduce((max, s) => s.balance > max.balance ? s : max, allShops[0])
-    : null;
-
-  // Area with most shops
-  const areaCounts: Record<string, number> = {};
-  allShops.forEach((s) => {
-    const area = s.area || 'Unknown';
-    areaCounts[area] = (areaCounts[area] || 0) + 1;
-  });
-  const topArea = Object.entries(areaCounts).sort((a, b) => b[1] - a[1])[0] || null;
+  // Analytics from the lightweight /api/shops/stats aggregate (Option B) —
+  // no second full shop-list fetch just to compute these numbers
+  const totalOutstanding = stats?.totalOutstanding ?? 0;
+  const averageBalance = stats?.averageBalance ?? 0;
+  const highestBalanceShop = stats?.highestBalanceShop ?? null;
+  const topArea = stats?.topArea ? ([stats.topArea.name, stats.topArea.count] as [string, number]) : null;
 
   return (
     <div className="space-y-5">
@@ -871,7 +834,7 @@ export default function AdminShops() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Active Shops</p>
-              <p className="text-lg font-bold text-foreground">{activeShops.length}</p>
+              <p className="text-lg font-bold text-foreground">{stats?.totalActive ?? 0}</p>
             </div>
             <Badge className="bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800 text-[10px] font-bold">
               Live
@@ -887,7 +850,7 @@ export default function AdminShops() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Inactive Shops</p>
-              <p className="text-lg font-bold text-foreground">{inactiveShops.length}</p>
+              <p className="text-lg font-bold text-foreground">{stats?.totalInactive ?? 0}</p>
             </div>
             <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300 border-violet-200 dark:border-violet-800 text-[10px] font-bold">
               Off
@@ -2232,7 +2195,7 @@ export default function AdminShops() {
         onOpenChange={setBulkImportOpen}
         orderbookers={orderbookers}
         companies={companies}
-        onImportComplete={() => { fetchShops(); fetchAllShopsForCounts(); }}
+        onImportComplete={refreshShopData}
       />
 
       {/* Add Orderbooker Assignment Dialog */}
