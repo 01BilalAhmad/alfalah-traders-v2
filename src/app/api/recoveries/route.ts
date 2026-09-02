@@ -107,17 +107,127 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/recoveries - Approve or reject recoveries (single or bulk)
+// Helper: Convert a date string (YYYY-MM-DD) to Pakistan timezone boundaries
+// (mirrors the helper in transactions/route.ts)
+function getPakistanDayRange(dateStr: string): { start: Date; end: Date } {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const start = new Date(Date.UTC(year, month - 1, day, -5, 0, 0, 0));
+  const end = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
+  return { start, end };
+}
+
+// POST action 'update-date': bulk change the date of PENDING transactions
+// BEFORE approval, so reports attribute them to the day the recovery actually
+// happened (e.g. OB enters yesterday's recovery today → admin moves it back).
+// Only pending transactions can be re-dated; approved/rejected are untouched.
+async function handleUpdateDate(transactionIds: string[], newDate: unknown, updatedBy: unknown) {
+  if (typeof updatedBy !== 'string' || !updatedBy) {
+    return NextResponse.json({ error: 'updatedBy is required' }, { status: 400 });
+  }
+  if (typeof newDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+    return NextResponse.json({ error: 'newDate must be in YYYY-MM-DD format' }, { status: 400 });
+  }
+
+  const [y, m, d] = newDate.split('-').map(Number);
+  const calendarCheck = new Date(Date.UTC(y, m - 1, d));
+  if (calendarCheck.getUTCFullYear() !== y || calendarCheck.getUTCMonth() !== m - 1 || calendarCheck.getUTCDate() !== d) {
+    return NextResponse.json({ error: 'newDate is not a valid calendar date' }, { status: 400 });
+  }
+
+  // Future dates are not allowed (Pakistan timezone day boundary)
+  const { end: dayEnd } = getPakistanDayRange(newDate);
+  if (dayEnd.getTime() > Date.now()) {
+    return NextResponse.json({ error: 'Cannot set a future date' }, { status: 400 });
+  }
+
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+
+    // Only PENDING transactions can be re-dated (pre-approval correction)
+    const fetchRes = await client.query(
+      `SELECT t.id, t."createdAt", t.type, s.name AS "shop_name"
+       FROM "Transaction" t
+       LEFT JOIN "Shop" s ON t."shopId" = s.id
+       WHERE t.id = ANY($1::text[]) AND t.status = 'pending'`,
+      [transactionIds]
+    );
+
+    if (fetchRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return NextResponse.json({ error: 'No pending transactions found — already approved/rejected entries cannot be re-dated' }, { status: 404 });
+    }
+
+    // Use 12:00 UTC of the target day (same convention as backdated credits
+    // in transactions/route.ts) — safely inside the correct PKT calendar day
+    const newCreatedAt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0));
+
+    // NOTE: Transaction table has NO updatedAt column — only createdAt changes
+    const updateRes = await client.query(
+      `UPDATE "Transaction" SET "createdAt" = $1
+       WHERE id = ANY($2::text[]) AND status = 'pending'
+       RETURNING id`,
+      [newCreatedAt.toISOString(), transactionIds]
+    );
+
+    // Audit log: record old → new dates for traceability
+    const auditId = `audit_${Date.now().toString(36)}_${crypto.randomBytes(8).toString('hex')}`;
+    await client.query(
+      `INSERT INTO "AuditLog" (id, action, "entityType", "entityId", "performedBy", "newValue", description)
+       VALUES ($1, 'transaction_date_changed', 'transaction', $2, $3, $4, $5)`,
+      [
+        auditId,
+        fetchRes.rows[0].id,
+        updatedBy,
+        JSON.stringify({
+          transactionIds: fetchRes.rows.map((r: any) => r.id),
+          oldDates: fetchRes.rows.map((r: any) => ({ id: r.id, createdAt: r.createdAt })),
+          newDate,
+          newCreatedAt: newCreatedAt.toISOString(),
+          count: fetchRes.rows.length,
+        }),
+        `Re-dated ${updateRes.rows.length} pending transaction(s) to ${newDate} before approval`,
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    return NextResponse.json({
+      success: true,
+      processed: updateRes.rows.length,
+      skipped: transactionIds.length - updateRes.rows.length,
+      newDate,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Error updating transaction dates:', error);
+    return NextResponse.json({ error: 'Failed to update transaction dates' }, { status: 500 });
+  } finally {
+    client.release();
+  }
+}
+
+// POST /api/recoveries - Approve or reject recoveries (single or bulk),
+// or bulk re-date PENDING transactions before approval (action: update-date)
 export async function POST(request: NextRequest) {
   try {
-    const { action, transactionIds, approvedBy, rejectReason } = await request.json();
+    const { action, transactionIds, approvedBy, rejectReason, newDate, updatedBy } = await request.json();
 
-    if (!action || !transactionIds || !Array.isArray(transactionIds) || transactionIds.length === 0 || !approvedBy) {
-      return NextResponse.json({ error: 'Action, transactionIds, and approvedBy are required' }, { status: 400 });
+    if (!action || !transactionIds || !Array.isArray(transactionIds) || transactionIds.length === 0) {
+      return NextResponse.json({ error: 'Action and transactionIds are required' }, { status: 400 });
+    }
+
+    // Bulk backdate pending transactions (pre-approval correction)
+    if (action === 'update-date') {
+      return await handleUpdateDate(transactionIds, newDate, updatedBy);
+    }
+
+    if (!approvedBy) {
+      return NextResponse.json({ error: 'approvedBy is required' }, { status: 400 });
     }
 
     if (action !== 'approve' && action !== 'reject') {
-      return NextResponse.json({ error: 'Action must be "approve" or "reject"' }, { status: 400 });
+      return NextResponse.json({ error: 'Action must be "approve", "reject", or "update-date"' }, { status: 400 });
     }
 
     const client = await getClient();
