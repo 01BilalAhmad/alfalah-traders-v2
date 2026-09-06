@@ -61,10 +61,13 @@ async function createPgPool() {
   if (!globalForPool.pgPool) {
     const connectionString = process.env.DATABASE_URL_POOLED || process.env.DATABASE_URL;
     const isPooled = connectionString?.includes('-pooler');
+    // Explicit sslmode=disable in the URL opts out of SSL (local dev / plain TCP
+    // servers). Neon production URLs never contain it, so behavior is unchanged there.
+    const sslDisabled = connectionString?.includes('sslmode=disable');
 
     globalForPool.pgPool = new pg.Pool({
       connectionString,
-      ssl: connectionString?.startsWith('file:') ? false : { rejectUnauthorized: false },
+      ssl: sslDisabled ? false : (connectionString?.startsWith('file:') ? false : { rejectUnauthorized: false }),
       max: isPooled ? 5 : 3,
       idleTimeoutMillis: 20000,
       connectionTimeoutMillis: 10000,
