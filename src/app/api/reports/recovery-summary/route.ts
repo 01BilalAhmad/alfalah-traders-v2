@@ -153,7 +153,9 @@ async function generateReport(
         // EXCLUDE 'Balance Adjustment' entries — these are tally resolution
         // adjustments, NOT actual recoveries by orderbookers. They should
         // only appear in Company Report / Ledger, not in OB Recovery Report.
-        let txnQuery = `SELECT id, type, amount, "previousBalance", "newBalance", "createdAt", description, "gpsLat", "gpsLng", "companyId"
+        // "createdBy" is selected so recoveries can be attributed to the OB
+        // who actually took them (see own-recovery filtering below).
+        let txnQuery = `SELECT id, type, amount, "previousBalance", "newBalance", "createdAt", description, "gpsLat", "gpsLng", "companyId", "createdBy"
              FROM "Transaction"
              WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'approved'
              AND (description IS NULL OR description NOT LIKE '%Balance Adjustment%')`;
@@ -170,12 +172,13 @@ async function generateReport(
         const dayTxns = txnRes.rows;
 
         // Also fetch pending transactions to determine visited status
+        // (only the OB's OWN pending recoveries mark a shop as visited for him)
         let pendingQuery = `SELECT id FROM "Transaction"
-             WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'pending' AND type = 'recovery'`;
-        const pendingParams: (string | Date)[] = [shop.id, startDate.toISOString(), endDate.toISOString()];
+             WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'pending' AND type = 'recovery' AND "createdBy" = $4`;
+        const pendingParams: (string | Date)[] = [shop.id, startDate.toISOString(), endDate.toISOString(), ob.id];
 
         if (companyId) {
-          pendingQuery += ` AND "companyId" = $4`;
+          pendingQuery += ` AND "companyId" = $5`;
           pendingParams.push(companyId);
         }
 
@@ -186,10 +189,18 @@ async function generateReport(
 
         const todayCredit = dayTxns.filter((t: { type: string; amount: number }) => t.type === 'credit').reduce((s: number, t: { amount: number }) => s + t.amount, 0);
         const recoveryTxns = dayTxns.filter((t: { type: string }) => t.type === 'recovery');
-        const todayRecovery = recoveryTxns.reduce((s: number, t: { amount: number }) => s + t.amount, 0);
+        // ── OWN-recovery attribution (bug fix) ──
+        // A shop can have BOTH a primary and a secondary orderbooker. Each OB's
+        // report must only show the recoveries HE personally took, not the
+        // other OB's recoveries at the same shop. Attribution = "createdBy".
+        const ownRecoveryTxns = recoveryTxns.filter((t: { createdBy: string }) => t.createdBy === ob.id);
+        const todayRecovery = ownRecoveryTxns.reduce((s: number, t: { amount: number }) => s + t.amount, 0);
+        // ALL recoveries at the shop today (any OB) — used ONLY for the real
+        // closing-balance math so the shop's balance stays accurate.
+        const allRecoverySum = recoveryTxns.reduce((s: number, t: { amount: number }) => s + t.amount, 0);
         const prevBalance = dayTxns.length > 0 ? dayTxns[dayTxns.length - 1].previousBalance : shop.balance;
 
-        const recoveryEntries = recoveryTxns.map((t: { id: string; amount: number; createdAt: string; description: string | null; gpsLat: number | null; gpsLng: number | null }) => ({
+        const recoveryEntries = ownRecoveryTxns.map((t: { id: string; amount: number; createdAt: string; description: string | null; gpsLat: number | null; gpsLng: number | null }) => ({
           id: t.id,
           amount: Math.round(t.amount * 100) / 100,
           time: t.createdAt,
@@ -211,12 +222,18 @@ async function generateReport(
         }
 
         // 2. Group today's transactions by companyId
-        const txnByCompany = new Map<string, { credit: number; recovery: number }>();
+        // Credits always count (they are shop-level facts posted by admin).
+        // Recoveries are attributed: 'recovery' = this OB's own (for display),
+        // 'allRecovery' = every OB's (for the real balance math).
+        const txnByCompany = new Map<string, { credit: number; recovery: number; allRecovery: number }>();
         for (const t of dayTxns) {
           const cid = t.companyId || '_none_';
-          const existing = txnByCompany.get(cid) || { credit: 0, recovery: 0 };
+          const existing = txnByCompany.get(cid) || { credit: 0, recovery: 0, allRecovery: 0 };
           if (t.type === 'credit') existing.credit += Number(t.amount);
-          else if (t.type === 'recovery') existing.recovery += Number(t.amount);
+          else if (t.type === 'recovery') {
+            existing.allRecovery += Number(t.amount);
+            if (t.createdBy === ob.id) existing.recovery += Number(t.amount);
+          }
           txnByCompany.set(cid, existing);
         }
 
@@ -236,18 +253,19 @@ async function generateReport(
           }
 
           for (const cid of shopCompanyIds) {
-            const compTxns = txnByCompany.get(cid) || { credit: 0, recovery: 0 };
+            const compTxns = txnByCompany.get(cid) || { credit: 0, recovery: 0, allRecovery: 0 };
             const currentBal = shopCompanyBalances[cid] || 0;
-            // True previous balance = current balance - today's credit + today's recovery
-            const compPrevBalance = Math.round((currentBal - compTxns.credit + compTxns.recovery) * 100) / 100;
-            const compClosing = Math.round((compPrevBalance + compTxns.credit - compTxns.recovery) * 100) / 100;
+            // True previous balance = current balance - today's credit + today's recovery (ALL recoveries,
+            // because the current balance already includes every OB's recovery)
+            const compPrevBalance = Math.round((currentBal - compTxns.credit + compTxns.allRecovery) * 100) / 100;
+            const compClosing = Math.round((compPrevBalance + compTxns.credit - compTxns.allRecovery) * 100) / 100;
 
             companyBreakdown.push({
               companyId: cid,
               companyName: compNameMap[cid] || cid,
               previousBalance: compPrevBalance,
               todayCredit: Math.round(compTxns.credit * 100) / 100,
-              todayRecovery: Math.round(compTxns.recovery * 100) / 100,
+              todayRecovery: Math.round(compTxns.recovery * 100) / 100, // this OB's own only
               closingBalance: compClosing,
             });
           }
@@ -268,14 +286,14 @@ async function generateReport(
             }
 
             for (const cid of txnCompanyIds) {
-              const compTxns = txnByCompany.get(cid) || { credit: 0, recovery: 0 };
+              const compTxns = txnByCompany.get(cid) || { credit: 0, recovery: 0, allRecovery: 0 };
               // Without ShopCompanyBalance, use transaction data to estimate
               companyBreakdown.push({
                 companyId: cid,
                 companyName: compNameMap[cid] || cid,
                 previousBalance: 0, // Can't determine without ShopCompanyBalance
                 todayCredit: Math.round(compTxns.credit * 100) / 100,
-                todayRecovery: Math.round(compTxns.recovery * 100) / 100,
+                todayRecovery: Math.round(compTxns.recovery * 100) / 100, // this OB's own only
                 closingBalance: 0,
               });
             }
@@ -290,11 +308,13 @@ async function generateReport(
           companyId: shop.companyId,
           previousBalance: Math.round(prevBalance * 100) / 100,
           todayCredit: Math.round(todayCredit * 100) / 100,
-          todayRecovery: Math.round(todayRecovery * 100) / 100,
-          closingBalance: Math.round((prevBalance + todayCredit - todayRecovery) * 100) / 100,
-          visited: recoveryTxns.length > 0 || hasPendingRecovery,
+          todayRecovery: Math.round(todayRecovery * 100) / 100, // this OB's own recoveries only
+          // Closing = REAL shop balance: prev + credit - ALL recoveries taken
+          // at this shop today (by any OB), so outstanding stays accurate.
+          closingBalance: Math.round((prevBalance + todayCredit - allRecoverySum) * 100) / 100,
+          visited: ownRecoveryTxns.length > 0 || hasPendingRecovery,
           companyBreakdown,
-          recoveryEntries,
+          recoveryEntries, // this OB's own recoveries only
         });
       }
 
@@ -345,13 +365,15 @@ async function generateReport(
         .map((s: ShopRecovery) => s.shopId);
 
       if (primaryShopIds.length > 0) {
+        // NOTE: "createdBy" filter — only recoveries this OB personally took
+        // count toward HIS company breakdown (same attribution rule as above).
         let breakdownQuery = `SELECT "companyId", SUM(amount) as "totalRecovery", COUNT(DISTINCT "shopId") as shop_count
            FROM "Transaction"
-           WHERE "shopId" = ANY($1::text[]) AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'approved' AND type = 'recovery' AND "companyId" IS NOT NULL`;
-        const breakdownParams: (string[] | string | Date)[] = [primaryShopIds, startDate.toISOString(), endDate.toISOString()];
+           WHERE "shopId" = ANY($1::text[]) AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'approved' AND type = 'recovery' AND "companyId" IS NOT NULL AND "createdBy" = $4`;
+        const breakdownParams: (string[] | string | Date)[] = [primaryShopIds, startDate.toISOString(), endDate.toISOString(), ob.id];
 
         if (companyId) {
-          breakdownQuery += ` AND "companyId" = $4`;
+          breakdownQuery += ` AND "companyId" = $5`;
           breakdownParams.push(companyId);
         }
 
