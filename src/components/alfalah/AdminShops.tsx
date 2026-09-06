@@ -251,7 +251,7 @@ export default function AdminShops() {
   // Bulk selection state
   const [selectedShopIds, setSelectedShopIds] = useState<Set<string>>(new Set());
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
-  const [bulkAction, setBulkAction] = useState<'assign' | 'assign-secondary' | 'deactivate' | 'reactivate' | 'route-days' | null>(null);
+  const [bulkAction, setBulkAction] = useState<'assign' | 'assign-secondary' | 'unassign-secondary' | 'deactivate' | 'reactivate' | 'route-days' | null>(null);
   const [bulkOrderbookerId, setBulkOrderbookerId] = useState('');
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkRouteDays, setBulkRouteDays] = useState<string[]>([]);
@@ -261,6 +261,10 @@ export default function AdminShops() {
   const [secondaryCompanyId, setSecondaryCompanyId] = useState('');
   const [secondaryRouteDays, setSecondaryRouteDays] = useState<string[]>([]);
   const [createCompanyBalance, setCreateCompanyBalance] = useState(true);
+
+  // Secondary OB UNASSIGN state (bulk remove)
+  const [unsecondaryOBId, setUnsecondaryOBId] = useState(''); // '' = specific OB selected below; 'all' = every OB
+  const [unsecondaryCompanyId, setUnsecondaryCompanyId] = useState(''); // '' = all companies
 
   // Bulk import dialog state
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
@@ -769,6 +773,46 @@ export default function AdminShops() {
       }
     } catch {
       toast({ title: 'Error', description: 'Failed to assign secondary orderbooker', variant: 'destructive' });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkUnassignSecondary = async () => {
+    // unsecondaryOBId: 'all' removes every secondary assignment on the selected shops;
+    // otherwise removes the specific OB's assignment (company optional — empty = all companies)
+    if (!unsecondaryOBId) return;
+    setBulkLoading(true);
+    try {
+      const shopIds = Array.from(selectedShopIds);
+      const res = await apiFetch('/api/shops/bulk-unassign-secondary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopIds,
+          orderbookerId: unsecondaryOBId,
+          companyId: unsecondaryCompanyId || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const removedCount: number = data.removed ?? 0;
+        if (removedCount > 0) {
+          toast({ title: 'Secondary OB Removed', description: `Removed ${removedCount} assignment${removedCount === 1 ? '' : 's'} from ${shopIds.length} selected shop${shopIds.length === 1 ? '' : 's'}` });
+        } else {
+          toast({ title: 'Nothing to Remove', description: 'No matching secondary orderbooker assignments found on the selected shops' });
+        }
+        setBulkDialogOpen(false);
+        setBulkAction(null);
+        setUnsecondaryOBId('');
+        setUnsecondaryCompanyId('');
+        clearSelection();
+        refreshShopData();
+      } else {
+        toast({ title: 'Error', description: data.error || 'Failed to remove secondary orderbooker', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to remove secondary orderbooker', variant: 'destructive' });
     } finally {
       setBulkLoading(false);
     }
@@ -1300,6 +1344,16 @@ export default function AdminShops() {
             type="button"
                   variant="outline"
                   size="sm"
+                  className="h-8 text-xs gap-1.5 text-violet-600 hover:text-violet-700 hover:bg-violet-50 hover:border-violet-200"
+                  onClick={() => { setBulkAction('unassign-secondary'); setBulkDialogOpen(true); }}
+                >
+                  <UserMinus className="h-3.5 w-3.5" />
+                  Remove Secondary OB
+                </Button>
+                <Button
+            type="button"
+                  variant="outline"
+                  size="sm"
                   className="h-8 text-xs gap-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200"
                   onClick={openBulkRouteDays}
                 >
@@ -1478,6 +1532,75 @@ export default function AdminShops() {
             >
               {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Assign to {selectedShopIds.size} {selectedShopIds.size === 1 ? 'Shop' : 'Shops'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk REMOVE Secondary Orderbooker Dialog */}
+      <Dialog open={bulkDialogOpen && bulkAction === 'unassign-secondary'} onOpenChange={(open) => { setBulkDialogOpen(open); if (!open) setBulkAction(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserMinus className="h-5 w-5 text-violet-600" />
+              Remove Secondary Orderbooker
+            </DialogTitle>
+            <DialogDescription>
+              Remove secondary orderbooker assignment(s) from {selectedShopIds.size} selected {selectedShopIds.size === 1 ? 'shop' : 'shops'}.
+              Primary orderbookers are never affected.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Orderbooker</Label>
+              <Select value={unsecondaryOBId} onValueChange={setUnsecondaryOBId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose an orderbooker..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All orderbookers (remove every secondary assignment)</SelectItem>
+                  {orderbookers.map((ob) => (
+                    <SelectItem key={ob.id} value={ob.id}>
+                      {ob.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Company (optional)</Label>
+              <Select value={unsecondaryCompanyId || 'all-companies'} onValueChange={(v) => setUnsecondaryCompanyId(v === 'all-companies' ? '' : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All companies" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all-companies">All companies</SelectItem>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">Leave as &quot;All companies&quot; to remove this orderbooker for every company at the selected shops</p>
+            </div>
+            <div className="rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10 p-3">
+              <p className="text-xs text-violet-700 dark:text-violet-300 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>This only removes secondary (additional) orderbooker assignments. The shop&apos;s primary orderbooker stays unchanged. You can also remove a single assignment anytime from the shop&apos;s detail view (eye icon).</span>
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => { setBulkDialogOpen(false); setBulkAction(null); setUnsecondaryOBId(''); setUnsecondaryCompanyId(''); }}>
+              Cancel
+            </Button>
+            <Button
+            type="button"
+              onClick={handleBulkUnassignSecondary}
+              disabled={!unsecondaryOBId || bulkLoading}
+              className="bg-violet-600 hover:bg-violet-700 text-white"
+            >
+              {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Remove from {selectedShopIds.size} {selectedShopIds.size === 1 ? 'Shop' : 'Shops'}
             </Button>
           </DialogFooter>
         </DialogContent>
