@@ -814,157 +814,298 @@ export interface ClaimReceiptData {
   companyName?: string | null;
 }
 
+function drawDottedLineR(
+  doc: import('jspdf').jsPDF,
+  x1: number,
+  x2: number,
+  y: number,
+  color: [number, number, number],
+): void {
+  doc.setDrawColor(...color);
+  doc.setLineWidth(0.3);
+  const gap = 1.6;
+  for (let x = x1; x < x2; x += gap) {
+    doc.line(x, y, Math.min(x + 0.7, x2), y);
+  }
+}
+
 export async function generateClaimReceiptPDF(data: ClaimReceiptData): Promise<jsPDF> {
-  const [{ default: jsPDFLib }] = await Promise.all([
+  const [{ default: jsPDFLib }, { numberToWords }] = await Promise.all([
     import('jspdf'),
+    import('./pdf-generator'),
   ]);
 
   const doc = new jsPDFLib('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const businessName = getBusinessName();
+  const businessPhone = getBusinessPhone();
 
-  // ── Header ──
+  // Claim theme: red accent
+  const accent: [number, number, number] = RED_TEXT;            // red-700
+  const tint: [number, number, number] = [254, 226, 226];       // red-100
+  const darkText: [number, number, number] = [30, 41, 59];
+  const lightSlate: [number, number, number] = [148, 163, 184];
+  const cardBg: [number, number, number] = [248, 250, 252];
+  const hairline: [number, number, number] = [226, 232, 240];
+
+  const receiptNo = `#${data.claimId.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  const dateStr = formatDateTime(data.createdAt);
+  const amountWords = `${numberToWords(data.amount)} Rupees Only`;
+
+  // ── Header band (full-bleed navy + red accent) ──
   doc.setFillColor(...NAVY_BLUE);
-  doc.rect(0, 0, pageWidth, 35, 'F');
+  doc.rect(0, 0, pageWidth, 38, 'F');
+  doc.setFillColor(...accent);
+  doc.rect(0, 38, pageWidth, 2.5, 'F');
 
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text(businessName, pageWidth / 2, 14, { align: 'center' });
+  doc.setFontSize(21);
+  doc.text(businessName, pageWidth / 2, 15, { align: 'center' });
 
-  doc.setFontSize(12);
-  doc.text('CLAIM RECEIPT', pageWidth / 2, 24, { align: 'center' });
-
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Ref: ${data.claimId}`, pageWidth - 15, 30, { align: 'right' });
-
-  // ── Red accent line ──
-  doc.setFillColor(185, 28, 28); // RED
-  doc.rect(0, 35, pageWidth, 3, 'F');
-
-  // ── Date & Time ──
-  let yPos = 45;
-  doc.setTextColor(...SLATE_GREY);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Date: ${formatDateTime(data.createdAt)}`, 15, yPos);
-
-  const businessPhone = getBusinessPhone();
   if (businessPhone) {
-    doc.text(`Phone: ${businessPhone}`, pageWidth - 15, yPos, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(254, 226, 226);
+    doc.text(`Tel: ${businessPhone}`, pageWidth / 2, 22, { align: 'center' });
   }
+
+  // ── Type chip (centered pill) ──
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setCharSpace(1.2);
+  const chipText = 'CLAIM RECEIPT';
+  // charSpace adds ~1.2mm after every glyph — include it in pill width
+  const chipW = doc.getTextWidth(chipText) + 1.2 * chipText.length + 16;
+  doc.setCharSpace(0);
+  const chipH = 9;
+  const chipY = 47;
+  doc.setFillColor(...accent);
+  doc.roundedRect((pageWidth - chipW) / 2, chipY, chipW, chipH, 4.5, 4.5, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10.5);
+  doc.setCharSpace(1.2);
+  // left-align inside pill with fixed padding — jsPDF align:'center' does not
+  // account for charSpace, which caused asymmetric right-side overflow
+  doc.text(chipText, (pageWidth - chipW) / 2 + 8, chipY + 6.2);
+  doc.setCharSpace(0);
+
+  // ── Receipt meta row ──
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  doc.setTextColor(...SLATE_GREY);
+  doc.text('Receipt No:', 15, 64);
+  doc.setTextColor(...darkText);
+  doc.setFont('helvetica', 'bold');
+  doc.text(receiptNo, 40, 64);
+
+  doc.setFontSize(9.5);
+  const dateW = doc.getTextWidth(dateStr);
+  doc.setTextColor(...darkText);
+  doc.setFont('helvetica', 'bold');
+  doc.text(dateStr, pageWidth - 15, 64, { align: 'right' });
+  doc.setTextColor(...SLATE_GREY);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Date & Time:', pageWidth - 15 - dateW - 4, 64, { align: 'right' });
+
+  doc.setDrawColor(...hairline);
+  doc.setLineWidth(0.3);
+  doc.line(15, 68, pageWidth - 15, 68);
+
+  // ── Shop Details card ──
+  let yPos = 74;
+
+  doc.setTextColor(...lightSlate);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setCharSpace(0.8);
+  doc.text('SHOP DETAILS', 15, yPos);
+  doc.setCharSpace(0);
+
+  yPos += 4;
+  const cardX = 15;
+  const cardW = pageWidth - 30;
+  const cardH = 25;
+  doc.setFillColor(...cardBg);
+  doc.roundedRect(cardX, yPos, cardW, cardH, 2, 2, 'F');
+  doc.setFillColor(...accent);
+  doc.rect(cardX, yPos, 1.6, cardH, 'F');
+
+  doc.setTextColor(...NAVY_BLUE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text(data.shopName, cardX + 8, yPos + 8);
+
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...SLATE_GREY);
+  const colSplit = cardX + cardW / 2 + 2;
+  if (data.shopArea) {
+    doc.text('Area:', cardX + 8, yPos + 15);
+    doc.setTextColor(...darkText);
+    doc.text(String(data.shopArea).slice(0, 38), cardX + 8 + 12, yPos + 15);
+    doc.setTextColor(...SLATE_GREY);
+  }
+  if (data.shopOwner) {
+    doc.text('Owner:', colSplit, yPos + 15);
+    doc.setTextColor(...darkText);
+    doc.text(String(data.shopOwner).slice(0, 30), colSplit + 14, yPos + 15);
+    doc.setTextColor(...SLATE_GREY);
+  }
+  doc.text('Orderbooker:', cardX + 8, yPos + 21);
+  doc.setTextColor(...darkText);
+  doc.text(data.orderbookerName || 'N/A', cardX + 8 + 24, yPos + 21);
+  if (data.companyName) {
+    doc.setTextColor(...SLATE_GREY);
+    doc.text('Company:', colSplit, yPos + 21);
+    doc.setTextColor(...accent);
+    doc.setFont('helvetica', 'bold');
+    doc.text(String(data.companyName).slice(0, 28), colSplit + 16, yPos + 21);
+  }
+
+  yPos += cardH + 10;
+
+  // ── Claim Amount centerpiece ──
+  const amtH = 34;
+  doc.setFillColor(...tint);
+  doc.roundedRect(cardX, yPos, cardW, amtH, 2.5, 2.5, 'F');
+  doc.setDrawColor(...accent);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(cardX, yPos, cardW, amtH, 2.5, 2.5, 'S');
+
+  doc.setTextColor(...accent);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setCharSpace(1.5);
+  doc.text('CLAIM AMOUNT (DEDUCTED)', pageWidth / 2, yPos + 8, { align: 'center' });
+  doc.setCharSpace(0);
+
+  doc.setFontSize(26);
+  doc.text(formatCurrency(data.amount), pageWidth / 2, yPos + 20, { align: 'center' });
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(9.5);
+  doc.setTextColor(...SLATE_GREY);
+  const wordsLines = doc.splitTextToSize(amountWords, cardW - 24) as string[];
+  wordsLines.slice(0, 2).forEach((line, i) => {
+    doc.text(line, pageWidth / 2, yPos + 27.5 + i * 4.5, { align: 'center' });
+  });
+
+  yPos += amtH + 10;
+
+  // ── Balance Summary (ledger style) ──
+  doc.setTextColor(...lightSlate);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setCharSpace(0.8);
+  doc.text('BALANCE SUMMARY', 15, yPos);
+  doc.setCharSpace(0);
+
+  yPos += 7;
+  const labelX = 18;
+  const valueX = pageWidth - 18;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...SLATE_GREY);
+  doc.text('Previous Balance', labelX, yPos);
+  doc.setTextColor(...darkText);
+  doc.setFont('helvetica', 'bold');
+  doc.text(formatCurrency(data.previousBalance), valueX, yPos, { align: 'right' });
+
+  yPos += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...SLATE_GREY);
+  doc.text('Claim Deducted', labelX, yPos);
+  doc.setTextColor(...accent);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`- ${formatCurrency(data.amount)}`, valueX, yPos, { align: 'right' });
+
+  yPos += 4;
+  drawDottedLineR(doc, labelX, valueX, yPos, [203, 213, 225]);
+
+  yPos += 8;
+  doc.setTextColor(...NAVY_BLUE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11.5);
+  doc.setCharSpace(0.4);
+  doc.text('NEW BALANCE', labelX, yPos);
+  doc.setCharSpace(0);
+  doc.setFontSize(12);
+  doc.setTextColor(...darkText);
+  doc.text(formatCurrency(data.newBalance), valueX, yPos, { align: 'right' });
+
   yPos += 10;
 
-  // ── Shop Details ──
-  const shopDetailsHeight = data.companyName ? 38 : 30;
-  doc.setFillColor(...LIGHT_BLUE);
-  doc.roundedRect(15, yPos - 4, pageWidth - 30, shopDetailsHeight, 2, 2, 'F');
-
-  doc.setTextColor(...NAVY_BLUE);
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Shop Details', 20, yPos + 3);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(30, 41, 59);
-  doc.text(`Shop: ${data.shopName}`, 20, yPos + 11);
-  doc.text(`Owner: ${data.shopOwner || '—'}`, 20, yPos + 18);
-  doc.text(`Area: ${data.shopArea || '—'}`, pageWidth / 2 + 10, yPos + 11);
-  doc.text(`Orderbooker: ${data.orderbookerName}`, pageWidth / 2 + 10, yPos + 18);
-  if (data.companyName) {
-    doc.setTextColor(185, 28, 28);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Company: ${data.companyName}`, 20, yPos + 25);
-    doc.setTextColor(30, 41, 59);
-    doc.setFont('helvetica', 'normal');
-  }
-  yPos += shopDetailsHeight + 4;
-
-  // ── Claim Amount (BIG RED) ──
-  doc.setFillColor(254, 226, 226); // light red bg
-  doc.roundedRect(15, yPos - 2, pageWidth - 30, 20, 2, 2, 'F');
-
-  doc.setTextColor(185, 28, 28);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('CLAIM AMOUNT (DEDUCTED)', 20, yPos + 5);
-
-  doc.setFontSize(16);
-  doc.text(formatCurrency(data.amount), pageWidth - 20, yPos + 12, { align: 'right' });
-  yPos += 26;
-
-  // ── Balance Summary ──
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(15, yPos - 2, pageWidth - 30, 28, 2, 2, 'F');
-
-  doc.setTextColor(...SLATE_GREY);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-
-  doc.text('Previous Balance:', 20, yPos + 5);
-  doc.setTextColor(30, 41, 59);
-  doc.setFont('helvetica', 'bold');
-  doc.text(formatCurrency(data.previousBalance), pageWidth - 20, yPos + 5, { align: 'right' });
-
-  doc.setTextColor(...RED_TEXT);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Claim Deducted:', 20, yPos + 12);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`- ${formatCurrency(data.amount)}`, pageWidth - 20, yPos + 12, { align: 'right' });
-
-  // Divider
-  doc.setDrawColor(203, 213, 225);
-  doc.line(20, yPos + 16, pageWidth - 20, yPos + 16);
-
-  doc.setTextColor(...NAVY_BLUE);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('New Balance:', 20, yPos + 22);
-  doc.setFontSize(11);
-  doc.text(formatCurrency(data.newBalance), pageWidth - 20, yPos + 22, { align: 'right' });
-  yPos += 34;
-
-  // ── Reason ──
+  // ── Reason / Description ──
   if (data.description) {
-    doc.setTextColor(...SLATE_GREY);
-    doc.setFontSize(9);
+    doc.setTextColor(...lightSlate);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setCharSpace(0.8);
+    doc.text('REASON / DESCRIPTION', 15, yPos);
+    doc.setCharSpace(0);
+    yPos += 6;
+    doc.setTextColor(...darkText);
     doc.setFont('helvetica', 'normal');
-    doc.text('Reason / Description:', 15, yPos);
-    yPos += 5;
-
-    doc.setTextColor(30, 41, 59);
     doc.setFontSize(10);
-    const lines = doc.splitTextToSize(data.description, pageWidth - 30);
-    doc.text(lines, 15, yPos);
-    yPos += lines.length * 5 + 5;
+    const descLines = doc.splitTextToSize(data.description, cardW - 6) as string[];
+    descLines.slice(0, 3).forEach((line, i) => {
+      doc.text(line, 18, yPos + i * 5);
+    });
   }
 
-  // ── Signature Area ──
-  yPos = Math.max(yPos + 20, 200);
-  doc.setDrawColor(203, 213, 225);
+  // ── Signature area ──
+  const sigY = 236;
+  doc.setDrawColor(148, 163, 184);
   doc.setLineWidth(0.3);
-
-  doc.line(15, yPos, 80, yPos);
-  doc.line(pageWidth - 80, yPos, pageWidth - 15, yPos);
+  doc.line(15, sigY, 78, sigY);
+  doc.line(pageWidth - 78, sigY, pageWidth - 15, sigY);
 
   doc.setTextColor(...SLATE_GREY);
-  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('Authorized Signature', 15, yPos + 5);
-  doc.text('Shop Keeper Signature', pageWidth - 80, yPos + 5);
+  doc.setFontSize(8.5);
+  doc.text('Authorized Signature', 15, sigY + 5);
+  doc.text('Shop Keeper Signature', pageWidth - 78, sigY + 5);
 
-  // ── Footer ──
-  doc.setFontSize(7);
-  doc.setTextColor(148, 163, 184);
-  doc.text(`Generated by ${businessName} Finexa CMS — ${formatDateTime(new Date().toISOString())}`, pageWidth / 2, 285, { align: 'center' });
+  // ── Footer band (anchored to page bottom) ──
+  const footerY = pageHeight - 32;
+  doc.setFillColor(...cardBg);
+  doc.rect(0, footerY, pageWidth, pageHeight - footerY, 'F');
+  doc.setDrawColor(...hairline);
+  doc.setLineWidth(0.3);
+  doc.line(0, footerY, pageWidth, footerY);
+
+  doc.setTextColor(...NAVY_BLUE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Claim recorded against shop balance.', pageWidth / 2, footerY + 7, { align: 'center' });
+
+  doc.setTextColor(...SLATE_GREY);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.text(
+    `Please retain this receipt for your records. For any discrepancy, contact${businessPhone ? ` ${businessPhone}` : ' the office'}.`,
+    pageWidth / 2, footerY + 13, { align: 'center' },
+  );
+
+  doc.setFontSize(7.5);
+  doc.setTextColor(...lightSlate);
+  doc.text(
+    `Generated by ${businessName} - Finexa CMS - ${formatDateTime(new Date().toISOString())}`,
+    pageWidth / 2, footerY + 19, { align: 'center' },
+  );
+  doc.text(
+    '(c) 2026 Finexa. All rights reserved.',
+    pageWidth / 2, footerY + 23.5, { align: 'center' },
+  );
 
   return doc;
 }
 
 export async function downloadClaimReceiptPDF(data: ClaimReceiptData): Promise<void> {
   const doc = await generateClaimReceiptPDF(data);
-  const fileName = `Claim_${data.shopName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+  const fileName = `Claim_Receipt_${data.shopName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(fileName);
 }

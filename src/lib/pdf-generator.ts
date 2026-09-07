@@ -286,117 +286,360 @@ export async function downloadLedgerPDF(ledger: LedgerData): Promise<void> {
 export interface RecoveryReceiptData {
   id: string;
   shopName: string;
+  shopOwner?: string | null;
   shopArea: string | null;
+  companyName?: string | null;
   orderbookerName: string;
   amount: number;
   previousBalance: number;
   newBalance: number;
-  type: string; // 'credit' | 'recovery'
+  type: string; // 'credit' | 'recovery' | 'supplier_collection'
   description: string;
   createdAt: string;
 }
 
-export async function downloadRecoveryReceipt(data: RecoveryReceiptData): Promise<void> {
+/** Convert number to words (Pakistani convention: Lakh / Crore) for receipts. */
+export function numberToWords(num: number): string {
+  if (num === 0) return 'Zero';
+  if (!Number.isFinite(num)) return '';
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  const n = Math.floor(Math.abs(num));
+  if (n < 20) return ones[n];
+  if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+  if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + numberToWords(n % 100) : '');
+  if (n < 100000) return numberToWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + numberToWords(n % 1000) : '');
+  if (n < 10000000) return numberToWords(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + numberToWords(n % 100000) : '');
+  return numberToWords(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 ? ' ' + numberToWords(n % 10000000) : '');
+}
+
+/** Type-specific theming for transaction receipts. */
+function receiptTheme(type: string) {
+  switch (type) {
+    case 'credit':
+      return {
+        accent: [180, 83, 9] as [number, number, number],        // amber-700
+        tint: [254, 243, 199] as [number, number, number],       // amber-100
+        chip: 'CREDIT RECEIPT',
+        amountLabel: 'AMOUNT CREDITED',
+        amountNoun: 'Amount Credited',
+        sign: '+',
+      };
+    case 'supplier_collection':
+      return {
+        accent: [30, 58, 138] as [number, number, number],       // blue-900
+        tint: [239, 246, 255] as [number, number, number],       // blue-50
+        chip: 'SUPPLIER COLLECTION RECEIPT',
+        amountLabel: 'AMOUNT COLLECTED',
+        amountNoun: 'Amount Collected',
+        sign: '-',
+      };
+    default:
+      return {
+        accent: [6, 95, 70] as [number, number, number],         // emerald-700
+        tint: [209, 250, 229] as [number, number, number],       // emerald-100
+        chip: 'RECOVERY RECEIPT',
+        amountLabel: 'AMOUNT RECOVERED',
+        amountNoun: 'Amount Recovered',
+        sign: '-',
+      };
+  }
+}
+
+function drawDottedLine(
+  doc: import('jspdf').jsPDF,
+  x1: number,
+  x2: number,
+  y: number,
+  color: [number, number, number],
+): void {
+  doc.setDrawColor(...color);
+  doc.setLineWidth(0.3);
+  const gap = 1.6;
+  for (let x = x1; x < x2; x += gap) {
+    doc.line(x, y, Math.min(x + 0.7, x2), y);
+  }
+}
+
+export async function generateRecoveryReceiptPDF(data: RecoveryReceiptData): Promise<{ doc: import('jspdf').jsPDF; fileName: string }> {
   const { default: jsPDF } = await import('jspdf');
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const businessName = getBusinessName();
   const businessPhone = getBusinessPhone();
+  const theme = receiptTheme(data.type);
+  const typeLabel = data.type === 'credit' ? 'Credit'
+    : data.type === 'supplier_collection' ? 'Supplier Collection'
+    : 'Recovery';
 
   const navyBlue: [number, number, number] = [30, 58, 138];
   const slateGrey: [number, number, number] = [71, 85, 105];
-  const lightBlue: [number, number, number] = [239, 246, 255];
+  const lightSlate: [number, number, number] = [148, 163, 184];
+  const darkText: [number, number, number] = [30, 41, 59];
+  const cardBg: [number, number, number] = [248, 250, 252];
+  const hairline: [number, number, number] = [226, 232, 240];
 
-  const isCredit = data.type === 'credit';
-  const typeLabel = isCredit ? 'Credit' : 'Recovery';
+  const receiptNo = `#${data.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  const dateStr = formatDate(data.createdAt);
+  const amountWords = `${numberToWords(data.amount)} Rupees Only`;
 
-  // ── Header ──
+  // ── Header band (full-bleed navy) ──
   doc.setFillColor(...navyBlue);
-  doc.rect(0, 0, pageWidth, 35, 'F');
+  doc.rect(0, 0, pageWidth, 38, 'F');
+  doc.setFillColor(...theme.accent);
+  doc.rect(0, 38, pageWidth, 2.5, 'F');
 
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text(businessName, pageWidth / 2, 13, { align: 'center' });
+  doc.setFontSize(21);
+  doc.text(businessName, pageWidth / 2, 15, { align: 'center' });
 
   if (businessPhone) {
-    doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Tel: ${businessPhone}`, pageWidth / 2, 18, { align: 'center' });
+    doc.setFontSize(9);
+    doc.setTextColor(191, 219, 254);
+    doc.text(`Tel: ${businessPhone}`, pageWidth / 2, 22, { align: 'center' });
   }
 
-  doc.setFontSize(12);
+  // ── Type chip (centered pill) ──
   doc.setFont('helvetica', 'bold');
-  doc.text(`${typeLabel} Receipt`, pageWidth / 2, businessPhone ? 27 : 25, { align: 'center' });
+  doc.setFontSize(11);
+  doc.setCharSpace(1.2);
+  const chipText = theme.chip;
+  // charSpace adds ~1.2mm after every glyph — include it in pill width
+  const chipW = doc.getTextWidth(chipText) + 1.2 * chipText.length + 16;
+  doc.setCharSpace(0);
+  const chipH = 9;
+  const chipY = 47;
+  doc.setFillColor(...theme.accent);
+  doc.roundedRect((pageWidth - chipW) / 2, chipY, chipW, chipH, 4.5, 4.5, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10.5);
+  doc.setCharSpace(1.2);
+  // left-align inside pill with fixed padding — jsPDF align:'center' does not
+  // account for charSpace, which caused asymmetric right-side overflow
+  doc.text(chipText, (pageWidth - chipW) / 2 + 8, chipY + 6.2);
+  doc.setCharSpace(0);
 
-  // ── Receipt Info ──
-  let yPos = 45;
+  // ── Receipt meta row ──
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  doc.setTextColor(...slateGrey);
+  doc.text('Receipt No:', 15, 64);
+  doc.setTextColor(...darkText);
+  doc.setFont('helvetica', 'bold');
+  doc.text(receiptNo, 40, 64);
 
-  // Shop info box
-  doc.setFillColor(...lightBlue);
-  doc.roundedRect(15, yPos - 3, pageWidth - 30, 28, 3, 3, 'F');
+  doc.setFontSize(9.5);
+  const dateW = doc.getTextWidth(dateStr);
+  doc.setTextColor(...darkText);
+  doc.setFont('helvetica', 'bold');
+  doc.text(dateStr, pageWidth - 15, 64, { align: 'right' });
+  doc.setTextColor(...slateGrey);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Date & Time:', pageWidth - 15 - dateW - 4, 64, { align: 'right' });
+
+  doc.setDrawColor(...hairline);
+  doc.setLineWidth(0.3);
+  doc.line(15, 68, pageWidth - 15, 68);
+
+  // ── Received From card ──
+  let yPos = 74;
+
+  doc.setTextColor(...lightSlate);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setCharSpace(0.8);
+  doc.text('RECEIVED FROM', 15, yPos);
+  doc.setCharSpace(0);
+
+  yPos += 4;
+  const cardX = 15;
+  const cardW = pageWidth - 30;
+  const cardH = 25;
+  doc.setFillColor(...cardBg);
+  doc.roundedRect(cardX, yPos, cardW, cardH, 2, 2, 'F');
+  doc.setFillColor(...theme.accent);
+  doc.rect(cardX, yPos, 1.6, cardH, 'F');
 
   doc.setTextColor(...navyBlue);
-  doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text(data.shopName, 20, yPos + 5);
+  doc.setFontSize(13);
+  doc.text(data.shopName, cardX + 8, yPos + 8);
 
-  doc.setFontSize(9);
+  doc.setFontSize(9.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...slateGrey);
+  const colSplit = cardX + cardW / 2 + 2;
   if (data.shopArea) {
-    doc.text(`Area: ${data.shopArea}`, 20, yPos + 12);
-  }
-  doc.text(`Orderbooker: ${data.orderbookerName || 'N/A'}`, 20, yPos + 18);
-
-  yPos += 32;
-
-  // ── Transaction Details Table ──
-  const rows = [
-    ['Transaction ID', data.id.substring(0, 12) + '...'],
-    ['Type', typeLabel],
-    ['Date & Time', formatDate(data.createdAt)],
-    ['Amount', formatCurrency(data.amount)],
-    ['Previous Balance', formatCurrency(data.previousBalance)],
-    ['New Balance', formatCurrency(data.newBalance)],
-    ['Description', data.description || (isCredit ? 'Goods supplied' : 'Cash collected')],
-  ];
-
-  rows.forEach(([label, value]) => {
-    doc.setFillColor(248, 250, 252);
-    doc.rect(15, yPos - 3, pageWidth - 30, 8, 'F');
-
+    doc.text('Area:', cardX + 8, yPos + 15);
+    doc.setTextColor(...darkText);
+    doc.text(String(data.shopArea).slice(0, 38), cardX + 8 + 12, yPos + 15);
     doc.setTextColor(...slateGrey);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(label, 20, yPos + 2);
-
-    doc.setTextColor(...navyBlue);
+  }
+  if (data.shopOwner) {
+    doc.text('Owner:', colSplit, yPos + 15);
+    doc.setTextColor(...darkText);
+    doc.text(String(data.shopOwner).slice(0, 30), colSplit + 14, yPos + 15);
+    doc.setTextColor(...slateGrey);
+  }
+  doc.text('Orderbooker:', cardX + 8, yPos + 21);
+  doc.setTextColor(...darkText);
+  doc.text(data.orderbookerName || 'N/A', cardX + 8 + 24, yPos + 21);
+  if (data.companyName) {
+    doc.setTextColor(...slateGrey);
+    doc.text('Company:', colSplit, yPos + 21);
+    doc.setTextColor(...theme.accent);
     doc.setFont('helvetica', 'bold');
-    doc.text(String(value), pageWidth - 20, yPos + 2, { align: 'right' });
+    doc.text(String(data.companyName).slice(0, 28), colSplit + 16, yPos + 21);
+  }
 
-    yPos += 8;
+  yPos += cardH + 10;
+
+  // ── Amount centerpiece ──
+  const amtH = 34;
+  doc.setFillColor(...theme.tint);
+  doc.roundedRect(cardX, yPos, cardW, amtH, 2.5, 2.5, 'F');
+  doc.setDrawColor(...theme.accent);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(cardX, yPos, cardW, amtH, 2.5, 2.5, 'S');
+
+  doc.setTextColor(...theme.accent);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setCharSpace(1.5);
+  doc.text(theme.amountLabel, pageWidth / 2, yPos + 8, { align: 'center' });
+  doc.setCharSpace(0);
+
+  doc.setFontSize(26);
+  doc.text(formatCurrency(data.amount), pageWidth / 2, yPos + 20, { align: 'center' });
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(9.5);
+  doc.setTextColor(...slateGrey);
+  const wordsLines = doc.splitTextToSize(amountWords, cardW - 24) as string[];
+  wordsLines.slice(0, 2).forEach((line, i) => {
+    doc.text(line, pageWidth / 2, yPos + 27.5 + i * 4.5, { align: 'center' });
   });
 
-  // ── Signature Area ──
-  yPos = Math.max(yPos + 20, 180);
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.3);
+  yPos += amtH + 10;
 
-  doc.line(15, yPos, 80, yPos);
-  doc.line(pageWidth - 80, yPos, pageWidth - 15, yPos);
+  // ── Balance Summary (ledger style) ──
+  doc.setTextColor(...lightSlate);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setCharSpace(0.8);
+  doc.text('BALANCE SUMMARY', 15, yPos);
+  doc.setCharSpace(0);
+
+  yPos += 7;
+  const labelX = 18;
+  const valueX = pageWidth - 18;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...slateGrey);
+  doc.text('Previous Balance', labelX, yPos);
+  doc.setTextColor(...darkText);
+  doc.setFont('helvetica', 'bold');
+  doc.text(formatCurrency(data.previousBalance), valueX, yPos, { align: 'right' });
+
+  yPos += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...slateGrey);
+  doc.text(`${theme.amountNoun}`, labelX, yPos);
+  doc.setTextColor(...theme.accent);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${theme.sign} ${formatCurrency(data.amount)}`, valueX, yPos, { align: 'right' });
+
+  yPos += 4;
+  drawDottedLine(doc, labelX, valueX, yPos, [203, 213, 225]);
+
+  yPos += 8;
+  doc.setTextColor(...navyBlue);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11.5);
+  doc.setCharSpace(0.4);
+  doc.text('NEW BALANCE', labelX, yPos);
+  doc.setCharSpace(0);
+  doc.setFontSize(12);
+  doc.setTextColor(...darkText);
+  doc.text(formatCurrency(data.newBalance), valueX, yPos, { align: 'right' });
+
+  yPos += 10;
+
+  // ── Description (if present) ──
+  const descText = data.description || (data.type === 'credit' ? 'Goods supplied' : 'Cash collected');
+  if (descText) {
+    doc.setTextColor(...lightSlate);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setCharSpace(0.8);
+    doc.text('DESCRIPTION', 15, yPos);
+    doc.setCharSpace(0);
+    yPos += 6;
+    doc.setTextColor(...darkText);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const descLines = doc.splitTextToSize(descText, cardW - 6) as string[];
+    descLines.slice(0, 3).forEach((line, i) => {
+      doc.text(line, 18, yPos + i * 5);
+    });
+  }
+
+  // ── Signature area ──
+  const sigY = 236;
+  doc.setDrawColor(148, 163, 184);
+  doc.setLineWidth(0.3);
+  doc.line(15, sigY, 78, sigY);
+  doc.line(pageWidth - 78, sigY, pageWidth - 15, sigY);
 
   doc.setTextColor(...slateGrey);
-  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('Authorized Signature', 15, yPos + 5);
-  doc.text('Shop Keeper Signature', pageWidth - 80, yPos + 5);
+  doc.setFontSize(8.5);
+  doc.text('Authorized Signature', 15, sigY + 5);
+  doc.text('Shop Keeper Signature', pageWidth - 78, sigY + 5);
 
-  // ── Footer ──
-  doc.setFontSize(7);
-  doc.setTextColor(148, 163, 184);
-  doc.text(`Generated by ${businessName} Finexa CMS — ${formatDate(new Date().toISOString())}`, pageWidth / 2, 285, { align: 'center' });
+  // ── Footer band (anchored to page bottom) ──
+  const footerY = pageHeight - 32;
+  doc.setFillColor(...cardBg);
+  doc.rect(0, footerY, pageWidth, pageHeight - footerY, 'F');
+  doc.setDrawColor(...hairline);
+  doc.setLineWidth(0.3);
+  doc.line(0, footerY, pageWidth, footerY);
 
-  const fileName = `${typeLabel}_${data.shopName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.setTextColor(...navyBlue);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Thank you for your business!', pageWidth / 2, footerY + 7, { align: 'center' });
+
+  doc.setTextColor(...slateGrey);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.text(
+    `Please retain this receipt for your records. For any discrepancy, contact${businessPhone ? ` ${businessPhone}` : ' the office'}.`,
+    pageWidth / 2, footerY + 13, { align: 'center' },
+  );
+
+  doc.setFontSize(7.5);
+  doc.setTextColor(...lightSlate);
+  doc.text(
+    `Generated by ${businessName} - Finexa CMS - ${formatDate(new Date().toISOString())}`,
+    pageWidth / 2, footerY + 19, { align: 'center' },
+  );
+  doc.text(
+    '(c) 2026 Finexa. All rights reserved.',
+    pageWidth / 2, footerY + 23.5, { align: 'center' },
+  );
+
+  const fileName = `${typeLabel}_Receipt_${data.shopName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+  return { doc, fileName };
+}
+
+export async function downloadRecoveryReceipt(data: RecoveryReceiptData): Promise<void> {
+  const { doc, fileName } = await generateRecoveryReceiptPDF(data);
   doc.save(fileName);
 }

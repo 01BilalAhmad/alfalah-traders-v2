@@ -914,7 +914,9 @@ export default function AdminTransactions() {
                                   await downloadRecoveryReceipt({
                                     id: txn.id,
                                     shopName: txn.shop?.name || 'Unknown',
+                                    shopOwner: txn.shop?.ownerName || null,
                                     shopArea: txn.shop?.area || null,
+                                    companyName: txn.company?.name || null,
                                     orderbookerName: txn.creator?.name || '',
                                     amount: txn.amount,
                                     previousBalance: txn.previousBalance,
