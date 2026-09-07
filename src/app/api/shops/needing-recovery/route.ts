@@ -146,7 +146,21 @@ export async function GET(request: NextRequest) {
         overdueAmount: s.overdueAmount,          // sum of unpaid portions 14+ days old
         oldestUnpaidCreditDate: s.oldestUnpaidCreditDate,
         daysOverdue: s.daysOverdue,                // alias of daysSinceCredit
-        unpaidBills: s.unpaidBills,                // top 5 oldest unpaid bills
+        // Top 5 oldest unpaid bills — date normalized to Z-suffixed ISO so the
+        // browser (PKT) renders the correct calendar date. daysOld recomputed
+        // server-side for consistency with daysOverdue.
+        unpaidBills: (s.unpaidBills || []).slice(0, 5).map((b) => {
+          let iso: string | null = null;
+          try { iso = b.date ? new Date(b.date).toISOString() : null; } catch { iso = null; }
+          return {
+            date: iso,
+            amount: b.amount,
+            remaining: b.remaining,
+            daysOld: iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24))) : 0,
+            companyId: b.companyId,
+          };
+        }),
+        unpaidBillCount: (s.unpaidBills || []).length,
         fifoMatchesShopBalance: s.fifoMatchesShopBalance,
       };
     });

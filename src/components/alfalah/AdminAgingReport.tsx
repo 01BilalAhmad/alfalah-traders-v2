@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,15 +29,18 @@ import {
   AlertCircle,
   CheckCircle2,
   CalendarDays,
-  TrendingDown,
   Download,
   Loader2,
   Search,
   Building2,
+  ChevronRight,
+  ChevronDown,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiFetch } from '@/lib/api';
 import { exportToExcel } from '@/lib/excel-export';
+import { UnpaidBillsDetail, UnpaidBillView } from '@/components/alfalah/UnpaidBillsDetail';
 
 // Currency formatter — kept inline so the file is self-contained.
 const formatPKR = (amount: number | undefined | null): string =>
@@ -59,10 +62,16 @@ interface AgingShop {
   address: string | null;
   orderbookerName: string | null;
   balance: number;
-  ageDays: number;
+  ageDays: number | null; // FIFO: days since OLDEST unpaid bill (null = no unpaid bills → review)
   bucket: string;
   lastCreditDate: string | null;
   lastRecoveryDate: string | null;
+  // v2 FIFO fields
+  oldestUnpaidCreditDate?: string | null;
+  overdueAmount?: number;
+  unpaidBills?: UnpaidBillView[];
+  unpaidBillCount?: number;
+  fifoMatchesShopBalance?: boolean;
 }
 
 interface Orderbooker {
@@ -71,17 +80,20 @@ interface Orderbooker {
   status: string;
 }
 
-type Bucket = '0-30' | '31-60' | '61-90' | '90+';
+type Bucket = '0-30' | '31-60' | '61-90' | '90+' | 'review';
 
-const getBucket = (ageDays: number): Bucket => {
+const getBucket = (ageDays: number | null): Bucket => {
+  if (ageDays === null) return 'review';
   if (ageDays <= 30) return '0-30';
   if (ageDays <= 60) return '31-60';
   if (ageDays <= 90) return '61-90';
   return '90+';
 };
 
-// Sort weight so 90+ appears at the top, then 61-90, etc.
+// Review shops (balance without unpaid bills) first so they get attention,
+// then oldest buckets.
 const bucketWeight: Record<Bucket, number> = {
+  review: -1,
   '90+': 0,
   '61-90': 1,
   '31-60': 2,
@@ -120,10 +132,16 @@ const bucketStyles: Record<
     card: 'bg-red-100 dark:bg-red-900/40',
     icon: 'text-red-600 dark:text-red-400',
   },
+  review: {
+    label: 'Needs Review',
+    badge:
+      'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-400 dark:border-purple-800',
+    card: 'bg-purple-100 dark:bg-purple-900/40',
+    icon: 'text-purple-600 dark:text-purple-400',
+  },
 };
 
 function AgingSkeleton() {
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -133,8 +151,8 @@ function AgingSkeleton() {
         </div>
         <Skeleton className="skeleton-shimmer h-9 w-40" />
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        {Array.from({ length: 5 }).map((_, i) => (
           <Card key={i} className="card-elevated">
             <CardContent className="p-4">
               <Skeleton className="skeleton-shimmer h-8 w-8 rounded-lg mb-3" />
@@ -167,7 +185,8 @@ export default function AdminAgingReport() {
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [selectedCompany, setSelectedCompany] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-    // ── Export to Excel ──────────────────────────────────────────
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // ── Export to Excel ──────────────────────────────────────────
   const [exporting, setExporting] = useState(false);
   const handleExport = async () => {
     if (!shops.length) return;
@@ -180,14 +199,17 @@ export default function AdminAgingReport() {
         'Address': s.address || s.area || '',
         'Orderbooker': s.orderbookerName,
         'Balance': s.balance,
-        'Age (Days)': s.ageDays,
-        'Bucket': s.bucket,
+        'Overdue Amount (14+d)': s.overdueAmount || 0,
+        'Age (Days)': s.ageDays ?? 'No unpaid bills',
+        'Oldest Unpaid Date': s.oldestUnpaidCreditDate ? new Date(s.oldestUnpaidCreditDate).toLocaleDateString('en-PK') : '—',
+        'Bucket': getBucket(s.ageDays) === 'review' ? 'Needs Review' : bucketStyles[getBucket(s.ageDays)].label,
+        'Unpaid Bills': s.unpaidBillCount || 0,
         'Last Credit': s.lastCreditDate ? new Date(s.lastCreditDate).toLocaleDateString('en-PK') : 'N/A',
         'Last Recovery': s.lastRecoveryDate ? new Date(s.lastRecoveryDate).toLocaleDateString('en-PK') : 'N/A',
       })),
         `aging-report-${new Date().toISOString().split('T')[0]}`,
         'Aging Report',
-        [20, 15, 20, 15, 10, 10, 18, 18],
+        [20, 15, 20, 15, 12, 16, 12, 16, 14, 11, 14, 14],
       );
       toast({ title: 'Export Complete', description: 'Aging Report exported to Excel' });
     } catch (e: any) {
@@ -251,30 +273,34 @@ const [loading, setLoading] = useState(true);
     fetchData();
   }, [fetchData]);
 
-  // Sort: oldest buckets first, then by age descending within a bucket.
+  // Sort: review shops first (they need attention), then oldest buckets,
+  // then by age descending within a bucket.
   const sortedShops = useMemo(() => {
     return [...shops].sort((a, b) => {
       const ba = bucketWeight[getBucket(a.ageDays)];
       const bb = bucketWeight[getBucket(b.ageDays)];
       if (ba !== bb) return ba - bb;
-      return b.ageDays - a.ageDays;
+      return (b.ageDays ?? -1) - (a.ageDays ?? -1);
     });
   }, [shops]);
 
-  // Summary KPIs — total balance + shop count per bucket.
+  // Summary KPIs — balance + shop count per bucket + overdue amount.
   const summary = useMemo(() => {
     const buckets: Record<Bucket, { balance: number; count: number }> = {
       '0-30': { balance: 0, count: 0 },
       '31-60': { balance: 0, count: 0 },
       '61-90': { balance: 0, count: 0 },
       '90+': { balance: 0, count: 0 },
+      review: { balance: 0, count: 0 },
     };
+    let overdueAmount = 0;
     for (const s of shops) {
       const b = getBucket(s.ageDays);
       buckets[b].balance += s.balance;
       buckets[b].count += 1;
+      overdueAmount += s.overdueAmount || 0;
     }
-    return buckets;
+    return { buckets, overdueAmount };
   }, [shops]);
 
   if (loading) return <AgingSkeleton />;
@@ -307,7 +333,8 @@ const [loading, setLoading] = useState(true);
             Aging Report
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Outstanding balances grouped by age buckets
+            Outstanding balances grouped by the age of the OLDEST unpaid bill (FIFO) — tap a
+            shop row to see its unpaid bills with dates
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -375,11 +402,11 @@ const [loading, setLoading] = useState(true);
         </div>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
+      {/* Summary KPI Cards — 4 age buckets + overdue portion */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 stagger-children">
         {bucketOrder.map((bucket) => {
           const style = bucketStyles[bucket];
-          const data = summary[bucket];
+          const data = summary.buckets[bucket];
           return (
             <Card key={bucket} className="card-hover border border-border hover-scale-102">
               <CardContent className="p-4">
@@ -403,7 +430,36 @@ const [loading, setLoading] = useState(true);
             </Card>
           );
         })}
+        <Card className="card-hover border border-border hover-scale-102">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-10 w-10 rounded-xl bg-red-100 dark:bg-red-900/40 flex items-center justify-center shadow-sm">
+                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <Badge variant="secondary" className="text-[10px] font-medium">
+                14+ days
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground font-medium mb-0.5">Overdue Portion</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400 tabular-nums number-animate">
+              {formatPKR(summary.overdueAmount)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Needs-review banner */}
+      {summary.buckets.review.count > 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/30 px-4 py-3">
+          <AlertCircle className="h-4 w-4 text-purple-600 dark:text-purple-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-purple-700 dark:text-purple-300">
+            <span className="font-semibold">{summary.buckets.review.count} shops</span> have an
+            outstanding balance but no matching unpaid bills (likely claims or manual
+            adjustments) — shown as &ldquo;Needs Review&rdquo; at the top of the list. Please
+            verify them manually.
+          </p>
+        </div>
+      )}
 
       {/* Detailed Table */}
       <Card className="card-elevated">
@@ -432,18 +488,11 @@ const [loading, setLoading] = useState(true);
                   <TableHead className="text-white font-semibold text-xs text-right">
                     Balance
                   </TableHead>
-                  {(selectedCompany === 'all') && (
-                    <TableHead className="text-white font-semibold text-xs hidden lg:table-cell">
-                      Company Balances
-                    </TableHead>
-                  )}
-                  {selectedCompany !== 'all' && (
-                    <TableHead className="text-white font-semibold text-xs hidden md:table-cell">
-                      Company
-                    </TableHead>
-                  )}
+                  <TableHead className="text-white font-semibold text-xs text-right">
+                    Overdue (14+d)
+                  </TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center">
-                    Age
+                    Oldest Unpaid
                   </TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center">
                     Bucket
@@ -454,12 +503,13 @@ const [loading, setLoading] = useState(true);
                   <TableHead className="text-white font-semibold text-xs text-center hidden lg:table-cell">
                     Last Recovery
                   </TableHead>
+                  <TableHead className="text-white font-semibold text-xs w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedShops.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10}>
+                    <TableCell colSpan={11}>
                       <div className="text-center py-10">
                         <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-slate-400/40" />
                         <p className="font-medium text-muted-foreground text-sm">
@@ -475,96 +525,125 @@ const [loading, setLoading] = useState(true);
                   sortedShops.map((shop, idx) => {
                     const bucket = getBucket(shop.ageDays);
                     const style = bucketStyles[bucket];
+                    const isExpanded = expandedId === shop.shopId;
                     return (
-                      <TableRow
-                        key={shop.shopId}
-                        className={`${
-                          idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'
-                        } table-row-hover-effect`}
-                      >
-                        <TableCell className="text-sm">
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground shrink-0">
-                            {idx + 1}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{shop.shopName}</p>
-                            <p className="text-[11px] text-muted-foreground sm:hidden">
-                              {shop.address || shop.area || '—'}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <div className="flex items-center gap-1.5">
-                            <MapPin className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">
-                              {shop.address || shop.area || '—'}
+                      <Fragment key={shop.shopId}>
+                        <TableRow
+                          key={shop.shopId}
+                          className={`${
+                            idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'
+                          } table-row-hover-effect cursor-pointer`}
+                          onClick={() => setExpandedId(isExpanded ? null : shop.shopId)}
+                        >
+                          <TableCell className="text-sm">
+                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground shrink-0">
+                              {idx + 1}
                             </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <div className="flex items-center gap-1.5">
-                            <User className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">
-                              {shop.orderbookerName || '—'}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span className="text-sm font-semibold text-foreground tabular-nums">
-                            {formatPKR(shop.balance)}
-                          </span>
-                        </TableCell>
-                        {selectedCompany !== 'all' && (
-                          <TableCell className="hidden md:table-cell">
-                            <Badge variant="outline" className="text-[10px] gap-1">
-                              <Building2 className="h-3 w-3" />
-                              {(shop as any).companyName || '—'}
-                            </Badge>
                           </TableCell>
-                        )}
-                        {selectedCompany === 'all' && (
-                          <TableCell className="hidden lg:table-cell">
-                            <div className="flex flex-wrap gap-1">
-                              {((shop as any).companyBalances || []).map((cb: any, i: number) => (
-                                <Badge key={i} variant="outline" className="text-[9px] gap-0.5">
-                                  <span className="text-muted-foreground">{cb.companyName}:</span>
-                                  <span className="font-semibold text-foreground">{formatPKR(Number(cb.balance))}</span>
-                                </Badge>
-                              ))}
-                              {(!((shop as any).companyBalances) || (shop as any).companyBalances.length === 0) && (
-                                <span className="text-xs text-muted-foreground">—</span>
-                              )}
+                          <TableCell>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{shop.shopName}</p>
+                              <p className="text-[11px] text-muted-foreground sm:hidden">
+                                {shop.address || shop.area || '—'}
+                              </p>
                             </div>
                           </TableCell>
+                          <TableCell className="hidden sm:table-cell">
+                            <div className="flex items-center gap-1.5">
+                              <MapPin className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">
+                                {shop.address || shop.area || '—'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            <div className="flex items-center gap-1.5">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">
+                                {shop.orderbookerName || '—'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="text-sm font-semibold text-foreground tabular-nums">
+                              {formatPKR(shop.balance)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {bucket === 'review' ? (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            ) : (shop.overdueAmount || 0) > 0 ? (
+                              <span className="text-sm font-semibold text-red-600 dark:text-red-400 tabular-nums">
+                                {formatPKR(shop.overdueAmount)}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                                Current
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {shop.ageDays !== null ? (
+                              <div className="flex flex-col items-center">
+                                <span className="text-sm font-medium tabular-nums">
+                                  {formatDate(shop.oldestUnpaidCreditDate || null)}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {shop.ageDays}d old
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">No bills</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge
+                              className={`text-[10px] border font-semibold ${style.badge}`}
+                              title={
+                                bucket === 'review'
+                                  ? 'Balance has no matching unpaid bills — review manually (claims/adjustments)'
+                                  : undefined
+                              }
+                            >
+                              {bucket === 'review' ? 'Review' : style.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell text-center">
+                            <span className="text-xs text-muted-foreground inline-flex items-center gap-1 justify-center">
+                              <CalendarDays className="h-3 w-3" />
+                              {formatDate(shop.lastCreditDate)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell text-center">
+                            <span className="text-xs text-muted-foreground inline-flex items-center gap-1 justify-center">
+                              <CalendarDays className="h-3 w-3" />
+                              {formatDate(shop.lastRecoveryDate)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted transition-colors">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow>
+                            <TableCell colSpan={11} className="bg-muted/30 border-b">
+                              <div className="px-2 sm:px-4">
+                                <UnpaidBillsDetail
+                                  bills={shop.unpaidBills || []}
+                                  totalBills={shop.unpaidBillCount}
+                                  fifoMatchesBalance={shop.fifoMatchesShopBalance !== false}
+                                />
+                              </div>
+                            </TableCell>
+                          </TableRow>
                         )}
-                        <TableCell className="text-center">
-                          <span className="text-sm font-medium tabular-nums inline-flex items-center gap-1">
-                            <TrendingDown className="h-3 w-3 text-muted-foreground" />
-                            {shop.ageDays}d
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge
-                            className={`text-[10px] border font-semibold ${style.badge}`}
-                          >
-                            {style.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell text-center">
-                          <span className="text-xs text-muted-foreground inline-flex items-center gap-1 justify-center">
-                            <CalendarDays className="h-3 w-3" />
-                            {formatDate(shop.lastCreditDate)}
-                          </span>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell text-center">
-                          <span className="text-xs text-muted-foreground inline-flex items-center gap-1 justify-center">
-                            <CalendarDays className="h-3 w-3" />
-                            {formatDate(shop.lastRecoveryDate)}
-                          </span>
-                        </TableCell>
-                      </TableRow>
+                      </Fragment>
                     );
                   })
                 )}

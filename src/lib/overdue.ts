@@ -75,7 +75,9 @@ export interface OverdueShopInfo {
   overdueAmount: number;     // sum of unpaid portions of credits 14+ days old
   isOverdue: boolean;
 
-  // Per-bill breakdown — top 5 oldest unpaid bills (for SMS detail section)
+  // Per-bill breakdown — ALL unpaid bills, oldest first (consumers slice /
+  // normalize as needed). Each: date (naive DB string), amount, remaining,
+  // daysOld (DB day-component), companyId.
   unpaidBills: UnpaidBill[];
 
   // Sanity flag — false when FIFO total differs from Shop.balance by >1 rupee
@@ -253,7 +255,6 @@ SELECT
     )
     FROM unpaid_credits uc2
     WHERE uc2."shopId" = s.id AND uc2.remaining > 0
-    LIMIT 5
   ) AS "unpaidBillsJson",
   (
     SELECT string_agg(DISTINCT c.name, ', ')
@@ -346,7 +347,6 @@ SELECT
     )
     FROM unpaid_credits uc2
     WHERE uc2."shopId" = s.id AND uc2.remaining > 0
-    LIMIT 5
   ) AS "unpaidBillsJson",
   (
     SELECT string_agg(DISTINCT c.name, ', ')

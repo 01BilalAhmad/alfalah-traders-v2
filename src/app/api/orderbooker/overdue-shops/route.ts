@@ -79,7 +79,20 @@ export async function GET(request: NextRequest) {
         totalBalance: s.totalBalance,                          // = Shop.balance (authoritative)
         overdueAmount: s.overdueAmount,                       // sum of unpaid portions 14+ days old
         oldestUnpaidCreditDate: s.oldestUnpaidCreditDate,
-        unpaidBills: s.unpaidBills,                           // top 5 oldest unpaid bills (FIFO)
+        // Top 5 oldest unpaid bills — date normalized to Z-suffixed ISO so the
+        // device renders the correct calendar date in its local timezone.
+        unpaidBills: (s.unpaidBills || []).slice(0, 5).map((b) => {
+          let iso: string | null = null;
+          try { iso = b.date ? new Date(b.date).toISOString() : null; } catch { iso = null; }
+          return {
+            date: iso,
+            amount: b.amount,
+            remaining: b.remaining,
+            daysOld: iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24))) : 0,
+            companyId: b.companyId,
+          };
+        }),
+        unpaidBillCount: (s.unpaidBills || []).length,
         companyName: s.companyName,
         // Sanity flag — if false, FIFO computation diverged from Shop.balance.
         // Mobile app should display "needs review" warning for these.

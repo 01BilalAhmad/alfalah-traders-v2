@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +30,8 @@ import {
   Printer,
   FileSpreadsheet,
   MessageSquare,
+  ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from '@/hooks/use-toast';
@@ -37,6 +39,7 @@ import { apiFetch } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { formatPKR } from '@/lib/utils';
+import { UnpaidBillsDetail, UnpaidBillView } from '@/components/alfalah/UnpaidBillsDetail';
 
 interface OverdueShop {
   id: string;
@@ -53,6 +56,12 @@ interface OverdueShop {
   lastRecoveryDate: string | null;
   daysSinceCredit: number | null;
   daysSinceRecovery: number | null;
+  // v2 FIFO fields (returned by /api/shops/needing-recovery since Aug 2026)
+  overdueAmount?: number;             // unpaid portion 14+ days old
+  oldestUnpaidCreditDate?: string | null;
+  unpaidBills?: UnpaidBillView[];     // top 5 oldest unpaid bills (with dates)
+  unpaidBillCount?: number;
+  fifoMatchesShopBalance?: boolean;
 }
 
 // WhatsApp status per shop: 'unknown' | 'exists' | 'not_exists' | 'checking'
@@ -102,6 +111,16 @@ function OverdueSkeleton() {
   );
 }
 
+// Short date for the oldest-unpaid sub-line (e.g. "12 May")
+function formatShortDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
+  } catch {
+    return '—';
+  }
+}
+
 function DaysBadge({ days }: { days: number | null }) {
   if (days === null) {
     return (
@@ -143,6 +162,7 @@ export default function AdminOverdueShops() {
   const [selectedOB, setSelectedOB] = useState('all');
   const [selectedCompany, setSelectedCompany] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null); // shop row expanded to show unpaid bills
   const [sendingSms, setSendingSms] = useState<string | null>(null); // shopId being sent SMS
   const [waStatus, setWaStatus] = useState<Record<string, WaStatus>>({}); // shopId → status
   const [bulkChecking, setBulkChecking] = useState(false);
@@ -327,23 +347,43 @@ export default function AdminOverdueShops() {
     );
   }, [shops, searchQuery]);
 
-  // Print overdue shops
+  // Print overdue shops — now includes the overdue amount, the oldest unpaid
+  // bill DATE and per-bill breakdown so the printed report is self-explanatory.
   const handlePrint = useCallback(() => {
     if (shops.length === 0) return;
     const printWin = window.open('', '_blank');
     if (!printWin) return;
     const today = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
-    const rowsHtml = filteredShops.map((s, i) => `
+    const rowsHtml = filteredShops.map((s, i) => {
+      const oldestDate = s.oldestUnpaidCreditDate
+        ? new Date(s.oldestUnpaidCreditDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        : '—';
+      const lastRecovery = s.lastRecoveryDate
+        ? new Date(s.lastRecoveryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        : 'Never';
+      const billLines = (s.unpaidBills || [])
+        .map((b) => {
+          const d = b.date
+            ? new Date(b.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '—';
+          return `<div class="bill-line"><span>${d}</span><span>${formatPKR(b.remaining)}</span><span>${b.daysOld ?? '—'}d</span></div>`;
+        })
+        .join('');
+      return `
       <tr>
         <td style="text-align:center">${i + 1}</td>
-        <td><strong>${s.name}</strong></td>
+        <td><strong>${s.name}</strong>${billLines ? `<div class="bills">${billLines}</div>` : ''}</td>
         <td>${s.address || s.area || '—'}</td>
         <td style="text-align:right; font-weight:bold; color:#DC2626">${formatPKR(s.balance)}</td>
+        <td style="text-align:right; color:#991B1B">${formatPKR(s.overdueAmount ?? s.balance)}</td>
+        <td style="text-align:center">${oldestDate}<br/><span style="color:#888;font-size:9px">${s.daysSinceCredit ?? '—'}d</span></td>
         <td>${s.orderbookerName}</td>
-        <td style="text-align:center">${s.daysSinceRecovery !== null ? s.daysSinceRecovery + ' days' : 'Never'}</td>
+        <td style="text-align:center">${lastRecovery}</td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
     const totalBalance = filteredShops.reduce((sum, s) => sum + s.balance, 0);
+    const totalOverdue = filteredShops.reduce((sum, s) => sum + (s.overdueAmount ?? s.balance), 0);
 
     printWin.document.write(`<!DOCTYPE html><html><head><title>Overdue Shops Report</title>
     <style>
@@ -362,8 +402,12 @@ export default function AdminOverdueShops() {
       .summary-card .value { font-size:16px; font-weight:bold; color:#DC2626; margin-top:2px; }
       table { width:100%; border-collapse:collapse; margin-top:6px; font-size:10px; }
       th { background:#DC2626; color:#fff; padding:6px 4px; text-align:left; font-size:9px; text-transform:uppercase; }
-      td { padding:4px 4px; border-bottom:1px solid #ddd; }
+      td { padding:4px 4px; border-bottom:1px solid #ddd; vertical-align:top; }
       tr:nth-child(even) { background:#FEF2F2; }
+      .bills { margin-top:3px; border-left:2px solid #FECACA; padding-left:6px; }
+      .bill-line { display:flex; gap:10px; font-size:8.5px; color:#555; padding:1px 0; }
+      .bill-line span:first-child { width:58px; }
+      .bill-line span:nth-child(2) { width:70px; font-weight:600; color:#991B1B; }
       .total-row { background:#FEE2E2 !important; font-weight:bold; }
       .total-row td { border-top:2px solid #DC2626; padding:6px 4px; font-size:11px; }
       .footer { margin-top:12px; padding-top:6px; border-top:1px solid #ccc; text-align:center; font-size:8px; color:#999; }
@@ -374,26 +418,28 @@ export default function AdminOverdueShops() {
         <div class="subtitle">Credit & Route Management System</div>
         <div class="report-title">OVERDUE SHOPS REPORT</div>
         <div class="date-line">Generated: ${today}</div>
-        <div class="info-line">Threshold: ${minDays}+ days since last recovery ${selectedOB !== 'all' ? '| Orderbooker: ' + (orderbookers.find(o => o.id === selectedOB)?.name || 'All') : '| All Orderbookers'}</div>
+        <div class="info-line">Shops whose OLDEST unpaid bill is ${minDays}+ days old (FIFO aging) ${selectedOB !== 'all' ? '| Orderbooker: ' + (orderbookers.find(o => o.id === selectedOB)?.name || 'All') : '| All Orderbookers'}</div>
       </div>
       <div class="summary-box">
         <div class="summary-card"><div class="label">Overdue Shops</div><div class="value">${filteredShops.length}</div></div>
         <div class="summary-card"><div class="label">Total Outstanding</div><div class="value">${formatPKR(totalBalance)}</div></div>
+        <div class="summary-card"><div class="label">Overdue ${minDays}+d Portion</div><div class="value">${formatPKR(totalOverdue)}</div></div>
       </div>
       <table>
         <thead>
-          <tr><th style="width:25px">#</th><th>Shop Name</th><th>Address</th><th style="text-align:right">Outstanding</th><th>Orderbooker</th><th style="text-align:center">Last Recovery</th></tr>
+          <tr><th style="width:25px">#</th><th>Shop Name + Unpaid Bills</th><th>Address</th><th style="text-align:right">Outstanding</th><th style="text-align:right">Overdue ${minDays}+d</th><th style="text-align:center">Oldest Unpaid</th><th>Orderbooker</th><th style="text-align:center">Last Recovery</th></tr>
         </thead>
         <tbody>
           ${rowsHtml}
           <tr class="total-row">
             <td colspan="3" style="text-align:right">TOTAL</td>
             <td style="text-align:right; color:#DC2626; font-size:12px">${formatPKR(totalBalance)}</td>
-            <td colspan="2">${filteredShops.length} shops</td>
+            <td style="text-align:right; color:#991B1B; font-size:12px">${formatPKR(totalOverdue)}</td>
+            <td colspan="3">${filteredShops.length} shops</td>
           </tr>
         </tbody>
       </table>
-      <div class="footer">Generated: ${new Date().toLocaleString('en-PK')} • Overdue Shops Report • AL-FALAH TRADERS</div>
+      <div class="footer">Generated: ${new Date().toLocaleString('en-PK')} • Overdue Shops Report (FIFO) • AL-FALAH TRADERS</div>
       <script>window.onload=function(){window.print();}</script>
     </body></html>`);
     printWin.document.close();
@@ -408,12 +454,16 @@ export default function AdminOverdueShops() {
       'Shop Name': s.name,
       'Address': s.address || s.area || '',
       'Outstanding (Rs.)': s.balance,
+      [`Overdue ${minDays}+d (Rs.)`]: s.overdueAmount ?? s.balance,
+      'Oldest Unpaid Bill': s.oldestUnpaidCreditDate ? new Date(s.oldestUnpaidCreditDate).toLocaleDateString('en-PK') : '—',
+      'Days Overdue': s.daysSinceCredit ?? '—',
+      'Unpaid Bills Count': s.unpaidBillCount ?? (s.unpaidBills || []).length,
       'Orderbooker': s.orderbookerName,
       'Last Recovery': s.lastRecoveryDate ? new Date(s.lastRecoveryDate).toLocaleDateString('en-PK') : 'Never',
       'Days Since Recovery': s.daysSinceRecovery !== null ? s.daysSinceRecovery : 'Never',
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 5 }, { wch: 22 }, { wch: 15 }, { wch: 16 }, { wch: 18 }, { wch: 15 }, { wch: 18 }];
+    ws['!cols'] = [{ wch: 5 }, { wch: 22 }, { wch: 15 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 15 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Overdue Shops');
     const summary = [
       { Metric: 'Total Overdue Shops', Value: filteredShops.length },
@@ -476,7 +526,8 @@ export default function AdminOverdueShops() {
             Overdue Shops
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Shops with no recovery in {minDays}+ days — need immediate follow-up
+            Shops whose OLDEST unpaid bill is {minDays}+ days old (FIFO) — expand a row
+            (chevron) to see each unpaid bill with its date &amp; amount
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -655,17 +706,19 @@ export default function AdminOverdueShops() {
                   <TableHead className="text-white font-semibold text-xs">Shop Name</TableHead>
                   <TableHead className="text-white font-semibold text-xs hidden sm:table-cell">Area</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-right">Balance</TableHead>
+                  <TableHead className="text-white font-semibold text-xs text-right hidden md:table-cell">Overdue (14+d)</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center">Last Credit</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center">Days Overdue</TableHead>
                   <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Orderbooker</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center hidden lg:table-cell">Phone / WhatsApp</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center">SMS</TableHead>
+                  <TableHead className="text-white font-semibold text-xs w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredShops.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9}>
+                    <TableCell colSpan={10}>
                       <div className="text-center py-10">
                         <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-slate-400/40" />
                         <p className="font-medium text-muted-foreground text-sm">No overdue shops found</p>
@@ -678,12 +731,14 @@ export default function AdminOverdueShops() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredShops.map((shop, idx) => (
-                    <TableRow
-                      key={shop.id}
-                      className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} table-row-hover-effect cursor-pointer`}
-                      onClick={() => handleShopClick(shop)}
-                    >
+                  filteredShops.map((shop, idx) => {
+                    const isExpanded = expandedId === shop.id;
+                    return (
+                      <Fragment key={shop.id}>
+                        <TableRow
+                          className={`${idx % 2 === 0 ? 'data-table-row-even' : 'data-table-row-odd'} table-row-hover-effect cursor-pointer`}
+                          onClick={() => handleShopClick(shop)}
+                        >
                       <TableCell className="text-sm">
                         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground shrink-0">
                           {idx + 1}
@@ -702,9 +757,24 @@ export default function AdminOverdueShops() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-sm font-semibold text-foreground tabular-nums">
-                          {formatPKR(shop.balance)}
+                        <div className="flex flex-col items-end">
+                          <span className="text-sm font-semibold text-foreground tabular-nums">
+                            {formatPKR(shop.balance)}
+                          </span>
+                          {(shop.overdueAmount ?? shop.balance) < shop.balance && (
+                            <span className="text-[10px] text-rose-600 dark:text-rose-400 tabular-nums">
+                              of which overdue: {formatPKR(shop.overdueAmount ?? shop.balance)}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right hidden md:table-cell">
+                        <span className="text-sm font-semibold text-red-600 dark:text-red-400 tabular-nums">
+                          {formatPKR(shop.overdueAmount ?? shop.balance)}
                         </span>
+                        <p className="text-[10px] text-muted-foreground">
+                          since {formatShortDate(shop.oldestUnpaidCreditDate ?? shop.lastCreditDate)}
+                        </p>
                       </TableCell>
                       <TableCell className="text-center">
                         {shop.lastCreditDate ? (
@@ -793,8 +863,39 @@ export default function AdminOverdueShops() {
                           )}
                         </button>
                       </TableCell>
+                      <TableCell className="text-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedId(isExpanded ? null : shop.id);
+                          }}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted transition-colors"
+                          title={isExpanded ? 'Hide unpaid bills detail' : 'Show unpaid bills with dates & amounts'}
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </button>
+                      </TableCell>
                     </TableRow>
-                  ))
+                        {isExpanded && (
+                          <TableRow>
+                            <TableCell colSpan={10} className="bg-muted/30 border-b">
+                              <div className="px-2 sm:px-4">
+                                <UnpaidBillsDetail
+                                  bills={shop.unpaidBills || []}
+                                  totalBills={shop.unpaidBillCount}
+                                  fifoMatchesBalance={shop.fifoMatchesShopBalance !== false}
+                                />
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
