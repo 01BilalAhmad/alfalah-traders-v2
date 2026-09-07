@@ -166,6 +166,7 @@ export default function AdminOverdueShops() {
   const [sendingSms, setSendingSms] = useState<string | null>(null); // shopId being sent SMS
   const [waStatus, setWaStatus] = useState<Record<string, WaStatus>>({}); // shopId → status
   const [bulkChecking, setBulkChecking] = useState(false);
+  const [printingId, setPrintingId] = useState<string | null>(null); // shopId whose per-shop statement is being fetched
 
   // Check a single shop's phone on WhatsApp
   const checkShopWhatsApp = async (shop: OverdueShop) => {
@@ -445,6 +446,158 @@ export default function AdminOverdueShops() {
     printWin.document.close();
   }, [filteredShops, shops, minDays, selectedOB, orderbookers]);
 
+  // Print a SINGLE shop's overdue statement — fetches the FULL FIFO breakdown
+  // from /api/shops/[id]/overdue-detail (ALL unpaid bills, not just the top 5)
+  // and prints a statement with every bill date, amount & age. This is the
+  // shopkeeper-facing document (hand it over or send via WhatsApp).
+  const handlePrintShopDetail = useCallback(async (shop: OverdueShop) => {
+    if (printingId) return;
+    setPrintingId(shop.id);
+    try {
+      const res = await apiFetch(`/api/shops/${shop.id}/overdue-detail`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+
+      const printWin = window.open('', '_blank');
+      if (!printWin) {
+        toast({
+          title: 'Popup blocked',
+          description: 'Allow popups for this site to print the overdue statement.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const esc = (v: unknown) =>
+        String(v ?? '').replace(/[&<>"']/g, (c) =>
+          ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c as '&' | '<' | '>' | '"' | "'"])
+        );
+      const fmtDate = (iso: string | null | undefined) => {
+        if (!iso) return '—';
+        try {
+          return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        } catch {
+          return '—';
+        }
+      };
+
+      const s = data.shop || {};
+      const bills: Array<{ date: string | null; amount: number; remaining: number; daysOld: number | null }> =
+        data.unpaidBills || [];
+      const totalRemaining = bills.reduce((sum, b) => sum + (b.remaining || 0), 0);
+      const totalAmount = bills.reduce((sum, b) => sum + (b.amount || 0), 0);
+      // Authoritative total = Shop.balance; FIFO overdue portion only when sane
+      const totalBalance: number = data.totalBalance ?? shop.balance;
+      const fifoSane: boolean = data.fifoMatchesShopBalance !== false;
+      const overdueAmount: number = fifoSane ? (data.overdueAmount ?? shop.overdueAmount ?? 0) : totalBalance;
+      const daysOverdue: number = data.daysOverdue ?? shop.daysSinceCredit ?? 0;
+
+      const rowsHtml = bills
+        .map((b, i) => {
+          const old = (b.daysOld ?? 0) >= 14;
+          return `
+          <tr class="${old ? 'row-old' : ''}">
+            <td style="text-align:center">${i + 1}</td>
+            <td style="text-align:center">${fmtDate(b.date)}</td>
+            <td style="text-align:right">${formatPKR(b.amount)}</td>
+            <td style="text-align:right; font-weight:600">${formatPKR(b.remaining)}</td>
+            <td style="text-align:center">${b.daysOld ?? '—'}d${old ? ' ⚠' : ''}</td>
+          </tr>`;
+        })
+        .join('');
+
+      const today = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
+
+      printWin.document.write(`<!DOCTYPE html><html><head><title>Overdue Statement — ${esc(s.name)}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        @page { size: A4; margin: 10mm; }
+        body { font-family: Arial, sans-serif; color: #1a1a1a; font-size: 12px; }
+        .header { text-align:center; margin-bottom:12px; border-bottom: 3px solid #DC2626; padding-bottom:8px; }
+        .biz-name { font-size: 22px; font-weight: bold; color: #DC2626; letter-spacing:1px; }
+        .subtitle { font-size: 10px; color: #666; margin-top:2px; }
+        .report-title { font-size: 15px; font-weight:bold; margin-top:6px; color:#991B1B; }
+        .date-line { font-size: 11px; font-weight:bold; margin-top:4px; color:#333; }
+        .shop-card { border:1px solid #ddd; border-radius:8px; padding:10px 14px; margin:10px 0; display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; background:#FAFAFA; }
+        .shop-card .col { min-width:180px; }
+        .shop-card .lbl { font-size:8px; color:#999; text-transform:uppercase; letter-spacing:0.4px; font-weight:700; margin-bottom:1px; }
+        .shop-card .val { font-size:12px; font-weight:600; }
+        .summary-box { display:flex; gap:10px; margin:10px 0; justify-content:center; flex-wrap:wrap; }
+        .summary-card { border:1px solid #FECACA; border-radius:6px; padding:8px 14px; text-align:center; background:#FEF2F2; min-width:130px; }
+        .summary-card .label { font-size:8px; color:#666; text-transform:uppercase; letter-spacing:0.3px; font-weight:600; }
+        .summary-card .value { font-size:15px; font-weight:bold; color:#DC2626; margin-top:2px; }
+        table { width:100%; border-collapse:collapse; margin-top:8px; font-size:11px; }
+        th { background:#DC2626; color:#fff; padding:7px 6px; text-align:left; font-size:9.5px; text-transform:uppercase; }
+        td { padding:5px 6px; border-bottom:1px solid #ddd; }
+        tr:nth-child(even) { background:#FEF2F2; }
+        tr.row-old td { background:#FEE2E2; }
+        tr.row-old:nth-child(even) td { background:#FEE2E2; }
+        .total-row { background:#FEE2E2 !important; font-weight:bold; }
+        .total-row td { border-top:2px solid #DC2626; padding:7px 6px; font-size:12px; }
+        .note { margin-top:10px; font-size:9.5px; color:#7C2D12; background:#FFF7ED; border:1px solid #FED7AA; border-radius:5px; padding:6px 10px; }
+        .meta-line { margin-top:10px; font-size:10px; color:#555; text-align:center; }
+        .footer { margin-top:12px; padding-top:6px; border-top:1px solid #ccc; text-align:center; font-size:8px; color:#999; }
+        @media print { body { padding:0; } }
+      </style></head><body>
+        <div class="header">
+          <div class="biz-name">AL-FALAH TRADERS</div>
+          <div class="subtitle">Credit & Route Management System</div>
+          <div class="report-title">OVERDUE PAYMENT STATEMENT</div>
+          <div class="date-line">Generated: ${today}</div>
+        </div>
+
+        <div class="shop-card">
+          <div class="col"><div class="lbl">Shop</div><div class="val">${esc(s.name)}</div></div>
+          <div class="col"><div class="lbl">Address / Area</div><div class="val">${esc(s.address || s.area || '—')}</div></div>
+          <div class="col"><div class="lbl">Phone</div><div class="val">${esc(s.phone || '—')}</div></div>
+          <div class="col"><div class="lbl">Orderbooker</div><div class="val">${esc(s.orderbookerName || '—')}</div></div>
+          <div class="col"><div class="lbl">Company</div><div class="val">${esc(s.companyName || '—')}</div></div>
+        </div>
+
+        <div class="summary-box">
+          <div class="summary-card"><div class="label">Total Outstanding</div><div class="value">${formatPKR(totalBalance)}</div></div>
+          <div class="summary-card"><div class="label">Overdue 14+d Portion</div><div class="value">${formatPKR(overdueAmount)}</div></div>
+          <div class="summary-card"><div class="label">Oldest Unpaid Bill</div><div class="value">${daysOverdue}d</div></div>
+          <div class="summary-card"><div class="label">Unpaid Bills</div><div class="value">${data.unpaidBillCount ?? bills.length}</div></div>
+        </div>
+
+        <table>
+          <thead>
+            <tr><th style="width:30px; text-align:center">#</th><th style="width:90px; text-align:center">Bill Date</th><th style="text-align:right">Bill Amount</th><th style="text-align:right">Remaining Unpaid</th><th style="width:70px; text-align:center">Age</th></tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+            <tr class="total-row">
+              <td colspan="2" style="text-align:right">TOTAL (${bills.length} bills)</td>
+              <td style="text-align:right; color:#DC2626">${formatPKR(totalAmount)}</td>
+              <td style="text-align:right; color:#DC2626">${formatPKR(totalRemaining)}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+
+        ${!fifoSane ? `<div class="note">⚠ Note: bill-wise breakdown (FIFO) does not match the shop ledger balance exactly (possible claim adjustment). The <b>Total Outstanding</b> figure above is the authoritative ledger balance.</div>` : ''}
+
+        <div class="meta-line">Oldest unpaid bill date: <b>${fmtDate(data.oldestUnpaidCreditDate || shop.oldestUnpaidCreditDate)}</b> &nbsp;•&nbsp; Last recovery: <b>${fmtDate(data.lastRecoveryDate || shop.lastRecoveryDate)}</b> &nbsp;•&nbsp; Last bill: <b>${fmtDate(data.lastCreditDate || shop.lastCreditDate)}</b></div>
+
+        <div class="footer">This is a computer-generated overdue statement • AL-FALAH TRADERS • ${new Date().toLocaleString('en-PK')}</div>
+        <script>window.onload=function(){window.print();}</script>
+      </body></html>`);
+      printWin.document.close();
+    } catch (err) {
+      console.error('Failed to print shop overdue detail:', err);
+      toast({
+        title: 'Could not load overdue detail',
+        description: 'Failed to fetch the full unpaid-bills breakdown for this shop.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPrintingId(null);
+    }
+  }, [printingId]);
+
   // Export to Excel
   const handleExportExcel = useCallback(() => {
     if (shops.length === 0) return;
@@ -712,7 +865,7 @@ export default function AdminOverdueShops() {
                   <TableHead className="text-white font-semibold text-xs hidden md:table-cell">Orderbooker</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center hidden lg:table-cell">Phone / WhatsApp</TableHead>
                   <TableHead className="text-white font-semibold text-xs text-center">SMS</TableHead>
-                  <TableHead className="text-white font-semibold text-xs w-10"></TableHead>
+                  <TableHead className="text-white font-semibold text-xs w-24"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -864,20 +1017,37 @@ export default function AdminOverdueShops() {
                         </button>
                       </TableCell>
                       <TableCell className="text-center">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpandedId(isExpanded ? null : shop.id);
-                          }}
-                          className="inline-flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted transition-colors"
-                          title={isExpanded ? 'Hide unpaid bills detail' : 'Show unpaid bills with dates & amounts'}
-                        >
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePrintShopDetail(shop);
+                            }}
+                            disabled={printingId === shop.id}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Print full overdue statement — ALL unpaid bills with dates & amounts"
+                          >
+                            {printingId === shop.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            ) : (
+                              <Printer className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedId(isExpanded ? null : shop.id);
+                            }}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted transition-colors"
+                            title={isExpanded ? 'Hide unpaid bills detail' : 'Show unpaid bills with dates & amounts'}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </button>
+                        </div>
                       </TableCell>
                     </TableRow>
                         {isExpanded && (
