@@ -134,6 +134,22 @@ interface EditableTransaction {
   companyName: string | null;
 }
 
+/** Quick Post session entry — posted credit ki detail isi screen par build hoti hai */
+interface QuickPostEntry {
+  txnId: string;
+  shopId: string;
+  shopName: string;
+  shopArea: string | null;
+  shopAddress: string | null;
+  amount: number;
+  description: string;
+  companyId: string | null;
+  companyName: string | null;
+  postedAt: string;
+  previousBalance: number;
+  newBalance: number;
+}
+
 function getTodayDateString(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -210,9 +226,19 @@ export default function AdminCreditPosting() {
 
   // Quick Post Mode state
   const [quickPostMode, setQuickPostMode] = useState(false);
-  const [quickPostShops, setQuickPostShops] = useState(0);
-  const [quickPostTotal, setQuickPostTotal] = useState(0);
   const [quickPostJustPosted, setQuickPostJustPosted] = useState(false);
+  // Session entries — har posted credit ki detail + inline correction support
+  const [quickPostEntries, setQuickPostEntries] = useState<QuickPostEntry[]>([]);
+  // Day summary total jab session start hui thi (match-check baseline)
+  const [quickPostDayStartTotal, setQuickPostDayStartTotal] = useState(0);
+  // Inline edit state for session entries
+  const [quickEditId, setQuickEditId] = useState<string | null>(null);
+  const [quickEditAmount, setQuickEditAmount] = useState('');
+  const [quickEditLoading, setQuickEditLoading] = useState(false);
+  // Delete state for session entries
+  const [quickDeleteTarget, setQuickDeleteTarget] = useState<QuickPostEntry | null>(null);
+  const [quickDeleteLoading, setQuickDeleteLoading] = useState(false);
+  const [quickEntriesCollapsed, setQuickEntriesCollapsed] = useState(false);
 
   // New Quick Post Flow states
   const [quickPostDate, setQuickPostDate] = useState(getTodayDateString());
@@ -284,6 +310,14 @@ export default function AdminCreditPosting() {
   const quickPostTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const todayDay = getTodayRouteDay();
+
+  // Quick Post session stats — entries se derive hote hain, is liye edit/delete par khud update hote hain
+  const quickPostTotal = quickPostEntries.reduce((sum, e) => sum + e.amount, 0);
+  const quickPostEntryCount = quickPostEntries.length;
+  const quickPostShops = new Set(quickPostEntries.map((e) => e.shopId)).size;
+  // Summary match: session start total + session entries === current day summary total
+  const quickPostDayIsToday = quickPostDate === getTodayDateString();
+  const quickPostDayMatch = Math.abs(quickPostDayStartTotal + quickPostTotal - todayTotal) < 0.5;
 
   // Total shops for current filter (without search)
   const totalShopsForFilter = selectedDay
@@ -594,6 +628,32 @@ export default function AdminCreditPosting() {
     await submitCreditPost(pendingOverrideAmount);
   };
 
+  // Quick Post: posted entry ko session list me add karo (detail isi screen par build hoti hai)
+  const appendQuickPostEntry = (
+    txn: { id: string; previousBalance?: number; newBalance?: number; company?: { id: string; name: string } | null },
+    amount: number,
+    shop: { id: string; name: string; area: string | null; address: string | null; balance: number },
+    description: string,
+  ) => {
+    setQuickPostEntries((prev) => [
+      {
+        txnId: txn.id,
+        shopId: shop.id,
+        shopName: shop.name,
+        shopArea: shop.area,
+        shopAddress: shop.address || null,
+        amount,
+        description,
+        companyId: txn.company?.id || null,
+        companyName: txn.company?.name || null,
+        postedAt: new Date().toISOString(),
+        previousBalance: txn.previousBalance ?? shop.balance,
+        newBalance: txn.newBalance ?? shop.balance + amount,
+      },
+      ...prev,
+    ]);
+  };
+
   // Actual API call for posting credit
   const submitCreditPost = async (amount: number) => {
     if (!selectedShop || !user) return;
@@ -641,8 +701,8 @@ export default function AdminCreditPosting() {
 
       if (quickPostMode) {
         // Quick Post Mode: stay in dialog, clear amount, show checkmark
-        setQuickPostShops((prev) => prev + 1);
-        setQuickPostTotal((prev) => prev + amount);
+        if (quickPostEntries.length === 0) setQuickPostDayStartTotal(todayTotal);
+        appendQuickPostEntry(txn, amount, selectedShop, desc);
         setCreditAmount('');
         setCreditDescription('');
         // Don't reset creditDate in quick post — keep the selected date for next entry
@@ -754,8 +814,14 @@ export default function AdminCreditPosting() {
 
   const handleExitQuickPost = () => {
     setQuickPostMode(false);
-    setQuickPostShops(0);
-    setQuickPostTotal(0);
+    setQuickPostEntries([]);
+    setQuickPostDayStartTotal(0);
+    setQuickEditId(null);
+    setQuickEditAmount('');
+    setQuickEditLoading(false);
+    setQuickDeleteTarget(null);
+    setQuickDeleteLoading(false);
+    setQuickEntriesCollapsed(false);
     setQuickPostJustPosted(false);
     setQuickPostStep('date');
     setQuickPostDate(getTodayDateString());
@@ -863,9 +929,9 @@ export default function AdminCreditPosting() {
 
       incrementCreditSessionCount();
 
-      // Update quick post stats
-      setQuickPostShops((prev) => prev + 1);
-      setQuickPostTotal((prev) => prev + amount);
+      // Session entry list me add karo — detail + total isi screen par
+      if (quickPostEntries.length === 0) setQuickPostDayStartTotal(todayTotal);
+      appendQuickPostEntry(txn, amount, quickPostSelectedShop, 'Goods supplied');
       setQuickPostJustPosted(true);
 
       // Clear checkmark after 1.5s and go back to search
@@ -888,6 +954,97 @@ export default function AdminCreditPosting() {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     } finally {
       setPostingCredit(false);
+    }
+  };
+
+  // ═══ Session entry: inline amount correction (mistake wahin se theek) ═══
+  const handleQuickEntryEditStart = (entry: QuickPostEntry) => {
+    setQuickEditId(entry.txnId);
+    setQuickEditAmount(String(entry.amount));
+  };
+
+  const handleQuickEntryEditCancel = () => {
+    setQuickEditId(null);
+    setQuickEditAmount('');
+  };
+
+  const handleQuickEntrySave = async () => {
+    const entry = quickPostEntries.find((e) => e.txnId === quickEditId);
+    if (!entry || !user) return;
+
+    const newAmount = parseFloat(quickEditAmount);
+    if (isNaN(newAmount) || newAmount <= 0) {
+      toast({ title: 'Error', description: 'Please enter a valid amount', variant: 'destructive' });
+      return;
+    }
+    const amtError = validateAmountInput(quickEditAmount);
+    if (amtError) {
+      toast({ title: 'Validation Error', description: amtError, variant: 'destructive' });
+      return;
+    }
+    // Same amount — nothing to change
+    if (newAmount === entry.amount) {
+      handleQuickEntryEditCancel();
+      return;
+    }
+
+    setQuickEditLoading(true);
+    try {
+      const res = await apiFetch('/api/transactions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: entry.txnId,
+          updatedBy: user.id,
+          amount: newAmount,
+          description: entry.description?.trim() || 'Goods supplied',
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast({ title: 'Error', description: data.error || 'Failed to update', variant: 'destructive' });
+        return;
+      }
+
+      // Entry update — session total derived values khud recalculate honge
+      setQuickPostEntries((prev) => prev.map((e) => (e.txnId === entry.txnId ? { ...e, amount: newAmount } : e)));
+      toast({ title: 'Amount Corrected', description: `${entry.shopName}: entry updated to ${formatPKR(newAmount)}` });
+      handleQuickEntryEditCancel();
+
+      // Refresh shops + day summary (match chip update ho)
+      fetchShops();
+      fetchTodaySummary();
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setQuickEditLoading(false);
+    }
+  };
+
+  // ═══ Session entry: galti wali entry delete (server balance adjust + audit) ═══
+  const handleQuickEntryDelete = async () => {
+    if (!quickDeleteTarget || !user) return;
+
+    setQuickDeleteLoading(true);
+    try {
+      const res = await apiFetch(`/api/transactions?id=${quickDeleteTarget.txnId}&deletedBy=${user.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        toast({ title: 'Error', description: data.error || 'Failed to delete', variant: 'destructive' });
+        return;
+      }
+
+      setQuickPostEntries((prev) => prev.filter((e) => e.txnId !== quickDeleteTarget.txnId));
+      toast({ title: 'Entry Deleted', description: `Credit of ${formatPKR(quickDeleteTarget.amount)} for ${quickDeleteTarget.shopName} removed` });
+      setQuickDeleteTarget(null);
+
+      // Refresh shops + day summary (match chip update ho)
+      fetchShops();
+      fetchTodaySummary();
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setQuickDeleteLoading(false);
     }
   };
 
@@ -1134,8 +1291,12 @@ export default function AdminCreditPosting() {
                     setQuickPostMode(true);
                     setQuickPostStep('date');
                     setQuickPostDate(getTodayDateString());
-                    setQuickPostShops(0);
-                    setQuickPostTotal(0);
+                    setQuickPostEntries([]);
+                    setQuickPostDayStartTotal(todayTotal);
+                    setQuickEntriesCollapsed(false);
+                    setQuickEditId(null);
+                    setQuickEditAmount('');
+                    setQuickDeleteTarget(null);
                     setQuickPostJustPosted(false);
                     setQuickPostSearch('');
                     setQuickPostSelectedShop(null);
@@ -1563,7 +1724,7 @@ export default function AdminCreditPosting() {
                 <div>
                   <p className="text-xs text-white/70 font-medium">Quick Post Session</p>
                   <p className="text-sm font-bold">
-                    Posted <span className="tabular-nums">{quickPostShops}</span> shop{quickPostShops > 1 ? 's' : ''}, Total: <span className="tabular-nums">{formatPKR(quickPostTotal)}</span>
+                    Posted <span className="tabular-nums">{quickPostShops}</span> shop{quickPostShops > 1 ? 's' : ''} ({quickPostEntryCount} entr{quickPostEntryCount > 1 ? 'ies' : 'y'}), Total: <span className="tabular-nums">{formatPKR(quickPostTotal)}</span>
                   </p>
                 </div>
               </div>
@@ -1613,18 +1774,41 @@ export default function AdminCreditPosting() {
                 </DialogDescription>
               </DialogHeader>
 
-              {/* Quick Post Session Stats Bar */}
-              {quickPostShops > 0 && (
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/30">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
-                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                    {quickPostShops} shop{quickPostShops > 1 ? 's' : ''} posted — Total: {formatPKR(quickPostTotal)}
-                  </span>
-                  <Badge variant="outline" className="ml-auto text-[9px] px-1.5 py-0 border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-400">
-                    {quickPostDate !== getTodayDateString()
-                      ? new Date(quickPostDate + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'short' })
-                      : 'Today'}
-                  </Badge>
+              {/* Quick Post Session Stats Bar — live total upar + summary match */}
+              {quickPostEntryCount > 0 && (
+                <div className="rounded-lg border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/70 dark:bg-emerald-900/15 p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
+                      <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 truncate">
+                        {quickPostEntryCount} entr{quickPostEntryCount > 1 ? 'ies' : 'y'} · {quickPostShops} shop{quickPostShops > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5 shrink-0">
+                      <span className="text-[10px] text-muted-foreground font-medium">Total</span>
+                      <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">{formatPKR(quickPostTotal)}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-muted-foreground">
+                      Day total (summary): <span className="font-semibold text-foreground tabular-nums">{formatPKR(todayTotal)}</span>
+                    </span>
+                    {quickPostDayIsToday ? (
+                      quickPostDayMatch ? (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+                          <CheckCircle2 className="h-3 w-3" /> Matches summary
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 shrink-0">
+                          <AlertTriangle className="h-3 w-3" /> Summary differs
+                        </span>
+                      )
+                    ) : (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-400 shrink-0">
+                        {new Date(quickPostDate + 'T00:00:00').toLocaleDateString('en-PK', { day: '2-digit', month: 'short' })}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1814,6 +1998,108 @@ export default function AdminCreditPosting() {
                       </Badge>
                     )}
                   </div>
+
+                  {/* ═══ This Session — posted entries ki detail isi screen par (inline fix) ═══ */}
+                  {quickPostEntryCount > 0 && (
+                    <div className="rounded-lg border border-border/60 bg-muted/20">
+                      <button
+                        type="button"
+                        onClick={() => setQuickEntriesCollapsed((c) => !c)}
+                        className="w-full flex items-center justify-between px-2.5 py-2 text-left hover:bg-accent/40 transition-colors rounded-t-lg"
+                      >
+                        <span className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+                          <Receipt className="h-3.5 w-3.5 text-primary" />
+                          This Session
+                          <Badge variant="secondary" className="text-[9px] px-1.5 py-0">{quickPostEntryCount}</Badge>
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-foreground tabular-nums">{formatPKR(quickPostTotal)}</span>
+                          <span className="text-[10px] text-muted-foreground font-medium">{quickEntriesCollapsed ? 'Show' : 'Hide'}</span>
+                        </span>
+                      </button>
+                      {!quickEntriesCollapsed && (
+                        <div className="max-h-[150px] overflow-y-auto px-2 pb-2 pt-1 space-y-1">
+                          {quickPostEntries.map((entry) => (
+                            <div key={entry.txnId} className="flex items-center gap-2 p-2 rounded-md bg-background border border-border/50">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-semibold text-foreground truncate">{entry.shopName}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {new Date(entry.postedAt).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                  {entry.companyName ? ` · ${entry.companyName}` : ''} · Bal: <span className="tabular-nums">{formatPKR(entry.newBalance)}</span>
+                                </p>
+                              </div>
+                              {quickEditId === entry.txnId ? (
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Input
+                                    type="number"
+                                    value={quickEditAmount}
+                                    onChange={(e) => setQuickEditAmount(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && !quickEditLoading) handleQuickEntrySave();
+                                      if (e.key === 'Escape' && !quickEditLoading) handleQuickEntryEditCancel();
+                                    }}
+                                    min={TRANSACTION_RULES.MIN_AMOUNT}
+                                    max={TRANSACTION_RULES.MAX_AMOUNT}
+                                    step="1"
+                                    autoFocus
+                                    disabled={quickEditLoading}
+                                    className="h-7 w-28 text-xs tabular-nums"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-500/10"
+                                    onClick={handleQuickEntrySave}
+                                    disabled={quickEditLoading || !quickEditAmount || parseFloat(quickEditAmount) <= 0}
+                                    aria-label={`Save corrected amount for ${entry.shopName}`}
+                                  >
+                                    {quickEditLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                    onClick={handleQuickEntryEditCancel}
+                                    disabled={quickEditLoading}
+                                    aria-label="Cancel edit"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                  <span className="text-xs font-bold text-foreground tabular-nums mr-1">{formatPKR(entry.amount)}</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                    onClick={() => handleQuickEntryEditStart(entry)}
+                                    disabled={quickEditLoading}
+                                    aria-label={`Correct amount for ${entry.shopName}`}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => setQuickDeleteTarget(entry)}
+                                    disabled={quickEditLoading}
+                                    aria-label={`Delete credit for ${entry.shopName}`}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          <p className="text-[9px] text-muted-foreground pt-0.5 text-center">
+                            Wrong amount? Tap the pencil to correct it — total updates instantly
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Search Input */}
                   <div className="relative">
@@ -2769,6 +3055,47 @@ export default function AdminCreditPosting() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Yes, Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Quick Post Session Entry Delete Confirm */}
+      <AlertDialog open={!!quickDeleteTarget} onOpenChange={(open) => {
+        if (!open && !quickDeleteLoading) setQuickDeleteTarget(null);
+      }}>
+        <AlertDialogContent className="no-print">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Delete This Credit Entry?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <p>
+                <span className="font-bold text-foreground">{formatPKR(quickDeleteTarget?.amount || 0)}</span> posted to{' '}
+                <span className="font-semibold text-foreground">{quickDeleteTarget?.shopName}</span> will be removed and the
+                shop&apos;s balance will be adjusted. The session total will update automatically.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={quickDeleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault(); // Dialog open rahe jab tak delete complete ho
+                handleQuickEntryDelete();
+              }}
+              disabled={quickDeleteLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {quickDeleteLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Deleting...

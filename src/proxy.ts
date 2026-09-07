@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from '@/lib/jwt';
-import { checkUserRateLimit, checkIpRateLimit } from '@/lib/rate-limit';
+import { checkUserRateLimit, checkIpRateLimit, checkRateLimit as checkDistributedRateLimit } from '@/lib/rate-limit';
 
 // ─── Token Configuration ────────────────────────────────────────
 // Token verification is now handled by @/lib/jwt (verifyToken)
@@ -285,8 +285,14 @@ export async function proxy(request: NextRequest) {
   // NOTE: per-username rate limiting (5 attempts per username per 15 min)
   // is enforced inside the login route handler via checkLoginRateLimit()
   // — the proxy can't read the request body to extract the username.
+  //
+  // FIX: login limiter apna alag key prefix (`login-ip:`) use karta hai.
+  // Pehle ye bhi `ip:` prefix (checkIpRateLimit) use karta tha — general
+  // 100/min limiter ke sath SAME L1/Postgres entry share hoti thi. Page-load
+  // ke static/API requests count ko inflate kar dete the aur fast login
+  // (autofill / multi-tab) par false 429 aa jata tha.
   if ((pathname === '/api/auth/login' || pathname === '/api/orderbooker/login') && request.method === 'POST') {
-    const loginRL = await checkIpRateLimit(clientIP, MAX_LOGIN_ATTEMPTS, LOGIN_WINDOW_MS);
+    const loginRL = await checkDistributedRateLimit(`login-ip:${clientIP}`, MAX_LOGIN_ATTEMPTS, LOGIN_WINDOW_MS);
     if (!loginRL.allowed) {
       const response = NextResponse.json(
         { error: 'Too many login attempts. Please try again in 15 minutes.' },
