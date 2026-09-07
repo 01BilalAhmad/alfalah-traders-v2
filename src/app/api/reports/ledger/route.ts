@@ -49,6 +49,35 @@ export async function GET(request: NextRequest) {
       }));
     } catch { /* ShopCompanyBalance might not exist */ }
 
+    // When filtering by company, fetch THAT company's balance regardless of
+    // sign — the list above only carries balance > 0 rows, so a filtered
+    // company with a zero/negative balance previously showed currentBalance
+    // = 0 instead of its true (possibly negative) balance.
+    if (companyId) {
+      try {
+        const scbRes = await pool.query(
+          `SELECT scb."companyId", c.name AS "companyName", scb.balance
+           FROM "ShopCompanyBalance" scb
+           LEFT JOIN "Company" c ON scb."companyId" = c.id
+           WHERE scb."shopId" = $1 AND scb."companyId" = $2`,
+          [shopId, companyId]
+        );
+        if (scbRes.rows.length > 0) {
+          const r = scbRes.rows[0];
+          const existing = companyBalances.find(cb => cb.companyId === companyId);
+          if (existing) {
+            existing.balance = Number(r.balance);
+          } else {
+            companyBalances.push({
+              companyId: r.companyId,
+              companyName: r.companyName,
+              balance: Number(r.balance),
+            });
+          }
+        }
+      } catch { /* non-blocking */ }
+    }
+
     // Fetch transactions with creator info + company info
     // Only show approved + pending transactions (exclude rejected)
     const conditions: string[] = [`t."shopId" = $1`, `t.status != 'rejected'`];
@@ -108,8 +137,12 @@ export async function GET(request: NextRequest) {
       } : null,
     }));
 
+    // Summary totals — recovery includes supplier_collection (money
+    // collected back), matching the dashboard/OB totals. Claims are
+    // reported separately. This keeps the implied balance math consistent:
+    // totalCredit - totalRecovery - totalClaims ≈ currentBalance.
     const totalCredit = transactions.filter((t: any) => t.type === 'credit' && t.status === 'approved').reduce((s: number, t: any) => s + Number(t.amount), 0);
-    const totalRecovery = transactions.filter((t: any) => t.type === 'recovery' && t.status === 'approved').reduce((s: number, t: any) => s + Number(t.amount), 0);
+    const totalRecovery = transactions.filter((t: any) => (t.type === 'recovery' || t.type === 'supplier_collection') && t.status === 'approved').reduce((s: number, t: any) => s + Number(t.amount), 0);
     const totalClaims = transactions.filter((t: any) => t.type === 'claim' && t.status === 'approved').reduce((s: number, t: any) => s + Number(t.amount), 0);
     const approvedCount = transactions.filter((t: any) => t.status === 'approved').length;
 

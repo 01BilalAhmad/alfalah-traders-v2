@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
     }
 
     const txRes = await pool.query(
-      `SELECT DATE(t."createdAt" AT TIME ZONE 'Asia/Karachi') AS pk_date,
-              s."orderbookerId" AS ob_id, u.name AS ob_name, t.type, t.amount
+      `SELECT DATE(t."createdAt" + INTERVAL '5 hours') AS pk_date,
+              s."orderbookerId" AS ob_id, u.name AS ob_name, t.type, t.amount, t."shopId"
        FROM "Transaction" t
        JOIN "Shop" s ON t."shopId" = s.id
        LEFT JOIN "User" u ON s."orderbookerId" = u.id
@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
       if (!obMap[obId]) obMap[obId] = { name: obName, credit: 0, recovery: 0, shops: new Set(), daily: {} };
       if (isRecovery) obMap[obId].recovery += amount;
       else obMap[obId].credit += amount;
+      obMap[obId].shops.add(row.shopId); // shopCount fix: was never populated
       if (!obMap[obId].daily[dateStr]) obMap[obId].daily[dateStr] = { credit: 0, recovery: 0 };
       if (isRecovery) obMap[obId].daily[dateStr].recovery += amount;
       else obMap[obId].daily[dateStr].credit += amount;
@@ -93,8 +94,12 @@ export async function GET(request: NextRequest) {
 
     const dailyData: DailyRow[] = [];
     let cumCredit = 0, cumRecovery = 0;
-    const cursor = new Date(startUTC);
-    cursor.setUTCHours(5, 0, 0, 0);
+    // CURSOR FIX: startUTC is PKT-day-start expressed in UTC (prev-day 19:00
+    // UTC). The old code did startUTC.setUTCHours(5,0,0,0), which moved the
+    // cursor to the PREVIOUS calendar day → an extra all-zero leading row
+    // and totalDays off by one. Anchor at 12:00 UTC of the start date so
+    // getUTC* date parts always equal the intended PKT calendar day.
+    const cursor = new Date(Date.UTC(sy, sm - 1, sd, 12, 0, 0, 0));
     while (cursor <= endUTC) {
       const dateStr = `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}-${String(cursor.getUTCDate()).padStart(2, '0')}`;
       const label = `${String(cursor.getUTCDate()).padStart(2, '0')}/${String(cursor.getUTCMonth() + 1).padStart(2, '0')}`;

@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const monthParam = searchParams.get('month');
 
     // Parse month (YYYY-MM) or default to current month
+    // (current month in PAKISTAN timezone, not the server's local timezone)
     const now = new Date();
     let year: number;
     let month: number;
@@ -17,45 +18,54 @@ export async function GET(request: NextRequest) {
       year = parseInt(parts[0], 10);
       month = parseInt(parts[1], 10);
     } else {
-      year = now.getFullYear();
-      month = now.getMonth() + 1;
+      const pktNow = new Date(now.getTime() + 5 * 60 * 60 * 1000);
+      year = pktNow.getUTCFullYear();
+      month = pktNow.getUTCMonth() + 1;
     }
 
     if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
       return NextResponse.json({ error: 'Invalid month format. Use YYYY-MM' }, { status: 400 });
     }
 
-    // Calculate month boundaries
-    const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
-    const endDate = new Date(year, month, 0, 23, 59, 59, 999); // Last day of month
+    // Calculate month boundaries in PAKISTAN timezone (PKT = UTC+5, no DST).
+    // Previously used server-local Date(y, m-1, 1) — on a UTC server (Vercel)
+    // every month started at 05:00 PKT, leaking PKT 00:00–04:59 entries of
+    // the 1st into the previous month's report.
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const startDate = new Date(Date.UTC(year, month - 1, 1, -5, 0, 0, 0)); // PKT 1st 00:00
+    const endDate = new Date(Date.UTC(year, month - 1, lastDay, 18, 59, 59, 999)); // PKT last day 23:59:59.999
 
     const pool = getPool();
 
-    // Fetch all transactions in the month
+    // Fetch all transactions in the month.
+    // `supplier_collection` counts as recovery so this report matches the
+    // dashboard/OB totals; claims and balance_adjustment corrections are
+    // excluded (not credit or recovery).
     const monthTxnRes = await pool.query(
-      `SELECT type, amount, "createdAt" FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND status = 'approved' ORDER BY "createdAt" DESC`,
+      `SELECT type, amount, "createdAt" FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND status = 'approved' AND type IN ('credit', 'recovery', 'supplier_collection') ORDER BY "createdAt" DESC`,
       [startDate.toISOString(), endDate.toISOString()]
     );
     const monthTransactions: any[] = monthTxnRes.rows;
 
-    // Calculate totals
+    // Calculate totals (recovery = recovery + supplier_collection)
     const totalCredit = monthTransactions
       .filter((t: any) => t.type === 'credit')
       .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
     const totalRecovery = monthTransactions
-      .filter((t: any) => t.type === 'recovery')
+      .filter((t: any) => t.type === 'recovery' || t.type === 'supplier_collection')
       .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
     const netPosition = totalRecovery - totalCredit;
     const transactionCount = monthTransactions.length;
 
-    // Find top recovery day
+    // Find top recovery day (PKT calendar day, not UTC day)
     const recoveryByDay: Record<string, number> = {};
     monthTransactions
-      .filter((t: any) => t.type === 'recovery')
+      .filter((t: any) => t.type === 'recovery' || t.type === 'supplier_collection')
       .forEach((t: any) => {
-        const dayKey = new Date(t.createdAt).toISOString().split('T')[0];
+        const pktDay = new Date(new Date(t.createdAt).getTime() + 5 * 60 * 60 * 1000);
+        const dayKey = `${pktDay.getUTCFullYear()}-${String(pktDay.getUTCMonth() + 1).padStart(2, '0')}-${String(pktDay.getUTCDate()).padStart(2, '0')}`;
         recoveryByDay[dayKey] = (recoveryByDay[dayKey] || 0) + Number(t.amount);
       });
 
@@ -66,12 +76,13 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Find top credit day
+    // Find top credit day (PKT calendar day, not UTC day)
     const creditByDay: Record<string, number> = {};
     monthTransactions
       .filter((t: any) => t.type === 'credit')
       .forEach((t: any) => {
-        const dayKey = new Date(t.createdAt).toISOString().split('T')[0];
+        const pktDay = new Date(new Date(t.createdAt).getTime() + 5 * 60 * 60 * 1000);
+        const dayKey = `${pktDay.getUTCFullYear()}-${String(pktDay.getUTCMonth() + 1).padStart(2, '0')}-${String(pktDay.getUTCDate()).padStart(2, '0')}`;
         creditByDay[dayKey] = (creditByDay[dayKey] || 0) + Number(t.amount);
       });
 
@@ -82,15 +93,16 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Fetch previous month for comparison
+    // Fetch previous month for comparison (PKT boundaries)
     let prevYear = year;
     let prevMonth = month - 1;
     if (prevMonth < 1) { prevMonth = 12; prevYear -= 1; }
-    const prevStartDate = new Date(prevYear, prevMonth - 1, 1, 0, 0, 0, 0);
-    const prevEndDate = new Date(prevYear, prevMonth, 0, 23, 59, 59, 999);
+    const prevLastDay = new Date(Date.UTC(prevYear, prevMonth, 0)).getUTCDate();
+    const prevStartDate = new Date(Date.UTC(prevYear, prevMonth - 1, 1, -5, 0, 0, 0));
+    const prevEndDate = new Date(Date.UTC(prevYear, prevMonth - 1, prevLastDay, 18, 59, 59, 999));
 
     const prevTxnRes = await pool.query(
-      `SELECT type, amount FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND status = 'approved'`,
+      `SELECT type, amount FROM "Transaction" WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND status = 'approved' AND type IN ('credit', 'recovery', 'supplier_collection')`,
       [prevStartDate.toISOString(), prevEndDate.toISOString()]
     );
     const prevTransactions: any[] = prevTxnRes.rows;
@@ -100,7 +112,7 @@ export async function GET(request: NextRequest) {
       .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
     const prevTotalRecovery = prevTransactions
-      .filter((t: any) => t.type === 'recovery')
+      .filter((t: any) => t.type === 'recovery' || t.type === 'supplier_collection')
       .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
     const prevNetPosition = prevTotalRecovery - prevTotalCredit;
@@ -119,7 +131,7 @@ export async function GET(request: NextRequest) {
       netPosition: Math.round(netPosition * 100) / 100,
       transactionCount,
       creditCount: monthTransactions.filter((t: any) => t.type === 'credit').length,
-      recoveryCount: monthTransactions.filter((t: any) => t.type === 'recovery').length,
+      recoveryCount: monthTransactions.filter((t: any) => t.type === 'recovery' || t.type === 'supplier_collection').length,
       topRecoveryDay: topRecoveryDay ? {
         date: topRecoveryDay.date,
         amount: Math.round(topRecoveryDay.amount * 100) / 100,

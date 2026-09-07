@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const monthParam = searchParams.get('month');
 
     // Parse month (YYYY-MM) or default to current month
+    // (current month in PAKISTAN timezone, not the server's local timezone)
     const now = new Date();
     let year: number;
     let month: number;
@@ -17,21 +18,31 @@ export async function GET(request: NextRequest) {
       year = parseInt(parts[0], 10);
       month = parseInt(parts[1], 10);
     } else {
-      year = now.getFullYear();
-      month = now.getMonth() + 1;
+      const pktNow = new Date(now.getTime() + 5 * 60 * 60 * 1000);
+      year = pktNow.getUTCFullYear();
+      month = pktNow.getUTCMonth() + 1;
     }
 
     if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
       return NextResponse.json({ error: 'Invalid month format. Use YYYY-MM' }, { status: 400 });
     }
 
-    // Calculate month boundaries
-    const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
-    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+    // Calculate month boundaries in PAKISTAN timezone (PKT = UTC+5, no DST).
+    // Previously used server-local `new Date(year, month-1, 1)` — on a UTC
+    // server (Vercel) the month started at 05:00 PKT, so PKT transactions
+    // between 00:00–04:59 on the 1st leaked into the wrong month and every
+    // month summary disagreed with the PKT-based dashboard/analysis reports.
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const startDate = new Date(Date.UTC(year, month - 1, 1, -5, 0, 0, 0)); // PKT 1st 00:00
+    const endDate = new Date(Date.UTC(year, month - 1, lastDay, 18, 59, 59, 999)); // PKT last day 23:59:59.999
 
     const pool = getPool();
 
-    // Fetch all transactions in the month with shop and creator info
+    // Fetch all transactions in the month with shop and creator info.
+    // Type filter: credit + recovery + supplier_collection.
+    // `supplier_collection` counts as recovery (money collected back) so the
+    // month summary matches the dashboard/OB totals. Claims are excluded
+    // (write-offs are not credit or recovery).
     const monthTxnRes = await pool.query(
       `SELECT t.id, t.type, t.amount, t."shopId", t."createdBy", t."createdAt",
               s.id AS "shop_id", s.name AS "shop_name", s.area AS "shop_area",
@@ -40,6 +51,7 @@ export async function GET(request: NextRequest) {
        LEFT JOIN "Shop" s ON t."shopId" = s.id
        LEFT JOIN "User" c ON t."createdBy" = c.id
        WHERE t."createdAt" >= $1 AND t."createdAt" <= $2 AND t.status = 'approved'
+         AND t.type IN ('credit', 'recovery', 'supplier_collection')
        ORDER BY t."createdAt" ASC`,
       [startDate.toISOString(), endDate.toISOString()]
     );
@@ -47,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate totals
     const creditTxns = monthTransactions.filter((t: any) => t.type === 'credit');
-    const recoveryTxns = monthTransactions.filter((t: any) => t.type === 'recovery');
+    const recoveryTxns = monthTransactions.filter((t: any) => t.type === 'recovery' || t.type === 'supplier_collection');
 
     const totalCredit = creditTxns.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
     const totalRecovery = recoveryTxns.reduce((sum: number, t: any) => sum + Number(t.amount), 0);
@@ -63,13 +75,15 @@ export async function GET(request: NextRequest) {
 
     // Daily breakdown
     const dailyMap: Record<string, { credit: number; recovery: number }> = {};
-    const daysInMonth = new Date(year, month, 0).getDate();
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
     for (let d = 1; d <= daysInMonth; d++) {
       const key = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       dailyMap[key] = { credit: 0, recovery: 0 };
     }
     monthTransactions.forEach((t: any) => {
-      const dayKey = new Date(t.createdAt).toISOString().split('T')[0];
+      // PKT calendar day (UTC day key was wrong for PKT 00:00–04:59 entries)
+      const pktDay = new Date(new Date(t.createdAt).getTime() + 5 * 60 * 60 * 1000);
+      const dayKey = `${pktDay.getUTCFullYear()}-${String(pktDay.getUTCMonth() + 1).padStart(2, '0')}-${String(pktDay.getUTCDate()).padStart(2, '0')}`;
       if (dailyMap[dayKey]) {
         if (t.type === 'credit') {
           dailyMap[dayKey].credit += Number(t.amount);

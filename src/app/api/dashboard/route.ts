@@ -400,7 +400,10 @@ async function fetchDailyTrends(pool: Pool): Promise<DailyTrendDay[]> {
     const { end: rangeEnd } = getPakistanDayRange(todayStr);
 
     // OPTIMIZED: Single SQL query instead of 7 separate day-by-day loops.
-    // Shift UTC timestamps by +5 hours to convert to Pakistan time, then group by date.
+    // NOTE: "createdAt" is a NAIVE timestamp (Prisma `timestamp(3)` storing UTC).
+    // For naive-UTC columns the correct PKT day bucket is `+ INTERVAL '5 hours'`
+    // (`AT TIME ZONE 'Asia/Karachi'` on a naive column interprets it as Karachi
+    // local time and shifts the WRONG way). PKT is a fixed UTC+5 (no DST).
     const trendsRes = await pool.query(
       `SELECT (DATE("createdAt" + INTERVAL '5 hours'))::text AS day, type, SUM(amount) AS total
        FROM "Transaction"
@@ -411,13 +414,17 @@ async function fetchDailyTrends(pool: Pool): Promise<DailyTrendDay[]> {
     );
 
     // Build a map: "YYYY-MM-DD" -> { credit, recovery }
+    // recovery = recovery + supplier_collection (money collected back —
+    // matches the OB totals & summary widgets on the same dashboard).
+    // ACCUMULATE (+=) — two source types map into the recovery bucket, so a
+    // plain assignment would let the last row overwrite the other type's sum.
     const dayMap: Record<string, { credit: number; recovery: number }> = {};
     for (const row of trendsRes.rows) {
       const day = row.day as string;
       if (!dayMap[day]) dayMap[day] = { credit: 0, recovery: 0 };
       const total = Number(row.total);
-      if (row.type === 'credit') dayMap[day].credit = total;
-      if (row.type === 'recovery') dayMap[day].recovery = total;
+      if (row.type === 'credit') dayMap[day].credit += total;
+      if (row.type === 'recovery' || row.type === 'supplier_collection') dayMap[day].recovery += total;
     }
 
     // Fill in all 7 days (including days with zero transactions)
@@ -478,7 +485,7 @@ async function fetchActivityTimeline(pool: Pool): Promise<ActivityTimelineData> 
         `SELECT COUNT(*) FROM "Transaction" WHERE type = 'credit' AND status = 'approved'`
       ),
       pool.query(
-        `SELECT COUNT(*) FROM "Transaction" WHERE type = 'recovery' AND status = 'approved'`
+        `SELECT COUNT(*) FROM "Transaction" WHERE type IN ('recovery', 'supplier_collection') AND status = 'approved'`
       ),
       pool.query(
         `SELECT COUNT(*) FROM "AuditLog" WHERE action = 'edit'`
@@ -616,24 +623,27 @@ async function fetchMonthSummary(pool: Pool): Promise<MonthSummaryData> {
     const prevTxns: Array<{ type: string; amount: number }> =
       prevRes.rows as Array<{ type: string; amount: number }>;
 
-    // Current month aggregates
+    // Current month aggregates (recovery = recovery + supplier_collection
+    // — consistent with fetchOrderbookers and fetchSummary on this route)
     const totalCredit = monthTxns
       .filter((t) => t.type === 'credit')
       .reduce((sum, t) => sum + Number(t.amount), 0);
     const totalRecovery = monthTxns
-      .filter((t) => t.type === 'recovery')
+      .filter((t) => t.type === 'recovery' || t.type === 'supplier_collection')
       .reduce((sum, t) => sum + Number(t.amount), 0);
     const netPosition = totalRecovery - totalCredit;
     const transactionCount = monthTxns.length;
     const creditCount = monthTxns.filter((t) => t.type === 'credit').length;
-    const recoveryCount = monthTxns.filter((t) => t.type === 'recovery').length;
+    const recoveryCount = monthTxns.filter((t) => t.type === 'recovery' || t.type === 'supplier_collection').length;
 
-    // Top recovery and credit days
+    // Top recovery and credit days (PKT calendar day keys — UTC keys put
+    // PKT 00:00–04:59 activity on the previous day)
     const recoveryByDay: Record<string, number> = {};
     const creditByDay: Record<string, number> = {};
     monthTxns.forEach((t) => {
-      const dayKey = new Date(t.createdAt).toISOString().split('T')[0];
-      if (t.type === 'recovery') {
+      const pktDay = new Date(new Date(t.createdAt).getTime() + 5 * 60 * 60 * 1000);
+      const dayKey = `${pktDay.getUTCFullYear()}-${String(pktDay.getUTCMonth() + 1).padStart(2, '0')}-${String(pktDay.getUTCDate()).padStart(2, '0')}`;
+      if (t.type === 'recovery' || t.type === 'supplier_collection') {
         recoveryByDay[dayKey] = (recoveryByDay[dayKey] || 0) + Number(t.amount);
       } else if (t.type === 'credit') {
         creditByDay[dayKey] = (creditByDay[dayKey] || 0) + Number(t.amount);
@@ -654,12 +664,12 @@ async function fetchMonthSummary(pool: Pool): Promise<MonthSummaryData> {
       }
     }
 
-    // Previous month aggregates
+    // Previous month aggregates (recovery includes supplier_collection)
     const prevTotalCredit = prevTxns
       .filter((t) => t.type === 'credit')
       .reduce((sum, t) => sum + Number(t.amount), 0);
     const prevTotalRecovery = prevTxns
-      .filter((t) => t.type === 'recovery')
+      .filter((t) => t.type === 'recovery' || t.type === 'supplier_collection')
       .reduce((sum, t) => sum + Number(t.amount), 0);
     const prevNetPosition = prevTotalRecovery - prevTotalCredit;
 
@@ -743,10 +753,14 @@ async function fetchSummary(pool: Pool): Promise<SummaryData> {
         `SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type = 'credit' AND status = 'approved'`
       ),
       pool.query(
-        `SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type = 'recovery' AND status = 'approved'`
+        `SELECT COALESCE(SUM(amount), 0) AS total FROM "Transaction" WHERE type IN ('recovery', 'supplier_collection') AND status = 'approved'`
       ),
+      // ACTIVE shops only — previously summed ALL shops incl. inactive,
+      // so summary.netBalance disagreed with the per-OB outstanding
+      // totals (fetchOrderbookers filters s.status = 'active') on the
+      // same dashboard response.
       pool.query(
-        `SELECT COALESCE(SUM(balance), 0) AS total FROM "Shop"`
+        `SELECT COALESCE(SUM(balance), 0) AS total FROM "Shop" WHERE status = 'active'`
       ),
     ]);
 

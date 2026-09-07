@@ -12,6 +12,14 @@
  *   3. Recomputes ShopCompanyBalance per (shopId, companyId)
  *   4. Sets Shop.balance = sum of all company balances (so they always match)
  *
+ * Transaction types and their effect on the running balance:
+ *   credit                +amount  (udhaar dena)
+ *   recovery              -amount  (wasooli)
+ *   supplier_collection   -amount  (supplier se wasooli)
+ *   claim                 -amount  (claim / maafi)
+ *   balance_adjustment    ±amount  (SIGNED: tally resolution/void corrections —
+ *                                  does NOT count as credit or recovery in KPIs)
+ *
  * MUST be called inside an active transaction (client passed in).
  * Non-approved transactions (pending/rejected) get prev=new=current (no effect).
  */
@@ -42,7 +50,7 @@ export async function recalcShopBalances(
 
   // 2. Compute running balance + per-company totals
   let runningBalance = 0;
-  const companyTotals: Record<string, { credit: number; recovery: number; claim: number }> = {};
+  const companyTotals: Record<string, { credit: number; recovery: number; claim: number; supplier_collection: number; adjustment: number }> = {};
   let transactionsUpdated = 0;
 
   for (const t of txnsRes.rows) {
@@ -59,17 +67,23 @@ export async function recalcShopBalances(
         runningBalance -= amount;
       } else if (t.type === 'claim') {
         runningBalance -= amount;
+      } else if (t.type === 'balance_adjustment') {
+        // SIGNED amount: positive increases balance, negative decreases it.
+        // Used by tally resolve/void so corrections don't pollute
+        // credit/recovery KPI totals.
+        runningBalance += amount;
       }
 
       // Track per-company totals (only for transactions with a companyId)
       if (companyId) {
         if (!companyTotals[companyId]) {
-          companyTotals[companyId] = { credit: 0, recovery: 0, claim: 0, supplier_collection: 0 };
+          companyTotals[companyId] = { credit: 0, recovery: 0, claim: 0, supplier_collection: 0, adjustment: 0 };
         }
         if (t.type === 'credit') companyTotals[companyId].credit += amount;
         else if (t.type === 'recovery') companyTotals[companyId].recovery += amount;
         else if (t.type === 'supplier_collection') companyTotals[companyId].supplier_collection += amount;
         else if (t.type === 'claim') companyTotals[companyId].claim += amount;
+        else if (t.type === 'balance_adjustment') companyTotals[companyId].adjustment += amount; // signed
       }
     }
 
@@ -89,12 +103,13 @@ export async function recalcShopBalances(
   }
 
   // 3. Compute correct per-company balances
-  //    For each company that has transactions, balance = credit - recovery - claim
+  //    For each company that has transactions:
+  //    balance = credit - recovery - supplier_collection - claim + adjustment(signed)
   //    For companies with ShopCompanyBalance but no transactions, keep existing
   const correctCompanyBalances: Record<string, number> = {};
   for (const [compId, totals] of Object.entries(companyTotals)) {
     correctCompanyBalances[compId] =
-      Math.round((totals.credit - totals.recovery - totals.supplier_collection - totals.claim) * 100) / 100;
+      Math.round((totals.credit - totals.recovery - totals.supplier_collection - totals.claim + totals.adjustment) * 100) / 100;
   }
 
   // 4. Update ShopCompanyBalance entries

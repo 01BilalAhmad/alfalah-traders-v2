@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool, getClient } from '@/lib/pg';
 import crypto from 'crypto';
+import { recalcShopBalances } from '@/lib/recalc-balances';
 
 // SECURITY: Get authenticated user ID from proxy header (set by JWT verification)
 function getAuthenticatedUser(request: NextRequest): { userId: string; role: string } | null {
@@ -327,10 +328,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Maximum 50 transactions per sync batch' }, { status: 400 });
     }
 
+    // ─── SECURITY: IDOR prevention — preload the user's assigned shopIds ──
+    // Without this check, an authenticated OB could submit transactions
+    // for shops that are NOT assigned to them — manipulating other OBs'
+    // shops' balances or polluting other OBs' ledgers.
+    //
+    // We preload the user's assigned shopIds ONCE here (before the
+    // per-transaction loop) so the per-tx check is a fast Set lookup
+    // instead of a SQL query per transaction.
+    //
+    // A shop is considered "assigned" if EITHER:
+    //   - Shop.orderbookerId == userId  (primary assignment)
+    //   - EXISTS in ShopOrderbooker with userId  (secondary assignment)
+    //
+    // Admins bypass this check — they sometimes need to post on
+    // behalf of any shop for operational reasons (e.g., back-dated
+    // corrections during customer onboarding).
+    const userShopIds = new Set<string>();
+    if (auth.role !== 'admin') {
+      const pool = getPool();
+      try {
+        // Try the UNION query (primary + secondary assignments).
+        const userShopsRes = await pool.query(
+          `SELECT s.id AS shop_id FROM "Shop" s WHERE s."orderbookerId" = $1
+           UNION
+           SELECT so."shopId" AS shop_id FROM "ShopOrderbooker" so WHERE so."orderbookerId" = $1`,
+          [auth.userId]
+        );
+        for (const row of userShopsRes.rows) {
+          if (row.shop_id) userShopIds.add(row.shop_id);
+        }
+      } catch {
+        // ShopOrderbooker table may not exist on very old DBs —
+        // fall back to primary-only assignment via Shop.orderbookerId.
+        try {
+          const userShopsRes = await pool.query(
+            `SELECT id FROM "Shop" WHERE "orderbookerId" = $1`,
+            [auth.userId]
+          );
+          for (const row of userShopsRes.rows) {
+            if (row.id) userShopIds.add(row.id);
+          }
+        } catch {
+          // If even Shop table is missing, userShopIds stays empty —
+          // all transactions will be rejected with 'Shop not assigned'.
+          // That's the safe default for an unknown DB state.
+        }
+      }
+    }
+
     const client = await getClient();
     try {
       const results = [];
       const errors = [];
+      // Track shops that received a CREDIT in this batch — their balances
+      // get a ledger-based recalc after the loop (see post-batch block).
+      const creditedShopIds = new Set<string>();
 
       for (const tx of transactions) {
         try {
@@ -343,6 +396,18 @@ export async function POST(request: NextRequest) {
           // SECURITY: Override createdBy with authenticated user ID
           // Prevents impersonation — user can only create transactions as themselves
           const createdBy = auth.role === 'admin' ? (tx.createdBy || auth.userId) : auth.userId;
+
+          // SECURITY: IDOR check — verify this shop is assigned to the user.
+          // Admins bypass (auth.role === 'admin' means userShopIds is empty Set
+          // and the check is skipped — see preload block above).
+          if (auth.role !== 'admin' && !userShopIds.has(tx.shopId)) {
+            errors.push({
+              localId: tx.localId,
+              error: 'Shop not assigned to your account — transaction rejected to prevent cross-OB data manipulation.',
+              code: 'SHOP_NOT_ASSIGNED',
+            });
+            continue;
+          }
 
           await client.query('BEGIN');
 
@@ -372,7 +437,12 @@ export async function POST(request: NextRequest) {
           const txnStatus = txType === 'credit' ? 'approved' : 'pending';
 
           // Fetch shop for balance calculation
-          const shopRes = await client.query('SELECT balance, status, "orderbookerId" FROM "Shop" WHERE id = $1', [tx.shopId]);
+          // FOR UPDATE: row-level lock for the duration of this transaction so
+          // a concurrent sync (retry / double-tap / parallel batch upload) on
+          // the same shop cannot read the same starting balance and overwrite
+          // our write (lost-update race that corrupted Shop.balance). The
+          // post-batch recalc below heals any residual drift.
+          const shopRes = await client.query('SELECT balance, status, "orderbookerId" FROM "Shop" WHERE id = $1 FOR UPDATE', [tx.shopId]);
           if (shopRes.rows.length === 0) {
             await client.query('ROLLBACK');
             errors.push({ localId: tx.localId, error: 'Shop not found' });
@@ -470,6 +540,10 @@ export async function POST(request: NextRequest) {
 
           await client.query('COMMIT');
 
+          if (txType === 'credit') {
+            creditedShopIds.add(tx.shopId);
+          }
+
           results.push({
             localId: tx.localId,
             serverId: txRes.rows[0].id,
@@ -482,6 +556,28 @@ export async function POST(request: NextRequest) {
             localId: tx.localId,
             error: err.message,
           });
+        }
+      }
+
+      // ─── POST-BATCH RECALC (ledger-based healing) ──────────────────
+      // The web POST /api/transactions path runs recalcShopBalances inside
+      // its transaction; mobile sync previously relied only on its direct
+      // read-modify-write UPDATE of Shop.balance / ShopCompanyBalance,
+      // which can drift under concurrent batches. Re-deriving the balance
+      // from the approved transaction ledger after the batch guarantees
+      // Shop.balance + ShopCompanyBalance always equal the sum of approved
+      // transactions. Pending recoveries don't change balances (their
+      // prev/new display values are refreshed by the same call).
+      for (const sid of creditedShopIds) {
+        try {
+          await client.query('BEGIN');
+          await recalcShopBalances(client, sid);
+          await client.query('COMMIT');
+        } catch (recalcErr: any) {
+          try { await client.query('ROLLBACK'); } catch {}
+          console.error(`[Mobile sync] Post-batch recalc failed for shop ${sid}:`, recalcErr);
+          // Non-blocking: the transactions themselves are committed; the
+          // next write to this shop (web or sync) re-runs recalc and heals.
         }
       }
 

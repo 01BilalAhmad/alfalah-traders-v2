@@ -372,9 +372,17 @@ export async function GET() {
     const pool = getPool();
     const res = await pool.query('SELECT COUNT(*) as count FROM "User"');
     const count = parseInt(res.rows[0].count);
-    return NextResponse.json({ needsSetup: count === 0, userCount: count });
+    // SECURITY: previously this returned { needsSetup, userCount } — leaking
+    // the actual user count to anyone who hit GET /api/setup (public route).
+    // Now we only return the boolean. The count itself is admin-only info.
+    return NextResponse.json({ needsSetup: count === 0 });
   } catch (error: unknown) {
+    // If the User table doesn't exist yet, this is the very first install.
     const msg = error instanceof Error ? error.message : 'Unknown error';
+    const isTableMissing = /relation "User" does not exist|relation "user" does not exist/i.test(msg);
+    if (isTableMissing) {
+      return NextResponse.json({ needsSetup: true });
+    }
     return NextResponse.json({ error: msg, needsSetup: true }, { status: 500 });
   }
 }

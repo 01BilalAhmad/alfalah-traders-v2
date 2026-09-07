@@ -18,6 +18,16 @@ function getPakistanDayRange(dateStr: string): { start: Date; end: Date } {
   return { start, end };
 }
 
+// Helper: Today's date string (YYYY-MM-DD) in Pakistan timezone.
+// Server-local getFullYear()/getMonth()/getDate() are WRONG on UTC servers
+// (Vercel) between PKT midnight and UTC midnight — a 5-hour window every
+// night where "today" points at yesterday, breaking same-day duplicate
+// checks and daily credit caps.
+function getPakistanTodayStr(): string {
+  const pktNow = new Date(Date.now() + 5 * 60 * 60 * 1000);
+  return `${pktNow.getUTCFullYear()}-${String(pktNow.getUTCMonth() + 1).padStart(2, '0')}-${String(pktNow.getUTCDate()).padStart(2, '0')}`;
+}
+
 // GET /api/transactions?shopId=xxx&orderbookerId=xxx&date=xxx&startDate=xxx&type=xxx
 export async function GET(request: NextRequest) {
   try {
@@ -208,10 +218,9 @@ export async function POST(request: NextRequest) {
     if (type === 'recovery') {
       try {
         const pool = getPool();
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999);
+        // PKT day boundaries — server-local setHours(0,0,0,0) was wrong on
+        // UTC servers (5-hour nightly window where "today" = yesterday)
+        const { start: todayStart, end: todayEnd } = getPakistanDayRange(getPakistanTodayStr());
 
         const dupCheckRes = await pool.query(
           `SELECT * FROM "Transaction"
@@ -315,10 +324,8 @@ export async function POST(request: NextRequest) {
       const warnings: string[] = [];
       if (type === 'credit') {
         // Use customDate if provided (for backdated entries), otherwise use today
-        const dateToCheck = customDate || (() => {
-          const today = new Date();
-          return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        })();
+        // (today = PKT calendar day, NOT the server's local day)
+        const dateToCheck = customDate || getPakistanTodayStr();
         const [year, month, day] = dateToCheck.split('-').map(Number);
         const dayStart = new Date(Date.UTC(year, month - 1, day, -5, 0, 0, 0));
         const dayEnd = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
@@ -365,6 +372,50 @@ export async function POST(request: NextRequest) {
       // Admin recoveries are auto-approved (no need for another admin to approve)
       const isAdmin = creatorRole === 'admin' || creatorRole === 'super_admin';
       const txnStatus = type === 'recovery' ? (isAdmin ? 'approved' : 'pending') : 'approved';
+
+      // ─── Multi-company authorization check (NEW) ──────────────────
+      // If a companyId was supplied in the body (mobile app sends the
+      // user's primary company from the login response), verify the
+      // creator is actually assigned to that company via UserCompany.
+      //
+      // WHY: previously the companyId was validated for existence in the
+      // Company table, but NOT for assignment to the creator. An OB
+      // who has companies [A, B] could submit a transaction tagged with
+      // companyId=C (which exists but isn't theirs), and it would be
+      // accepted — polluting company C's ledger with their activity.
+      //
+      // Admins bypass: they sometimes need to post on behalf of any
+      // company for operational reasons (e.g., back-dated corrections
+      // during customer onboarding).
+      //
+      // Backward compat: if the UserCompany table doesn't exist yet
+      // (very old DBs before multi-company feature), the try/catch
+      // silently falls through and the txn is accepted — preserving
+      // prior behavior for legacy installs.
+      if (companyId && !isAdmin) {
+        try {
+          const userCompanyRes = await client.query(
+            `SELECT 1 FROM "UserCompany"
+              WHERE "userId" = $1 AND "companyId" = $2
+              LIMIT 1`,
+            [createdBy, companyId]
+          );
+          if (userCompanyRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return NextResponse.json(
+              {
+                error: 'You are not assigned to this company. Please select a company that is assigned to your account, or contact an admin.',
+                code: 'COMPANY_NOT_ASSIGNED',
+              },
+              { status: 403 }
+            );
+          }
+        } catch (userCompanyErr) {
+          // UserCompany table may not exist on very old DBs — log and proceed.
+          console.error('[Transactions] UserCompany check failed (table may not exist):', userCompanyErr);
+        }
+      }
+      // ─── End multi-company authorization check ────────────────────
 
       // If recovery and no companyId, infer from ShopCompanyBalance (highest balance first) or shop's orderbooker
       let effectiveCompanyId = companyId || null;

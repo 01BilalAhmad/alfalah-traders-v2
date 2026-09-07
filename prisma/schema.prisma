@@ -88,7 +88,7 @@ model Shop {
 model Transaction {
   id            String   @id @default(cuid())
   shopId        String
-  type          String   // "credit", "recovery", or "claim"
+  type          String   // "credit", "recovery", "supplier_collection", "claim", or "balance_adjustment" (SIGNED amount: tally resolve/void corrections)
   status        String   @default("approved") // "pending", "approved", "rejected"
   amount        Float
   previousBalance Float
@@ -109,12 +109,42 @@ model Transaction {
   creator User           @relation("CreditBy", fields: [createdBy], references: [id])
   company Company?       @relation(fields: [companyId], references: [id])
 
+  // ── Single-column indexes (existing — kept for backward compat) ──
   @@index([shopId])
   @@index([type])
   @@index([status])
   @@index([createdBy])
   @@index([createdAt])
   @@index([companyId])
+
+  // ── Compound indexes (new — speed up the most common report queries) ──
+  // Without these, every admin report scans the full Transaction table
+  // once it grows past ~10k rows. FMCG distributors hit that in 6 months.
+  //
+  // 1. (shopId, createdAt) — shop ledger / shop detail analytics /
+  //    shop balance trend. Mobile app's /api/reports/ledger also hits
+  //    this pattern when an OB pulls a shop's account statement.
+  @@index([shopId, createdAt])
+
+  // 2. (createdBy, createdAt) — orderbooker performance, daily activity,
+  //    OB weekly report. Currently uses createdAt alone and then filters
+  //    createdBy in JS — becomes a full scan as OB count grows.
+  @@index([createdBy, createdAt])
+
+  // 3. (companyId, type, status, createdAt) — company-wise reports
+  //    (monthly summary, credit-recovery analysis, aging). The most
+  //    expensive admin query today because it filters by all 4 columns.
+  @@index([companyId, type, status, createdAt])
+
+  // 4. (type, status, createdAt) — pending-recovery workflow:
+  //    \"SELECT ... WHERE type='recovery' AND status='pending' ORDER BY createdAt\"
+  //    Admin's \"Approve Recovery\" page hits this on every refresh.
+  @@index([type, status, createdAt])
+
+  // 5. (shopId, type, createdAt) — shop balance recalculation utility.
+  //    recalc-balances.ts groups transactions per shop per type to
+  //    recompute the running balance after a correction.
+  @@index([shopId, type, createdAt])
 }
 
 model AuditLog {

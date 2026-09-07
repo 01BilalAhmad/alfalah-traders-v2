@@ -1,12 +1,20 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from '@/lib/jwt';
+import { checkUserRateLimit, checkIpRateLimit } from '@/lib/rate-limit';
 
 // ─── Token Configuration ────────────────────────────────────────
 // Token verification is now handled by @/lib/jwt (verifyToken)
 // Legacy format support is maintained for backward compatibility
 
-// ─── General Rate Limiting ───────────────────────────────────────
+// ─── General Rate Limiting — DEPRECATED (kept for fallback only) ──
+// The active rate limiter now lives in @/lib/rate-limit.ts and is
+// Postgres-backed (works across serverless instances). The in-memory
+// Map below is only used as an L1 fast-path cache inside that helper.
+//
+// This block is preserved only so that any external code (or future
+// refactor) that still imports these symbols doesn't break at runtime.
+// It is NOT called by the proxy function anymore.
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT = 100; // Max requests per window
 const RATE_WINDOW = 60 * 1000; // 1 minute window
@@ -21,11 +29,15 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// ─── Login Rate Limiting (stricter than general) ────────────────
-// 5 login attempts per 15 minutes per IP — prevents brute force
-const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
+// ─── Login Rate Limiting constants (used by Postgres-backed path) ─
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+// ─── DEPRECATED: per-IP in-memory login limiter (kept for reference) ──
+// Replaced by checkIpRateLimit() in @/lib/rate-limit.ts. The Map-based
+// version is per-instance only and therefore bypassable across
+// serverless instances.
+const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
 
 let lastCleanup = Date.now();
 function cleanupStaleLoginEntries() {
@@ -48,6 +60,9 @@ function getClientIP(request: NextRequest): string {
   );
 }
 
+// ─── DEPRECATED: sync checkRateLimit / isLoginRateLimited ───────────
+// Kept for backward compatibility with any external code that still
+// imports them. Not called by the proxy function — see rate-limit.ts.
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(ip);
@@ -96,14 +111,42 @@ function isLoginRateLimited(ip: string): boolean {
 // Now: returns null for unrecognized origins, and the caller skips setting
 // the Access-Control-Allow-Origin header in that case (browsers will block
 // the cross-origin read).
+//
+// AUDIT NOTE (Tier A fix #10):
+// React Native (the Finexa mobile app) does NOT enforce CORS — its fetch
+// implementation isn't a browser, so the Origin header isn't sent in
+// production. This means the mobile app's API calls bypass this allowlist
+// entirely, which is the intended behavior (mobile uses Bearer JWT auth,
+// not cookies).
+//
+// The allowlist below is therefore only relevant for:
+//   1. The web admin frontend (alfalah-traders.vercel.app)
+//   2. Vercel preview deployments (regex match below)
+//   3. Local web dev (http://localhost:3000)
+//   4. Legacy Capacitor builds (capacitor://localhost) — kept for safety
+//   5. Expo dev server (http://localhost:8081) — for the React Native
+//      WebView on map.tsx (the inline HTML loads OpenStreetMap tiles
+//      from https://tile.openstreetmap.org, but no API calls to backend)
+//
+// If you add a new frontend domain, add it here too.
 const ALLOWED_ORIGINS = [
+  // Production web frontends
   'https://alfalah-traders.vercel.app',
   'https://finexa-cms.vercel.app',
   'https://finexa-cms-s-projects.vercel.app',
+  // Local web dev
   'http://localhost:3000',
+  // Legacy Capacitor (old Android APK builds — no longer maintained,
+  // but kept for safety in case some users still have old APKs installed)
   'capacitor://localhost',
   'http://localhost',
   'https://localhost',
+  // Expo / React Native dev server (the mobile app in development)
+  // Production RN apps don't send an Origin header at all, so these are
+  // only relevant for `expo start` + WebView testing.
+  'http://localhost:8081',
+  'http://localhost:8082',
+  'expo://localhost',
 ];
 
 function getAllowedOrigin(request: NextRequest): string | null {
@@ -199,7 +242,11 @@ const ADMIN_ONLY_ROUTES = [
 // Supports both new JWT tokens and legacy session-{userId}-{timestamp} format
 
 // ─── Proxy (Next.js 16 — replaces deprecated middleware) ──────────
-export function proxy(request: NextRequest) {
+// async because distributed rate limiting (checkIpRateLimit,
+// checkUserRateLimit) calls Postgres. The L1 in-memory cache inside
+// rate-limit.ts keeps hot paths fast — only cold starts and rate-limit
+// boundary checks actually hit the DB.
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Only apply to API routes
@@ -217,27 +264,36 @@ export function proxy(request: NextRequest) {
     return response;
   }
 
-  // ─── General Rate Limiting ───────────────────────────────────
+  // ─── General Rate Limiting (per-IP, Postgres-backed L2 + in-memory L1) ─
+  // Replaces the old per-IP in-memory Map. The Map was per-instance only,
+  // so on Vercel serverless the "100 req/min" limit became "100 req/min per
+  // instance" — an attacker spreading requests across N instances got N×100
+  // effective requests per minute. Now Postgres is the source of truth.
   const clientIP = getClientIP(request);
-  if (!checkRateLimit(clientIP)) {
+  const ipRL = await checkIpRateLimit(clientIP, RATE_LIMIT, RATE_WINDOW);
+  if (!ipRL.allowed) {
     const response = NextResponse.json(
       { error: 'Too many requests. Please try again later.' },
       { status: 429 }
     );
     setCorsHeaders(response, request);
-    response.headers.set('Retry-After', '60');
+    response.headers.set('Retry-After', String(ipRL.retryAfter || 60));
     return response;
   }
 
-  // ─── Login Rate Limiting (stricter: 5 attempts / 15 min) ────
+  // ─── Login Rate Limiting (per-IP, Postgres-backed; 5 attempts/15 min) ──
+  // NOTE: per-username rate limiting (5 attempts per username per 15 min)
+  // is enforced inside the login route handler via checkLoginRateLimit()
+  // — the proxy can't read the request body to extract the username.
   if ((pathname === '/api/auth/login' || pathname === '/api/orderbooker/login') && request.method === 'POST') {
-    cleanupStaleLoginEntries();
-    if (isLoginRateLimited(clientIP)) {
+    const loginRL = await checkIpRateLimit(clientIP, MAX_LOGIN_ATTEMPTS, LOGIN_WINDOW_MS);
+    if (!loginRL.allowed) {
       const response = NextResponse.json(
         { error: 'Too many login attempts. Please try again in 15 minutes.' },
         { status: 429 }
       );
       setCorsHeaders(response, request);
+      response.headers.set('Retry-After', String(loginRL.retryAfter || 900));
       return response;
     }
   }
@@ -292,6 +348,28 @@ export function proxy(request: NextRequest) {
     );
     setCorsHeaders(response, request);
     return response;
+  }
+
+  // ─── Per-user distributed rate limit (Postgres-backed) ─────────
+  // After token verification, we have a stable userId we can rate-limit
+  // on. This works ACROSS serverless instances (unlike the per-IP Map
+  // above), so an attacker who steals a token can't brute-force API
+  // endpoints by spreading requests across instances.
+  //
+  // Default: 200 req/min per user. Production OB traffic rarely
+  // exceeds 30 req/min, but sync bursts (e.g., 50 offline recoveries
+  // uploaded at once) can briefly hit ~60 req/min — 200 is generous.
+  if (verified.userId) {
+    const userRL = await checkUserRateLimit(verified.userId, 200, 60 * 1000);
+    if (!userRL.allowed) {
+      const response = NextResponse.json(
+        { error: 'Rate limit exceeded. Please slow down your requests.' },
+        { status: 429 }
+      );
+      setCorsHeaders(response, request);
+      response.headers.set('Retry-After', String(userRL.retryAfter || 60));
+      return response;
+    }
   }
 
   // ─── SECURITY: Admin-only route check ───────────────────────
@@ -354,15 +432,34 @@ export function proxy(request: NextRequest) {
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
 
-  // ─── Security Headers ───────────────────────────────────────
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('X-XSS-Protection', '1; mode=block');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set(
-    'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=(self)'
-  );
+  // ─── Security Headers — DEFERRED to next.config.ts ───────────
+  // Previously, proxy.ts set the following headers HERE on every API
+  // response:
+  //   X-Content-Type-Options: nosniff
+  //   X-Frame-Options: DENY
+  //   X-XSS-Protection: 1; mode=block  ← DEPRECATED by modern browsers
+  //   Referrer-Policy: strict-origin-when-cross-origin
+  //   Permissions-Policy: camera=(), microphone=(), geolocation=(self)
+  //
+  // These were DUPLICATES of headers already set globally in
+  // next.config.ts → headers() → source '/(.*)' — which applies to
+  // ALL routes including /api/*.
+  //
+  // Worse, the proxy.ts version of Permissions-Policy was LESS
+  // restrictive than next.config.ts (missing payment=(), usb=(),
+  // magnetometer=(), gyroscope=(), accelerometer=()). When both
+  // versions are emitted, the more-restrictive one wins — but if
+  // the order changed in future Next.js releases, we'd silently
+  // regress to the weaker policy.
+  //
+  // Fix: rely on next.config.ts as the single source of truth.
+  // That config also sets Strict-Transport-Security, Content-Security-Policy,
+  // X-DNS-Prefetch-Control, and X-Permitted-Cross-Domain-Policies,
+  // which were missing from proxy.ts entirely.
+  //
+  // If you need to add a route-specific security header override,
+  // add it to next.config.ts → headers() with a more specific `source`
+  // pattern, NOT here in proxy.ts.
 
   return response;
 }

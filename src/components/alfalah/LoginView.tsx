@@ -62,14 +62,16 @@ export default function LoginView() {
       setUsername(saved);
       setRememberMe(true);
     }
-    apiFetch('/api/setup', { method: 'POST' })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          console.log('Auto-setup: Tables & users created');
-        }
-      })
-      .catch(() => {});
+    // SECURITY: Previously this useEffect fired POST /api/setup on EVERY login
+    // page load. That endpoint runs DDL (CREATE TABLE / ALTER TABLE) and a
+    // SELECT COUNT(*) FROM "User" on every call — wasteful and it exposed a
+    // public DDL surface to anyone who simply opened the login page.
+    //
+    // Setup is now only triggered manually by an admin from the Settings
+    // panel (via the protected POST /api/setup route, which requires admin
+    // auth once the first user exists). First-install still works because
+    // the route handler detects "no users exist" and allows the bootstrap
+    // POST without auth.
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {

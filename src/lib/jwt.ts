@@ -14,15 +14,27 @@
 import jwt from 'jsonwebtoken';
 
 // ─── Configuration ──────────────────────────────────────────────
-const JWT_SECRET = process.env.JWT_SECRET || 'finexa-default-secret-change-in-production';
+// SECURITY: Fail-fast — if JWT_SECRET is not set, the app CANNOT start.
+// Previously this had a hardcoded fallback ('finexa-default-secret-change-in-production')
+// which meant a forgotten env var in production silently made all tokens forgeable.
+// Now: throws synchronously when the module is first imported, surfacing the
+// misconfiguration immediately on boot instead of leaving a forgeable secret in place.
+const RAW_JWT_SECRET = process.env.JWT_SECRET;
+
+if (!RAW_JWT_SECRET || RAW_JWT_SECRET.length < 32) {
+  // Throw with a clear, actionable message. The error fires on first import,
+  // which means the very first request that touches this module will 500 —
+  // forcing the operator to fix the env var before going live.
+  throw new Error(
+    '[security] JWT_SECRET environment variable is required and must be at least 32 characters long. ' +
+    'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))" ' +
+    'and set it in your Vercel project settings / .env file.'
+  );
+}
+
+const JWT_SECRET = RAW_JWT_SECRET as string;
 const JWT_EXPIRES_IN = '7d'; // 7 days — matches old token age
 const OLD_TOKEN_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
-
-// SECURITY: Warn if using default JWT secret (not configured via env var)
-if (JWT_SECRET === 'finexa-default-secret-change-in-production' && process.env.NODE_ENV === 'production') {
-  console.error('⚠️  SECURITY WARNING: JWT_SECRET is not set! Using default secret — tokens can be forged.');
-  console.error('⚠️  Set JWT_SECRET environment variable immediately.');
-}
 
 // ─── Types ──────────────────────────────────────────────────────
 export interface TokenPayload {
@@ -109,6 +121,8 @@ export function verifyToken(token: string): VerifyResult {
 }
 
 // ─── Check if JWT_SECRET is properly configured ─────────────────
+// After the fail-fast check above, JWT_SECRET is ALWAYS set when this code runs.
+// Kept for backward compat with callers that still poll it (e.g., /api/setup).
 export function isJwtConfigured(): boolean {
-  return JWT_SECRET !== 'finexa-default-secret-change-in-production';
+  return true;
 }

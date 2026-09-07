@@ -14,15 +14,44 @@ const execAsync = promisify(exec);
 // sends to admin email. GitHub-independent — works even if GitHub
 // accounts are suspended.
 //
-// CRON_AUTH_TOKEN environment variable must match query param to prevent
-// unauthorized access.
+// AUTH: Vercel Cron automatically sends `Authorization: Bearer <CRON_SECRET>`
+// header when CRON_SECRET env var is set on the project. We also accept
+// ?token=<CRON_AUTH_TOKEN> as a query param for manual triggers / legacy
+// support — but BOTH paths now require the env var to be set. There is
+// NO hardcoded fallback anymore.
 export async function GET(request: NextRequest) {
   try {
-    // ── Auth check (prevent unauthorized access) ──
-    const authToken = process.env.CRON_AUTH_TOKEN || 'finexa-backup-2026';
-    const providedToken = request.nextUrl.searchParams.get('token');
-    if (providedToken !== authToken) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // ── Auth check — fail-fast if no secret configured ──
+    const cronSecret = process.env.CRON_SECRET;          // Vercel's recommended env var name
+    const legacyToken = process.env.CRON_AUTH_TOKEN;      // legacy env var (still respected)
+    const configuredSecret = cronSecret || legacyToken;
+
+    if (!configuredSecret) {
+      // No env var = no auth possible. Fail loudly instead of leaving the
+      // endpoint open or falling back to a hardcoded default.
+      return NextResponse.json(
+        {
+          error: 'Cron auth not configured',
+          message: 'Set CRON_SECRET (preferred) or CRON_AUTH_TOKEN env var in Vercel project settings to enable cron auth.',
+        },
+        { status: 500 }
+      );
+    }
+
+    // Path 1: Vercel Cron's Bearer header (preferred).
+    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
+    if (authHeader) {
+      const match = /^Bearer\s+(.+)$/i.exec(authHeader);
+      const bearerToken = match ? match[1] : null;
+      if (bearerToken !== configuredSecret) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    } else {
+      // Path 2: Legacy ?token= query param (kept for manual triggers).
+      const providedToken = request.nextUrl.searchParams.get('token');
+      if (providedToken !== configuredSecret) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
     const results: string[] = [];
@@ -63,10 +92,14 @@ export async function GET(request: NextRequest) {
       const pool = getPool();
 
       // Backup key tables
+      // NOTE: ShopTally/TellerSession/TellerAssignment/Notification added
+      // after tally history was permanently lost in a DB incident — the
+      // weekly backup never contained tally data before this fix.
       const tables = [
         'Shop', 'User', 'Company', 'Transaction', 'ShopCompanyBalance',
         'ShopOrderbooker', 'UserCompany', 'DailyTarget', 'SmsLog',
         'RouteSession', 'RouteShopVisit', 'ShopVisit', 'ShopNote',
+        'ShopTally', 'TellerSession', 'TellerAssignment', 'Notification',
       ];
 
       const dbBackup: Record<string, any[]> = {};
