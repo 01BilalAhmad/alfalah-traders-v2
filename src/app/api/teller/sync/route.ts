@@ -2,16 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/pg';
 import { requireAuth } from '@/lib/auth-guard';
 import { ensureTallyTables } from '@/lib/tally-migrations';
+import { getOverdueShops, OVERDUE_THRESHOLD_DAYS } from '@/lib/overdue';
 
 // GET /api/teller/sync — ONE bulk endpoint for teller app
 // Returns everything the teller app needs in a SINGLE network round-trip:
 //   - valid (token validation)
 //   - user (id, name, role)
-//   - shops (with routeDays + lastTally + orderbookerName)
+//   - shops (with routeDays + lastTally + orderbookerName + FIFO overdue fields)
 //   - tallies (today's tallies by this teller)
 //   - session (active session if any)
 //   - notifications (last 50)
 //   - businessName
+//   - overdueSummary (count + totals for the red banner)
+//
+// v2 overdue fields per shop (same FIFO logic as the web Overdue page):
+//   - overdueAmount — unpaid portion of bills 14+ days old
+//   - daysSinceCredit — days since OLDEST unpaid bill (FIFO age)
+//   - oldestUnpaidCreditDate — ISO date of the oldest unpaid bill
+//   - unpaidBills — top 5 oldest unpaid bills { date, amount, remaining, daysOld }
+//   - unpaidBillCount — total unpaid bills
+//   - isOverdue — oldest unpaid bill is 14+ days old
 //
 // This replaces 7 separate API calls → 1 call → 3-5x faster sync.
 // Mirrors the pattern of /api/mobile/sync (OB app) but scoped for tellers.
@@ -122,6 +132,75 @@ export async function GET(request: NextRequest) {
         for (const shop of shops) {
           shop.companyBalances = scbMap.get(shop.id) || [];
         }
+      }
+    }
+
+    // ─── 2.5 FIFO overdue fields (v2 — same logic as web Overdue page) ──
+    // Merges per-shop overdue data into the shops array + builds overdueSummary
+    // for the teller app's red dashboard banner, "Overdue" filter chip and
+    // per-shop unpaid-bills breakdown (dates + amounts).
+    let overdueSummary = {
+      count: 0,
+      threshold: OVERDUE_THRESHOLD_DAYS,
+      totalOutstanding: 0,
+      totalOverdue: 0,
+    };
+    if (shops.length > 0) {
+      try {
+        const fifoShops = await getOverdueShops({
+          includeNonOverdue: true,
+          minDays: 0,
+          limit: 2000,
+        });
+        const fifoMap = new Map(fifoShops.map((s) => [s.shopId, s]));
+        let overdueCount = 0;
+        let totalOutstanding = 0;
+        let totalOverdue = 0;
+        for (const shop of shops) {
+          const f = fifoMap.get(shop.id);
+          if (f) {
+            // FIFO diverged from ledger (claims) → ledger balance is authoritative
+            shop.overdueAmount = f.fifoMatchesShopBalance
+              ? f.overdueAmount
+              : f.totalBalance;
+            shop.daysSinceCredit = f.daysOverdue;
+            shop.oldestUnpaidCreditDate = f.oldestUnpaidCreditDate;
+            shop.fifoMatchesShopBalance = f.fifoMatchesShopBalance;
+            shop.isOverdue =
+              f.daysOverdue >= OVERDUE_THRESHOLD_DAYS && shop.overdueAmount > 0;
+            shop.unpaidBillCount = f.unpaidBills.length;
+            shop.unpaidBills = f.unpaidBills.slice(0, 5).map((b) => ({
+              date: b.date ? new Date(b.date).toISOString() : null,
+              amount: b.amount,
+              remaining: b.remaining,
+              daysOld: b.daysOld,
+              companyId: b.companyId ?? null,
+            }));
+          } else {
+            // No unpaid bills per FIFO (balance 0 or fully covered) — clean shop
+            shop.overdueAmount = 0;
+            shop.daysSinceCredit = 0;
+            shop.oldestUnpaidCreditDate = null;
+            shop.fifoMatchesShopBalance = true;
+            shop.isOverdue = false;
+            shop.unpaidBillCount = 0;
+            shop.unpaidBills = [];
+          }
+          if (shop.isOverdue) {
+            overdueCount++;
+            totalOutstanding += shop.balance;
+            totalOverdue += shop.overdueAmount;
+          }
+        }
+        overdueSummary = {
+          count: overdueCount,
+          threshold: OVERDUE_THRESHOLD_DAYS,
+          totalOutstanding,
+          totalOverdue,
+        };
+      } catch (e) {
+        // Overdue computation must never break the whole sync
+        console.error('[Teller Sync API] overdue computation failed:', e);
       }
     }
 
@@ -290,6 +369,8 @@ export async function GET(request: NextRequest) {
       notifications,
       unreadCount: notifications.filter((n) => !n.read).length,
       businessName,
+      overdueSummary,
+      v2: true,
       summary: {
         total: tallies.length,
         verified: verifiedCount,
