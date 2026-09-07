@@ -42,6 +42,7 @@ interface ShopDetail {
   previousBalance: number;
   credit: number;
   recovery: number;
+  claims?: number;
   closingBalance: number;
 }
 
@@ -297,11 +298,12 @@ export default function AdminReconciliation() {
                       Area: shop.shopArea || '',
                       Credit: shop.credit,
                       Recovery: shop.recovery,
+                      Claims: shop.claims ?? 0,
                       'Closing Balance': shop.closingBalance,
                     });
                   });
                 });
-                exportToCSV(rows, `reconciliation-${report.date}`, ['Orderbooker', 'Shop', 'Area', 'Credit', 'Recovery', 'Closing Balance']);
+                exportToCSV(rows, `reconciliation-${report.date}`, ['Orderbooker', 'Shop', 'Area', 'Credit', 'Recovery', 'Claims', 'Closing Balance']);
                 toast({ title: 'Exported', description: 'Reconciliation CSV downloaded' });
               }}
               className="no-print "
@@ -523,6 +525,7 @@ export default function AdminReconciliation() {
                               <TableHead className="text-xs">Shop</TableHead>
                               <TableHead className="text-xs text-right hidden sm:table-cell">Credit</TableHead>
                               <TableHead className="text-xs text-right hidden sm:table-cell">Recovery</TableHead>
+                              <TableHead className="text-xs text-right hidden sm:table-cell">Claims</TableHead>
                               <TableHead className="text-xs text-right">Closing</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -538,6 +541,9 @@ export default function AdminReconciliation() {
                                 </TableCell>
                                 <TableCell className="text-right text-sm text-emerald-600 dark:text-emerald-400 hidden sm:table-cell">
                                   {shop.recovery > 0 ? `-${formatPKR(shop.recovery)}` : '—'}
+                                </TableCell>
+                                <TableCell className="text-right text-sm text-amber-600 dark:text-amber-400 hidden sm:table-cell">
+                                  {(shop.claims ?? 0) > 0 ? `-${formatPKR(shop.claims)}` : '—'}
                                 </TableCell>
                                 <TableCell className="text-right text-sm font-semibold">{formatPKR(shop.closingBalance)}</TableCell>
                               </TableRow>

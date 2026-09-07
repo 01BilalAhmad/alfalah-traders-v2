@@ -88,7 +88,7 @@ model Shop {
 model Transaction {
   id            String   @id @default(cuid())
   shopId        String
-  type          String   // "credit", "recovery", or "claim"
+  type          String   // "credit", "recovery", "supplier_collection", "claim", or "balance_adjustment" (SIGNED amount: tally resolve/void corrections)
   status        String   @default("approved") // "pending", "approved", "rejected"
   amount        Float
   previousBalance Float

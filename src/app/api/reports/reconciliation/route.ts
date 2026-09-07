@@ -73,8 +73,9 @@ export async function GET(request: NextRequest) {
     const pool = getPool();
 
     // Get all transactions for the day with shop and creator info
+    // (previousBalance IS selected — the opening-balance math below needs it)
     const dayTxnRes = await pool.query(
-      `SELECT t.id, t.type, t.amount, t."shopId", t."createdAt", t.description,
+      `SELECT t.id, t.type, t.amount, t."shopId", t."createdAt", t.description, t."previousBalance",
               s.id AS "shop_id", s.name AS "shop_name", s.area AS "shop_area", s."orderbookerId" AS "shop_orderbookerId",
               c.id AS "creator_id", c.name AS "creator_name", c.role AS "creator_role"
        FROM "Transaction" t
@@ -87,13 +88,15 @@ export async function GET(request: NextRequest) {
 
     const dayTransactions: any[] = dayTxnRes.rows;
 
-    // Calculate totals
+    // Calculate totals (recovery = recovery + supplier_collection —
+    // consistent with dashboard/OB totals; claims & balance_adjustment
+    // corrections are not day-activity recovery)
     const totalCredit = dayTransactions
       .filter((t: any) => t.type === 'credit')
       .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
     const totalRecovery = dayTransactions
-      .filter((t: any) => t.type === 'recovery')
+      .filter((t: any) => t.type === 'recovery' || t.type === 'supplier_collection')
       .reduce((sum: number, t: any) => sum + Number(t.amount), 0);
 
     // Group by orderbooker
@@ -106,8 +109,10 @@ export async function GET(request: NextRequest) {
         );
         const ob = obRes.rows[0];
         const obTransactions = dayTransactions.filter((t: any) => t.shop_orderbookerId === obId);
+        // recovery includes supplier_collection (same convention as totals)
+        const isRecoveryType = (t: any) => t.type === 'recovery' || t.type === 'supplier_collection';
         const obCredit = obTransactions.filter((t: any) => t.type === 'credit').reduce((s: number, t: any) => s + Number(t.amount), 0);
-        const obRecovery = obTransactions.filter((t: any) => t.type === 'recovery').reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const obRecovery = obTransactions.filter(isRecoveryType).reduce((s: number, t: any) => s + Number(t.amount), 0);
 
         // Get shop-level details
         const shopDetails = await Promise.all(
@@ -118,17 +123,33 @@ export async function GET(request: NextRequest) {
             );
             const shop = shopRes.rows[0];
             const shopTxns = obTransactions.filter((t: any) => t.shopId === shopId);
+            // dayTransactions are ordered DESC — the EARLIEST txn of the day
+            // is the LAST element. Its previousBalance is the true
+            // start-of-day balance (recalcShopBalances keeps these columns
+            // chronologically consistent even after backdated inserts).
+            // FORMULA FIX: previously used the LATEST txn's previousBalance
+            // (balance mid-day, not start-of-day) with an `|| 0` fallback
+            // that ALSO triggered on a legitimate 0 balance and silently
+            // substituted the CURRENT (post-day) shop balance.
+            const earliest = shopTxns.length > 0 ? shopTxns[shopTxns.length - 1] : null;
+            const openingBalance = earliest && earliest.previousBalance != null
+              ? Number(earliest.previousBalance)
+              : (shop?.balance != null ? Number(shop.balance) : 0);
             const credit = shopTxns.filter((t: any) => t.type === 'credit').reduce((s: number, t: any) => s + Number(t.amount), 0);
-            const recovery = shopTxns.filter((t: any) => t.type === 'recovery').reduce((s: number, t: any) => s + Number(t.amount), 0);
-            const prevBalance = shopTxns[0]?.previousBalance || shop?.balance || 0;
+            const recovery = shopTxns.filter((t: any) => t.type === 'recovery' || t.type === 'supplier_collection').reduce((s: number, t: any) => s + Number(t.amount), 0);
+            // Claims (write-offs) reduce the balance but are neither credit nor
+            // recovery — they get their own field so closing = prev + credit −
+            // recovery − claims ALWAYS ties to the real shop balance.
+            const claims = shopTxns.filter((t: any) => t.type === 'claim').reduce((s: number, t: any) => s + Number(t.amount), 0);
             return {
               shopId,
               shopName: shop?.name || 'Unknown',
               shopArea: shop?.area || '',
-              previousBalance: Math.round(Number(prevBalance) * 100) / 100,
+              previousBalance: Math.round(openingBalance * 100) / 100,
               credit: Math.round(credit * 100) / 100,
               recovery: Math.round(recovery * 100) / 100,
-              closingBalance: Math.round((Number(prevBalance) + credit - recovery) * 100) / 100,
+              claims: Math.round(claims * 100) / 100,
+              closingBalance: Math.round((openingBalance + credit - recovery - claims) * 100) / 100,
             };
           })
         );

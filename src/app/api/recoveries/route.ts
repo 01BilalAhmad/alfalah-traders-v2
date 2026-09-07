@@ -280,9 +280,16 @@ export async function POST(request: NextRequest) {
           );
           const freshShopBalance = Number(freshShopRes.rows[0]?.balance ?? 0);
 
-          // For recovery: deduct from shop balance. For credit: add to shop balance.
+          // For recovery-like types: deduct from shop balance.
+          // For credit (legacy pending credits): add to shop balance.
+          // SIGN FIX: supplier_collection and claim also REDUCE the balance
+          // (they are money collected / written off) — previously they fell
+          // into the else-branch and were ADDED, producing a wrong intermediate
+          // newBalance that recalc fixed later in the DB but which leaked into
+          // the customer-facing SMS ("Remaining balance" line).
+          const DEDUCTION_TYPES = ['recovery', 'supplier_collection', 'claim'];
           let newBalance: number;
-          if (txn.type === 'recovery') {
+          if (DEDUCTION_TYPES.includes(txn.type)) {
             newBalance = Math.round((freshShopBalance - Number(txn.amount)) * 100) / 100;
           } else {
             // Credit approval (legacy pending credits)
@@ -349,7 +356,7 @@ export async function POST(request: NextRequest) {
               );
               if (scbRes.rows.length > 0) {
                 let newCompanyBalance: number;
-                if (txn.type === 'recovery') {
+                if (DEDUCTION_TYPES.includes(txn.type)) {
                   newCompanyBalance = Math.round((Number(scbRes.rows[0].balance) - Number(txn.amount)) * 100) / 100;
                 } else {
                   newCompanyBalance = Math.round((Number(scbRes.rows[0].balance) + Number(txn.amount)) * 100) / 100;
