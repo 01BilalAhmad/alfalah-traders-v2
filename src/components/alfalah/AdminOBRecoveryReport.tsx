@@ -136,13 +136,38 @@ function groupShopsByCompany(recoveryShops: ShopRecovery[]): {
     totalClosing: number;
   }>();
 
+  const addToGeneral = (shop: ShopRecovery) => {
+    const noCompKey = '_none_';
+    const existing = companyMap.get(noCompKey);
+    if (existing) {
+      existing.shops.push(shop);
+      existing.totalRecovery += shop.todayRecovery;
+      existing.totalPrevBalance += shop.previousBalance;
+      existing.totalCredit += shop.todayCredit;
+      existing.totalClosing += shop.closingBalance;
+    } else {
+      companyMap.set(noCompKey, {
+        companyId: noCompKey,
+        companyName: 'General',
+        shops: [shop],
+        totalRecovery: shop.todayRecovery,
+        totalPrevBalance: shop.previousBalance,
+        totalCredit: shop.todayCredit,
+        totalClosing: shop.closingBalance,
+      });
+    }
+  };
+
   for (const shop of recoveryShops) {
+    let assignedToAnyCompany = false;
+
     // Determine which company this shop's recovery belongs to
     // If shop has companyBreakdown, find the company with recovery
     if (shop.companyBreakdown && shop.companyBreakdown.length > 0) {
       // Shop has company breakdown — assign to each company that has recovery or credit
       for (const comp of shop.companyBreakdown) {
         if (comp.todayRecovery > 0 || comp.todayCredit > 0) {
+          assignedToAnyCompany = true;
           const existing = companyMap.get(comp.companyId);
           if (existing) {
             existing.shops.push(shop);
@@ -163,27 +188,17 @@ function groupShopsByCompany(recoveryShops: ShopRecovery[]): {
           }
         }
       }
-    } else {
-      // No company breakdown — put under "Other" / no company
-      const noCompKey = '_none_';
-      const existing = companyMap.get(noCompKey);
-      if (existing) {
-        existing.shops.push(shop);
-        existing.totalRecovery += shop.todayRecovery;
-        existing.totalPrevBalance += shop.previousBalance;
-        existing.totalCredit += shop.todayCredit;
-        existing.totalClosing += shop.closingBalance;
-      } else {
-        companyMap.set(noCompKey, {
-          companyId: noCompKey,
-          companyName: 'General',
-          shops: [shop],
-          totalRecovery: shop.todayRecovery,
-          totalPrevBalance: shop.previousBalance,
-          totalCredit: shop.todayCredit,
-          totalClosing: shop.closingBalance,
-        });
-      }
+    }
+
+    // SAFETY FALLBACK: a shop with recovery/credit that didn't match any company
+    // group must still appear in the report — otherwise its payments vanish.
+    // (The API now attributes every transaction to a company — or "General" —
+    // but this guard makes the UI bulletproof against any data shape.)
+    if (
+      !assignedToAnyCompany &&
+      (shop.todayRecovery > 0 || shop.todayCredit > 0)
+    ) {
+      addToGeneral(shop);
     }
   }
 
