@@ -191,6 +191,17 @@ interface Company {
   status: string;
 }
 
+/**
+ * Company-scoped balance lookup.
+ * Returns the shop's balance for the given company (0 when the shop has no entry for it).
+ * Returns null when no companyId is given — caller should fall back to the shop's total balance.
+ */
+function getCompanyBalance(shop: Shop, companyId: string | null | undefined): number | null {
+  if (!companyId) return null;
+  const cb = shop.companyBalances?.find((c) => c.companyId === companyId);
+  return cb ? cb.balance : 0;
+}
+
 export default function AdminCreditPosting() {
   const { user, creditSessionCount, incrementCreditSessionCount } = useAppStore();
   const { businessName } = useBusinessName();
@@ -932,6 +943,28 @@ export default function AdminCreditPosting() {
       // Session entry list me add karo — detail + total isi screen par
       if (quickPostEntries.length === 0) setQuickPostDayStartTotal(todayTotal);
       appendQuickPostEntry(txn, amount, quickPostSelectedShop, 'Goods supplied');
+
+      // Optimistically refresh balances in the local quick-post list so the
+      // next selection shows the updated (company-scoped + total) numbers
+      // without re-fetching the whole list mid-session.
+      const postedShopId = quickPostSelectedShop.id;
+      const companyNameForId = companies.find((c) => c.id === companyToUse)?.name || '';
+      const withUpdatedBalances = (s: Shop): Shop => {
+        const updatedTotal = s.balance + amount;
+        if (!companyToUse) return { ...s, balance: updatedTotal };
+        const existingCb = s.companyBalances?.find((cb) => cb.companyId === companyToUse);
+        const companyBalances = existingCb
+          ? (s.companyBalances || []).map((cb) =>
+              cb.companyId === companyToUse ? { ...cb, balance: cb.balance + amount } : cb
+            )
+          : [
+              ...(s.companyBalances || []),
+              { companyId: companyToUse, companyName: companyNameForId, balance: amount, creditLimit: 0 },
+            ];
+        return { ...s, balance: updatedTotal, companyBalances };
+      };
+      setQuickPostAllShops((prev) => prev.map((s) => (s.id === postedShopId ? withUpdatedBalances(s) : s)));
+      setQuickPostSelectedShop((prev) => (prev && prev.id === postedShopId ? withUpdatedBalances(prev) : prev));
       setQuickPostJustPosted(true);
 
       // Clear checkmark after 1.5s and go back to search
@@ -2111,6 +2144,19 @@ export default function AdminCreditPosting() {
                         setQuickPostSearch(e.target.value);
                         setShowCreateShop(false);
                       }}
+                      onKeyDown={(e) => {
+                        // Enter selects the first matched shop (same filter as the visible list)
+                        if (e.key === 'Enter' && !quickPostAllShopsLoading) {
+                          const q = quickPostSearch.trim().toLowerCase();
+                          if (!q) return;
+                          const matches = quickPostAllShops.filter((s) =>
+                            s.name.toLowerCase().includes(q) || (s.address || '').toLowerCase().includes(q)
+                          );
+                          if (matches.length > 0) {
+                            handleOpenCreditDialog(matches[0]);
+                          }
+                        }
+                      }}
                       className="pl-9 h-10 text-sm"
                       autoFocus
                     />
@@ -2161,9 +2207,18 @@ export default function AdminCreditPosting() {
                                   )}
                                 </div>
                               </div>
-                              <span className="text-sm font-bold text-foreground shrink-0 ml-2">
-                                {formatPKR(shop.balance)}
-                              </span>
+                              {(() => {
+                                // Company-scoped balance: when a quick-post company is selected,
+                                // show ONLY that company's balance (never mix other companies')
+                                const companyBal = getCompanyBalance(shop, quickPostCompany);
+                                const display = companyBal !== null ? companyBal : shop.balance;
+                                const isZero = companyBal !== null && companyBal === 0;
+                                return (
+                                  <span className={`text-sm font-bold shrink-0 ml-2 tabular-nums ${isZero ? 'text-emerald-500 dark:text-emerald-400' : 'text-foreground'}`}>
+                                    {formatPKR(display)}
+                                  </span>
+                                );
+                              })()}
                             </button>
                           ))}
                         {!quickPostAllShopsLoading && quickPostSearch.trim() && quickPostAllShops.filter((s) => {
@@ -2437,9 +2492,20 @@ export default function AdminCreditPosting() {
                         <p className="text-sm font-bold text-foreground">{quickPostSelectedShop.name}</p>
                         {quickPostSelectedShop.address && <p className="text-[10px] text-muted-foreground">{quickPostSelectedShop.address}</p>}
                       </div>
-                      <span className="text-sm font-bold text-foreground">
-                        Bal: {formatPKR(quickPostSelectedShop.balance)}
-                      </span>
+                      {(() => {
+                        // Company-scoped balance with company label (e.g. "Noms Bal: Rs 8,000")
+                        const companyBal = getCompanyBalance(quickPostSelectedShop, quickPostCompany);
+                        const display = companyBal !== null ? companyBal : quickPostSelectedShop.balance;
+                        const isZero = companyBal !== null && companyBal === 0;
+                        const companyLabel = quickPostCompany
+                          ? companies.find((c) => c.id === quickPostCompany)?.name
+                          : '';
+                        return (
+                          <span className={`text-sm font-bold tabular-nums ${isZero ? 'text-emerald-500 dark:text-emerald-400' : 'text-foreground'}`}>
+                            {companyLabel ? `${companyLabel} Bal: ` : 'Bal: '}{formatPKR(display)}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -2490,6 +2556,24 @@ export default function AdminCreditPosting() {
                         Allowed: Rs. {TRANSACTION_RULES.MIN_AMOUNT.toLocaleString()} — Rs. {TRANSACTION_RULES.MAX_AMOUNT.toLocaleString()}
                       </p>
                     )}
+                  </div>
+
+                  {/* Quick Amount Chips — one-tap common amounts */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {[500, 1000, 5000, 10000].map((val) => (
+                      <button
+                        key={val}
+                        type="button"
+                        disabled={postingCredit}
+                        onClick={() => {
+                          setQuickPostAmount(String(val));
+                          setQuickPostAmountError('');
+                        }}
+                        className="px-2.5 py-1 rounded-full border border-border/60 text-[11px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors disabled:opacity-50"
+                      >
+                        {val % 1000 === 0 ? `${val / 1000}k` : val.toLocaleString()}
+                      </button>
+                    ))}
                   </div>
 
                   {/* Quick Post Button */}
@@ -2545,13 +2629,28 @@ export default function AdminCreditPosting() {
               )}
 
               <div className="space-y-4 py-3">
-                {selectedShop && (
+                {selectedShop && (() => {
+                  // Company-scoped balance: when a company is selected, show ONLY that
+                  // company's balance with its name (never mix other companies' balances)
+                  const companyBal = getCompanyBalance(selectedShop, selectedCompany);
+                  const companyLabel = selectedCompany ? companies.find((c) => c.id === selectedCompany)?.name : '';
+                  const displayBalance = companyBal !== null ? companyBal : selectedShop.balance;
+                  const isZero = companyBal !== null && companyBal === 0;
+                  return (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                      <span className="text-sm text-muted-foreground">Current Balance</span>
-                      <span className="font-bold text-sm">{formatPKR(selectedShop.balance)}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {companyBal !== null ? `${companyLabel || 'Company'} Balance` : 'Current Balance'}
+                      </span>
+                      <span className={`font-bold text-sm tabular-nums ${isZero ? 'text-emerald-500 dark:text-emerald-400' : ''}`}>
+                        {formatPKR(displayBalance)}
+                      </span>
                     </div>
-                    {selectedShop.creditLimit > 0 && (() => {
+                    {/* Credit-limit usage only in the total view — company-level limits are not
+                        maintained (always 0), and showing a total-based limit next to a
+                        company-scoped balance would be misleading. The backend's post-submit
+                        total-limit warning banner is unaffected. */}
+                    {selectedShop.creditLimit > 0 && companyBal === null && (() => {
                       const limitStatus = getCreditLimitStatus(selectedShop.balance, selectedShop.creditLimit);
                       const projectedBalance = selectedShop.balance + (parseFloat(creditAmount) || 0);
                       const projectedStatus = getCreditLimitStatus(projectedBalance, selectedShop.creditLimit);
@@ -2590,7 +2689,8 @@ export default function AdminCreditPosting() {
                       );
                     })()}
                   </div>
-                )}
+                  );
+                })()}
                 {/* Credit Limit Warning Banner */}
                 {creditLimitWarning && creditLimitWarning.exceeded && (
                   <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/30 animate-fade-in">
@@ -2646,6 +2746,12 @@ export default function AdminCreditPosting() {
                     onChange={(e) => {
                       setCreditAmount(e.target.value);
                       setAmountError(validateAmountInput(e.target.value));
+                    }}
+                    onKeyDown={(e) => {
+                      // Enter submits — same guards as the Post Credit button
+                      if (e.key === 'Enter' && !postingCredit && creditAmount && parseFloat(creditAmount) > 0 && !amountError) {
+                        handlePostCredit();
+                      }
                     }}
                     min={TRANSACTION_RULES.MIN_AMOUNT}
                     max={TRANSACTION_RULES.MAX_AMOUNT}
