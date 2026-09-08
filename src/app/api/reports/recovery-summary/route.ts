@@ -3,32 +3,86 @@ import pg from 'pg';
 import { getPool } from '@/lib/pg';
 
 // GET /api/reports/recovery-summary?date=xxx&companyId=yyy
+//
+// FIX (multi-company recovery attribution):
+//   Previously the per-shop companyBreakdown was built ONLY from ShopCompanyBalance
+//   rows. If a recovery Transaction carried a companyId that had no matching
+//   ShopCompanyBalance row for that shop (or a NULL companyId), the payment was
+//   attributed to NO company — and the OB Recovery Report UI drops shops whose
+//   companyBreakdown has no company with recovery/credit > 0. Result: real,
+//   approved payments completely vanished from the report (e.g. Jallandher
+//   Sweets with dedicated Noms + CBL shops — only one payment showed).
+//
+//   Now every transaction is attributed to a company using resolveTxnCompany():
+//     1. txn.companyId — EXCEPT when the shop has exactly ONE company in
+//        ShopCompanyBalance (a company-dedicated shop) and the txn's company
+//        differs → the shop's company wins. (The mobile app falls back to the
+//        orderbooker's PRIMARY company when no company is selected, which
+//        mislabels payments on shops dedicated to another company.)
+//     2. NULL companyId → the shop's sole ShopCompanyBalance company, else the
+//        ShopOrderbooker assignment company, else '_none_' (General).
+//   The breakdown is the UNION of ShopCompanyBalance companies and attributed
+//   txn companies, so no approved payment can disappear from the report.
+//
+// FIX (date boundaries): the report now uses the Pakistan (PKT, UTC+5) calendar
+//   day — same convention as /api/transactions, /api/recoveries (update-date)
+//   and the teller sync routes. Previously the raw UTC day was used, which
+//   pushed recoveries collected between PKT 00:00–04:59 onto the previous
+//   report date.
+//
+// FIX (duplicate shop rows): a shop assigned to the same orderbooker through
+//   multiple ShopOrderbooker company rows used to be processed once per row —
+//   duplicating it in the report. Shops are now deduped by id.
+//
+// OWN-recovery attribution (preserved from earlier fix): a shop can have BOTH a
+//   primary and a secondary orderbooker. Each OB's report shows only the
+//   recoveries HE personally took ("createdBy"), while balance math uses ALL
+//   recoveries taken at the shop that day.
+
+const GENERAL_COMPANY_ID = '_none_';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+// Convert a date string (YYYY-MM-DD) to Pakistan timezone day boundaries.
+// PKT 00:00 = UTC 19:00 of the previous day; PKT 23:59 = UTC 18:59.
+function getPakistanDayRange(dateStr: string): { start: Date; end: Date } {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return {
+    start: new Date(Date.UTC(year, month - 1, day, -5, 0, 0, 0)),
+    end: new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999)),
+  };
+}
+
+// Current Pakistan calendar date as YYYY-MM-DD
+function getPakistanTodayStr(): string {
+  const pkt = new Date(Date.now() + 5 * 60 * 60 * 1000);
+  return `${pkt.getUTCFullYear()}-${String(pkt.getUTCMonth() + 1).padStart(2, '0')}-${String(pkt.getUTCDate()).padStart(2, '0')}`;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get('date');
     const companyId = searchParams.get('companyId') || undefined;
 
-    const today = new Date();
-
     let startDate: Date;
     let endDate: Date;
     let displayDate: string;
 
-    if (dateStr) {
+    if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
       displayDate = dateStr;
-      // Use the full UTC day for filtering (Neon stores timestamps in UTC)
-      const [year, month, day] = dateStr.split('-').map(Number);
-      startDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-      endDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+      // Pakistan timezone day (Neon stores timestamps in UTC; PKT 00:00 = UTC 19:00 prev day)
+      const range = getPakistanDayRange(dateStr);
+      startDate = range.start;
+      endDate = range.end;
     } else {
-      // Use current date in UTC for filtering
-      const year = today.getUTCFullYear();
-      const month = today.getUTCMonth();
-      const day = today.getUTCDate();
-      startDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
-      endDate = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
-      displayDate = `${String(year)}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      // Use current date in Pakistan for filtering
+      displayDate = getPakistanTodayStr();
+      const range = getPakistanDayRange(displayDate);
+      startDate = range.start;
+      endDate = range.end;
     }
 
     const pool = getPool();
@@ -79,6 +133,66 @@ interface CompanyBreakdown {
   shops: number;
 }
 
+interface ShopRow {
+  id: string;
+  name: string;
+  area: string | null;
+  address: string | null;
+  balance: number;
+  companyId: string | null;
+  isSecondary: boolean;
+}
+
+interface TxnRow {
+  id: string;
+  type: string;
+  amount: number;
+  previousBalance: number;
+  newBalance: number;
+  createdAt: Date | string;
+  description: string | null;
+  gpsLat: number | null;
+  gpsLng: number | null;
+  companyId: string | null;
+  createdBy: string;
+}
+
+/**
+ * Resolve which company a transaction belongs to for REPORT display.
+ *
+ * Rules (in order):
+ *  1. txn.companyId set:
+ *     - If the shop has exactly ONE ShopCompanyBalance company (company-dedicated
+ *       shop) and the txn company differs → use the shop's company. This repairs
+ *       payments that the mobile app labeled with the orderbooker's PRIMARY
+ *       company (its fallback when no company is selected) even though the shop
+ *       is dedicated to another company.
+ *     - Otherwise → txn.companyId.
+ *  2. txn.companyId NULL:
+ *     - Shop's sole ShopCompanyBalance company, if exactly one.
+ *     - Shop's ShopOrderbooker assignment company, if the shop has no SCB rows.
+ *     - Otherwise → '_none_' (General catch-all — always visible in the report).
+ */
+function resolveTxnCompany(
+  txn: TxnRow,
+  scbCompanyIds: string[],
+  shopAssignmentCompanyId: string | null
+): string {
+  if (txn.companyId) {
+    if (scbCompanyIds.length === 1 && scbCompanyIds[0] !== txn.companyId) {
+      return scbCompanyIds[0];
+    }
+    return txn.companyId;
+  }
+  if (scbCompanyIds.length === 1) {
+    return scbCompanyIds[0];
+  }
+  if (scbCompanyIds.length === 0 && shopAssignmentCompanyId) {
+    return shopAssignmentCompanyId;
+  }
+  return GENERAL_COMPANY_ID;
+}
+
 async function generateReport(
   pool: pg.Pool,
   startDate: Date,
@@ -86,6 +200,21 @@ async function generateReport(
   displayDate: string,
   companyId?: string
 ) {
+  // Company name cache (shared across all orderbookers in this request)
+  const companyNameCache = new Map<string, string>();
+  async function getCompanyName(cid: string): Promise<string> {
+    if (cid === GENERAL_COMPANY_ID) return 'General';
+    if (companyNameCache.has(cid)) return companyNameCache.get(cid)!;
+    try {
+      const res = await pool.query('SELECT name FROM "Company" WHERE id = $1 LIMIT 1', [cid]);
+      const name = (res.rows[0] as { name?: string } | undefined)?.name || cid;
+      companyNameCache.set(cid, name);
+      return name;
+    } catch {
+      return cid;
+    }
+  }
+
   // Get all active orderbookers
   const obRes = await pool.query(
     'SELECT id, name, phone FROM "User" WHERE role = \'orderbooker\' AND status = \'active\' ORDER BY name ASC'
@@ -99,9 +228,13 @@ async function generateReport(
         'SELECT id, name, area, address, balance FROM "Shop" WHERE "orderbookerId" = $1 AND status = \'active\' ORDER BY name ASC',
         [ob.id]
       );
-      const primaryShops = primaryShopRes.rows.map((s: { id: string; name: string; area: string | null; address: string | null; balance: number }) => ({
-        ...s,
-        companyId: null as string | null,
+      const primaryShops: ShopRow[] = primaryShopRes.rows.map((s: { id: string; name: string; area: string | null; address: string | null; balance: number }) => ({
+        id: s.id,
+        name: s.name,
+        area: s.area,
+        address: s.address,
+        balance: Number(s.balance) || 0,
+        companyId: null,
         isSecondary: false,
       }));
 
@@ -114,62 +247,85 @@ async function generateReport(
          ORDER BY s.name ASC`,
         [ob.id]
       );
-      const secondaryShops = secondaryShopRes.rows.map((s: { id: string; name: string; area: string | null; address: string | null; balance: number; companyId: string; routeDays: string }) => ({
+      const secondaryShops: ShopRow[] = secondaryShopRes.rows.map((s: { id: string; name: string; area: string | null; address: string | null; balance: number; companyId: string }) => ({
         id: s.id,
         name: s.name,
         area: s.area,
         address: s.address,
-        balance: s.balance,
+        balance: Number(s.balance) || 0,
         companyId: s.companyId,
         isSecondary: true,
-        routeDays: s.routeDays || [],
       }));
 
-      // Merge shops, avoiding duplicates (a shop shouldn't appear as both primary and secondary
-      // for the same orderbooker, but we use a Map to be safe)
-      const shopMap = new Map<string, { id: string; name: string; area: string | null; address: string | null; balance: number; companyId: string | null; isSecondary: boolean }>();
-
-      // Add secondary shops first (they have companyId info)
+      // Merge shops, deduped by shop id.
+      // (Previously keyed by `${id}_${companyId}`, which processed a shop once
+      // per secondary company assignment — duplicating it in the report.)
+      // Secondary entries are preferred (they carry the assignment companyId).
+      const shopMap = new Map<string, ShopRow>();
       for (const s of secondaryShops) {
-        shopMap.set(`${s.id}_${s.companyId}`, s);
+        if (!shopMap.has(s.id)) shopMap.set(s.id, s);
       }
-      // Add primary shops (skip if already present as a secondary assignment for the same shop)
       for (const s of primaryShops) {
-        const key = `${s.id}_null`;
-        const alreadyExists = Array.from(shopMap.keys()).some(k => k.startsWith(`${s.id}_`));
-        if (!alreadyExists) {
-          shopMap.set(key, s);
-        }
+        if (!shopMap.has(s.id)) shopMap.set(s.id, s);
       }
 
       const allShops = Array.from(shopMap.values());
 
-      // Build transaction query parameters
-      // Optional companyId filter for transactions
       const shopRecoveries: ShopRecovery[] = [];
 
       for (const shop of allShops) {
-        // Build transaction query with optional companyId filter
+        // Fetch ALL of the day's approved transactions (all companies, all
+        // creators). Company attribution (and the optional companyId filter)
+        // is applied AFTER resolution so mislabeled transactions still land on
+        // the right company instead of disappearing.
         // EXCLUDE 'Balance Adjustment' entries — these are tally resolution
         // adjustments, NOT actual recoveries by orderbookers. They should
         // only appear in Company Report / Ledger, not in OB Recovery Report.
         // "createdBy" is selected so recoveries can be attributed to the OB
         // who actually took them (see own-recovery filtering below).
-        let txnQuery = `SELECT id, type, amount, "previousBalance", "newBalance", "createdAt", description, "gpsLat", "gpsLng", "companyId", "createdBy"
-             FROM "Transaction"
-             WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'approved'
-             AND (description IS NULL OR description NOT LIKE '%Balance Adjustment%')`;
-        const txnParams: (string | Date)[] = [shop.id, startDate.toISOString(), endDate.toISOString()];
+        const txnRes = await pool.query(
+          `SELECT id, type, amount, "previousBalance", "newBalance", "createdAt", description, "gpsLat", "gpsLng", "companyId", "createdBy"
+           FROM "Transaction"
+           WHERE "shopId" = $1 AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'approved'
+           AND (description IS NULL OR description NOT LIKE '%Balance Adjustment%')
+           ORDER BY "createdAt" DESC`,
+          [shop.id, startDate.toISOString(), endDate.toISOString()]
+        );
+        const dayTxns: TxnRow[] = txnRes.rows.map((t: any) => ({
+          id: t.id,
+          type: t.type,
+          amount: Number(t.amount) || 0,
+          previousBalance: Number(t.previousBalance) || 0,
+          newBalance: Number(t.newBalance) || 0,
+          createdAt: t.createdAt,
+          description: t.description,
+          gpsLat: t.gpsLat != null ? Number(t.gpsLat) : null,
+          gpsLng: t.gpsLng != null ? Number(t.gpsLng) : null,
+          companyId: t.companyId || null,
+          createdBy: t.createdBy,
+        }));
 
-        if (companyId) {
-          txnQuery += ` AND "companyId" = $4`;
-          txnParams.push(companyId);
+        // ── Per-company balances for this shop ──
+        const scbRes = await pool.query(
+          `SELECT "companyId", balance FROM "ShopCompanyBalance" WHERE "shopId" = $1`,
+          [shop.id]
+        );
+        const scbBalances = new Map<string, number>();
+        for (const row of scbRes.rows) {
+          scbBalances.set(row.companyId, Number(row.balance) || 0);
+        }
+        const scbCompanyIds = Array.from(scbBalances.keys());
+
+        // ── Resolve display company for every transaction ──
+        const txnResolvedCompany = new Map<string, string>();
+        for (const t of dayTxns) {
+          txnResolvedCompany.set(t.id, resolveTxnCompany(t, scbCompanyIds, shop.companyId));
         }
 
-        txnQuery += ` ORDER BY "createdAt" DESC`;
-
-        const txnRes = await pool.query(txnQuery, txnParams);
-        const dayTxns = txnRes.rows;
+        // Apply optional companyId filter AFTER resolution
+        const countedTxns = companyId
+          ? dayTxns.filter((t) => txnResolvedCompany.get(t.id) === companyId)
+          : dayTxns;
 
         // Also fetch pending transactions to determine visited status
         // (only the OB's OWN pending recoveries mark a shop as visited for him)
@@ -187,118 +343,99 @@ async function generateReport(
         const pendingRes = await pool.query(pendingQuery, pendingParams);
         const hasPendingRecovery = pendingRes.rows.length > 0;
 
-        const todayCredit = dayTxns.filter((t: { type: string; amount: number }) => t.type === 'credit').reduce((s: number, t: { amount: number }) => s + t.amount, 0);
-        const recoveryTxns = dayTxns.filter((t: { type: string }) => t.type === 'recovery');
-        // ── OWN-recovery attribution (bug fix) ──
-        // A shop can have BOTH a primary and a secondary orderbooker. Each OB's
-        // report must only show the recoveries HE personally took, not the
-        // other OB's recoveries at the same shop. Attribution = "createdBy".
-        const ownRecoveryTxns = recoveryTxns.filter((t: { createdBy: string }) => t.createdBy === ob.id);
-        const todayRecovery = ownRecoveryTxns.reduce((s: number, t: { amount: number }) => s + t.amount, 0);
+        // Credits always count (they are shop-level facts posted by admin).
+        const todayCredit = countedTxns
+          .filter((t) => t.type === 'credit')
+          .reduce((s, t) => s + t.amount, 0);
+        const recoveryTxns = countedTxns.filter((t) => t.type === 'recovery');
+        // ── OWN-recovery attribution (preserved fix) ──
+        // Each OB's report shows only the recoveries HE personally took.
+        const ownRecoveryTxns = recoveryTxns.filter((t) => t.createdBy === ob.id);
+        const todayRecovery = ownRecoveryTxns.reduce((s, t) => s + t.amount, 0);
         // ALL recoveries at the shop today (any OB) — used ONLY for the real
         // closing-balance math so the shop's balance stays accurate.
-        const allRecoverySum = recoveryTxns.reduce((s: number, t: { amount: number }) => s + t.amount, 0);
-        const prevBalance = dayTxns.length > 0 ? dayTxns[dayTxns.length - 1].previousBalance : shop.balance;
+        const allRecoverySum = recoveryTxns.reduce((s, t) => s + t.amount, 0);
+        const prevBalance = countedTxns.length > 0
+          ? Number(countedTxns[countedTxns.length - 1].previousBalance) || 0
+          : shop.balance;
 
-        const recoveryEntries = ownRecoveryTxns.map((t: { id: string; amount: number; createdAt: string; description: string | null; gpsLat: number | null; gpsLng: number | null }) => ({
+        const recoveryEntries = ownRecoveryTxns.map((t) => ({
           id: t.id,
-          amount: Math.round(t.amount * 100) / 100,
-          time: t.createdAt,
+          amount: round2(t.amount),
+          time: t.createdAt instanceof Date ? t.createdAt.toISOString() : t.createdAt,
           description: t.description,
           hasGps: !!(t.gpsLat && t.gpsLng),
           gpsLat: t.gpsLat,
           gpsLng: t.gpsLng,
         }));
 
-        // ── Build company-wise breakdown for this shop ──
-        // 1. Get ShopCompanyBalance entries for per-company current balances
-        const scbRes = await pool.query(
-          `SELECT "companyId", balance FROM "ShopCompanyBalance" WHERE "shopId" = $1`,
-          [shop.id]
-        );
-        const shopCompanyBalances: Record<string, number> = {};
-        for (const row of scbRes.rows) {
-          shopCompanyBalances[row.companyId] = Number(row.balance);
-        }
-
-        // 2. Group today's transactions by companyId
-        // Credits always count (they are shop-level facts posted by admin).
-        // Recoveries are attributed: 'recovery' = this OB's own (for display),
-        // 'allRecovery' = every OB's (for the real balance math).
+        // ── Build company-wise breakdown (UNION: SCB companies ∪ attributed txn companies) ──
+        // Credits always count (shop-level facts). Recoveries: 'recovery' = this
+        // OB's own (for display), 'allRecovery' = every OB's (for balance math).
         const txnByCompany = new Map<string, { credit: number; recovery: number; allRecovery: number }>();
-        for (const t of dayTxns) {
-          const cid = t.companyId || '_none_';
+        for (const t of countedTxns) {
+          const cid = txnResolvedCompany.get(t.id) || GENERAL_COMPANY_ID;
           const existing = txnByCompany.get(cid) || { credit: 0, recovery: 0, allRecovery: 0 };
-          if (t.type === 'credit') existing.credit += Number(t.amount);
+          if (t.type === 'credit') existing.credit += t.amount;
           else if (t.type === 'recovery') {
-            existing.allRecovery += Number(t.amount);
-            if (t.createdBy === ob.id) existing.recovery += Number(t.amount);
+            existing.allRecovery += t.amount;
+            if (t.createdBy === ob.id) existing.recovery += t.amount;
           }
           txnByCompany.set(cid, existing);
         }
 
-        // 3. Build company breakdown array
+        const includeIds = new Set<string>([...scbCompanyIds, ...txnByCompany.keys()]);
         const companyBreakdown: ShopCompanyBreakdown[] = [];
 
-        // Get company names for this shop's companies
-        const shopCompanyIds = Object.keys(shopCompanyBalances);
-        if (shopCompanyIds.length > 0) {
-          const compNameRes = await pool.query(
-            `SELECT id, name FROM "Company" WHERE id = ANY($1::text[])`,
-            [shopCompanyIds]
-          );
-          const compNameMap: Record<string, string> = {};
-          for (const row of compNameRes.rows) {
-            compNameMap[row.id] = row.name;
+        for (const cid of includeIds) {
+          const compTxns = txnByCompany.get(cid) || { credit: 0, recovery: 0, allRecovery: 0 };
+
+          if (cid === GENERAL_COMPANY_ID) {
+            // Catch-all for transactions with no company attribution.
+            // Company balances are meaningless here; the shop-level row shows
+            // the real totals.
+            companyBreakdown.push({
+              companyId: GENERAL_COMPANY_ID,
+              companyName: 'General',
+              previousBalance: 0,
+              todayCredit: round2(compTxns.credit),
+              todayRecovery: round2(compTxns.recovery), // this OB's own only
+              closingBalance: 0,
+            });
+            continue;
           }
 
-          for (const cid of shopCompanyIds) {
-            const compTxns = txnByCompany.get(cid) || { credit: 0, recovery: 0, allRecovery: 0 };
-            const currentBal = shopCompanyBalances[cid] || 0;
-            // True previous balance = current balance - today's credit + today's recovery (ALL recoveries,
-            // because the current balance already includes every OB's recovery)
-            const compPrevBalance = Math.round((currentBal - compTxns.credit + compTxns.allRecovery) * 100) / 100;
-            const compClosing = Math.round((compPrevBalance + compTxns.credit - compTxns.allRecovery) * 100) / 100;
-
+          const scbBal = scbBalances.get(cid);
+          if (scbBal !== undefined) {
+            // True previous balance = current balance - today's credit + today's
+            // recovery (ALL recoveries, because the current balance already
+            // includes every OB's recovery)
+            const compPrevBalance = round2(scbBal - compTxns.credit + compTxns.allRecovery);
             companyBreakdown.push({
               companyId: cid,
-              companyName: compNameMap[cid] || cid,
+              companyName: await getCompanyName(cid),
               previousBalance: compPrevBalance,
-              todayCredit: Math.round(compTxns.credit * 100) / 100,
-              todayRecovery: Math.round(compTxns.recovery * 100) / 100, // this OB's own only
-              closingBalance: compClosing,
+              todayCredit: round2(compTxns.credit),
+              todayRecovery: round2(compTxns.recovery), // this OB's own only
+              closingBalance: round2(compPrevBalance + compTxns.credit - compTxns.allRecovery),
+            });
+          } else {
+            // Company appears only in transactions (no ShopCompanyBalance row)
+            companyBreakdown.push({
+              companyId: cid,
+              companyName: await getCompanyName(cid),
+              previousBalance: 0, // Can't determine without ShopCompanyBalance
+              todayCredit: round2(compTxns.credit),
+              todayRecovery: round2(compTxns.recovery), // this OB's own only
+              closingBalance: 0,
             });
           }
-        } else {
-          // No ShopCompanyBalance entries — check if transactions have companyId
-          const txnCompanyIds = [...new Set(
-            dayTxns.map((t: { companyId: string | null }) => t.companyId).filter(Boolean)
-          )] as string[];
-
-          if (txnCompanyIds.length > 0) {
-            const compNameRes = await pool.query(
-              `SELECT id, name FROM "Company" WHERE id = ANY($1::text[])`,
-              [txnCompanyIds]
-            );
-            const compNameMap: Record<string, string> = {};
-            for (const row of compNameRes.rows) {
-              compNameMap[row.id] = row.name;
-            }
-
-            for (const cid of txnCompanyIds) {
-              const compTxns = txnByCompany.get(cid) || { credit: 0, recovery: 0, allRecovery: 0 };
-              // Without ShopCompanyBalance, use transaction data to estimate
-              companyBreakdown.push({
-                companyId: cid,
-                companyName: compNameMap[cid] || cid,
-                previousBalance: 0, // Can't determine without ShopCompanyBalance
-                todayCredit: Math.round(compTxns.credit * 100) / 100,
-                todayRecovery: Math.round(compTxns.recovery * 100) / 100, // this OB's own only
-                closingBalance: 0,
-              });
-            }
-          }
         }
+
+        // Deterministic order: companies with recovery/credit first
+        companyBreakdown.sort(
+          (a, b) => (b.todayRecovery - a.todayRecovery) || (b.todayCredit - a.todayCredit)
+        );
 
         shopRecoveries.push({
           shopId: shop.id,
@@ -306,128 +443,61 @@ async function generateReport(
           shopArea: shop.area,
           shopAddress: shop.address ?? null,
           companyId: shop.companyId,
-          previousBalance: Math.round(prevBalance * 100) / 100,
-          todayCredit: Math.round(todayCredit * 100) / 100,
-          todayRecovery: Math.round(todayRecovery * 100) / 100, // this OB's own recoveries only
+          previousBalance: round2(prevBalance),
+          todayCredit: round2(todayCredit),
+          todayRecovery: round2(todayRecovery), // this OB's own recoveries only
           // Closing = REAL shop balance: prev + credit - ALL recoveries taken
           // at this shop today (by any OB), so outstanding stays accurate.
-          closingBalance: Math.round((prevBalance + todayCredit - allRecoverySum) * 100) / 100,
+          closingBalance: round2(prevBalance + todayCredit - allRecoverySum),
           visited: ownRecoveryTxns.length > 0 || hasPendingRecovery,
           companyBreakdown,
           recoveryEntries, // this OB's own recoveries only
         });
       }
 
-      const totalRecovery = shopRecoveries.reduce((s: number, shop: ShopRecovery) => s + shop.todayRecovery, 0);
-      const visitedShops = shopRecoveries.filter((s: ShopRecovery) => s.visited).length;
+      const totalRecovery = shopRecoveries.reduce((s, shop) => s + shop.todayRecovery, 0);
+      const visitedShops = shopRecoveries.filter((s) => s.visited).length;
 
-      // Build companyBreakdown - aggregate recovery by company
+      // ── OB-level company breakdown: aggregate from shop-level breakdowns ──
+      // (Previously derived from secondary-assignment companyIds + a raw SQL
+      // aggregate over primary shops — which missed mislabeled transactions and
+      // never included General. Aggregating the shop-level breakdowns keeps the
+      // OB totals consistent with what the report table actually shows. This
+      // also removes a latent ReferenceError in the old name-backfill block.)
       const companyMap = new Map<string, { companyId: string; companyName: string; totalRecovery: number; shops: Set<string> }>();
 
-      // Get company names for all relevant company IDs
-      const companyIds = [...new Set(shopRecoveries.map((s: ShopRecovery) => s.companyId).filter(Boolean))] as string[];
-      let companyNames: Record<string, string> = {};
-
-      if (companyIds.length > 0) {
-        const compRes = await pool.query(
-          `SELECT id, name FROM "Company" WHERE id = ANY($1::text[])`,
-          [companyIds]
-        );
-        for (const row of compRes.rows) {
-          companyNames[row.id] = row.name;
-        }
-      }
-
       for (const sr of shopRecoveries) {
-        if (sr.companyId) {
-          const existing = companyMap.get(sr.companyId);
+        for (const comp of sr.companyBreakdown) {
+          if (comp.todayRecovery <= 0 && comp.todayCredit <= 0) continue;
+          const existing = companyMap.get(comp.companyId);
           if (existing) {
-            existing.totalRecovery += sr.todayRecovery;
+            existing.totalRecovery += comp.todayRecovery;
             existing.shops.add(sr.shopId);
           } else {
-            companyMap.set(sr.companyId, {
-              companyId: sr.companyId,
-              companyName: companyNames[sr.companyId] || sr.companyId,
-              totalRecovery: sr.todayRecovery,
+            companyMap.set(comp.companyId, {
+              companyId: comp.companyId,
+              companyName: comp.companyName,
+              totalRecovery: comp.todayRecovery,
               shops: new Set([sr.shopId]),
             });
           }
-        } else {
-          // For shops without a specific companyId (primary shops),
-          // derive company breakdown from their transactions
-          // We already fetched transactions above; re-query for company grouping
         }
       }
 
-      // For primary shops without companyId, get company breakdown from transactions
-      const primaryShopIds = shopRecoveries
-        .filter((s: ShopRecovery) => !s.companyId)
-        .map((s: ShopRecovery) => s.shopId);
-
-      if (primaryShopIds.length > 0) {
-        // NOTE: "createdBy" filter — only recoveries this OB personally took
-        // count toward HIS company breakdown (same attribution rule as above).
-        let breakdownQuery = `SELECT "companyId", SUM(amount) as "totalRecovery", COUNT(DISTINCT "shopId") as shop_count
-           FROM "Transaction"
-           WHERE "shopId" = ANY($1::text[]) AND "createdAt" >= $2 AND "createdAt" <= $3 AND status = 'approved' AND type = 'recovery' AND "companyId" IS NOT NULL AND "createdBy" = $4`;
-        const breakdownParams: (string[] | string | Date)[] = [primaryShopIds, startDate.toISOString(), endDate.toISOString(), ob.id];
-
-        if (companyId) {
-          breakdownQuery += ` AND "companyId" = $5`;
-          breakdownParams.push(companyId);
-        }
-
-        breakdownQuery += ` GROUP BY "companyId"`;
-
-        const breakdownRes = await pool.query(breakdownQuery, breakdownParams);
-
-        for (const row of breakdownRes.rows) {
-          const cid = row.companyId;
-          const existing = companyMap.get(cid);
-          if (existing) {
-            existing.totalRecovery += parseFloat(row.totalRecovery) || 0;
-            // We can't easily merge shop counts without knowing specific shop IDs from this aggregate
-            // So we'll approximate by adding the count
-          } else {
-            companyMap.set(cid, {
-              companyId: cid,
-              companyName: companyNames[cid] || cid,
-              totalRecovery: parseFloat(row.totalRecovery) || 0,
-              shops: new Set(), // We don't have individual shop IDs from this aggregate
-            });
-          }
-        }
-
-        // Fetch company names for any new company IDs
-        const allCompanyIds = Array.from(companyMap.keys());
-        const missingCompanyIds = allCompanyIds.filter(id => !companyNames[id]);
-        if (missingCompanyIds.length > 0) {
-          const compRes = await pool.query(
-            `SELECT id, name FROM "Company" WHERE id = ANY($1::text[])`,
-            [missingCompanyIds]
-          );
-          for (const row of compRes.rows) {
-            companyNames[row.id] = row.name;
-            const entry = companyMap.get(row.id);
-            if (entry) {
-              entry.companyName = row.name;
-            }
-          }
-        }
-      }
-
-      const companyBreakdown: CompanyBreakdown[] = Array.from(companyMap.values()).map(c => ({
-        companyId: c.companyId,
-        companyName: c.companyName,
-        totalRecovery: Math.round(c.totalRecovery * 100) / 100,
-        shops: c.shops.size,
-      }));
+      const companyBreakdown: CompanyBreakdown[] = Array.from(companyMap.values())
+        .sort((a, b) => b.totalRecovery - a.totalRecovery)
+        .map((c) => ({
+          companyId: c.companyId,
+          companyName: c.companyName,
+          totalRecovery: round2(c.totalRecovery),
+          shops: c.shops.size,
+        }));
 
       return {
         orderbookerId: ob.id,
         orderbookerName: ob.name,
         orderbookerPhone: ob.phone,
-        totalRecovery: Math.round(totalRecovery * 100) / 100,
+        totalRecovery: round2(totalRecovery),
         totalShops: allShops.length,
         visitedShops,
         companyBreakdown,
@@ -440,7 +510,7 @@ async function generateReport(
 
   return {
     date: displayDate,
-    grandTotalRecovery: Math.round(grandTotalRecovery * 100) / 100,
+    grandTotalRecovery: round2(grandTotalRecovery),
     orderbookers: recoverySummary,
   };
 }
